@@ -1,0 +1,68 @@
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.top {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 57px;
+  padding: 10px 16px;
+  padding-top: max(10px, env(safe-area-inset-top));
+  border-bottom: 1px solid var(--hair);
+  background: var(--top);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.mark {
+  display: block;
+  height: 22px;
+  width: auto;
+}
+
+:root[data-mode='light'] .markDark,
+:root[data-mode='dark'] .markLight {
+  display: none;
+}
+
+.word {
+  font-weight: 600;
+  font-size: 15px;
+  letter-spacing: 0.01em;
+}
+
+.divider {
+  width: 1px;
+  height: 20px;
+  background: var(--hair);
+}
+
+.title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.canvas {
+  flex: 1;
+  display: grid;
+  place-items: center;
+  min-height: 0;
+  background-color: var(--bg);
+  background-image: radial-gradient(circle, var(--grid) 1px, transparent 1.2px);
+  background-size: 24px 24px;
+}
+
+.empty {
+  margin: 0;
+  color: var(--muted);
+}

@@ -1,0 +1,87 @@
+import { readdirSync, readFileSync, statSync } from 'node:fs'
+import { join, relative } from 'node:path'
+import { describe, expect, it } from 'vitest'
+import themes from '../../design/themes/themes.json'
+import { CONTRAST_RULES, contrastRatio } from './contrast'
+import { ACCENT_IDS, BASE_IDS, DEFAULT_THEME, resolveTokens, themeCss } from './theme'
+
+describe('themes.json', () => {
+  it('defines every token for every base', () => {
+    const expected = Object.keys(themes.bases.vanta.tokens).sort()
+    for (const id of BASE_IDS) {
+      expect(Object.keys(themes.bases[id].tokens).sort(), id).toEqual(expected)
+    }
+  })
+
+  it('gives every accent a dark and a light value', () => {
+    for (const id of ACCENT_IDS) {
+      expect(themes.accents[id].dark, id).toMatch(/^#[0-9A-F]{6}$/i)
+      expect(themes.accents[id].light, id).toMatch(/^#[0-9A-F]{6}$/i)
+    }
+  })
+
+  it('defaults to Vanta, green and Geist', () => {
+    expect(DEFAULT_THEME).toEqual({ base: 'vanta', accent: 'green', font: 'geist' })
+  })
+})
+
+describe('contrast', () => {
+  const combos = BASE_IDS.flatMap((base) => ACCENT_IDS.map((accent) => [base, accent] as const))
+
+  it('covers all 12 base and accent combinations', () => {
+    expect(combos).toHaveLength(12)
+  })
+
+  it.each(combos)('%s + %s passes every rule', (base, accent) => {
+    const tokens = resolveTokens(base, accent)
+    const failures = CONTRAST_RULES.filter(
+      (r) => contrastRatio(tokens[r.fg]!, tokens[r.bg]!) < r.min,
+    ).map((r) => `${r.fg} on ${r.bg}: ${contrastRatio(tokens[r.fg]!, tokens[r.bg]!).toFixed(2)}`)
+    expect(failures).toEqual([])
+  })
+
+  it('agrees with known WCAG values', () => {
+    expect(contrastRatio('#000000', '#FFFFFF')).toBeCloseTo(21, 5)
+    expect(contrastRatio('#777777', '#FFFFFF')).toBeCloseTo(4.48, 2)
+  })
+})
+
+describe('themeCss', () => {
+  const css = themeCss()
+
+  it('has one block per base, per accent per mode and per font', () => {
+    expect(css.match(/\[data-base=/g)).toHaveLength(3)
+    expect(css.match(/\[data-accent=/g)).toHaveLength(8)
+    expect(css.match(/\[data-font=/g)).toHaveLength(2)
+  })
+
+  it('maps reading fonts to the self-hosted variable families', () => {
+    expect(css).toContain("--font-reading:'Geist Variable', 'Geist', ui-sans-serif")
+    expect(css).toContain("--font-reading:'Newsreader Variable', 'Newsreader', Georgia")
+  })
+})
+
+// development-plan.md §1 rule 9: every colour comes from themes.json.
+// Tests are exempt: they need literal colours to check contrast maths.
+describe('no hard-coded colours in src/', () => {
+  const root = join(import.meta.dirname, '..')
+  const files = (dir: string): string[] =>
+    readdirSync(dir).flatMap((name) => {
+      const path = join(dir, name)
+      return statSync(path).isDirectory() ? files(path) : [path]
+    })
+  const colour = /#[0-9a-f]{3,8}\b|\b(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch)\(/gi
+
+  it('finds no hex or functional colour values', () => {
+    const offenders = files(root)
+      .filter((path) => /\.(tsx?|css|html|svg|json)$/.test(path) && !/\.test\.tsx?$/.test(path))
+      .flatMap((path) =>
+        readFileSync(path, 'utf8')
+          .split('\n')
+          .flatMap((line, i) =>
+            line.match(colour) ? [`${relative(root, path)}:${i + 1}: ${line.trim()}`] : [],
+          ),
+      )
+    expect(offenders).toEqual([])
+  })
+})
