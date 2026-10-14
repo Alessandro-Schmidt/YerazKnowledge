@@ -1,0 +1,392 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Yeraz — All trees</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@300..700&amp;family=Geist+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0;background:#030303}
+a{color:#4BE3A0}a:hover{color:#8FF0C4}
+button{font:inherit;color:inherit}
+:focus-visible{outline:2px solid #4BE3A0;outline-offset:2px}
+input::placeholder{color:#7E827D}
+.ic{fill:none;stroke:currentColor;stroke-width:1.6px;stroke-linecap:round;stroke-linejoin:round}
+.griddot{fill:#FFFFFF;fill-opacity:.055}
+.edge{fill:none;stroke:#E8EAE6;stroke-opacity:.12;stroke-width:1px}
+.thr{fill:none;stroke-width:1px;stroke-opacity:.4}
+.xthr{fill:none;stroke-width:1.2px;stroke-opacity:.5;stroke-dasharray:2 6;stroke-linecap:round}
+.xlbl{font-family:'Geist Mono',ui-monospace,monospace;font-size:10px;fill:#8D918C;text-anchor:middle;paint-order:stroke;stroke:#030303;stroke-width:5px}
+.seg{fill:none;stroke-width:4px;stroke-opacity:.5}
+.dot{stroke-width:1.2px}
+.ring{fill:none;stroke:#DCE3DE;stroke-opacity:.4;stroke-width:1px}
+.orbit{fill:none;stroke:#FFFFFF;stroke-opacity:.05;stroke-dasharray:2 6}
+.core{fill:#0B0D0C;stroke:#FFFFFF;stroke-opacity:.09}
+.corelbl{font-family:'Geist Mono',ui-monospace,monospace;font-size:9.5px;fill:#B9BEB9;text-anchor:middle}
+.tree{cursor:pointer;transition:opacity .25s}
+.tree.dim{opacity:.26}
+.hit{fill:transparent}
+.blbl{font-size:9.5px;letter-spacing:.14em;font-weight:500;paint-order:stroke;stroke:#030303;stroke-width:4px;stroke-linejoin:round}
+.tname{font-size:17px;font-weight:500;fill:#E8EAE6;text-anchor:middle}
+.tmeta{font-family:'Geist Mono',ui-monospace,monospace;font-size:10.5px;fill:#8D918C;text-anchor:middle}
+.a-start{text-anchor:start}.a-end{text-anchor:end}.a-mid{text-anchor:middle}
+.hide{display:none}
+.cam{transition:transform .45s cubic-bezier(.2,.7,.2,1)}
+.rrow{transition:background .15s}
+.rrow:hover{background:#101211}
+.rrow.on{background:#121514;box-shadow:inset 2px 0 0 #4BE3A0}
+.ibtn:hover{background:#151716}
+.ghost:hover{background:#111312}
+.primary:hover{filter:brightness(1.08)}
+</style>
+</helmet>
+<div style="height: 100vh; min-height: 640px; display: flex; flex-direction: column; background: #030303; color: #E8EAE6; font-family: 'Geist', ui-sans-serif, system-ui, sans-serif; font-size: 14px; overflow: hidden">
+
+  <header style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap; padding: 10px 16px; border-bottom: 1px solid #1C1E1D; background: #050606">
+    <div style="display: flex; align-items: center; gap: 10px">
+      <img src="/_blob/217475af72b3e6ce501c325e380321f0" alt="" style="height: 22px; width: auto; display: block">
+      <span style="font-weight: 600; font-size: 15px; letter-spacing: 0.01em">Yeraz</span>
+    </div>
+    <span style="width: 1px; height: 20px; background: #1C1E1D"></span>
+    <h1 style="margin: 0; font-size: 14px; font-weight: 500">All trees</h1>
+    <div style="flex: 1 1 260px; display: flex; justify-content: center; min-width: 0">
+      <label style="display: flex; align-items: center; gap: 8px; width: 100%; max-width: 440px; height: 36px; padding: 0 10px; border: 1px solid #1C1E1D; border-radius: 9px; background: #0A0B0B; color: #8D918C; box-sizing: border-box">
+        <svg class="ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="M16 16l4.5 4.5"></path></svg>
+        <span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Search every tree</span>
+        <input type="search" placeholder="Search every tree" style="flex: 1; min-width: 0; height: 100%; border: 0; outline: none; background: transparent; color: #E8EAE6; font: inherit; font-size: 13px">
+        <span style="font-family: 'Geist Mono', ui-monospace, monospace; font-size: 11px; color: #8D918C; border: 1px solid #1C1E1D; border-radius: 5px; padding: 2px 6px">⌘K</span>
+      </label>
+    </div>
+    <div style="display: flex; align-items: center; gap: 8px">
+      <span style="display: inline-flex; align-items: center; gap: 7px; height: 32px; padding: 0 10px; border-radius: 8px; color: #8D918C; font-size: 12px"><span style="width: 7px; height: 7px; border-radius: 50%; background: {{accent}}"></span>All trees synced</span>
+      <button type="button" class="primary" style="display: inline-flex; align-items: center; gap: 7px; height: 36px; padding: 0 14px; border: 0; border-radius: 9px; background: {{accent}}; color: #04130C; font-weight: 600; font-size: 13px; cursor: pointer">
+        <svg class="ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>New leaf
+      </button>
+    </div>
+  </header>
+
+  <div style="flex: 1; display: flex; flex-wrap: wrap; min-height: 0">
+
+    <aside style="flex: 1 1 264px; max-width: 100%; display: flex; flex-direction: column; border-right: 1px solid #1C1E1D; background: #070808; min-width: 0">
+      <div style="display: flex; align-items: baseline; justify-content: space-between; padding: 18px 18px 10px">
+        <h2 style="margin: 0; font-size: 11px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; color: #8D918C">Trees</h2>
+        <span style="font-family: 'Geist Mono', ui-monospace, monospace; font-size: 11px; color: #8D918C">{{treeCount}}</span>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 2px; padding: 0 8px">
+        <sc-for list="{{rail}}" as="r" hint-placeholder-count="4">
+          <button type="button" class="{{r.cls}}" onClick="{{r.pick}}" style="display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px 10px; border: 0; border-radius: 9px; background: transparent; text-align: left; cursor: pointer">
+            <span style="flex-shrink: 0; width: 10px; height: 10px; border-radius: 50%; box-sizing: border-box; border: 1.5px solid {{r.color}}"></span>
+            <span style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px">
+              <span style="font-size: 14px; color: #E8EAE6">{{r.name}}</span>
+              <span style="font-family: 'Geist Mono', ui-monospace, monospace; font-size: 11px; color: #8D918C; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{r.repo}}</span>
+            </span>
+            <span style="font-family: 'Geist Mono', ui-monospace, monospace; font-size: 11px; color: #8D918C">{{r.leaves}}</span>
+          </button>
+        </sc-for>
+      </div>
+      <div style="margin-top: auto; padding: 16px; display: flex; flex-direction: column; gap: 8px; border-top: 1px solid #1C1E1D">
+        <button type="button" class="ghost" style="display: flex; align-items: center; justify-content: center; gap: 8px; height: 40px; border: 1px solid #262927; border-radius: 9px; background: transparent; font-size: 13px; cursor: pointer">
+          <svg class="ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><circle cx="7" cy="6" r="2.2"></circle><circle cx="7" cy="18" r="2.2"></circle><circle cx="17" cy="8" r="2.2"></circle><path d="M7 8.2v7.6M17 10.2c0 3.6-4 4.3-9.4 6.4"></path></svg>Connect repository
+        </button>
+        <button type="button" class="ghost" style="display: flex; align-items: center; justify-content: center; gap: 8px; height: 40px; border: 0; border-radius: 9px; background: transparent; color: #8D918C; font-size: 13px; cursor: pointer">
+          <svg class="ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>Create a new repository
+        </button>
+      </div>
+    </aside>
+
+    <main style="flex: 999 1 560px; min-width: 0; min-height: 520px; position: relative; overflow: hidden; background: #030303">
+      <svg viewBox="0 0 1180 844" preserveAspectRatio="xMidYMid meet" aria-label="Map of every connected tree" style="position: absolute; inset: 0; width: 100%; height: 100%; display: block; font-family: 'Geist', ui-sans-serif, system-ui, sans-serif">
+        <defs>
+          <pattern id="yz-dots" width="28" height="28" patternUnits="userSpaceOnUse"><circle class="griddot" cx="1.5" cy="1.5" r="1"></circle></pattern>
+        </defs>
+        <rect x="-1200" y="-1200" width="3580" height="3244" style="fill: url(#yz-dots)" onClick="{{clear}}"></rect>
+        <g class="cam" style="transform: scale({{zoom}}); transform-origin: 590px 422px">
+          <sc-for list="{{xthreads}}" as="x" hint-placeholder-count="3">
+            <path class="xthr" d="{{x.d}}" style="stroke: {{x.color}}"></path>
+            <text class="xlbl" x="{{x.lx}}" y="{{x.ly}}">{{x.label}}</text>
+          </sc-for>
+          <sc-for list="{{trees}}" as="t" hint-placeholder-count="4">
+            <g class="{{t.cls}}" onClick="{{t.pick}}">
+              <circle class="hit" cx="{{t.cx}}" cy="{{t.cy}}" r="{{t.hitR}}"></circle>
+              <circle class="orbit" cx="{{t.cx}}" cy="{{t.cy}}" r="{{t.orbitR}}"></circle>
+              <sc-for list="{{t.edges}}" as="e"><path class="edge" d="{{e.d}}"></path></sc-for>
+              <sc-for list="{{t.threads}}" as="h"><path class="thr" d="{{h.d}}" style="stroke: {{t.color}}"></path></sc-for>
+              <sc-for list="{{t.segs}}" as="s"><path class="seg" d="{{s.d}}" style="stroke: {{t.color}}"></path></sc-for>
+              <sc-for list="{{t.nodes}}" as="n">
+                <circle class="{{n.ringCls}}" cx="{{n.x}}" cy="{{n.y}}" r="{{n.ringR}}"></circle>
+                <circle class="dot" cx="{{n.x}}" cy="{{n.y}}" r="{{n.r}}" style="fill: {{n.fill}}; stroke: {{n.stroke}}"></circle>
+              </sc-for>
+              <sc-for list="{{t.blabels}}" as="b"><text class="{{b.cls}}" x="{{b.x}}" y="{{b.y}}" style="fill: {{t.color}}">{{b.text}}</text></sc-for>
+              <circle class="core" cx="{{t.cx}}" cy="{{t.cy}}" r="{{t.coreR}}"></circle>
+              <text class="corelbl" x="{{t.cx}}" y="{{t.coreY}}">{{t.words}}</text>
+              <text class="tname" x="{{t.cx}}" y="{{t.nameY}}">{{t.name}}</text>
+              <text class="tmeta" x="{{t.cx}}" y="{{t.metaY}}">{{t.meta}}</text>
+            </g>
+          </sc-for>
+        </g>
+      </svg>
+
+      <div style="position: absolute; left: 16px; bottom: 16px; max-width: calc(100% - 32px)">
+        <sc-if value="{{hasSel}}" hint-placeholder-val="{{ false }}">
+          <div style="width: 300px; max-width: 100%; box-sizing: border-box; padding: 16px; border: 1px solid #1C1E1D; border-radius: 14px; background: #0A0B0B; display: flex; flex-direction: column; gap: 14px">
+            <div style="display: flex; align-items: center; gap: 10px">
+              <span style="width: 10px; height: 10px; border-radius: 50%; box-sizing: border-box; border: 1.5px solid {{card.color}}"></span>
+              <span style="font-size: 16px; font-weight: 500">{{card.name}}</span>
+              <button type="button" class="ibtn" aria-label="Close" onClick="{{clear}}" style="margin-left: auto; width: 32px; height: 32px; display: grid; place-items: center; border: 0; border-radius: 8px; background: transparent; color: #8D918C; cursor: pointer"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></button>
+            </div>
+            <span style="font-family: 'Geist Mono', ui-monospace, monospace; font-size: 11px; color: #8D918C">{{card.repo}}</span>
+            <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px">
+              <div style="display: flex; flex-direction: column; gap: 2px"><span style="font-size: 18px; font-weight: 500">{{card.leaves}}</span><span style="font-size: 11px; color: #8D918C">leaves</span></div>
+              <div style="display: flex; flex-direction: column; gap: 2px"><span style="font-size: 18px; font-weight: 500">{{card.branches}}</span><span style="font-size: 11px; color: #8D918C">branches</span></div>
+              <div style="display: flex; flex-direction: column; gap: 2px"><span style="font-size: 18px; font-weight: 500">{{card.threads}}</span><span style="font-size: 11px; color: #8D918C">threads</span></div>
+              <div style="display: flex; flex-direction: column; gap: 2px"><span style="font-size: 18px; font-weight: 500">{{card.words}}</span><span style="font-size: 11px; color: #8D918C">words</span></div>
+            </div>
+            <a href="Tree.dc.html" style="display: flex; align-items: center; justify-content: center; gap: 8px; height: 40px; border-radius: 9px; background: #151816; color: #E8EAE6; text-decoration: none; font-size: 13px; font-weight: 500">Open tree<svg class="ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg></a>
+          </div>
+        </sc-if>
+        <sc-if value="{{noSel}}" hint-placeholder-val="{{ true }}">
+          <span style="display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; border: 1px solid #1C1E1D; border-radius: 9px; background: #0A0B0B; color: #8D918C; font-size: 12px">Select a tree to inspect it</span>
+        </sc-if>
+      </div>
+
+      <div style="position: absolute; right: 16px; bottom: 16px; display: flex; align-items: center; gap: 2px; padding: 4px; border: 1px solid #1C1E1D; border-radius: 11px; background: #0A0B0B">
+        <button type="button" class="ibtn" aria-label="Zoom out" onClick="{{zoomOut}}" style="width: 36px; height: 36px; display: grid; place-items: center; border: 0; border-radius: 8px; background: transparent; cursor: pointer"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"></path></svg></button>
+        <span style="min-width: 46px; text-align: center; font-family: 'Geist Mono', ui-monospace, monospace; font-size: 12px; color: #B9BEB9">{{zoomPct}}</span>
+        <button type="button" class="ibtn" aria-label="Zoom in" onClick="{{zoomIn}}" style="width: 36px; height: 36px; display: grid; place-items: center; border: 0; border-radius: 8px; background: transparent; cursor: pointer"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg></button>
+        <span style="width: 1px; height: 20px; background: #1C1E1D; margin: 0 2px"></span>
+        <button type="button" class="ibtn" aria-label="Fit all trees" onClick="{{fit}}" style="width: 36px; height: 36px; display: grid; place-items: center; border: 0; border-radius: 8px; background: transparent; cursor: pointer"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V5h4M20 9V5h-4M4 15v4h4M20 15v4h-4"></path></svg></button>
+      </div>
+    </main>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","default":"#4BE3A0","options":["#4BE3A0","#E3B55B","#7FB3F5","#E8EAE6"]},"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  engData() {
+    return { id: 'root', name: 'Engineering', children: [
+      { id: 'backend', name: 'Backend', children: [
+        { id: 'java', name: 'Java', words: 4200, children: [
+          { id: 'streams', name: 'Streams', words: 900 },
+          { id: 'records', name: 'Records', words: 600 },
+          { id: 'vthreads', name: 'Virtual Threads', words: 1300 } ] },
+        { id: 'spring', name: 'Spring Boot', words: 3100, children: [
+          { id: 'springsec', name: 'Spring Security', words: 1500 },
+          { id: 'springdata', name: 'Spring Data', words: 1100 } ] },
+        { id: 'rest', name: 'REST Design', words: 1400 } ] },
+      { id: 'identity', name: 'Identity', children: [
+        { id: 'keycloak', name: 'Keycloak', words: 2600, children: [
+          { id: 'realms', name: 'Realms', words: 700 },
+          { id: 'tokens', name: 'Tokens', words: 1200 } ] },
+        { id: 'oauth', name: 'OAuth 2.0', words: 2000 },
+        { id: 'oidc', name: 'OpenID Connect', words: 1300 } ] },
+      { id: 'cloud', name: 'Cloud', children: [
+        { id: 'gcp', name: 'Google Cloud', words: 1800, children: [
+          { id: 'cloudrun', name: 'Cloud Run', words: 900 },
+          { id: 'iam', name: 'IAM', words: 800 } ] },
+        { id: 'docker', name: 'Docker', words: 1500 },
+        { id: 'cicd', name: 'CI/CD', children: [
+          { id: 'jenkins', name: 'Jenkins', words: 700 },
+          { id: 'circleci', name: 'CircleCI', words: 400 } ] } ] },
+      { id: 'data', name: 'Data', children: [
+        { id: 'postgres', name: 'PostgreSQL', words: 2200, children: [
+          { id: 'indexes', name: 'Indexes', words: 1000 },
+          { id: 'tx', name: 'Transactions', words: 1100 } ] },
+        { id: 'oracle', name: 'Oracle DB', words: 600 },
+        { id: 'schema', name: 'Schema Design', words: 900 } ] },
+      { id: 'frontend', name: 'Frontend', children: [
+        { id: 'react', name: 'React', words: 1700, children: [
+          { id: 'hooks', name: 'Hooks', words: 800 } ] },
+        { id: 'angular', name: 'Angular', words: 1000 } ] },
+      { id: 'agents', name: 'AI Agents', children: [
+        { id: 'prompting', name: 'Prompting', words: 1100 },
+        { id: 'claudecode', name: 'Claude Code', words: 1600 },
+        { id: 'evals', name: 'Evaluations', words: 500 } ] }
+    ] };
+  }
+  engLinks() {
+    return [['springsec', 'oauth'], ['springsec', 'keycloak'], ['tokens', 'oidc'], ['keycloak', 'oauth'], ['oidc', 'oauth'],
+      ['iam', 'keycloak'], ['cloudrun', 'docker'], ['jenkins', 'docker'], ['springdata', 'tx'], ['hooks', 'rest'], ['angular', 'rest'],
+      ['claudecode', 'java'], ['vthreads', 'cloudrun'], ['schema', 'springdata'], ['evals', 'circleci'], ['prompting', 'claudecode'], ['indexes', 'schema']];
+  }
+  rng(seed) {
+    let s = seed;
+    return () => { s = (s * 1664525 + 1013904223) % 4294967296; return s / 4294967296; };
+  }
+  genTree(name, spec, seed) {
+    const rnd = this.rng(seed);
+    let id = 0;
+    const words = () => 200 + Math.round(rnd() * 130) * 10;
+    const leaves = [];
+    const tree = { id: 'root', name, children: spec.map((b) => ({ id: 'b' + (id++), name: b[0], children: b[1].map((sub) => {
+      const leaf = { id: 'l' + (id++), name: '', words: words(), children: [] };
+      leaves.push(leaf.id);
+      for (let i = 0; i < sub; i++) { const s = { id: 's' + (id++), name: '', words: words() }; leaf.children.push(s); leaves.push(s.id); }
+      return leaf;
+    }) })) };
+    const links = [];
+    const want = Math.round(leaves.length * 0.5);
+    for (let i = 0; links.length < want && i < 400; i++) {
+      const a = leaves[Math.floor(rnd() * leaves.length)], b = leaves[Math.floor(rnd() * leaves.length)];
+      if (a !== b && !links.some((l) => (l[0] === a && l[1] === b) || (l[0] === b && l[1] === a))) links.push([a, b]);
+    }
+    return { tree, links };
+  }
+  layoutTree(tree, links, o) {
+    const q = (v) => Math.round(v * 10) / 10;
+    const nodes = [], byId = {};
+    const walk = (n, depth, parent) => {
+      n.depth = depth; n.parent = parent; n.kids = n.children || []; byId[n.id] = n; nodes.push(n);
+      n.kids.forEach((c) => walk(c, depth + 1, n));
+      n.slots = n.kids.length ? n.kids.reduce((s, c) => s + c.slots, 0) : 1;
+      n.total = (n.words || 0) + n.kids.reduce((s, c) => s + c.total, 0);
+    };
+    walk(tree, 0, null);
+    const top = tree.kids, per = (Math.PI * 2 - o.gap * top.length) / tree.slots;
+    const place = (n, a0) => {
+      let a = a0;
+      n.kids.forEach((c) => { place(c, a); a = c.a1; });
+      n.a1 = a0 + n.slots * per;
+      n.ang = n.kids.length ? (n.kids[0].ang + n.kids[n.kids.length - 1].ang) / 2 : a0 + per / 2;
+    };
+    let a = (o.start || 0) + o.gap / 2;
+    top.forEach((b) => { place(b, a); a = b.a1 + o.gap; });
+    const pt = (ang, r) => [o.cx + r * Math.sin(ang), o.cy - r * Math.cos(ang)];
+    nodes.forEach((n) => {
+      n.rad = n.depth ? o.radii[n.depth] : 0;
+      const p = pt(n.ang || 0, n.rad);
+      n.x = q(p[0]); n.y = q(p[1]);
+      n.hasNote = !!n.words;
+      n.size = n.depth === 0 ? o.coreR : q((n.hasNote ? 2.4 + Math.sqrt(n.words) / 5.6 : 4 + Math.sqrt(n.total) / 11) * o.k);
+      const s = Math.sin(n.ang || 0), c = Math.cos(n.ang || 0), off = n.size + (n.kids.length && n.hasNote ? 9 : 6) * o.k + 2;
+      n.anc = s > 0.2 ? 'a-start' : s < -0.2 ? 'a-end' : 'a-mid';
+      n.lx = q(n.x + s * off);
+      n.ly = q(n.y - c * off + (n.anc === 'a-mid' ? (c > 0 ? -4 : 13) : 4));
+    });
+    const edges = nodes.filter((n) => n.parent).map((n) => {
+      const p = n.parent;
+      if (!p.depth) {
+        const s = pt(n.ang, o.coreR + 13 * o.k);
+        return { id: n.id, d: 'M' + q(s[0]) + ',' + q(s[1]) + 'L' + n.x + ',' + n.y };
+      }
+      const rm = (p.rad + n.rad) / 2, c1 = pt(p.ang, rm), c2 = pt(n.ang, rm);
+      return { id: n.id, d: 'M' + p.x + ',' + p.y + 'C' + q(c1[0]) + ',' + q(c1[1]) + ' ' + q(c2[0]) + ',' + q(c2[1]) + ' ' + n.x + ',' + n.y };
+    });
+    const anc = (n) => { const out = []; for (let m = n; m; m = m.parent) out.push(m); return out; };
+    const threads = links.filter((l) => byId[l[0]] && byId[l[1]]).map((l) => {
+      const A = anc(byId[l[0]]), B = anc(byId[l[1]]), lca = A.find((x) => B.indexOf(x) >= 0);
+      const up = A.slice(0, A.indexOf(lca) + 1), down = B.slice(0, B.indexOf(lca)).reverse();
+      let P = up.concat(down).map((n) => [n.x, n.y]);
+      if (!lca.depth && up.length > 1 && down.length) {
+        const u = up[up.length - 2], v = down[0];
+        P[up.length - 1] = [o.cx + ((u.x + v.x) / 2 - o.cx) * 0.5, o.cy + ((u.y + v.y) / 2 - o.cy) * 0.5];
+      }
+      const m = P.length, b = o.beta, p0 = P[0], pn = P[m - 1];
+      P = P.map((p, i) => [b * p[0] + (1 - b) * (p0[0] + (pn[0] - p0[0]) * i / (m - 1)), b * p[1] + (1 - b) * (p0[1] + (pn[1] - p0[1]) * i / (m - 1))]);
+      let d = 'M' + q(P[0][0]) + ',' + q(P[0][1]);
+      if (m === 2) d += 'L' + q(P[1][0]) + ',' + q(P[1][1]);
+      for (let i = 1; i < m - 1; i++) {
+        const e = i === m - 2 ? P[m - 1] : [(P[i][0] + P[i + 1][0]) / 2, (P[i][1] + P[i + 1][1]) / 2];
+        d += 'Q' + q(P[i][0]) + ',' + q(P[i][1]) + ' ' + q(e[0]) + ',' + q(e[1]);
+      }
+      return { from: l[0], to: l[1], d };
+    });
+    const dr = o.coreR + 7 * o.k;
+    let acc = 0;
+    const segs = top.map((b) => {
+      const span = (b.total / tree.total) * Math.PI * 2, a0 = acc + 0.04, a1 = acc + span - 0.04;
+      acc += span;
+      const s = pt(a0, dr), e = pt(a1, dr);
+      return { id: b.id, d: 'M' + q(s[0]) + ',' + q(s[1]) + 'A' + q(dr) + ',' + q(dr) + ' 0 ' + (a1 - a0 > Math.PI ? 1 : 0) + ' 1 ' + q(e[0]) + ',' + q(e[1]) };
+    });
+    return { tree, nodes, byId, edges, threads, segs };
+  }
+  compact(w) {
+    return w >= 1000 ? (Math.round(w / 100) / 10) + 'k' : String(w);
+  }
+  build() {
+    if (this._B) return this._B;
+    const art = this.genTree('Art History', [['Antiquity', [0, 0, 2]], ['Renaissance', [3, 0, 0, 2]], ['Baroque', [0, 2, 0]], ['Neoclassicism', [2, 0, 0]], ['Sacred Art', [0, 0, 3, 0]], ['Modernism', [0, 1]]], 11);
+    const lang = this.genTree('Languages', [['Russian', [3, 0, 2, 0]], ['French', [0, 2, 0]], ['German', [0, 0, 1]], ['Linguistics', [2, 0]]], 23);
+    const mus = this.genTree('Music Theory', [['Harmony', [2, 0, 0]], ['Counterpoint', [0, 2]], ['Form', [0, 0, 1]], ['Rhythm', [0, 0]]], 37);
+    const defs = [
+      { key: 'eng', name: 'Engineering', repo: 'engineering', color: null, cx: 360, cy: 392, src: { tree: this.engData(), links: this.engLinks() } },
+      { key: 'art', name: 'Art History', repo: 'art-history', color: '#E3B55B', cx: 808, cy: 236, src: art },
+      { key: 'lang', name: 'Languages', repo: 'languages', color: null, cx: 1014, cy: 566, src: lang },
+      { key: 'mus', name: 'Music Theory', repo: 'music-theory', color: null, cx: 690, cy: 660, src: mus }
+    ];
+    const sum = (n) => (n.words || 0) + (n.children || []).reduce((s, c) => s + sum(c), 0);
+    const base = sum(defs[0].src.tree);
+    defs.forEach((d) => { d.k = Math.round(0.6 * Math.sqrt(sum(d.src.tree) / base) * 100) / 100; });
+    this._B = defs.map((d) => Object.assign({}, d, {
+      L: this.layoutTree(d.src.tree, d.src.links, { cx: d.cx, cy: d.cy, radii: [0, 112 * d.k, 222 * d.k, 318 * d.k], gap: 0.16, start: 0, beta: 0.82, coreR: Math.max(20, 40 * d.k), k: d.k })
+    }));
+    return this._B;
+  }
+  renderVals() {
+    const q = (v) => Math.round(v * 10) / 10;
+    const s = this.state || {};
+    const accent = this.props.accent ?? '#4BE3A0';
+    const sel = s.sel || null;
+    const zoom = s.zoom ?? 1;
+    const B = this.build();
+    const colorOf = (t) => t.color || accent;
+    const stats = (t) => {
+      const ns = t.L.nodes.filter((n) => n.depth);
+      return { leaves: ns.filter((n) => n.hasNote).length, branches: ns.filter((n) => !n.hasNote).length, threads: t.L.threads.length, words: this.compact(t.L.tree.total) };
+    };
+    const trees = B.map((t) => {
+      const st = stats(t), color = colorOf(t), R = 318 * t.k;
+      return {
+        cls: 'tree' + (sel && sel !== t.key ? ' dim' : ''),
+        pick: () => this.setState({ sel: t.key }),
+        cx: t.cx, cy: t.cy, hitR: q(R + 18 * t.k), orbitR: q(R + 16 * t.k), coreR: t.L.tree.size, coreY: q(t.cy + 3.5),
+        color,
+        edges: t.L.edges,
+        threads: t.L.threads,
+        segs: t.L.segs,
+        nodes: t.L.nodes.filter((n) => n.depth).map((n) => ({
+          x: n.x, y: n.y, r: n.size, ringR: q(n.size + 3.5 * t.k),
+          ringCls: 'ring' + (n.hasNote && n.kids.length ? '' : ' hide'),
+          fill: n.hasNote ? '#C9D1CC' : '#030303', stroke: n.hasNote ? 'none' : color
+        })),
+        blabels: t.k >= 0.42 ? t.L.nodes.filter((n) => n.depth === 1).map((n) => ({ x: n.lx, y: n.ly, cls: 'blbl ' + n.anc, text: n.name.toUpperCase() })) : [],
+        words: st.words,
+        name: t.name, nameY: q(t.cy + R + 38), metaY: q(t.cy + R + 56),
+        meta: '[user]/' + t.repo + ' · ' + st.leaves + ' leaves'
+      };
+    });
+    const find = (k) => B.find((t) => t.key === k);
+    const xthreads = [['art', 'mus', '4 threads'], ['eng', 'lang', '2 threads'], ['art', 'lang', '1 thread']].map((p) => {
+      const A = find(p[0]), C = find(p[1]);
+      const dx = C.cx - A.cx, dy = C.cy - A.cy, len = Math.hypot(dx, dy), ux = dx / len, uy = dy / len;
+      const ra = 334 * A.k, rc = 334 * C.k;
+      const sx = A.cx + ux * ra, sy = A.cy + uy * ra, ex = C.cx - ux * rc, ey = C.cy - uy * rc;
+      const mx = (sx + ex) / 2 - uy * 24, my = (sy + ey) / 2 + ux * 24;
+      return { d: 'M' + q(sx) + ',' + q(sy) + 'Q' + q(mx) + ',' + q(my) + ' ' + q(ex) + ',' + q(ey), lx: q((sx + ex) / 2 - uy * 12), ly: q((sy + ey) / 2 + ux * 12 + 3), label: p[2], color: colorOf(A) };
+    });
+    const rail = B.map((t) => ({
+      cls: 'rrow' + (sel === t.key ? ' on' : ''), pick: () => this.setState({ sel: t.key }),
+      name: t.name, repo: '[user]/' + t.repo, leaves: stats(t).leaves, color: colorOf(t)
+    }));
+    const cur = sel ? find(sel) : null;
+    const cs = cur ? stats(cur) : { leaves: 0, branches: 0, threads: 0, words: '0' };
+    return {
+      accent, trees, xthreads, rail, zoom,
+      treeCount: B.length,
+      hasSel: !!cur, noSel: !cur,
+      card: { name: cur ? cur.name : '', repo: cur ? 'github.com/[user]/' + cur.repo : '', color: cur ? colorOf(cur) : accent, leaves: cs.leaves, branches: cs.branches, threads: cs.threads, words: cs.words },
+      zoomPct: Math.round(zoom * 45) + '%',
+      clear: () => this.setState({ sel: null }),
+      zoomIn: () => this.setState({ zoom: Math.min(1.8, q(zoom + 0.2)) }),
+      zoomOut: () => this.setState({ zoom: Math.max(0.6, q(zoom - 0.2)) }),
+      fit: () => this.setState({ zoom: 1 })
+    };
+  }
+}
+</script>
+</body>
+</html>

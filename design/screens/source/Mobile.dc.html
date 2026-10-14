@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Yeraz — Phone</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@300..700&amp;family=Geist+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0;background:#030303}
+a{color:#4BE3A0}a:hover{color:#8FF0C4}
+button{font:inherit;color:inherit}
+:focus-visible{outline:2px solid #4BE3A0;outline-offset:2px}
+.ic{fill:none;stroke:currentColor;stroke-width:1.6px;stroke-linecap:round;stroke-linejoin:round}
+.griddot{fill:#FFFFFF;fill-opacity:.05}
+.orbit{fill:none;stroke:#FFFFFF;stroke-opacity:.05;stroke-dasharray:2 6}
+.edge{fill:none;stroke:#E8EAE6;stroke-opacity:.14;stroke-width:1.1px}
+.edge.hot{stroke-opacity:.42}
+.thr{fill:none;stroke-width:1.2px;stroke-opacity:.42}
+.thr.hot{stroke-opacity:.95;stroke-width:2.2px}
+.thr.cold{stroke-opacity:.1}
+.seg{fill:none;stroke-width:5px;stroke-opacity:.38}
+.seg.hot{stroke-opacity:1}
+.n.dim{opacity:.3}
+.dot{stroke-width:1.5px}
+.ring{fill:none;stroke:#DCE3DE;stroke-opacity:.45;stroke-width:1px}
+.halo{fill:none;stroke-width:1.2px}
+.lbl{font-size:15px;paint-order:stroke;stroke:#030303;stroke-width:4.5px;stroke-linejoin:round}
+.blbl{font-size:12px;letter-spacing:.14em;font-weight:500}
+.lsel{font-weight:600}
+.a-start{text-anchor:start}.a-end{text-anchor:end}.a-mid{text-anchor:middle}
+.core{fill:#0B0D0C;stroke:#FFFFFF;stroke-opacity:.09}
+.hide{display:none}
+.ibtn:hover{background:#151716}
+.mention{display:inline-flex;align-items:center;padding:0 6px;border:0;border-radius:6px;background:rgba(75,227,160,.1);cursor:pointer;font-size:14px;line-height:1.55}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; position: relative; overflow: hidden; background: #030303; color: #E8EAE6; font-family: 'Geist', ui-sans-serif, system-ui, sans-serif; font-size: 14px">
+
+  <svg viewBox="480 229 440 889" preserveAspectRatio="xMidYMid slice" aria-label="Knowledge map zoomed into the Identity branch" style="position: absolute; left: 0; top: 56px; width: 390px; height: 788px; display: block; font-family: 'Geist', ui-sans-serif, system-ui, sans-serif">
+    <defs>
+      <pattern id="yz-dots-m" width="28" height="28" patternUnits="userSpaceOnUse"><circle class="griddot" cx="1.5" cy="1.5" r="1"></circle></pattern>
+    </defs>
+    <rect x="0" y="0" width="1400" height="1400" style="fill: url(#yz-dots-m)"></rect>
+    <circle class="orbit" cx="500" cy="430" r="112"></circle>
+    <circle class="orbit" cx="500" cy="430" r="222"></circle>
+    <circle class="orbit" cx="500" cy="430" r="318"></circle>
+    <sc-for list="{{edges}}" as="e" hint-placeholder-count="30"><path class="{{e.cls}}" d="{{e.d}}"></path></sc-for>
+    <sc-for list="{{threads}}" as="t" hint-placeholder-count="12"><path class="{{t.cls}}" d="{{t.d}}" style="stroke: {{t.color}}"></path></sc-for>
+    <sc-for list="{{segs}}" as="s" hint-placeholder-count="6"><path class="{{s.cls}}" d="{{s.d}}" style="stroke: {{s.color}}"></path></sc-for>
+    <sc-for list="{{nodes}}" as="n" hint-placeholder-count="30">
+      <g class="{{n.cls}}">
+        <circle class="{{n.haloCls}}" cx="{{n.x}}" cy="{{n.y}}" r="{{n.haloR}}" style="stroke: {{n.ac}}"></circle>
+        <circle class="{{n.ringCls}}" cx="{{n.x}}" cy="{{n.y}}" r="{{n.ringR}}"></circle>
+        <circle class="dot" cx="{{n.x}}" cy="{{n.y}}" r="{{n.r}}" style="fill: {{n.fill}}; stroke: {{n.stroke}}"></circle>
+        <text class="{{n.lblCls}}" x="{{n.lx}}" y="{{n.ly}}" style="fill: {{n.lblFill}}">{{n.label}}</text>
+      </g>
+    </sc-for>
+    <circle class="core" cx="500" cy="430" r="40"></circle>
+  </svg>
+
+  <header style="position: absolute; left: 0; right: 0; top: 0; height: 56px; display: flex; align-items: center; gap: 4px; padding: 0 6px; box-sizing: border-box; border-bottom: 1px solid #1C1E1D; background: #050606">
+    <button type="button" class="ibtn" aria-label="Open explorer" style="width: 44px; height: 44px; display: grid; place-items: center; border: 0; border-radius: 10px; background: transparent; cursor: pointer"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h10"></path></svg></button>
+    <button type="button" class="ibtn" style="display: flex; align-items: center; gap: 6px; height: 44px; padding: 0 8px; border: 0; border-radius: 10px; background: transparent; cursor: pointer">
+      <span style="width: 9px; height: 9px; border-radius: 50%; box-sizing: border-box; border: 1.5px solid {{accent}}"></span>
+      <span style="font-size: 16px; font-weight: 500">Engineering</span>
+      <svg class="ic" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true" style="color: #8D918C"><path d="M6 9l6 6 6-6"></path></svg>
+    </button>
+    <button type="button" class="ibtn" aria-label="Search" style="margin-left: auto; width: 44px; height: 44px; display: grid; place-items: center; border: 0; border-radius: 10px; background: transparent; cursor: pointer"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="M16 16l4.5 4.5"></path></svg></button>
+    <button type="button" aria-label="New leaf" style="width: 44px; height: 44px; display: grid; place-items: center; border: 0; border-radius: 12px; background: {{accent}}; color: #04130C; cursor: pointer"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg></button>
+  </header>
+
+  <div style="position: absolute; left: 12px; top: 68px; display: inline-flex; align-items: center; gap: 8px; height: 30px; padding: 0 10px; border: 1px solid #1C1E1D; border-radius: 999px; background: rgba(10,11,11,.92); font-family: 'Geist Mono', ui-monospace, monospace; font-size: 11px; color: #B9BEB9">180% · Leaves</div>
+
+  <section aria-label="Leaf preview" style="position: absolute; left: 0; right: 0; bottom: 0; height: 344px; box-sizing: border-box; padding: 8px 20px 20px; display: flex; flex-direction: column; gap: 10px; border-top: 1px solid #262927; border-radius: 20px 20px 0 0; background: #0A0B0B; box-shadow: 0 -20px 50px rgba(0,0,0,.6)">
+    <span aria-hidden="true" style="align-self: center; width: 36px; height: 4px; border-radius: 2px; background: #2E322F"></span>
+    <div style="display: flex; align-items: center; gap: 10px">
+      <span aria-hidden="true" style="font-size: 26px; line-height: 1">🔐</span>
+      <h2 style="margin: 0; font-size: 22px; font-weight: 600; letter-spacing: -0.01em">Keycloak</h2>
+      <button type="button" class="ibtn" aria-label="Open full page" style="margin-left: auto; width: 44px; height: 44px; display: grid; place-items: center; border: 0; border-radius: 10px; background: transparent; color: #B9BEB9; cursor: pointer"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7"></path></svg></button>
+      <button type="button" class="ibtn" aria-label="Dismiss" style="width: 44px; height: 44px; display: grid; place-items: center; border: 0; border-radius: 10px; background: transparent; color: #B9BEB9; cursor: pointer"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></button>
+    </div>
+    <span style="margin-top: -6px; font-family: 'Geist Mono', ui-monospace, monospace; font-size: 11px; color: #8D918C">Engineering / Identity</span>
+    <div style="display: flex; flex-wrap: wrap; gap: 6px">
+      <span style="padding: 3px 8px; border: 1px solid #1C1E1D; border-radius: 6px; font-family: 'Geist Mono', ui-monospace, monospace; font-size: 11px; color: #B9BEB9">2,600 words</span>
+      <span style="padding: 3px 8px; border: 1px solid #1C1E1D; border-radius: 6px; font-family: 'Geist Mono', ui-monospace, monospace; font-size: 11px; color: #B9BEB9">2 sub-leaves</span>
+      <span style="padding: 3px 8px; border: 1px solid #1C1E1D; border-radius: 6px; font-family: 'Geist Mono', ui-monospace, monospace; font-size: 11px; color: #B9BEB9">3 threads</span>
+    </div>
+    <p style="margin: 2px 0 0; font-size: 14px; line-height: 1.6; color: #C9CEC9">Open-source identity provider. Each realm keeps its own users, clients and roles, and our apps sign in through <button type="button" class="mention" style="color: {{accent}}">@ OpenID Connect</button> to receive signed JWTs.</p>
+    <a href="Tree.dc.html" style="margin-top: auto; display: flex; align-items: center; justify-content: center; gap: 8px; height: 48px; border-radius: 12px; background: #151816; color: #E8EAE6; text-decoration: none; font-size: 14px; font-weight: 500">Open leaf<svg class="ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg></a>
+  </section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","default":"#4BE3A0","options":["#4BE3A0","#E3B55B","#7FB3F5","#E8EAE6"]},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  engData() {
+    return { id: 'root', name: 'Engineering', children: [
+      { id: 'backend', name: 'Backend', children: [
+        { id: 'java', name: 'Java', words: 4200, children: [
+          { id: 'streams', name: 'Streams', words: 900 },
+          { id: 'records', name: 'Records', words: 600 },
+          { id: 'vthreads', name: 'Virtual Threads', words: 1300 } ] },
+        { id: 'spring', name: 'Spring Boot', words: 3100, children: [
+          { id: 'springsec', name: 'Spring Security', words: 1500 },
+          { id: 'springdata', name: 'Spring Data', words: 1100 } ] },
+        { id: 'rest', name: 'REST Design', words: 1400 } ] },
+      { id: 'identity', name: 'Identity', children: [
+        { id: 'keycloak', name: 'Keycloak', words: 2600, children: [
+          { id: 'realms', name: 'Realms', words: 700 },
+          { id: 'tokens', name: 'Tokens', words: 1200 } ] },
+        { id: 'oauth', name: 'OAuth 2.0', words: 2000 },
+        { id: 'oidc', name: 'OpenID Connect', words: 1300 } ] },
+      { id: 'cloud', name: 'Cloud', children: [
+        { id: 'gcp', name: 'Google Cloud', words: 1800, children: [
+          { id: 'cloudrun', name: 'Cloud Run', words: 900 },
+          { id: 'iam', name: 'IAM', words: 800 } ] },
+        { id: 'docker', name: 'Docker', words: 1500 },
+        { id: 'cicd', name: 'CI/CD', children: [
+          { id: 'jenkins', name: 'Jenkins', words: 700 },
+          { id: 'circleci', name: 'CircleCI', words: 400 } ] } ] },
+      { id: 'data', name: 'Data', children: [
+        { id: 'postgres', name: 'PostgreSQL', words: 2200, children: [
+          { id: 'indexes', name: 'Indexes', words: 1000 },
+          { id: 'tx', name: 'Transactions', words: 1100 } ] },
+        { id: 'oracle', name: 'Oracle DB', words: 600 },
+        { id: 'schema', name: 'Schema Design', words: 900 } ] },
+      { id: 'frontend', name: 'Frontend', children: [
+        { id: 'react', name: 'React', words: 1700, children: [
+          { id: 'hooks', name: 'Hooks', words: 800 } ] },
+        { id: 'angular', name: 'Angular', words: 1000 } ] },
+      { id: 'agents', name: 'AI Agents', children: [
+        { id: 'prompting', name: 'Prompting', words: 1100 },
+        { id: 'claudecode', name: 'Claude Code', words: 1600 },
+        { id: 'evals', name: 'Evaluations', words: 500 } ] }
+    ] };
+  }
+  engLinks() {
+    return [['springsec', 'oauth'], ['springsec', 'keycloak'], ['tokens', 'oidc'], ['keycloak', 'oauth'], ['oidc', 'oauth'],
+      ['iam', 'keycloak'], ['cloudrun', 'docker'], ['jenkins', 'docker'], ['springdata', 'tx'], ['hooks', 'rest'], ['angular', 'rest'],
+      ['claudecode', 'java'], ['vthreads', 'cloudrun'], ['schema', 'springdata'], ['evals', 'circleci'], ['prompting', 'claudecode'], ['indexes', 'schema']];
+  }
+  layoutTree(tree, links, o) {
+    const q = (v) => Math.round(v * 10) / 10;
+    const nodes = [], byId = {};
+    const walk = (n, depth, parent) => {
+      n.depth = depth; n.parent = parent; n.kids = n.children || []; byId[n.id] = n; nodes.push(n);
+      n.kids.forEach((c) => walk(c, depth + 1, n));
+      n.slots = n.kids.length ? n.kids.reduce((s, c) => s + c.slots, 0) : 1;
+      n.total = (n.words || 0) + n.kids.reduce((s, c) => s + c.total, 0);
+    };
+    walk(tree, 0, null);
+    const top = tree.kids, per = (Math.PI * 2 - o.gap * top.length) / tree.slots;
+    const place = (n, a0) => {
+      let a = a0;
+      n.kids.forEach((c) => { place(c, a); a = c.a1; });
+      n.a1 = a0 + n.slots * per;
+      n.ang = n.kids.length ? (n.kids[0].ang + n.kids[n.kids.length - 1].ang) / 2 : a0 + per / 2;
+    };
+    let a = (o.start || 0) + o.gap / 2;
+    top.forEach((b) => { place(b, a); a = b.a1 + o.gap; });
+    const pt = (ang, r) => [o.cx + r * Math.sin(ang), o.cy - r * Math.cos(ang)];
+    nodes.forEach((n) => {
+      n.rad = n.depth ? o.radii[n.depth] : 0;
+      const p = pt(n.ang || 0, n.rad);
+      n.x = q(p[0]); n.y = q(p[1]);
+      n.hasNote = !!n.words;
+      n.size = n.depth === 0 ? o.coreR : q((n.hasNote ? 2.4 + Math.sqrt(n.words) / 5.6 : 4 + Math.sqrt(n.total) / 11) * o.k);
+      const s = Math.sin(n.ang || 0), c = Math.cos(n.ang || 0), off = n.size + (n.kids.length && n.hasNote ? 9 : 6) * o.k + 2;
+      n.anc = s > 0.2 ? 'a-start' : s < -0.2 ? 'a-end' : 'a-mid';
+      n.lx = q(n.x + s * off);
+      n.ly = q(n.y - c * off + (n.anc === 'a-mid' ? (c > 0 ? -4 : 13) : 5));
+    });
+    const edges = nodes.filter((n) => n.parent).map((n) => {
+      const p = n.parent;
+      if (!p.depth) {
+        const s = pt(n.ang, o.coreR + 13 * o.k);
+        return { id: n.id, d: 'M' + q(s[0]) + ',' + q(s[1]) + 'L' + n.x + ',' + n.y };
+      }
+      const rm = (p.rad + n.rad) / 2, c1 = pt(p.ang, rm), c2 = pt(n.ang, rm);
+      return { id: n.id, d: 'M' + p.x + ',' + p.y + 'C' + q(c1[0]) + ',' + q(c1[1]) + ' ' + q(c2[0]) + ',' + q(c2[1]) + ' ' + n.x + ',' + n.y };
+    });
+    const anc = (n) => { const out = []; for (let m = n; m; m = m.parent) out.push(m); return out; };
+    const threads = links.filter((l) => byId[l[0]] && byId[l[1]]).map((l) => {
+      const A = anc(byId[l[0]]), B = anc(byId[l[1]]), lca = A.find((x) => B.indexOf(x) >= 0);
+      const up = A.slice(0, A.indexOf(lca) + 1), down = B.slice(0, B.indexOf(lca)).reverse();
+      let P = up.concat(down).map((n) => [n.x, n.y]);
+      if (!lca.depth && up.length > 1 && down.length) {
+        const u = up[up.length - 2], v = down[0];
+        P[up.length - 1] = [o.cx + ((u.x + v.x) / 2 - o.cx) * 0.5, o.cy + ((u.y + v.y) / 2 - o.cy) * 0.5];
+      }
+      const m = P.length, b = o.beta, p0 = P[0], pn = P[m - 1];
+      P = P.map((p, i) => [b * p[0] + (1 - b) * (p0[0] + (pn[0] - p0[0]) * i / (m - 1)), b * p[1] + (1 - b) * (p0[1] + (pn[1] - p0[1]) * i / (m - 1))]);
+      let d = 'M' + q(P[0][0]) + ',' + q(P[0][1]);
+      if (m === 2) d += 'L' + q(P[1][0]) + ',' + q(P[1][1]);
+      for (let i = 1; i < m - 1; i++) {
+        const e = i === m - 2 ? P[m - 1] : [(P[i][0] + P[i + 1][0]) / 2, (P[i][1] + P[i + 1][1]) / 2];
+        d += 'Q' + q(P[i][0]) + ',' + q(P[i][1]) + ' ' + q(e[0]) + ',' + q(e[1]);
+      }
+      return { from: l[0], to: l[1], d };
+    });
+    const dr = o.coreR + 7 * o.k;
+    let acc = 0;
+    const segs = top.map((b) => {
+      const span = (b.total / tree.total) * Math.PI * 2, a0 = acc + 0.04, a1 = acc + span - 0.04;
+      acc += span;
+      const s = pt(a0, dr), e = pt(a1, dr);
+      return { id: b.id, d: 'M' + q(s[0]) + ',' + q(s[1]) + 'A' + q(dr) + ',' + q(dr) + ' 0 ' + (a1 - a0 > Math.PI ? 1 : 0) + ' 1 ' + q(e[0]) + ',' + q(e[1]) };
+    });
+    return { tree, nodes, byId, edges, threads, segs };
+  }
+  renderVals() {
+    if (!this._L) this._L = this.layoutTree(this.engData(), this.engLinks(), { cx: 500, cy: 430, radii: [0, 112, 222, 318], gap: 0.16, start: 0, beta: 0.82, coreR: 40, k: 1 });
+    const L = this._L;
+    const accent = this.props.accent ?? '#4BE3A0';
+    const sel = L.byId.keycloak;
+    const near = {};
+    near[sel.id] = true; near[sel.parent.id] = true;
+    sel.kids.forEach((c) => { near[c.id] = true; });
+    L.threads.forEach((t) => { if (t.from === sel.id) near[t.to] = true; if (t.to === sel.id) near[t.from] = true; });
+    const nodes = L.nodes.filter((n) => n.depth).map((n) => {
+      const isSel = n.id === sel.id;
+      return {
+        ac: accent, cls: 'n' + (near[n.id] ? '' : ' dim'),
+        x: n.x, y: n.y, r: n.size, ringR: n.size + 4, haloR: n.size + 10,
+        ringCls: 'ring' + (n.hasNote && n.kids.length ? '' : ' hide'),
+        haloCls: 'halo' + (isSel ? '' : ' hide'),
+        fill: n.hasNote ? (isSel ? accent : '#DCE3DE') : '#030303',
+        stroke: n.hasNote ? 'none' : accent,
+        lx: n.lx, ly: n.ly,
+        lblCls: 'lbl ' + (n.depth === 1 ? 'blbl ' : '') + n.anc + (isSel ? ' lsel' : ''),
+        lblFill: n.depth === 1 || isSel ? accent : '#E8EAE6',
+        label: n.depth === 1 ? n.name.toUpperCase() : n.name
+      };
+    });
+    const edges = L.edges.map((e) => { const n = L.byId[e.id]; return { d: e.d, cls: 'edge' + (n.id === sel.id || n.parent.id === sel.id ? ' hot' : '') }; });
+    const touches = (t) => t.from === sel.id || t.to === sel.id;
+    const threads = L.threads.map((t) => ({ d: t.d, color: accent, hot: touches(t), cls: 'thr' + (touches(t) ? ' hot' : ' cold') }))
+      .sort((x, y) => (x.hot ? 1 : 0) - (y.hot ? 1 : 0));
+    const segs = L.segs.map((g) => ({ d: g.d, color: accent, cls: 'seg' + (g.id === 'identity' ? ' hot' : '') }));
+    return { accent, nodes, edges, threads, segs };
+  }
+}
+</script>
+</body>
+</html>

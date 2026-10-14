@@ -4,7 +4,7 @@ Yeraz is a note-taking app whose notes live as Markdown files in the user's own 
 
 - **Why and what:** `ideas.txt`
 - **Order of work and testing:** `development-plan.md`
-- **Visual design:** the "Yeraz Knowledge Map" design canvas (private to the owner): https://claude.ai/artifact/UWV7RLc2iLsYxB5Sde26c5. The tokens and screen specs that matter for building are copied into `development-plan.md`.
+- **Visual design:** `design/` holds screenshots of every screen, their source files, and the logo and app icons. `design/README.md` explains each file and links the original design canvas.
 
 This document was written with two lenses: **performance** and **least code**. Most decisions below serve both, and §11 reviews them explicitly.
 
@@ -64,7 +64,7 @@ These rules are the only thing that must stay stable across versions. Tests lock
 | A branch is a folder with no sibling `.md` file of the same name. | `identity/` |
 | A thread is a normal Markdown link with a **root-relative** path. GitHub resolves paths starting with `/` from the repository root, so threads also work on github.com. | `[Keycloak](/identity/keycloak.md)` |
 | A thread to another Tree is a full GitHub URL to a file in a connected repository. Any other `github.com/owner/repo` URL renders as a repository card. | `https://github.com/user/art-history/blob/main/baroque.md` |
-| Images and attachments live in `assets/` at the root. Images are resized to at most 2000 px WebP before they are committed. | `assets/2026-10-14-realm-diagram.webp` |
+| Images and attachments live in `assets/` at the root, at full quality. An image is committed unchanged unless its long edge is over 4096 px (§8). | `assets/2026-10-14-realm-diagram.png` |
 | `.yeraz.json` at the root marks a repository as a Tree. | `{"name":"Engineering","color":"#4BE3A0"}` |
 | The filename is fixed when the leaf is created (a slug of its first title). Changing the title does not rename the file. | Title "Keycloak (IdP)" stays in `keycloak.md` |
 
@@ -166,6 +166,26 @@ Creating a Tree from the app means:
 - **PDF export** uses a print stylesheet and `window.print()` on the read view.
   - Video embeds print as a thumbnail with a link.
   - On desktop, check Tauri's webview printing on all three OSes early in development. The fallback is a small Rust command that calls the webview's native print.
+  - PDFs always use the original images, never smaller copies.
+
+### Images at full definition
+
+Every image a user sees should be sharp on any screen, including 2× and 3× displays.
+
+- **Interface:** every icon and the logo are SVG. The app's own interface uses no raster images.
+- **App icons:**
+  - Every size, on every platform, is rendered from the vector masters in `design/brand/`.
+  - 32 px and smaller use a heavier drawing made for small sizes.
+  - No icon is produced by scaling down another bitmap.
+- **Images people add** (paste, drop or pick):
+  - **Committed unchanged** when the long edge is 4096 px or less and the format is PNG, JPEG, WebP, GIF or SVG. No re-encoding means no quality loss.
+  - **Larger images** are scaled down to 4096 px on the long edge, the most a full-width image needs on a 2× display up to 2048 px wide. Photos are saved as WebP at quality 92. Screenshots, diagrams and images with transparency are saved as lossless WebP so text and edges stay crisp.
+  - **Never upscaled.**
+- **Display:**
+  - The browser shows the original image, scaled by CSS. Browsers resample well, and the full pixel density is kept on high-resolution screens.
+  - Images load with `loading="lazy"` and `decoding="async"`, so they don't slow down opening a leaf.
+  - Smaller display copies, cached by blob SHA, are planned only if a phone memory or speed budget fails.
+- **Covers from Unsplash:** store the photo's URL. When displaying it, request the width the slot needs multiplied by the device's pixel ratio; Unsplash resizes images from URL parameters. Covers then stay sharp on any screen without storing large files.
 
 ## 9. Authentication
 
@@ -189,6 +209,7 @@ Creating a Tree from the app means:
   - Tauri 2 wraps the same `dist/`.
   - `tauri-apps/tauri-action` builds Windows, macOS and Linux installers when a version tag is pushed, and attaches them to the GitHub Release.
   - Note that `.exe` is Windows-only; each OS gets its own installer.
+- **Icons:** every platform's icon files are already exported in `design/brand/png/` (see `design/README.md`).
 - **Signing:** unsigned apps show security warnings on macOS and Windows. Signing (Apple Developer Program, Windows code-signing certificate) can be added later without code changes.
 
 ## 11. Performance review
@@ -232,7 +253,7 @@ Creating a Tree from the app means:
 - **Linux webviews (WebKitGTK)** render SVG more slowly. The performance tests should run there too.
 - **Browsers can evict IndexedDB** under storage pressure, which matters most on phones. Call `navigator.storage.persist()`, and treat local data as a cache plus a short-lived outbox; committing on app hide keeps that outbox small.
 - **GitHub secondary rate limits** apply to bursts of writes. Batched commits keep the app well below them.
-- **Large binaries bloat a repository.** Images are resized on upload, and files over 10 MB get a warning.
+- **Large binaries bloat a repository.** Images over 4096 px are scaled down on upload, and any file over 10 MB gets a warning before it is committed.
 
 ## 12. Module map
 

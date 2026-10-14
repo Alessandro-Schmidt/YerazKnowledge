@@ -41,7 +41,17 @@ Not used, on purpose: Octokit, Tailwind, Redux, TipTap/ProseMirror, Shiki, Elect
 
 ## 3. Design reference
 
-The design canvas is private to the owner. Everything needed to build it is here.
+### 3.0 Where the design lives
+
+- **`design/screens/`** — screenshots of every screen at 2× pixel density (the phone at 3×). This is what the app must look like, and the visual tests compare against it.
+- **`design/screens/source/`** — the source of each screen: HTML with the exact colours, sizes and copy. `Tree.dc.html` also contains working reference code for the map layout (`layoutTree()`), selection and dimming. Port the behaviour, not the code: the app builds the map with d3 (ARCHITECTURE.md §6).
+- **`design/brand/`** — the logo and every app icon: SVG masters, all PNG, ICO and ICNS sizes, and `export.py` to regenerate them.
+- **`design/README.md`** — what each file shows and where each icon goes.
+- **Links for the owner:** the design canvas (https://claude.ai/artifact/UWV7RLc2iLsYxB5Sde26c5) and the conversation where the design, the architecture and this plan were made (https://claude.ai/code/session_01LA2iepBJ3k2JUEstrXEcTD).
+  - Both are private, and Claude Code can't open them.
+  - The files in `design/` are the source of truth. If a screenshot and this plan disagree, ask the owner.
+
+The sections below copy the values that matter most, so they can be used without opening the files.
 
 ### 3.1 Tokens (`ui/tokens.css`)
 
@@ -59,6 +69,8 @@ The design canvas is private to the owner. Everything needed to build it is here
 - **Type:** Geist for the interface, Geist Mono for paths, counts and shortcuts.
 - **Radii:** 8–9 px for controls, 14 px for floating panels.
 - **Icons:** stroke icons, 1.6 px, no emoji in the interface. Emoji appear only as leaf icons chosen by the user.
+- **Logo:** `design/brand/svg/yeraz-mark.svg` in the top bar, 22 px tall, next to the word "Yeraz" in Geist 600. Favicon and app icons come from `design/brand/` (see `design/README.md`).
+- **No raster images in the interface:** icons and the logo are SVG, so they stay sharp at every pixel density.
 
 ### 3.2 Screens
 
@@ -120,6 +132,7 @@ Values below assume a layout radius `R`.
    - `strict: true`, ESLint (typescript-eslint) and Prettier.
    - Vitest and Playwright installed and configured.
    - `ui/tokens.css` from §3.1.
+   - `public/favicon.svg`, `public/favicon.ico` and the top-bar logo from `design/brand/`.
 3. **Build the fake GitHub before any feature** (§5). Every later test uses it, and it lets the app run without a token.
 4. **Add CI** (§8) and deploy the empty shell to GitHub Pages.
 5. Stop and report. Then start M1.
@@ -209,7 +222,7 @@ Scope: §4 and §5, plus CI.
 - **End-to-end:** opening the 300-leaf fixture shows the right number of nodes. Clicking a node opens the Peek with the correct title, sub-leaves, threads in and threads out. Expand and dismiss both work. The Explorer collapses.
 - **Second open:** according to the fake's request log, exactly 1 request (a 304) and 0 blob fetches.
 - **Performance:** the 1,000-leaf fixture is within the budgets for reopening, first open, pan and zoom, and selecting.
-- **Visual review:** screenshots of Home, Tree view and Map only, approved by the owner against the design canvas.
+- **Visual review:** screenshots of Home, Tree view and Map only match `design/screens/01`–`06`, and the owner approves them.
 
 ### M2 — Writing and sync
 
@@ -249,7 +262,7 @@ Scope: §4 and §5, plus CI.
    - after a save, the map gains or loses threads by re-parsing only the changed leaf.
 2. **Insert menu:** holding Ctrl/Cmd for 2 s opens it; `/` and long-press open it on touch screens.
 3. **Images:**
-   - pick, paste or drop an image; it is resized to WebP at most 2000 px, saved in `assets/` and included in the next commit;
+   - pick, paste or drop an image; it is saved in `assets/` at full quality and included in the next commit, following the image rules in ARCHITECTURE.md §8: unchanged up to 4096 px, larger photos scaled down to 4096 px;
    - private images are shown through blob URLs from the cache.
 4. **Embeds:** math (KaTeX), syntax-highlighted code, YouTube, PDFs, and video with subtitle tracks. Each works both in the editor and in the read view.
 5. **Leaf styling:** text and heading colours, and a cover image (uploaded, or from Unsplash).
@@ -264,13 +277,17 @@ Scope: §4 and §5, plus CI.
   - holding for 1.9 s shows no menu, and 2.0 s shows it;
   - Ctrl+C and Ctrl+V never open it.
 - **Mentions (end-to-end):** picking a mention inserts `[Title](/path.md)`, and after the save the map shows the new thread.
-- **Images (end-to-end):** the commit contains a WebP no larger than 2000 px.
+- **Images (end-to-end):**
+  - a 1,200 px PNG screenshot is committed byte for byte;
+  - a 6,000 px photo is committed at 4,096 px on its long edge;
+  - both render sharp at pixel densities 2 and 3 (screenshot test).
 
 ### M4 — Ship
 
 1. **PDF export:** a print stylesheet on the read view.
-2. **PWA:** installable, works offline, and calls `navigator.storage.persist()`.
+2. **PWA:** installable, works offline, and calls `navigator.storage.persist()`. Manifest and home-screen icons are `pwa-*.png`, `pwa-maskable-*.png` and `apple-touch-icon.png` from `design/brand/png/`.
 3. **Tauri desktop app:**
+   - copy `yeraz-app.icns`, `yeraz-app.ico` and the PNG sizes from `design/brand/png/` into `src-tauri/icons/`. Don't let a tool create the small sizes by downscaling the 1024 px file; that blurs them.
    - stores the token in the OS keychain;
    - a release workflow runs on `v*` tags and attaches the installers to the GitHub Release.
 4. **Title search** (Ctrl/Cmd+K) across all Trees.
@@ -311,7 +328,7 @@ Scope: §4 and §5, plus CI.
 
 - Every test starts from a seeded fixture through the `page.route` adapter.
 - Use `page.clock` for the 2-minute autosave and the 2-second insert menu. Never sleep for real.
-- **Visual snapshots** (`toHaveScreenshot`) of Home, Tree view, Map only and Phone. Wait for fonts first (`document.fonts.ready`). The owner approves them against the design canvas.
+- **Visual snapshots** (`toHaveScreenshot`) of Home, Tree view, Map only and Phone, taken at pixel density 2 like `design/screens/`. Wait for fonts first (`document.fonts.ready`). Compare them with `design/screens/`; the owner approves any difference.
 - Run an `axe` accessibility scan on every screen.
 - The Explorer is the keyboard-accessible route to every leaf, using `role="tree"` and arrow keys. Test keyboard navigation there.
 
@@ -338,6 +355,7 @@ Scope: §4 and §5, plus CI.
 
 - **Printing:** check the output on Chrome, Safari, and the desktop app on Windows, macOS and Linux.
 - **Installing:** install the PWA on iOS and Android.
+- **Icons:** the dock, taskbar, desktop shortcut and phone home screen icons are sharp on standard and high-density screens (compare with `design/screens/08-app-icon.png`).
 - **Unsigned desktop app:** check that it launches on macOS through right-click → Open.
 
 ## 8. CI pipeline (GitHub Actions)
