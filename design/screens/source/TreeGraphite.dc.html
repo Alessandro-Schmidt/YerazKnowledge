@@ -1,0 +1,573 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Yeraz — Engineering tree, Graphite</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@300..700&amp;family=Geist+Mono:wght@400;500&amp;family=Newsreader:opsz,wght@6..72,400..600&amp;display=swap">
+<style>
+body{margin:0}
+.yz,.yz[data-base="vanta"]{--bg:#030303;--top:#050606;--panel:#0A0B0B;--raised:#121514;--hover:#101211;--hair:#1C1E1D;--hair-strong:#2A2E2B;--text:#E8EAE6;--text-body:#C9CEC9;--muted:#8D918C;--faint:#7D827C;--node:#DCE3DE;--line:#E8EAE6;--core:#0B0D0C;--grid:rgba(255,255,255,0.05);--shadow:rgba(0,0,0,0.6)}
+.yz[data-base="graphite"]{--bg:#15171B;--top:#191B20;--panel:#1E2126;--raised:#272B31;--hover:#24282E;--hair:#2D3138;--hair-strong:#3A3F47;--text:#E7E9EC;--text-body:#C9CDD3;--muted:#9CA2AB;--faint:#9399A2;--node:#D5DAE0;--line:#E7E9EC;--core:#1E2126;--grid:rgba(255,255,255,0.06);--shadow:rgba(0,0,0,0.45)}
+.yz[data-base="paper"]{--bg:#F3F1EB;--top:#EEEBE3;--panel:#FBFAF6;--raised:#E9E6DD;--hover:#EFECE5;--hair:#DDD9CF;--hair-strong:#CBC6BA;--text:#1B1C1A;--text-body:#363834;--muted:#5D605A;--faint:#62655F;--node:#2B2D2A;--line:#1B1C1A;--core:#FBFAF6;--grid:rgba(0,0,0,0.07);--shadow:rgba(40,35,20,0.16)}
+.yz{--accent:#4BE3A0;--accent-soft:rgba(75,227,160,0.12);--on-accent:#06140D}
+.yz[data-mode="dark"][data-accent="green"]{--accent:#4BE3A0;--accent-soft:rgba(75,227,160,0.12);--on-accent:#06140D}
+.yz[data-mode="light"][data-accent="green"]{--accent:#0B7A4B;--accent-soft:rgba(11,122,75,0.1);--on-accent:#FFFFFF}
+.yz[data-mode="dark"][data-accent="amber"]{--accent:#E8B65A;--accent-soft:rgba(232,182,90,0.12);--on-accent:#06140D}
+.yz[data-mode="light"][data-accent="amber"]{--accent:#94590A;--accent-soft:rgba(148,89,10,0.1);--on-accent:#FFFFFF}
+.yz[data-mode="dark"][data-accent="blue"]{--accent:#7FB3F5;--accent-soft:rgba(127,179,245,0.12);--on-accent:#06140D}
+.yz[data-mode="light"][data-accent="blue"]{--accent:#1F5BB5;--accent-soft:rgba(31,91,181,0.1);--on-accent:#FFFFFF}
+.yz[data-mode="dark"][data-accent="violet"]{--accent:#B9A2F5;--accent-soft:rgba(185,162,245,0.12);--on-accent:#06140D}
+.yz[data-mode="light"][data-accent="violet"]{--accent:#6743C4;--accent-soft:rgba(103,67,196,0.1);--on-accent:#FFFFFF}
+.yz .reading{font-family:'Geist',ui-sans-serif,system-ui,sans-serif}
+.yz[data-font="serif"] .reading{font-family:'Newsreader',Georgia,serif;font-size:1.07em}
+.yz a{color:var(--accent)}.yz a:hover{color:var(--text)}
+.yz button{font:inherit;color:inherit}
+.yz :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.yz input::placeholder{color:var(--faint)}
+.ic{fill:none;stroke:currentColor;stroke-width:1.6px;stroke-linecap:round;stroke-linejoin:round}
+.griddot{fill:var(--grid)}
+.bg{fill:transparent}
+.orbit{fill:none;stroke:var(--grid);stroke-dasharray:2 6}
+.edge{fill:none;stroke:var(--line);stroke-opacity:.13;stroke-width:1px;transition:stroke-opacity .25s}
+.edge.hot{stroke-opacity:.42}
+.thr{fill:none;stroke:var(--accent);stroke-width:1.1px;stroke-opacity:.42;transition:stroke-opacity .25s}
+.thr.hot{stroke-opacity:.95;stroke-width:2px}
+.thr.cold{stroke-opacity:.1}
+.seg{fill:none;stroke:var(--accent);stroke-width:5px;stroke-opacity:.38}
+.seg.hot{stroke-opacity:1}
+.n{cursor:pointer;transition:opacity .25s}
+.n.dim{opacity:.3}
+.hit{fill:transparent}
+.dot{stroke-width:1.4px}
+.ring{fill:none;stroke:var(--node);stroke-opacity:.45;stroke-width:1px}
+.halo{fill:none;stroke:var(--accent);stroke-width:1px}
+.lbl{font-size:13px;fill:var(--text);paint-order:stroke;stroke:var(--bg);stroke-width:4px;stroke-linejoin:round}
+.blbl{font-size:10.5px;letter-spacing:.14em;font-weight:500;fill:var(--accent)}
+.lsel{font-weight:600;fill:var(--accent)}
+.a-start{text-anchor:start}.a-end{text-anchor:end}.a-mid{text-anchor:middle}
+.coreg{cursor:pointer}
+.core{fill:var(--core);stroke:var(--line);stroke-opacity:.12}
+.coreg.sel .core{stroke-opacity:.5}
+.coretitle{font-size:12px;font-weight:500;fill:var(--text);text-anchor:middle}
+.corelbl{font-family:'Geist Mono',ui-monospace,monospace;font-size:9.5px;fill:var(--muted);text-anchor:middle}
+.hide{display:none}
+.cam{transition:transform .45s cubic-bezier(.2,.7,.2,1)}
+.xrow{transition:background .15s}
+.xrow:hover{background:var(--hover)}
+.xrow.on{background:var(--raised);box-shadow:inset 2px 0 0 var(--accent)}
+.chev svg{transition:transform .15s}
+.chev.open svg{transform:rotate(90deg)}
+.chev.none{visibility:hidden}
+.gl{flex-shrink:0;width:9px;height:9px;border-radius:50%;box-sizing:border-box}
+.gl-leaf{background:var(--node)}
+.gl-sprout{background:var(--node);box-shadow:0 0 0 2px var(--panel),0 0 0 3px var(--faint)}
+.gl-branch{border:1.5px solid var(--accent)}
+.ibtn:hover{background:var(--hover)}
+.ibtn.on{background:var(--raised);color:var(--text)}
+.ghost:hover{background:var(--hover)}
+.primary:hover{filter:brightness(1.08)}
+.mention{display:inline-flex;align-items:center;gap:4px;padding:0 6px;border:0;border-radius:6px;background:var(--accent-soft);color:var(--accent);cursor:pointer;font-size:14px;line-height:1.55;font-family:'Geist',ui-sans-serif,system-ui,sans-serif}
+.mention:hover{box-shadow:inset 0 0 0 1px var(--accent)}
+.lrow:hover{background:var(--hover)}
+.chip:hover{border-color:var(--hair-strong)}
+</style>
+</helmet>
+<div class="yz" data-base="{{base}}" data-mode="{{mode}}" data-accent="{{accentId}}" data-font="{{font}}" style="height: 100vh; min-height: 640px; display: flex; flex-direction: column; background: var(--bg); color: var(--text); font-family: 'Geist', ui-sans-serif, system-ui, sans-serif; font-size: 14px; overflow: hidden">
+
+  <header style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap; padding: 10px 16px; border-bottom: 1px solid var(--hair); background: var(--top)">
+    <div style="display: flex; align-items: center; gap: 10px">
+      <sc-if value="{{isDark}}" hint-placeholder-val="{{ true }}"><img src="/_blob/217475af72b3e6ce501c325e380321f0" alt="" style="height: 22px; width: auto; display: block"></sc-if>
+      <sc-if value="{{isLight}}" hint-placeholder-val="{{ false }}"><img src="/_blob/382c0d6e2588263dc1d7a3cd0483fe9c" alt="" style="height: 22px; width: auto; display: block"></sc-if>
+      <span style="font-weight: 600; font-size: 15px; letter-spacing: 0.01em">Yeraz</span>
+    </div>
+    <span style="width: 1px; height: 20px; background: var(--hair)"></span>
+    <nav aria-label="Breadcrumb" style="display: flex; align-items: center; gap: 8px; font-size: 14px">
+      <a href="Main.dc.html" style="color: var(--muted); text-decoration: none">All trees</a>
+      <svg class="ic" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true" style="color: var(--faint)"><path d="M9 6l6 6-6 6"></path></svg>
+      <button type="button" class="ghost" style="display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 8px; border: 0; border-radius: 8px; background: transparent; font-weight: 500; cursor: pointer">Engineering<svg class="ic" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true" style="color: var(--muted)"><path d="M6 9l6 6 6-6"></path></svg></button>
+    </nav>
+    <div style="flex: 1 1 240px; display: flex; justify-content: center; min-width: 0">
+      <label style="display: flex; align-items: center; gap: 8px; width: 100%; max-width: 420px; height: 36px; padding: 0 10px; border: 1px solid var(--hair); border-radius: 9px; background: var(--panel); color: var(--muted); box-sizing: border-box">
+        <svg class="ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="M16 16l4.5 4.5"></path></svg>
+        <span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Search this tree</span>
+        <input type="search" placeholder="Search leaves, branches, threads" style="flex: 1; min-width: 0; height: 100%; border: 0; outline: none; background: transparent; color: var(--text); font: inherit; font-size: 13px">
+        <span style="font-family: 'Geist Mono', ui-monospace, monospace; font-size: 11px; color: var(--muted); border: 1px solid var(--hair); border-radius: 5px; padding: 2px 6px">⌘K</span>
+      </label>
+    </div>
+    <div style="display: flex; align-items: center; gap: 6px">
+      <span style="display: inline-flex; align-items: center; gap: 7px; height: 32px; padding: 0 10px 0 4px; color: var(--muted); font-size: 12px"><span style="width: 7px; height: 7px; border-radius: 50%; background: var(--accent)"></span>Synced to main</span>
+      <button type="button" class="{{explorerBtnCls}}" aria-label="Show explorer" aria-pressed="{{explorerOpen}}" onClick="{{toggleExplorer}}" style="width: 36px; height: 36px; display: grid; place-items: center; border: 0; border-radius: 8px; background: transparent; color: var(--muted); cursor: pointer"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="15" rx="2.5"></rect><path d="M9.5 4.5v15"></path></svg></button>
+      <button type="button" class="{{peekBtnCls}}" aria-label="Show leaf panel" aria-pressed="{{peekOpen}}" onClick="{{togglePeek}}" style="width: 36px; height: 36px; display: grid; place-items: center; border: 0; border-radius: 8px; background: transparent; color: var(--muted); cursor: pointer"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="15" rx="2.5"></rect><path d="M14.5 4.5v15"></path></svg></button>
+      <button type="button" class="primary" style="display: inline-flex; align-items: center; gap: 7px; height: 36px; margin-left: 4px; padding: 0 14px; border: 0; border-radius: 9px; background: var(--accent); color: var(--on-accent); font-weight: 600; font-size: 13px; cursor: pointer">
+        <svg class="ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>New leaf
+      </button>
+    </div>
+  </header>
+
+  <div style="flex: 1; display: flex; flex-wrap: wrap; min-height: 0">
+
+    <sc-if value="{{explorerOpen}}" hint-placeholder-val="{{ true }}">
+      <aside aria-label="Explorer" style="flex: 1 1 272px; max-width: 100%; display: flex; flex-direction: column; min-height: 320px; border-right: 1px solid var(--hair); background: var(--panel)">
+        <div style="display: flex; align-items: center; gap: 8px; padding: 14px 10px 6px 18px">
+          <h2 style="margin: 0; font-size: 11px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted)">Explorer</h2>
+          <button type="button" class="ibtn" aria-label="Hide explorer" onClick="{{toggleExplorer}}" style="margin-left: auto; width: 32px; height: 32px; display: grid; place-items: center; border: 0; border-radius: 8px; background: transparent; color: var(--muted); cursor: pointer"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"></path></svg></button>
+        </div>
+        <div style="padding: 0 18px 12px; display: flex; flex-direction: column; gap: 3px">
+          <span style="font-size: 15px; font-weight: 500">Engineering</span>
+          <span style="font-family: 'Geist Mono', ui-monospace, monospace; font-size: 11px; color: var(--muted)">[user]/engineering · main</span>
+        </div>
+        <div style="position: relative; flex: 1; min-height: 0">
+        <div role="tree" aria-label="Branches and leaves" style="position: absolute; inset: 0; overflow: auto; padding: 0 8px 12px; display: flex; flex-direction: column; gap: 1px">
+          <sc-for list="{{rows}}" as="r" hint-placeholder-count="14">
+            <div class="{{r.rowCls}}" style="display: flex; align-items: center; gap: 2px; height: 32px; padding-right: 8px; border-radius: 7px; padding-left: {{r.pad}}px">
+              <button type="button" class="{{r.chevCls}}" aria-label="Expand or collapse {{r.label}}" onClick="{{r.toggle}}" style="flex-shrink: 0; width: 22px; height: 28px; display: grid; place-items: center; border: 0; background: transparent; color: var(--faint); cursor: pointer; padding: 0"><svg class="ic" width="13" height="13" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg></button>
+              <button type="button" onClick="{{r.pick}}" style="flex: 1; min-width: 0; display: flex; align-items: center; gap: 9px; height: 30px; padding: 0 4px; border: 0; background: transparent; text-align: left; cursor: pointer; font-size: 13.5px">
+                <span class="{{r.glyph}}"></span>
+                <span style="flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: {{r.tc}}">{{r.label}}</span>
+                <span style="font-family: 'Geist Mono', ui-monospace, monospace; font-size: 10.5px; color: var(--faint)">{{r.count}}</span>
+              </button>
+            </div>
+          </sc-for>
+        </div>
+        </div>
+        <div style="padding: 12px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; border-top: 1px solid var(--hair)">
+          <button type="button" class="ghost" style="display: flex; align-items: center; justify-content: center; gap: 7px; height: 38px; border: 1px solid var(--hair-strong); border-radius: 9px; background: transparent; font-size: 12.5px; cursor: pointer"><span class="gl gl-branch"></span>New branch</button>
+          <button type="button" class="ghost" style="display: flex; align-items: center; justify-content: center; gap: 7px; height: 38px; border: 1px solid var(--hair-strong); border-radius: 9px; background: transparent; font-size: 12.5px; cursor: pointer"><span class="gl gl-leaf"></span>New leaf</button>
+        </div>
+      </aside>
+    </sc-if>
+
+    <main style="flex: 999 1 560px; min-width: 0; min-height: 560px; position: relative; overflow: hidden; background: var(--bg)">
+      <svg viewBox="0 0 1000 860" preserveAspectRatio="xMidYMid meet" aria-label="Knowledge map of the Engineering tree" style="position: absolute; inset: 0; width: 100%; height: 100%; display: block; font-family: 'Geist', ui-sans-serif, system-ui, sans-serif">
+        <defs>
+          <pattern id="yz-dots-g" width="28" height="28" patternUnits="userSpaceOnUse"><circle class="griddot" cx="1.5" cy="1.5" r="1"></circle></pattern>
+        </defs>
+        <rect x="-1500" y="-1500" width="4000" height="3860" style="fill: url(#yz-dots-g)"></rect>
+        <rect class="bg" x="-1500" y="-1500" width="4000" height="3860" onClick="{{clear}}"></rect>
+        <g class="cam" style="transform: translate({{camX}}px, 0px) scale({{zoom}}); transform-origin: 500px 430px">
+          <circle class="orbit" cx="500" cy="430" r="112"></circle>
+          <circle class="orbit" cx="500" cy="430" r="222"></circle>
+          <circle class="orbit" cx="500" cy="430" r="318"></circle>
+          <g class="{{edgeLayerCls}}">
+            <sc-for list="{{edges}}" as="e" hint-placeholder-count="30"><path class="{{e.cls}}" d="{{e.d}}"></path></sc-for>
+          </g>
+          <g class="{{threadLayerCls}}">
+            <sc-for list="{{threads}}" as="t" hint-placeholder-count="12"><path class="{{t.cls}}" d="{{t.d}}"></path></sc-for>
+          </g>
+          <sc-for list="{{segs}}" as="s" hint-placeholder-count="6"><path class="{{s.cls}}" d="{{s.d}}"></path></sc-for>
+          <sc-for list="{{nodes}}" as="n" hint-placeholder-count="30">
+            <g class="{{n.cls}}" onClick="{{n.pick}}">
+              <circle class="hit" cx="{{n.x}}" cy="{{n.y}}" r="{{n.hitR}}"></circle>
+              <circle class="{{n.haloCls}}" cx="{{n.x}}" cy="{{n.y}}" r="{{n.haloR}}"></circle>
+              <circle class="{{n.ringCls}}" cx="{{n.x}}" cy="{{n.y}}" r="{{n.ringR}}"></circle>
+              <circle class="dot" cx="{{n.x}}" cy="{{n.y}}" r="{{n.r}}" style="fill: {{n.fill}}; stroke: {{n.stroke}}"></circle>
+              <text class="{{n.lblCls}}" x="{{n.lx}}" y="{{n.ly}}">{{n.label}}</text>
+            </g>
+          </sc-for>
+          <g class="{{coreCls}}" onClick="{{pickRoot}}">
+            <circle class="core" cx="500" cy="430" r="40"></circle>
+            <text class="coretitle" x="500" y="429">Engineering</text>
+            <text class="corelbl" x="500" y="444">{{totalWords}} words</text>
+          </g>
+        </g>
+      </svg>
+
+      <div style="position: absolute; left: 16px; top: 16px; display: flex; gap: 6px; flex-wrap: wrap">
+        <button type="button" class="chip" aria-pressed="{{showTree}}" onClick="{{toggleTree}}" style="display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 12px; border: 1px solid var(--hair-strong); border-radius: 999px; background: var(--panel); font-size: 12.5px; cursor: pointer; color: {{treeChipColor}}"><svg width="16" height="10" viewBox="0 0 16 10" aria-hidden="true"><path d="M1 9C5 9 6 1 15 1" style="fill: none; stroke: var(--line); stroke-opacity: 0.6; stroke-width: 1.2px"></path></svg>Branches</button>
+        <button type="button" class="chip" aria-pressed="{{showThreads}}" onClick="{{toggleThreads}}" style="display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 12px; border: 1px solid var(--hair-strong); border-radius: 999px; background: var(--panel); font-size: 12.5px; cursor: pointer; color: {{threadChipColor}}"><svg width="16" height="10" viewBox="0 0 16 10" aria-hidden="true"><path d="M1 9C5 9 6 1 15 1" style="fill: none; stroke: var(--accent); stroke-width: 1.6px"></path></svg>Threads</button>
+      </div>
+
+      <div style="position: absolute; left: 16px; bottom: 16px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; max-width: {{overlayMax}}">
+        <div style="display: flex; align-items: center; gap: 2px; padding: 4px; border: 1px solid var(--hair); border-radius: 11px; background: var(--panel)">
+          <button type="button" class="ibtn" aria-label="Zoom out" onClick="{{zoomOut}}" style="width: 34px; height: 34px; display: grid; place-items: center; border: 0; border-radius: 8px; background: transparent; cursor: pointer"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"></path></svg></button>
+          <span style="min-width: 44px; text-align: center; font-family: 'Geist Mono', ui-monospace, monospace; font-size: 12px; color: var(--text-body)">{{zoomPct}}</span>
+          <button type="button" class="ibtn" aria-label="Zoom in" onClick="{{zoomIn}}" style="width: 34px; height: 34px; display: grid; place-items: center; border: 0; border-radius: 8px; background: transparent; cursor: pointer"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg></button>
+          <span style="width: 1px; height: 20px; background: var(--hair); margin: 0 2px"></span>
+          <button type="button" class="ibtn" aria-label="Fit the tree" onClick="{{fit}}" style="width: 34px; height: 34px; display: grid; place-items: center; border: 0; border-radius: 8px; background: transparent; cursor: pointer"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V5h4M20 9V5h-4M4 15v4h4M20 15v4h-4"></path></svg></button>
+          <span style="padding: 0 8px 0 4px; font-size: 11.5px; color: var(--muted)">{{zoomLevel}}</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 10px 14px; border: 1px solid var(--hair); border-radius: 11px; background: var(--panel); font-size: 11.5px; color: var(--muted)">
+          <span style="display: inline-flex; align-items: center; gap: 7px"><span class="gl gl-leaf"></span>Leaf</span>
+          <span style="display: inline-flex; align-items: center; gap: 7px"><span class="gl gl-sprout"></span>Leaf with sub-leaves</span>
+          <span style="display: inline-flex; align-items: center; gap: 7px"><span class="gl gl-branch"></span>Branch</span>
+          <span style="display: inline-flex; align-items: center; gap: 7px"><span style="width: 16px; height: 2px; border-radius: 2px; background: var(--accent)"></span>Thread (@mention)</span>
+          <span>Size = words written</span>
+        </div>
+      </div>
+
+      <sc-if value="{{peekVisible}}" hint-placeholder-val="{{ true }}">
+        <section aria-label="Leaf preview" style="position: absolute; z-index: 3; display: flex; flex-direction: column; box-sizing: border-box; background: var(--panel); border: 1px solid var(--hair); overflow: hidden; {{peekGeom}}">
+          <div style="display: flex; align-items: center; gap: 10px; padding: 8px 8px 8px 16px; border-bottom: 1px solid var(--hair)">
+            <span style="flex-shrink: 0; font-size: 10.5px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent)">{{P.kind}}</span>
+            <span style="flex: 1; min-width: 0; font-family: 'Geist Mono', ui-monospace, monospace; font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{P.crumb}}</span>
+            <sc-if value="{{expanded}}" hint-placeholder-val="{{ false }}">
+              <button type="button" class="ibtn" aria-label="Back to the map" onClick="{{toggleExpand}}" style="width: 36px; height: 36px; display: grid; place-items: center; border: 0; border-radius: 8px; background: transparent; color: var(--text-body); cursor: pointer"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7"></path></svg></button>
+            </sc-if>
+            <sc-if value="{{notExpanded}}" hint-placeholder-val="{{ true }}">
+              <button type="button" class="ibtn" aria-label="Open full page" onClick="{{toggleExpand}}" style="width: 36px; height: 36px; display: grid; place-items: center; border: 0; border-radius: 8px; background: transparent; color: var(--text-body); cursor: pointer"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7"></path></svg></button>
+            </sc-if>
+            <button type="button" class="ibtn" aria-label="Dismiss" onClick="{{closePeek}}" style="width: 36px; height: 36px; display: grid; place-items: center; border: 0; border-radius: 8px; background: transparent; color: var(--text-body); cursor: pointer"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></button>
+          </div>
+
+          <div style="flex: 1; min-height: 0; overflow: auto">
+            <div style="width: 100%; margin: 0 auto; max-width: {{innerMax}}">
+              <sc-if value="{{P.featured}}" hint-placeholder-val="{{ true }}">
+                <div style="position: relative; height: {{coverH}}; background: var(--raised); border-bottom: 1px solid var(--hair)">
+                  <span style="position: absolute; right: 14px; bottom: 10px; font-family: 'Geist Mono', ui-monospace, monospace; font-size: 10.5px; color: var(--faint)">[Cover image · Unsplash]</span>
+                </div>
+              </sc-if>
+              <article style="padding: 20px 24px 28px; display: flex; flex-direction: column; gap: 14px">
+                <div style="display: flex; align-items: center; gap: 12px">
+                  <sc-if value="{{P.hasEmoji}}" hint-placeholder-val="{{ true }}"><span aria-hidden="true" style="font-size: 30px; line-height: 1">{{P.emoji}}</span></sc-if>
+                  <sc-if value="{{P.noEmoji}}" hint-placeholder-val="{{ false }}"><span class="{{P.glyph}}" style="width: 12px; height: 12px"></span></sc-if>
+                  <h2 style="margin: 0; font-size: {{titleSize}}; font-weight: 600; letter-spacing: -0.01em; line-height: 1.15">{{P.title}}</h2>
+                </div>
+                <div style="display: flex; flex-wrap: wrap; gap: 6px">
+                  <sc-for list="{{P.meta}}" as="m" hint-placeholder-count="3"><span style="padding: 3px 8px; border: 1px solid var(--hair); border-radius: 6px; font-family: 'Geist Mono', ui-monospace, monospace; font-size: 11px; color: var(--text-body)">{{m}}</span></sc-for>
+                </div>
+
+                <sc-if value="{{P.featured}}" hint-placeholder-val="{{ true }}">
+                  <div class="reading" style="display: flex; flex-direction: column; gap: 12px; font-size: 14.5px; line-height: 1.65; color: var(--text-body)">
+                    <p style="margin: 0">Open-source identity provider. Each realm keeps its own users, clients and roles, and our apps sign in through <button type="button" class="mention" onClick="{{go.oidc}}">@ OpenID Connect</button> to receive signed JWTs.</p>
+                    <h3 style="margin: 8px 0 0; font-family: 'Geist', ui-sans-serif, system-ui, sans-serif; font-size: 15px; font-weight: 600; color: var(--accent)">How our services use it</h3>
+                    <p style="margin: 0">Every Spring service is an OAuth 2.0 resource server: it checks each token against the realm keys. The setup lives in <button type="button" class="mention" onClick="{{go.springsec}}">@ Spring Security</button>.</p>
+                    <pre style="margin: 0; padding: 12px 14px; border: 1px solid var(--hair); border-radius: 9px; background: var(--bg); font-family: 'Geist Mono', ui-monospace, monospace; font-size: 12px; line-height: 1.6; color: var(--text); white-space: pre-wrap; overflow-wrap: anywhere">GET /realms/{realm}/.well-known/openid-configuration</pre>
+                    <h3 style="margin: 8px 0 0; font-family: 'Geist', ui-sans-serif, system-ui, sans-serif; font-size: 15px; font-weight: 600; color: var(--accent)">Open questions</h3>
+                    <div style="display: flex; flex-direction: column; gap: 6px">
+                      <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer"><input type="checkbox" checked="{{ true }}" style="margin: 4px 0 0; width: 15px; height: 15px; accent-color: var(--accent)"><span style="text-decoration: line-through; color: var(--muted)">Map realm roles to Spring authorities</span></label>
+                      <label style="display: flex; align-items: flex-start; gap: 10px; cursor: pointer"><input type="checkbox" style="margin: 4px 0 0; width: 15px; height: 15px; accent-color: var(--accent)"><span>Rotate the realm signing keys every 90 days</span></label>
+                    </div>
+                  </div>
+                </sc-if>
+                <sc-if value="{{P.showSum}}" hint-placeholder-val="{{ false }}">
+                  <p class="reading" style="margin: 0; font-size: 14.5px; line-height: 1.65; color: var(--text-body)">{{P.sum}}</p>
+                </sc-if>
+
+                <sc-if value="{{P.hasKids}}" hint-placeholder-val="{{ true }}">
+                  <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 6px">
+                    <h3 style="margin: 0; font-size: 11px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted)">{{P.kidsTitle}}</h3>
+                    <div style="display: flex; flex-wrap: wrap; gap: 6px">
+                      <sc-for list="{{P.kids}}" as="k" hint-placeholder-count="2">
+                        <button type="button" class="chip" onClick="{{k.pick}}" style="display: inline-flex; align-items: center; gap: 8px; height: 32px; padding: 0 12px; border: 1px solid var(--hair-strong); border-radius: 999px; background: transparent; font-size: 13px; cursor: pointer"><span class="{{k.glyph}}"></span>{{k.label}}</button>
+                      </sc-for>
+                    </div>
+                  </div>
+                </sc-if>
+
+                <sc-if value="{{P.hasOut}}" hint-placeholder-val="{{ true }}">
+                  <div style="display: flex; flex-direction: column; gap: 4px; margin-top: 6px">
+                    <h3 style="margin: 0 0 4px; font-size: 11px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted)">Threads out · mentioned here</h3>
+                    <sc-for list="{{P.out}}" as="o" hint-placeholder-count="1">
+                      <button type="button" class="lrow" onClick="{{o.pick}}" style="display: flex; align-items: center; gap: 10px; min-height: 38px; padding: 0 10px; border: 0; border-radius: 8px; background: transparent; text-align: left; cursor: pointer">
+                        <svg width="18" height="10" viewBox="0 0 18 10" aria-hidden="true"><path d="M1 9C6 9 7 1 17 1" style="fill: none; stroke: var(--accent); stroke-width: 1.6px"></path></svg>
+                        <span style="font-size: 13.5px">{{o.label}}</span>
+                        <span style="margin-left: auto; font-family: 'Geist Mono', ui-monospace, monospace; font-size: 10.5px; color: var(--faint); white-space: nowrap">{{o.crumb}}</span>
+                      </button>
+                    </sc-for>
+                  </div>
+                </sc-if>
+                <sc-if value="{{P.hasIn}}" hint-placeholder-val="{{ true }}">
+                  <div style="display: flex; flex-direction: column; gap: 4px; margin-top: 6px">
+                    <h3 style="margin: 0 0 4px; font-size: 11px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted)">Threads in · mentioned by</h3>
+                    <sc-for list="{{P.inn}}" as="o" hint-placeholder-count="2">
+                      <button type="button" class="lrow" onClick="{{o.pick}}" style="display: flex; align-items: center; gap: 10px; min-height: 38px; padding: 0 10px; border: 0; border-radius: 8px; background: transparent; text-align: left; cursor: pointer">
+                        <svg width="18" height="10" viewBox="0 0 18 10" aria-hidden="true"><path d="M17 9C12 9 11 1 1 1" style="fill: none; stroke: var(--accent); stroke-width: 1.6px; stroke-dasharray: 3 3"></path></svg>
+                        <span style="font-size: 13.5px">{{o.label}}</span>
+                        <span style="margin-left: auto; font-family: 'Geist Mono', ui-monospace, monospace; font-size: 10.5px; color: var(--faint); white-space: nowrap">{{o.crumb}}</span>
+                      </button>
+                    </sc-for>
+                  </div>
+                </sc-if>
+              </article>
+            </div>
+          </div>
+
+          <div style="display: flex; align-items: center; gap: 12px; padding: 10px 10px 10px 16px; border-top: 1px solid var(--hair)">
+            <span style="flex: 1; min-width: 0; font-family: 'Geist Mono', ui-monospace, monospace; font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{P.path}}</span>
+            <button type="button" class="ghost" style="display: inline-flex; align-items: center; gap: 7px; height: 36px; padding: 0 12px; border: 1px solid var(--hair-strong); border-radius: 9px; background: transparent; font-size: 12.5px; cursor: pointer"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"></path></svg>{{P.action}}</button>
+          </div>
+        </section>
+      </sc-if>
+    </main>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"base":{"editor":"enum","options":["vanta","graphite","paper"],"default":"graphite","section":"Theme"},"accent":{"editor":"enum","options":["green","amber","blue","violet"],"default":"blue","section":"Theme"},"font":{"editor":"enum","options":["geist","serif"],"default":"geist","section":"Theme"},"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  engData() {
+    return { id: 'root', name: 'Engineering', children: [
+      { id: 'backend', name: 'Backend', children: [
+        { id: 'java', name: 'Java', words: 4200, sum: 'Language notes from Java 8 to 21: what changed, what to use, what to avoid.', children: [
+          { id: 'streams', name: 'Streams', words: 900, sum: 'Collectors, grouping, and when a plain loop is clearer.' },
+          { id: 'records', name: 'Records', words: 600, sum: 'Immutable data carriers, compact constructors and pattern matching.' },
+          { id: 'vthreads', name: 'Virtual Threads', words: 1300, sum: 'Project Loom in practice: thread-per-request without pool tuning.' } ] },
+        { id: 'spring', name: 'Spring Boot', words: 3100, sum: 'Auto-configuration, profiles, and how a Boot app actually starts.', children: [
+          { id: 'springsec', name: 'Spring Security', words: 1500, sum: 'The filter chain, resource servers, and mapping JWT claims to authorities.' },
+          { id: 'springdata', name: 'Spring Data', words: 1100, sum: 'Repositories, derived queries, and the N+1 traps to watch for.' } ] },
+        { id: 'rest', name: 'REST Design', words: 1400, sum: 'Resource naming, status codes, pagination and versioning rules.' } ] },
+      { id: 'identity', name: 'Identity', children: [
+        { id: 'keycloak', name: 'Keycloak', words: 2600, emoji: '🔐', children: [
+          { id: 'realms', name: 'Realms', words: 700, sum: 'One realm per environment; clients, roles and users live inside it.' },
+          { id: 'tokens', name: 'Tokens', words: 1200, sum: 'Access, refresh and ID tokens: lifetimes, claims and validation.' } ] },
+        { id: 'oauth', name: 'OAuth 2.0', words: 2000, sum: 'Authorization code with PKCE, client credentials, and scopes.' },
+        { id: 'oidc', name: 'OpenID Connect', words: 1300, sum: 'The identity layer on top of OAuth 2.0: ID tokens and discovery.' } ] },
+      { id: 'cloud', name: 'Cloud', children: [
+        { id: 'gcp', name: 'Google Cloud', words: 1800, sum: 'Projects, regions, and the services worth learning first.', children: [
+          { id: 'cloudrun', name: 'Cloud Run', words: 900, sum: 'Containers that scale to zero; cold starts and concurrency.' },
+          { id: 'iam', name: 'IAM', words: 800, sum: 'Service accounts, roles and least privilege across projects.' } ] },
+        { id: 'docker', name: 'Docker', words: 1500, sum: 'Layered images, multi-stage builds and small runtime images.' },
+        { id: 'cicd', name: 'CI/CD', children: [
+          { id: 'jenkins', name: 'Jenkins', words: 700, sum: 'Declarative pipelines, shared libraries and agents.' },
+          { id: 'circleci', name: 'CircleCI', words: 400, sum: 'Orbs, caching and parallel test splitting.' } ] } ] },
+      { id: 'data', name: 'Data', children: [
+        { id: 'postgres', name: 'PostgreSQL', words: 2200, sum: 'Everyday PostgreSQL: types, constraints and reading query plans.', children: [
+          { id: 'indexes', name: 'Indexes', words: 1000, sum: 'B-tree vs GIN, composite index order, and when not to index.' },
+          { id: 'tx', name: 'Transactions', words: 1100, sum: 'Isolation levels, locking, and what @Transactional really does.' } ] },
+        { id: 'oracle', name: 'Oracle DB', words: 600, sum: 'Differences that bite when moving from Oracle to PostgreSQL.' },
+        { id: 'schema', name: 'Schema Design', words: 900, sum: 'Naming, normalisation, and migrations that never lose data.' } ] },
+      { id: 'frontend', name: 'Frontend', children: [
+        { id: 'react', name: 'React', words: 1700, sum: 'Components, rendering, and keeping state where it belongs.', children: [
+          { id: 'hooks', name: 'Hooks', words: 800, sum: 'Effect dependencies, custom hooks and memoisation.' } ] },
+        { id: 'angular', name: 'Angular', words: 1000, sum: 'Modules, RxJS and change detection in large apps.' } ] },
+      { id: 'agents', name: 'AI Agents', children: [
+        { id: 'prompting', name: 'Prompting', words: 1100, sum: 'Writing instructions an agent can follow: context, constraints, examples.' },
+        { id: 'claudecode', name: 'Claude Code', words: 1600, sum: 'Working with an agent on a real codebase: plans, reviews, CLAUDE.md.' },
+        { id: 'evals', name: 'Evaluations', words: 500, sum: 'Checking agent output with tests instead of impressions.' } ] }
+    ] };
+  }
+  engLinks() {
+    return [['springsec', 'oauth'], ['springsec', 'keycloak'], ['tokens', 'oidc'], ['keycloak', 'oauth'], ['oidc', 'oauth'],
+      ['iam', 'keycloak'], ['cloudrun', 'docker'], ['jenkins', 'docker'], ['springdata', 'tx'], ['hooks', 'rest'], ['angular', 'rest'],
+      ['claudecode', 'java'], ['vthreads', 'cloudrun'], ['schema', 'springdata'], ['evals', 'circleci'], ['prompting', 'claudecode'], ['indexes', 'schema']];
+  }
+  layoutTree(tree, links, o) {
+    const q = (v) => Math.round(v * 10) / 10;
+    const nodes = [], byId = {};
+    const walk = (n, depth, parent) => {
+      n.depth = depth; n.parent = parent; n.kids = n.children || []; byId[n.id] = n; nodes.push(n);
+      n.kids.forEach((c) => walk(c, depth + 1, n));
+      n.slots = n.kids.length ? n.kids.reduce((s, c) => s + c.slots, 0) : 1;
+      n.total = (n.words || 0) + n.kids.reduce((s, c) => s + c.total, 0);
+    };
+    walk(tree, 0, null);
+    const top = tree.kids, per = (Math.PI * 2 - o.gap * top.length) / tree.slots;
+    const place = (n, a0) => {
+      let a = a0;
+      n.kids.forEach((c) => { place(c, a); a = c.a1; });
+      n.a1 = a0 + n.slots * per;
+      n.ang = n.kids.length ? (n.kids[0].ang + n.kids[n.kids.length - 1].ang) / 2 : a0 + per / 2;
+    };
+    let a = (o.start || 0) + o.gap / 2;
+    top.forEach((b) => { place(b, a); a = b.a1 + o.gap; });
+    const pt = (ang, r) => [o.cx + r * Math.sin(ang), o.cy - r * Math.cos(ang)];
+    nodes.forEach((n) => {
+      n.rad = n.depth ? o.radii[n.depth] : 0;
+      const p = pt(n.ang || 0, n.rad);
+      n.x = q(p[0]); n.y = q(p[1]);
+      n.hasNote = !!n.words;
+      n.size = n.depth === 0 ? o.coreR : q((n.hasNote ? 2.4 + Math.sqrt(n.words) / 5.6 : 4 + Math.sqrt(n.total) / 11) * o.k);
+      const s = Math.sin(n.ang || 0), c = Math.cos(n.ang || 0), off = n.size + (n.kids.length && n.hasNote ? 9 : 6) * o.k + 2;
+      n.anc = s > 0.2 ? 'a-start' : s < -0.2 ? 'a-end' : 'a-mid';
+      n.lx = q(n.x + s * off);
+      n.ly = q(n.y - c * off + (n.anc === 'a-mid' ? (c > 0 ? -4 : 13) : 4));
+    });
+    const edges = nodes.filter((n) => n.parent).map((n) => {
+      const p = n.parent;
+      if (!p.depth) {
+        const s = pt(n.ang, o.coreR + 13 * o.k);
+        return { id: n.id, d: 'M' + q(s[0]) + ',' + q(s[1]) + 'L' + n.x + ',' + n.y };
+      }
+      const rm = (p.rad + n.rad) / 2, c1 = pt(p.ang, rm), c2 = pt(n.ang, rm);
+      return { id: n.id, d: 'M' + p.x + ',' + p.y + 'C' + q(c1[0]) + ',' + q(c1[1]) + ' ' + q(c2[0]) + ',' + q(c2[1]) + ' ' + n.x + ',' + n.y };
+    });
+    const anc = (n) => { const out = []; for (let m = n; m; m = m.parent) out.push(m); return out; };
+    const threads = links.filter((l) => byId[l[0]] && byId[l[1]]).map((l) => {
+      const A = anc(byId[l[0]]), B = anc(byId[l[1]]), lca = A.find((x) => B.indexOf(x) >= 0);
+      const up = A.slice(0, A.indexOf(lca) + 1), down = B.slice(0, B.indexOf(lca)).reverse();
+      let P = up.concat(down).map((n) => [n.x, n.y]);
+      if (!lca.depth && up.length > 1 && down.length) {
+        const u = up[up.length - 2], v = down[0];
+        P[up.length - 1] = [o.cx + ((u.x + v.x) / 2 - o.cx) * 0.5, o.cy + ((u.y + v.y) / 2 - o.cy) * 0.5];
+      }
+      const m = P.length, b = o.beta, p0 = P[0], pn = P[m - 1];
+      P = P.map((p, i) => [b * p[0] + (1 - b) * (p0[0] + (pn[0] - p0[0]) * i / (m - 1)), b * p[1] + (1 - b) * (p0[1] + (pn[1] - p0[1]) * i / (m - 1))]);
+      let d = 'M' + q(P[0][0]) + ',' + q(P[0][1]);
+      if (m === 2) d += 'L' + q(P[1][0]) + ',' + q(P[1][1]);
+      for (let i = 1; i < m - 1; i++) {
+        const e = i === m - 2 ? P[m - 1] : [(P[i][0] + P[i + 1][0]) / 2, (P[i][1] + P[i + 1][1]) / 2];
+        d += 'Q' + q(P[i][0]) + ',' + q(P[i][1]) + ' ' + q(e[0]) + ',' + q(e[1]);
+      }
+      return { from: l[0], to: l[1], d };
+    });
+    const dr = o.coreR + 7 * o.k;
+    let acc = 0;
+    const segs = top.map((b) => {
+      const span = (b.total / tree.total) * Math.PI * 2, a0 = acc + 0.04, a1 = acc + span - 0.04;
+      acc += span;
+      const s = pt(a0, dr), e = pt(a1, dr);
+      return { id: b.id, d: 'M' + q(s[0]) + ',' + q(s[1]) + 'A' + q(dr) + ',' + q(dr) + ' 0 ' + (a1 - a0 > Math.PI ? 1 : 0) + ' 1 ' + q(e[0]) + ',' + q(e[1]) };
+    });
+    return { tree, nodes, byId, edges, threads, segs };
+  }
+  compact(w) {
+    return w >= 1000 ? (Math.round(w / 100) / 10) + 'k' : String(w);
+  }
+  build() {
+    if (!this._L) this._L = this.layoutTree(this.engData(), this.engLinks(), { cx: 500, cy: 430, radii: [0, 112, 222, 318], gap: 0.16, start: 0, beta: 0.82, coreR: 40, k: 1 });
+    return this._L;
+  }
+  slug(s) {
+    return s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  }
+  pathOf(n) {
+    if (!n.depth) return '[user]/engineering @ main';
+    const parts = [];
+    for (let m = n; m && m.depth; m = m.parent) parts.unshift(this.slug(m.name));
+    const p = parts.join('/');
+    return !n.hasNote ? p + '/' : p + '.md';
+  }
+  crumbOf(n) {
+    const parts = [];
+    for (let m = n.parent; m; m = m.parent) parts.unshift(m.name);
+    return parts.join(' / ');
+  }
+  glyphOf(n) {
+    return 'gl ' + (!n.hasNote ? 'gl-branch' : n.kids.length ? 'gl-sprout' : 'gl-leaf');
+  }
+  renderVals() {
+    const L = this.build();
+    const s = this.state || {};
+    const base = ['vanta', 'graphite', 'paper'].indexOf(this.props.base) >= 0 ? this.props.base : 'graphite';
+    const mode = base === 'paper' ? 'light' : 'dark';
+    const accentId = ['green', 'amber', 'blue', 'violet'].indexOf(this.props.accent) >= 0 ? this.props.accent : 'blue';
+    const font = this.props.font === 'serif' ? 'serif' : 'geist';
+    const explorerOpen = s.explorerOpen ?? true;
+    const selId = s.sel === undefined ? 'keycloak' : s.sel;
+    const peekOpen = (s.peekOpen ?? true) && !!selId;
+    const expanded = !!s.expanded && peekOpen;
+    const zoom = s.zoom ?? 1;
+    const showTree = s.showTree ?? true;
+    const showThreads = s.showThreads ?? true;
+    const collapsed = s.collapsed || { data: true, frontend: true };
+    const sel = selId ? L.byId[selId] : null;
+    const select = (id) => this.setState({ sel: id, peekOpen: true });
+    const go = {};
+    L.nodes.forEach((n) => { go[n.id] = () => select(n.id); });
+
+    const near = {};
+    if (sel) {
+      near[sel.id] = true;
+      if (sel.parent) near[sel.parent.id] = true;
+      sel.kids.forEach((c) => { near[c.id] = true; });
+      L.threads.forEach((t) => { if (t.from === sel.id) near[t.to] = true; if (t.to === sel.id) near[t.from] = true; });
+    }
+    const topOf = (n) => { let m = n; while (m && m.depth > 1) m = m.parent; return m; };
+    const selTop = sel && sel.depth ? topOf(sel) : null;
+
+    const nodes = L.nodes.filter((n) => n.depth).map((n) => {
+      const isSel = !!sel && n.id === sel.id, dim = !!sel && sel.depth > 0 && !near[n.id];
+      const hideLbl = n.depth >= 2 && zoom < 0.85 && !isSel;
+      return {
+        pick: go[n.id],
+        cls: 'n' + (dim ? ' dim' : ''),
+        x: n.x, y: n.y, r: n.size, hitR: n.size + 8, ringR: n.size + 4, haloR: n.size + 10,
+        ringCls: 'ring' + (n.hasNote && n.kids.length ? '' : ' hide'),
+        haloCls: 'halo' + (isSel ? '' : ' hide'),
+        fill: isSel ? 'var(--accent)' : n.hasNote ? 'var(--node)' : 'var(--bg)',
+        stroke: n.hasNote ? 'none' : 'var(--accent)',
+        lx: n.lx, ly: n.ly,
+        lblCls: 'lbl ' + (n.depth === 1 ? 'blbl ' : '') + n.anc + (hideLbl ? ' hide' : '') + (isSel ? ' lsel' : ''),
+        label: n.depth === 1 ? n.name.toUpperCase() : n.name
+      };
+    });
+    const edges = L.edges.map((e) => {
+      const n = L.byId[e.id];
+      const hot = !!sel && sel.depth > 0 && (n.id === sel.id || n.parent.id === sel.id);
+      return { d: e.d, cls: 'edge' + (hot ? ' hot' : '') };
+    });
+    const touches = (t) => !!sel && (t.from === sel.id || t.to === sel.id);
+    const threads = L.threads.map((t) => ({ d: t.d, hot: touches(t), cls: 'thr' + (sel && sel.depth ? (touches(t) ? ' hot' : ' cold') : '') }))
+      .sort((x, y) => (x.hot ? 1 : 0) - (y.hot ? 1 : 0));
+    const segs = L.segs.map((g) => ({ d: g.d, cls: 'seg' + (selTop && selTop.id === g.id ? ' hot' : '') }));
+
+    const rows = [];
+    const flat = (n) => {
+      n.kids.forEach((c) => {
+        const open = !collapsed[c.id];
+        rows.push({
+          label: c.name, pad: 6 + (c.depth - 1) * 16,
+          tc: sel && c.id === sel.id ? 'var(--text)' : 'var(--text-body)',
+          rowCls: 'xrow' + (sel && c.id === sel.id ? ' on' : ''),
+          chevCls: 'chev' + (c.kids.length ? (open ? ' open' : '') : ' none'),
+          glyph: this.glyphOf(c), count: this.compact(c.total),
+          pick: go[c.id],
+          toggle: () => { const next = Object.assign({}, collapsed); next[c.id] = !next[c.id]; this.setState({ collapsed: next }); }
+        });
+        if (open) flat(c);
+      });
+    };
+    flat(L.tree);
+
+    const leaves = L.nodes.filter((n) => n.depth && n.hasNote).length;
+    const branches = L.nodes.filter((n) => n.depth && !n.hasNote).length;
+    let P = { kind: '', crumb: '', title: '', emoji: '', hasEmoji: false, noEmoji: true, glyph: 'gl gl-leaf', meta: [], featured: false, showSum: false, sum: '', hasKids: false, kids: [], kidsTitle: '', hasOut: false, out: [], hasIn: false, inn: [], path: '', action: '' };
+    if (sel) {
+      const named = (n) => (n.emoji ? n.emoji + ' ' : '') + n.name;
+      const out = L.threads.filter((t) => t.from === sel.id).map((t) => { const m = L.byId[t.to]; return { label: '@ ' + named(m), crumb: this.crumbOf(m), pick: go[m.id] }; });
+      const inn = L.threads.filter((t) => t.to === sel.id).map((t) => { const m = L.byId[t.from]; return { label: named(m), crumb: this.crumbOf(m), pick: go[m.id] }; });
+      const kids = sel.kids.map((c) => ({ label: c.name, glyph: this.glyphOf(c), pick: go[c.id] }));
+      const meta = [];
+      if (!sel.depth) meta.push(leaves + ' leaves', branches + ' branches', L.threads.length + ' threads', this.compact(sel.total) + ' words');
+      else if (sel.hasNote) {
+        meta.push(sel.words.toLocaleString('en-US') + ' words');
+        if (sel.kids.length) meta.push(sel.kids.length + ' sub-leaves');
+        meta.push((out.length + inn.length) + ' threads');
+      } else meta.push(sel.kids.length + ' items', this.compact(sel.total) + ' words inside');
+      P = {
+        kind: !sel.depth ? 'Tree' : !sel.hasNote ? 'Branch' : 'Leaf',
+        crumb: !sel.depth ? 'github.com/[user]/engineering' : this.crumbOf(sel),
+        title: sel.name, emoji: sel.emoji || '', hasEmoji: !!sel.emoji, noEmoji: !sel.emoji, glyph: !sel.depth ? 'gl gl-branch' : this.glyphOf(sel),
+        meta, featured: sel.id === 'keycloak', showSum: sel.id !== 'keycloak' && !!sel.sum, sum: sel.sum || '',
+        hasKids: kids.length > 0, kids, kidsTitle: !sel.depth ? 'Branches' : sel.hasNote ? 'Sub-leaves' : 'Inside this branch',
+        hasOut: out.length > 0, out, hasIn: inn.length > 0, inn,
+        path: this.pathOf(sel), action: sel.hasNote ? 'Edit leaf' : 'New leaf here'
+      };
+    }
+
+    const camX = peekOpen && !expanded && sel ? Math.max(-240, Math.min(240, Math.round(430 - (sel.depth ? sel.x : 500)))) : 0;
+    return {
+      base, mode, accentId, font, isDark: mode === 'dark', isLight: mode === 'light',
+      nodes, edges, threads, segs, rows, P, go, zoom, camX,
+      explorerOpen, peekOpen, expanded, notExpanded: !expanded, peekVisible: peekOpen,
+      explorerBtnCls: 'ibtn' + (explorerOpen ? ' on' : ''), peekBtnCls: 'ibtn' + (peekOpen ? ' on' : ''),
+      peekGeom: expanded ? 'inset: 0; border-width: 0; border-radius: 0' : 'top: 16px; right: 16px; bottom: 16px; width: 420px; max-width: calc(100% - 32px); border-radius: 14px; box-shadow: 0 24px 60px var(--shadow)',
+      overlayMax: peekOpen && !expanded ? 'calc(100% - 468px)' : 'calc(100% - 32px)',
+      innerMax: expanded ? '760px' : 'none', coverH: expanded ? '200px' : '112px', titleSize: expanded ? '34px' : '24px',
+      showTree, showThreads,
+      edgeLayerCls: showTree ? '' : 'hide', threadLayerCls: showThreads ? '' : 'hide',
+      treeChipColor: showTree ? 'var(--text)' : 'var(--faint)', threadChipColor: showThreads ? 'var(--text)' : 'var(--faint)',
+      coreCls: 'coreg' + (sel && !sel.depth ? ' sel' : ''),
+      totalWords: this.compact(L.tree.total),
+      zoomPct: Math.round(zoom * 100) + '%', zoomLevel: zoom < 0.85 ? 'Branches' : 'Leaves',
+      pickRoot: () => select('root'),
+      clear: () => this.setState({ sel: null, peekOpen: false, expanded: false }),
+      closePeek: () => this.setState({ peekOpen: false, expanded: false }),
+      toggleExplorer: () => this.setState({ explorerOpen: !explorerOpen }),
+      togglePeek: () => this.setState(peekOpen ? { peekOpen: false, expanded: false } : { peekOpen: true, sel: selId || 'root' }),
+      toggleExpand: () => this.setState({ expanded: !expanded }),
+      toggleTree: () => this.setState({ showTree: !showTree }),
+      toggleThreads: () => this.setState({ showThreads: !showThreads }),
+      zoomIn: () => this.setState({ zoom: Math.min(1.6, Math.round((zoom + 0.15) * 100) / 100) }),
+      zoomOut: () => this.setState({ zoom: Math.max(0.55, Math.round((zoom - 0.15) * 100) / 100) }),
+      fit: () => this.setState({ zoom: 1 })
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -14,6 +14,7 @@ This is the plan Claude Code follows to build Yeraz. Read it after `ideas.txt` (
 6. **Every milestone ends deployable.** CI is green and GitHub Pages serves the result.
 7. **Don't build ahead.** If a feature belongs to a later milestone, leave it out.
 8. **When the plan and reality disagree, stop and ask.** Then update this file.
+9. **No hard-coded colours.** Every colour comes from a theme token generated from `design/themes/themes.json`. A test fails the build if a hex or `rgb()` value appears anywhere else in `src/`.
 
 ## 2. Stack
 
@@ -25,7 +26,7 @@ Pin exact versions when installing.
 | UI | React 19 + Vite | Familiar to the owner; Vite gives the build, dev server, code splitting and CSS Modules |
 | State | Zustand | One small store, no boilerplate |
 | Routing | `wouter` with hash location | GitHub Pages can't rewrite URLs |
-| Styling | CSS Modules + CSS variables (`ui/tokens.css`) | Per-leaf colours are just variables; no CSS framework |
+| Styling | CSS Modules + CSS variables generated from `design/themes/themes.json` | Themes and per-leaf colours are just variables; no CSS framework |
 | Map | `d3-hierarchy`, `d3-shape`, `d3-zoom` (individual modules, not all of d3) | Radial layout, edge bundling, zoom and packing are built in |
 | Editor | CodeMirror 6: `@codemirror/view`, `state`, `lang-markdown`, `language-data`, `autocomplete` | Edits Markdown text directly; fast on long documents |
 | Read view | `markdown-it` + task lists + KaTeX (loaded on first use) | Small and fast; output cached by blob SHA |
@@ -34,7 +35,7 @@ Pin exact versions when installing.
 | GitHub | Plain `fetch` | Only 2 REST endpoints and 3 GraphQL operations are used; Octokit would be bigger than the code it saves |
 | PWA | `vite-plugin-pwa` | Manifest and service worker from configuration |
 | Desktop | Tauri 2 + `tauri-apps/tauri-action` | Small installers for Windows, macOS and Linux from the same build |
-| Fonts | Geist and Geist Mono, self-hosted (Fontsource variable packages) | Works offline |
+| Fonts | Geist, Geist Mono and Newsreader (the serif reading font), self-hosted (Fontsource variable packages) | Works offline |
 | Tests | Vitest, MSW, Playwright, `@axe-core/playwright`, `size-limit` | See §7 |
 
 Not used, on purpose: Octokit, Tailwind, Redux, TipTap/ProseMirror, Shiki, Electron, any backend.
@@ -46,6 +47,7 @@ Not used, on purpose: Octokit, Tailwind, Redux, TipTap/ProseMirror, Shiki, Elect
 - **`design/screens/`** — screenshots of every screen at 2× pixel density (the phone at 3×). This is what the app must look like, and the visual tests compare against it.
 - **`design/screens/source/`** — the source of each screen: HTML with the exact colours, sizes and copy. `Tree.dc.html` also contains working reference code for the map layout (`layoutTree()`), selection and dimming. Port the behaviour, not the code: the app builds the map with d3 (ARCHITECTURE.md §6).
 - **`design/brand/`** — the logo and every app icon: SVG masters, all PNG, ICO and ICNS sizes, and `export.py` to regenerate them.
+- **`design/themes/`** — `themes.json`, every colour of every theme (§3.4), and `check.py`, which verifies contrast for every combination.
 - **`design/README.md`** — what each file shows and where each icon goes.
 - **Links for the owner:** the design canvas (https://claude.ai/artifact/UWV7RLc2iLsYxB5Sde26c5) and the conversation where the design, the architecture and this plan were made (https://claude.ai/code/session_01LA2iepBJ3k2JUEstrXEcTD).
   - Both are private, and Claude Code can't open them.
@@ -53,23 +55,29 @@ Not used, on purpose: Octokit, Tailwind, Redux, TipTap/ProseMirror, Shiki, Elect
 
 The sections below copy the values that matter most, so they can be used without opening the files.
 
-### 3.1 Tokens (`ui/tokens.css`)
+### 3.1 Tokens
 
-| Token | Value | Use |
+Values shown are the default theme: Vanta base, green accent. Every theme defines the same tokens (`design/themes/themes.json`).
+
+| Token | Vanta value | Use |
 |---|---|---|
-| `--void` | `#030303` | Page background (the "vantablack") |
+| `--bg` | `#030303` | Page background (the "vantablack") |
+| `--top` | `#050606` | Top bar |
 | `--panel` | `#0A0B0B` | Explorer, Peek, floating controls |
-| `--raised` | `#111312` | Hover and selected rows |
-| `--hair` | `#1C1E1D` | 1 px borders and dividers |
-| `--text` | `#E8EAE6` | Main text |
-| `--muted` | `#8D918C` | Secondary text (meets 4.5:1 contrast on `--panel`) |
-| `--accent` | `#4BE3A0` | Headings ("text divisions"), threads, focus rings. Each Tree and leaf can override it. |
-| `--on-accent` | `#04130C` | Text on accent buttons |
+| `--raised` | `#121514` | Selected rows, cover placeholder |
+| `--hover` | `#101211` | Hovered rows and buttons |
+| `--hair` / `--hair-strong` | `#1C1E1D` / `#2A2E2B` | Borders and dividers / button outlines |
+| `--text` / `--text-body` | `#E8EAE6` / `#C9CEC9` | Main text / leaf body text |
+| `--muted` / `--faint` | `#8D918C` / `#7D827C` | Secondary text / counts (both at least 4.5:1 on `--panel`) |
+| `--node` / `--line` / `--core` | `#DCE3DE` / `#E8EAE6` / `#0B0D0C` | Map leaf dots / structure lines / the Tree's core |
+| `--grid` / `--shadow` | `rgba(255,255,255,0.05)` / `rgba(0,0,0,0.6)` | Map dot grid / panel shadow |
+| `--accent` | `#4BE3A0` | Headings ("text divisions"), threads, selection, focus rings |
+| `--accent-soft` / `--on-accent` | `rgba(75,227,160,0.12)` / `#06140D` | @mention chips / text on accent buttons |
 
 - **Type:** Geist for the interface, Geist Mono for paths, counts and shortcuts.
 - **Radii:** 8–9 px for controls, 14 px for floating panels.
 - **Icons:** stroke icons, 1.6 px, no emoji in the interface. Emoji appear only as leaf icons chosen by the user.
-- **Logo:** `design/brand/svg/yeraz-mark.svg` in the top bar, 22 px tall, next to the word "Yeraz" in Geist 600. Favicon and app icons come from `design/brand/` (see `design/README.md`).
+- **Logo:** `design/brand/svg/yeraz-mark.svg` in the top bar, 22 px tall, next to the word "Yeraz" in Geist 600. On the light Paper base, use `yeraz-mark-light.svg` instead. Favicon and app icons come from `design/brand/` (see `design/README.md`).
 - **No raster images in the interface:** icons and the logo are SVG, so they stay sharp at every pixel density.
 
 ### 3.2 Screens
@@ -96,6 +104,13 @@ The sections below copy the values that matter most, so they can be used without
      - Expand turns it into a full page with a 760 px content column.
 3. **Map only.** Explorer and Peek dismissed. Hovering a leaf shows a tooltip with words and threads. An optional panel, "Where you write most", shows word totals per branch.
 4. **Phone (390 px wide).** The map fills the screen, zoomed in. The Peek becomes a bottom sheet with a handle, expand, dismiss and "Open leaf". All touch targets are at least 44 px.
+5. **Settings › Appearance** (`design/screens/09`, `10`).
+   - Base cards (Vanta, Graphite, Paper), each with a small live preview of the app in the current accent.
+   - Accent swatches (green, amber, blue, violet), plus "Custom" (after launch).
+   - Reading font cards (Geist, Newsreader).
+   - Custom themes: "Create from current", "Import .json", "Export current" (after launch).
+   - A live preview of a leaf and the map on the right.
+   - Every change applies instantly to the whole app.
 
 ### 3.3 Map values from the design
 
@@ -116,9 +131,23 @@ Values below assume a layout radius `R`.
   - Its parent, children and thread ends stay bright; everything else dims to 30 %.
   - If the Peek is open, the camera pans so the selected leaf isn't hidden under it.
 - **Labels:**
-  - Placed outward from the centre, with a 4 px `--void` halo (`paint-order: stroke`).
+  - Placed outward from the centre, with a 4 px `--bg` halo (`paint-order: stroke`).
   - Branch labels are uppercase, 10.5 px, with 0.14 em letter spacing, in the accent colour.
   - Below 85 % zoom, leaf labels are hidden except the selected one.
+
+### 3.4 Themes
+
+The full rules are in ARCHITECTURE.md §13. In short:
+
+- **Three layers, picked independently:** base (Vanta, Graphite, Paper), accent (green, amber, blue, violet) and reading font (Geist, Newsreader). The default is Vanta, green, Geist: the original design.
+- **Applying a theme** means setting `data-base`, `data-mode` (`dark` or `light`), `data-accent` and `data-font` on `<html>`. `ui/theme.ts` generates the CSS for every value from `themes.json` once, at start-up.
+- **Body text of leaves** gets the class `reading`, which is the only thing the reading font changes.
+- **Leaf and Tree colours** are stored as names (`"amber"`), never as hex, so they follow the theme.
+- **The choice is saved per device,** and applied by an inline script in `index.html` before the first paint, so the wrong theme never flashes.
+- **Reference screens:**
+  - `design/screens/11` — Graphite with blue;
+  - `design/screens/12` — Paper with green and the serif font;
+  - `design/screens/source/Tree.dc.html` — the same tree view, written entirely with the tokens.
 
 ## 4. How to start (first session)
 
@@ -131,7 +160,8 @@ Values below assume a layout radius `R`.
 2. **Scaffold:** a Vite React TypeScript app in the repository root.
    - `strict: true`, ESLint (typescript-eslint) and Prettier.
    - Vitest and Playwright installed and configured.
-   - `ui/tokens.css` from §3.1.
+   - `ui/theme.ts` generating the theme CSS from `design/themes/themes.json` (§3.4). Only the default theme is used until M3, but the whole interface is built on the tokens from the first component.
+   - The test that fails on hard-coded colours (§1, rule 9).
    - `public/favicon.svg`, `public/favicon.ico` and the top-bar logo from `design/brand/`.
 3. **Build the fake GitHub before any feature** (§5). Every later test uses it, and it lets the app run without a token.
 4. **Add CI** (§8) and deploy the empty shell to GitHub Pages.
@@ -191,7 +221,8 @@ Scope: §4 and §5, plus CI.
 **Done when:**
 
 - CI is green.
-- GitHub Pages serves the empty shell (top bar on `--void`).
+- GitHub Pages serves the empty shell (top bar on `--bg`).
+- The hard-coded-colour test runs in CI.
 - `npm run dev:fake` opens the app against a 300-leaf fixture with no token.
 
 ### M1 — Read-only Tree (the design comes alive)
@@ -265,10 +296,15 @@ Scope: §4 and §5, plus CI.
    - pick, paste or drop an image; it is saved in `assets/` at full quality and included in the next commit, following the image rules in ARCHITECTURE.md §8: unchanged up to 4096 px, larger photos scaled down to 4096 px;
    - private images are shown through blob URLs from the cache.
 4. **Embeds:** math (KaTeX), syntax-highlighted code, YouTube, PDFs, and video with subtitle tracks. Each works both in the editor and in the read view.
-5. **Leaf styling:** text and heading colours, and a cover image (uploaded, or from Unsplash).
+5. **Leaf styling:** text and heading colours, chosen from the named colours, and a cover image (uploaded, or from Unsplash).
 6. **Other repositories:**
    - links to other GitHub repositories render as repository cards;
    - threads between Trees appear on Home.
+7. **Themes:**
+   - the Appearance screen (§3.2, screen 5);
+   - all three bases, four accents and two reading fonts;
+   - the light logo on Paper;
+   - the choice saved per device, with no flash on load.
 
 **Done when:**
 
@@ -281,6 +317,11 @@ Scope: §4 and §5, plus CI.
   - a 1,200 px PNG screenshot is committed byte for byte;
   - a 6,000 px photo is committed at 4,096 px on its long edge;
   - both render sharp at pixel densities 2 and 3 (screenshot test).
+- **Themes:**
+  - the contrast test passes for all 12 base and accent combinations;
+  - switching theme re-renders nothing (React Profiler shows zero commits);
+  - after a reload the first painted frame already uses the saved theme;
+  - the tree view in Graphite·blue and Paper·green·serif matches `design/screens/11` and `12`.
 
 ### M4 — Ship
 
@@ -299,6 +340,14 @@ Scope: §4 and §5, plus CI.
 - A tag produces installers for Windows, macOS and Linux.
 - The PWA passes the browser's installability checks.
 - The printing checklist (§7.6) passes on Chrome, Safari and the desktop app on all three OSes.
+
+### After launch
+
+Not part of the first release:
+
+- **Custom theme editor:** create a theme from the current one, edit its tokens with live contrast checks, and import or export it as JSON (ARCHITECTURE.md §13).
+- **Theme sync across devices.**
+- **Community themes:** a `themes/` folder in the repository that accepts contributions by pull request.
 
 ## 7. Testing strategy
 
@@ -323,12 +372,17 @@ Scope: §4 and §5, plus CI.
   - every thread passes through its leaves' common ancestor.
 - **`sha.ts`** against `git hash-object` output stored in fixtures.
 - **Contract round-trips:** parse → serialize leaves the file unchanged byte for byte.
+- **Themes:**
+  - every base × accent combination passes the contrast rules in `design/themes/check.py`;
+  - `themes.json` defines every token for every base;
+  - no hex or `rgb()` value appears in `src/` outside the theme file;
+  - a custom colour that fails contrast is adjusted until it passes.
 
 ### 7.3 End-to-end conventions
 
 - Every test starts from a seeded fixture through the `page.route` adapter.
 - Use `page.clock` for the 2-minute autosave and the 2-second insert menu. Never sleep for real.
-- **Visual snapshots** (`toHaveScreenshot`) of Home, Tree view, Map only and Phone, taken at pixel density 2 like `design/screens/`. Wait for fonts first (`document.fonts.ready`). Compare them with `design/screens/`; the owner approves any difference.
+- **Visual snapshots** (`toHaveScreenshot`) of Home, Tree view, Map only, Phone and Appearance, taken at pixel density 2 like `design/screens/`. Take the tree view once per base (Vanta, Graphite, Paper). Wait for fonts first (`document.fonts.ready`). Compare them with `design/screens/`; the owner approves any difference.
 - Run an `axe` accessibility scan on every screen.
 - The Explorer is the keyboard-accessible route to every leaf, using `role="tree"` and arrow keys. Test keyboard navigation there.
 
@@ -382,7 +436,7 @@ Paste these into Claude Code, one milestone per session:
 
 - **M0:** "Read `ideas.txt`, `ARCHITECTURE.md` and `development-plan.md`. Implement M0. Build the fake GitHub and its tests before anything else. Stop at the end of M0 and summarise what exists and what's next."
 - **M1 onwards:** "Read `CLAUDE.md` and `development-plan.md`. Implement M1 steps 1–4, tests first. Stop when they pass." Then the remaining steps of the milestone in a second session.
-- **Before merging M1:** "Run the visual snapshot tests and send me the screenshots next to the design canvas."
+- **Before merging M1:** "Run the visual snapshot tests and show me each screenshot next to its reference in `design/screens/`."
 
 ## 11. Decisions the owner still needs to make
 
@@ -393,3 +447,4 @@ Paste these into Claude Code, one milestone per session:
 | New Trees always private? | M2 | Yes |
 | Unsplash API key (needs an Unsplash developer account; demo keys are rate-limited) | M3 | Upload-only covers |
 | Code signing for desktop | M4 | Unsigned, with install instructions |
+| Sync the theme across devices? | After launch | No: each device keeps its own |

@@ -1,0 +1,83 @@
+{
+  "version": 1,
+  "default": { "base": "vanta", "accent": "green", "font": "geist" },
+  "bases": {
+    "vanta": {
+      "name": "Vanta",
+      "mode": "dark",
+      "tokens": {
+        "bg": "#030303",
+        "top": "#050606",
+        "panel": "#0A0B0B",
+        "raised": "#121514",
+        "hover": "#101211",
+        "hair": "#1C1E1D",
+        "hair-strong": "#2A2E2B",
+        "text": "#E8EAE6",
+        "text-body": "#C9CEC9",
+        "muted": "#8D918C",
+        "faint": "#7D827C",
+        "node": "#DCE3DE",
+        "line": "#E8EAE6",
+        "core": "#0B0D0C",
+        "grid": "rgba(255,255,255,0.05)",
+        "shadow": "rgba(0,0,0,0.6)"
+      }
+    },
+    "graphite": {
+      "name": "Graphite",
+      "mode": "dark",
+      "tokens": {
+        "bg": "#15171B",
+        "top": "#191B20",
+        "panel": "#1E2126",
+        "raised": "#272B31",
+        "hover": "#24282E",
+        "hair": "#2D3138",
+        "hair-strong": "#3A3F47",
+        "text": "#E7E9EC",
+        "text-body": "#C9CDD3",
+        "muted": "#9CA2AB",
+        "faint": "#9399A2",
+        "node": "#D5DAE0",
+        "line": "#E7E9EC",
+        "core": "#1E2126",
+        "grid": "rgba(255,255,255,0.06)",
+        "shadow": "rgba(0,0,0,0.45)"
+      }
+    },
+    "paper": {
+      "name": "Paper",
+      "mode": "light",
+      "tokens": {
+        "bg": "#F3F1EB",
+        "top": "#EEEBE3",
+        "panel": "#FBFAF6",
+        "raised": "#E9E6DD",
+        "hover": "#EFECE5",
+        "hair": "#DDD9CF",
+        "hair-strong": "#CBC6BA",
+        "text": "#1B1C1A",
+        "text-body": "#363834",
+        "muted": "#5D605A",
+        "faint": "#62655F",
+        "node": "#2B2D2A",
+        "line": "#1B1C1A",
+        "core": "#FBFAF6",
+        "grid": "rgba(0,0,0,0.07)",
+        "shadow": "rgba(40,35,20,0.16)"
+      }
+    }
+  },
+  "accents": {
+    "green":  { "name": "Green",  "dark": "#4BE3A0", "light": "#0B7A4B" },
+    "amber":  { "name": "Amber",  "dark": "#E8B65A", "light": "#94590A" },
+    "blue":   { "name": "Blue",   "dark": "#7FB3F5", "light": "#1F5BB5" },
+    "violet": { "name": "Violet", "dark": "#B9A2F5", "light": "#6743C4" }
+  },
+  "onAccent": { "dark": "#06140D", "light": "#FFFFFF" },
+  "fonts": {
+    "geist": { "name": "Geist", "reading": "'Geist', ui-sans-serif, system-ui, sans-serif" },
+    "serif": { "name": "Newsreader", "reading": "'Newsreader', Georgia, serif" }
+  }
+}
