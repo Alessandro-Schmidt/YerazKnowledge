@@ -319,7 +319,8 @@ Any combination works: 3 bases × 4 accents × 2 fonts gives 24 themes from 9 de
 
 ### Logo and print
 
-- **Light bases** use `design/brand/svg/yeraz-mark-light.svg` in the top bar. Its arm is dark, and the cut where the green arm crosses is a mask, so it works on any background. The app icon doesn't change with the theme.
+- **The logo has no accent colour.** It is a steel Y in shades of grey, so it never changes with the accent.
+- **Light bases** use `design/brand/svg/yeraz-mark-light.svg` in the top bar: the same six faces in dark gunmetal instead of bright steel. The app icon never changes with the theme.
 - **Printing** always uses Paper (§8).
 
 ### Custom themes (after launch)

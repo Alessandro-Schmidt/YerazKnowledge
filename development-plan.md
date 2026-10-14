@@ -46,7 +46,7 @@ Not used, on purpose: Octokit, Tailwind, Redux, TipTap/ProseMirror, Shiki, Elect
 
 - **`design/screens/`** — screenshots of every screen at 2× pixel density (the phone at 3×). This is what the app must look like, and the visual tests compare against it.
 - **`design/screens/source/`** — the source of each screen: HTML with the exact colours, sizes and copy. `Tree.dc.html` also contains working reference code for the map layout (`layoutTree()`), selection and dimming. Port the behaviour, not the code: the app builds the map with d3 (ARCHITECTURE.md §6).
-- **`design/brand/`** — the logo and every app icon: SVG masters, all PNG, ICO and ICNS sizes, and `export.py` to regenerate them.
+- **`design/brand/`** — the logo and every app icon: SVG masters, all PNG, ICO and ICNS sizes, `draw.py`, which draws the SVG masters, and `export.py`, which renders everything else from them.
 - **`design/themes/`** — `themes.json`, every colour of every theme (§3.4), and `check.py`, which verifies contrast for every combination.
 - **`design/README.md`** — what each file shows and where each icon goes.
 - **Links for the owner:** the design canvas (https://claude.ai/artifact/UWV7RLc2iLsYxB5Sde26c5) and the conversation where the design, the architecture and this plan were made (https://claude.ai/code/session_01LA2iepBJ3k2JUEstrXEcTD).
@@ -77,7 +77,10 @@ Values shown are the default theme: Vanta base, green accent. Every theme define
 - **Type:** Geist for the interface, Geist Mono for paths, counts and shortcuts.
 - **Radii:** 8–9 px for controls, 14 px for floating panels.
 - **Icons:** stroke icons, 1.6 px, no emoji in the interface. Emoji appear only as leaf icons chosen by the user.
-- **Logo:** `design/brand/svg/yeraz-mark.svg` in the top bar, 22 px tall, next to the word "Yeraz" in Geist 600. On the light Paper base, use `yeraz-mark-light.svg` instead. Favicon and app icons come from `design/brand/` (see `design/README.md`).
+- **Logo:** a capital Y cut into six flat faces of brushed steel.
+  - `design/brand/svg/yeraz-mark.svg` sits in the top bar, 22 px tall, next to the word "Yeraz" in Geist 600. On the light Paper base, use `yeraz-mark-light.svg` instead.
+  - The logo has no colour of its own. Never tint it with the accent or recolour it with CSS; use the files as they are.
+  - Favicon and app icons come from `design/brand/` (see `design/README.md`).
 - **No raster images in the interface:** icons and the logo are SVG, so they stay sharp at every pixel density.
 
 ### 3.2 Screens
@@ -326,7 +329,7 @@ Scope: §4 and §5, plus CI.
 ### M4 — Ship
 
 1. **PDF export:** a print stylesheet on the read view.
-2. **PWA:** installable, works offline, and calls `navigator.storage.persist()`. Manifest and home-screen icons are `pwa-*.png`, `pwa-maskable-*.png` and `apple-touch-icon.png` from `design/brand/png/`.
+2. **PWA:** installable, works offline, and calls `navigator.storage.persist()`. Manifest and home-screen icons are `pwa-*.png`, `pwa-maskable-*.png` and `apple-touch-icon.png` from `design/brand/png/`. Set the manifest's `background_color` to `#000000`, the icon's tile, so the splash screen matches the icon.
 3. **Tauri desktop app:**
    - copy `yeraz-app.icns`, `yeraz-app.ico` and the PNG sizes from `design/brand/png/` into `src-tauri/icons/`. Don't let a tool create the small sizes by downscaling the 1024 px file; that blurs them.
    - stores the token in the OS keychain;
