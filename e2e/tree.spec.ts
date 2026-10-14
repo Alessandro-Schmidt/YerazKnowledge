@@ -95,6 +95,22 @@ test('expands the Peek to a full page, comes back, and dismisses it', async ({ p
   await expect(page.locator('[data-map]')).toHaveAttribute('data-focus')
 })
 
+test('opening a leaf URL shows its Peek, even after the Peek was dismissed', async ({
+  page,
+  graph,
+}) => {
+  const leaf = richLeaf(graph)
+  await openTree(page)
+  await page.goto(`./#/tree/you/engineering/${leaf.id}`)
+  await peek(page).getByRole('button', { name: 'Dismiss' }).click()
+  await expect(peek(page)).toHaveCount(0)
+  const other = graph.out.get(leaf.id)![0]!
+  await page.goto(`./#/tree/you/engineering/${other}`)
+  await expect(peek(page).getByRole('heading', { level: 2 })).toHaveText(
+    graph.nodes.get(other)!.title,
+  )
+})
+
 test('clicking the empty map clears the selection', async ({ page, graph }) => {
   await openTree(page)
   await page.goto(`./#/tree/you/engineering/${richLeaf(graph).id}`)

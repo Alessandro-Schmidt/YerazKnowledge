@@ -38,6 +38,13 @@ export function TreeView({ params }: { params: { owner: string; name: string; '*
   // No path: nothing selected. An empty path (`/tree/o/n/`): the Tree itself.
   const wanted = params['*'] === undefined ? null : decodePath(params['*'])
   const selected = graph && wanted !== null && graph.nodes.has(wanted) ? wanted : null
+
+  // Arriving at a node's URL from outside (a link, the back button) shows its Peek.
+  const [arrived, setArrived] = useState(wanted)
+  if (arrived !== wanted) {
+    setArrived(wanted)
+    if (wanted !== null) setPeekOpen(true)
+  }
   const peekVisible = peekOpen && selected !== null
 
   const select = useCallback(
