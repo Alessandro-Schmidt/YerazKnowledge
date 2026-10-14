@@ -2,7 +2,7 @@
 
 Notes as Markdown in the user's own GitHub repositories; the main screen is a map of them.
 Read `ideas.txt` (why), `ARCHITECTURE.md` (how), `development-plan.md` (what, in what order).
-**Current milestone: M0 done. Next: M1** (development-plan.md §6).
+**Current milestone: M1.** Steps 1–4 done (parse, tree, sha, github + pull). Next: steps 5–7 (token screen, Home, Tree view).
 
 ## Commands
 
@@ -14,7 +14,9 @@ Read `ideas.txt` (why), `ARCHITECTURE.md` (how), `development-plan.md` (what, in
 
 ## Where things live (ARCHITECTURE.md §12)
 
-- `src/model/` pure logic, no DOM/network (`sha.ts` exists) · `src/github/` · `src/store/` · `src/sync/`
+- `src/model/` pure logic, no DOM/network: `parse.ts`, `tree.ts`, `sha.ts`
+- `src/github/` `client.ts` (fetch, ETag, errors) · `graphql.ts` (blobs, discover, lookup)
+- `src/store/db.ts` key/value (IndexedDB or memory) · `src/sync/pull.ts` the read path
 - `src/map/` · `src/editor/` · `src/read/` · `src/ui/` (`Shell.tsx`, `theme.ts`, `contrast.ts`)
 - `test/fake-github/` the fake: `fakeGitHub.ts` (handler), `graphql.ts`, `repo.ts`, `fixture.ts`,
   adapters `msw.ts` (Vitest, dev:fake), `playwright.ts` (e2e, `page.route`), `browser.ts` (dev:fake)
