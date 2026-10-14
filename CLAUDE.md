@@ -19,8 +19,9 @@ Read `ideas.txt` (why), `ARCHITECTURE.md` (how), `development-plan.md` (what, in
 - `src/store/db.ts` key/value (IndexedDB or memory) · `src/sync/pull.ts` the read path
 - `src/map/` · `src/editor/` · `src/read/` · `src/ui/` (`Shell.tsx`, `theme.ts`, `contrast.ts`)
 - `test/fake-github/` the fake: `fakeGitHub.ts` (handler), `graphql.ts`, `repo.ts`, `fixture.ts`,
-  adapters `msw.ts` (Vitest, dev:fake), `playwright.ts` (e2e, `page.route`), `browser.ts` (dev:fake)
-- `e2e/` Playwright specs; `e2e/fixtures.ts` gives each test its own `fake`
+  adapters `msw.ts` (Vitest, dev:fake), `server.ts` (e2e, real HTTP), `browser.ts` (dev:fake)
+- `e2e/` Playwright specs; `e2e/fixtures.ts` gives each test its own `fake` and `api` URL.
+  The app must reach GitHub through `githubApi()` (`src/github/endpoint.ts`), never a literal URL.
 - `design/` is the visual source of truth; `design/themes/themes.json` holds every colour
 
 ## Rules
@@ -50,7 +51,5 @@ first-load JS < 200 KB gzip (`npm run size`) · theme switch < 50 ms, no React r
 
 ## Known gaps
 
-- Playwright can't fulfil a 304 through `page.route` in WebKit. The 304 e2e check runs on
-  Chromium only; the 304 path is also covered in Vitest (`test/fake-github/msw.test.ts`).
 - Creating a Tree needs `auto_init: true` on `POST /user/repos`: `createCommitOnBranch` can't
   commit to an empty repository (no branch yet). The fake behaves the same way.

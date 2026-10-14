@@ -200,7 +200,9 @@ It also keeps:
 ### 5.2 Adapters
 
 - **MSW handlers,** used by Vitest and by `npm run dev:fake`.
-- **A Playwright `page.route` adapter,** used by end-to-end tests. This avoids two service workers competing in the browser.
+- **A local HTTP server** (`server.ts`), used by end-to-end tests. Each Playwright worker runs one; each test registers its own fake under a path prefix. The app reaches it through `window.__YERAZ_API__`, which only builds made with `VITE_E2E=1` read (`src/github/endpoint.ts`); CI checks that production builds don't contain it.
+  - Real HTTP gives real CORS and real `304`s in every engine. A `page.route` adapter was tried first, but Playwright can't fulfil a 3xx status in WebKit, so the Safari and iPhone runs couldn't reopen a Tree.
+  - No service worker is involved, so nothing competes with the app's own (M4).
 
 ### 5.3 Fixture generator
 
@@ -383,7 +385,7 @@ Not part of the first release:
 
 ### 7.3 End-to-end conventions
 
-- Every test starts from a seeded fixture through the `page.route` adapter.
+- Every test starts from a seeded fixture served by the local fake server (§5.2).
 - Use `page.clock` for the 2-minute autosave and the 2-second insert menu. Never sleep for real.
 - **Visual snapshots** (`toHaveScreenshot`) of Home, Tree view, Map only, Phone and Appearance, taken at pixel density 2 like `design/screens/`. Take the tree view once per base (Vanta, Graphite, Paper). Wait for fonts first (`document.fonts.ready`). Compare them with `design/screens/`; the owner approves any difference.
 - Run an `axe` accessibility scan on every screen.
