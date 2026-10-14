@@ -59,13 +59,13 @@ These rules are the only thing that must stay stable across versions. Tests lock
 |---|---|
 | A leaf is a `.md` file. **Line 1 is the title.** | `# Keycloak` |
 | An emoji at the start of the title is the leaf's icon. | `# 🔐 Keycloak` |
-| Optional **line 2** is a metadata comment: cover, image icon, colours. It is invisible when GitHub renders the file. | `<!-- yeraz {"cover":"https://…","color":{"text":"#E8EAE6","heading":"#4BE3A0"}} -->` |
+| Optional **line 2** is a metadata comment: cover, image icon, colours. It is invisible when GitHub renders the file. Colours are **named** (`green`, `amber`, `blue`, `violet`…), so they adapt to every theme (§13). | `<!-- yeraz {"cover":"https://…","color":{"heading":"amber"}} -->` |
 | A leaf's sub-leaves and sub-branches live in a **sibling folder with the same name**. | `identity/keycloak.md` + `identity/keycloak/realms.md` |
 | A branch is a folder with no sibling `.md` file of the same name. | `identity/` |
 | A thread is a normal Markdown link with a **root-relative** path. GitHub resolves paths starting with `/` from the repository root, so threads also work on github.com. | `[Keycloak](/identity/keycloak.md)` |
 | A thread to another Tree is a full GitHub URL to a file in a connected repository. Any other `github.com/owner/repo` URL renders as a repository card. | `https://github.com/user/art-history/blob/main/baroque.md` |
 | Images and attachments live in `assets/` at the root, at full quality. An image is committed unchanged unless its long edge is over 4096 px (§8). | `assets/2026-10-14-realm-diagram.png` |
-| `.yeraz.json` at the root marks a repository as a Tree. | `{"name":"Engineering","color":"#4BE3A0"}` |
+| `.yeraz.json` at the root marks a repository as a Tree. | `{"name":"Engineering","color":"green"}` |
 | The filename is fixed when the leaf is created (a slug of its first title). Changing the title does not rename the file. | Title "Keycloak (IdP)" stays in `keycloak.md` |
 
 Why these rules:
@@ -158,7 +158,7 @@ Creating a Tree from the app means:
   - The timer starts when the modifier is pressed on its own. Any other key, or releasing the modifier, cancels it, so normal shortcuts like Ctrl+C never open the menu.
   - Phones have no Ctrl key: a long-press or typing `/` opens the same menu.
 - **Code blocks** use CodeMirror's nested languages from `@codemirror/language-data`, loaded per language on demand. The read view highlights with the same Lezer parsers (`highlightCode`), so there is one highlighting system, not two.
-- **The header above the text** (cover, icon, colours) is drawn from line 1 and line 2. Colours are applied as CSS variables on the leaf container: `--leaf-text` and `--leaf-heading`, with headings green by default.
+- **The header above the text** (cover, icon, colours) is drawn from line 1 and line 2. Colours are applied as CSS variables on the leaf container: `--leaf-text` and `--leaf-heading`, with headings in the theme's accent by default.
 
 ## 8. Read view and PDF
 
@@ -167,6 +167,7 @@ Creating a Tree from the app means:
   - Video embeds print as a thumbnail with a link.
   - On desktop, check Tauri's webview printing on all three OSes early in development. The fallback is a small Rust command that calls the webview's native print.
   - PDFs always use the original images, never smaller copies.
+  - Printing always uses the Paper base, whatever theme is on screen, so a dark theme never prints as a black page.
 
 ### Images at full definition
 
@@ -226,6 +227,7 @@ Every image a user sees should be sharp on any screen, including 2× and 3× dis
 | Saving | 1 request per commit | `createCommitOnBranch` with every changed file. |
 | First load JavaScript | < 200 KB gzipped | Editor, KaTeX, `markdown-it` and language parsers are separate chunks loaded on first use. |
 | Rate limit in normal use | ≈ 0 | 304s are free. Blobs are never fetched twice. |
+| Switch theme | < 50 ms, no React render | Only four data attributes on `<html>` change. Every colour is a CSS variable. |
 
 ### Decisions that remove both code and work
 
@@ -238,6 +240,7 @@ Every image a user sees should be sharp on any screen, including 2× and 3× dis
 | d3 for layout, bundling, zoom and packing | Custom geometry | Hundreds of lines |
 | Plain `fetch` | Octokit | Bundle size; the app uses 2 REST endpoints and 3 GraphQL operations |
 | Discovery by marker file | A settings store that syncs across devices | A settings service |
+| Themes are CSS variables generated from one JSON file | A theming library or CSS-in-JS | A runtime dependency, and a re-render on every theme switch |
 
 ### Deliberately not built (until a budget fails)
 
@@ -267,7 +270,64 @@ src/
   map/      layout.ts (d3) · TreeMap.tsx · Home.tsx
   editor/   Editor.tsx · livePreview.ts · insertMenu.ts · mentions.ts
   read/     render.ts (markdown-it) · Peek.tsx · print.css
-  ui/       Shell.tsx · Explorer.tsx · tokens.css
+  ui/       Shell.tsx · Explorer.tsx · Appearance.tsx
+            theme.ts (turns design/themes/themes.json into CSS, applies it)
 ```
 
 `model/` and the planning half of `sync/` are pure TypeScript with no DOM or network. Most of the logic lives there, and is unit-tested there.
+
+## 13. Themes
+
+The original design, Vanta with green accents and Geist, is the default. Users can change the look; it never changes what is stored in their repositories.
+
+### Three independent layers
+
+| Layer | Options | What changes |
+|---|---|---|
+| **Base** | Vanta (default), Graphite (softer dark), Paper (light) | Every surface, text and line colour, and whether the theme is dark or light |
+| **Accent** | Green (default), Amber, Blue, Violet | Headings, threads, selection, buttons and focus rings. Each accent has a dark-mode and a light-mode value, tuned so it stays readable on either kind of base. |
+| **Reading font** | Geist (default), Newsreader (serif) | Only the text of leaves; the interface stays in Geist |
+
+Any combination works: 3 bases × 4 accents × 2 fonts gives 24 themes from 9 definitions, with no pair designed by hand.
+
+### One source of truth
+
+- `design/themes/themes.json` holds every value. The app imports it at build time.
+- `ui/theme.ts` turns it into CSS once at start-up: one block of variables per base, one per accent per mode.
+- **Applying a theme sets four data attributes** on `<html>`: `data-base`, `data-mode`, `data-accent` and `data-font`. CSS does the rest.
+  - There is no React re-render, and the map's SVG changes colour with everything else.
+- **No colour is written anywhere else in the code.** A test scans `src/` and fails on any hex or `rgb()` value outside the theme file. This rule is what makes theming free.
+
+### Contrast is guaranteed
+
+- **Every built-in combination passes WCAG AA:** body text at least 7:1; secondary text, headings and button text at least 4.5:1; map dots at least 3:1.
+- `design/themes/check.py` checks the rules today; the app's unit tests run the same rules on every combination.
+- **Custom colours** (a custom theme, or a hex value in a leaf's metadata) are checked the same way. A colour that fails is adjusted in lightness until it passes, and the editor says so.
+
+### Colours in Trees and leaves are names, not values
+
+- A leaf's heading colour or a Tree's colour is stored as a name, for example `"amber"`, and resolved through the current theme. An amber heading is the dark-mode amber on Vanta and the light-mode amber on Paper.
+- A raw hex value is still allowed and goes through the contrast adjustment.
+- **Order of priority:** leaf colour → Tree colour → theme accent.
+
+### Saving the choice
+
+- The theme is a personal preference, not repository content. It is saved per device: the base, accent and font ids in `localStorage`.
+- **No flash of the wrong theme:** a few lines of inline script in `index.html` read the saved choice and set the data attributes before the first paint.
+- The browser's `theme-color` follows the base's top-bar colour, so the phone status bar matches.
+- Syncing the choice across devices is left for later (development-plan.md, After launch).
+
+### Logo and print
+
+- **Light bases** use `design/brand/svg/yeraz-mark-light.svg` in the top bar. Its arm is dark, and the cut where the green arm crosses is a mask, so it works on any background. The app icon doesn't change with the theme.
+- **Printing** always uses Paper (§8).
+
+### Custom themes (after launch)
+
+A custom theme is a small JSON file that starts from a base and overrides tokens:
+
+```json
+{ "yerazTheme": 1, "name": "Midnight", "base": "graphite", "accent": "#5AC8FA", "font": "geist", "tokens": { "bg": "#0E1116" } }
+```
+
+It can be imported, exported and shared, and the same contrast rules apply to it. Because the app is open source, people can also contribute themes to the repository.
