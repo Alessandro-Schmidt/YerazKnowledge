@@ -1,0 +1,144 @@
+/* Shared controls from the design: icon buttons, ghost and primary buttons, chips, panels. */
+
+.iconButton {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.iconButton:hover {
+  background: var(--hover);
+}
+.iconButton[aria-pressed='true'] {
+  background: var(--raised);
+  color: var(--text);
+}
+
+.ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 14px;
+  border: 1px solid var(--hair-strong);
+  border-radius: 9px;
+  background: transparent;
+  font-size: 13px;
+  cursor: pointer;
+}
+.ghost:hover {
+  background: var(--hover);
+}
+
+.primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 9px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+}
+.primary:hover {
+  filter: brightness(1.08);
+}
+.primary:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.panel {
+  border: 1px solid var(--hair);
+  border-radius: 11px;
+  background: var(--panel);
+}
+
+.eyebrow {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.mono {
+  font-family: var(--font-mono);
+}
+
+.input {
+  width: 100%;
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--hair-strong);
+  border-radius: 9px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 13.5px;
+}
+.input::placeholder {
+  color: var(--faint);
+}
+.input:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.error {
+  margin: 0;
+  color: var(--text);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+.error::before {
+  content: '';
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 8px;
+  border-radius: 50%;
+  background: var(--c-amber);
+  vertical-align: 1px;
+}
+
+.glyph {
+  flex-shrink: 0;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+.glyph[data-kind='leaf'] {
+  background: var(--node);
+}
+.glyph[data-kind='sprout'] {
+  background: var(--node);
+  box-shadow:
+    0 0 0 2px var(--panel),
+    0 0 0 3px var(--faint);
+}
+.glyph[data-kind='branch'],
+.glyph[data-kind='root'] {
+  border: 1.5px solid var(--tree, var(--accent));
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}

@@ -19,6 +19,8 @@
   "include": [
     "vite.config.ts",
     "playwright.config.ts",
+    "playwright.perf.config.ts",
+    "perf",
     "scripts",
     "e2e",
     "test",

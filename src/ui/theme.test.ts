@@ -3,7 +3,7 @@ import { join, relative } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import themes from '../../design/themes/themes.json'
 import { CONTRAST_RULES, contrastRatio } from './contrast'
-import { ACCENT_IDS, BASE_IDS, DEFAULT_THEME, resolveTokens, themeCss } from './theme'
+import { ACCENT_IDS, BASE_IDS, colorVar, DEFAULT_THEME, resolveTokens, themeCss } from './theme'
 
 describe('themes.json', () => {
   it('defines every token for every base', () => {
@@ -53,6 +53,14 @@ describe('themeCss', () => {
     expect(css.match(/\[data-base=/g)).toHaveLength(3)
     expect(css.match(/\[data-accent=/g)).toHaveLength(8)
     expect(css.match(/\[data-font=/g)).toHaveLength(2)
+  })
+
+  it('defines every named colour in both modes', () => {
+    expect(css).toContain(":root[data-mode='dark']{--c-green:#4BE3A0;--c-amber:#E8B65A;")
+    expect(css).toContain(":root[data-mode='light']{--c-green:#0B7A4B;")
+    expect(colorVar('amber')).toBe('var(--c-amber)')
+    expect(colorVar('#ff0000')).toBe('var(--accent)')
+    expect(colorVar(null)).toBe('var(--accent)')
   })
 
   it('maps reading fonts to the self-hosted variable families', () => {

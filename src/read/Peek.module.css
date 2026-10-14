@@ -1,0 +1,386 @@
+.peek {
+  position: absolute;
+  z-index: 3;
+  top: 16px;
+  right: 16px;
+  bottom: 16px;
+  width: 420px;
+  max-width: calc(100% - 32px);
+  display: flex;
+  flex-direction: column;
+  background: var(--panel);
+  border: 1px solid var(--hair);
+  border-radius: 14px;
+  box-shadow: 0 24px 60px var(--shadow);
+  overflow: hidden;
+}
+.peek[data-expanded] {
+  inset: 0;
+  width: auto;
+  max-width: none;
+  border-width: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.handle {
+  display: none;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 8px 8px 16px;
+  border-bottom: 1px solid var(--hair);
+}
+.head button {
+  color: var(--text-body);
+}
+
+.kind {
+  flex-shrink: 0;
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--tree, var(--accent));
+}
+
+.crumb {
+  flex: 1;
+  min-width: 0;
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.column {
+  width: 100%;
+  margin: 0 auto;
+}
+.peek[data-expanded] .column {
+  max-width: 760px;
+}
+
+.cover {
+  display: block;
+  width: 100%;
+  height: 112px;
+  object-fit: cover;
+  background: var(--raised);
+  border-bottom: 1px solid var(--hair);
+}
+.peek[data-expanded] .cover {
+  height: 200px;
+}
+
+.article {
+  padding: 20px 24px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.titleRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.titleRow > span[data-kind] {
+  width: 12px;
+  height: 12px;
+}
+
+.icon {
+  font-size: 30px;
+  line-height: 1;
+}
+
+.title {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+.peek[data-expanded] .title {
+  font-size: 34px;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.meta {
+  padding: 3px 8px;
+  border: 1px solid var(--hair);
+  border-radius: 6px;
+  font-size: 11px;
+  color: var(--text-body);
+}
+
+.loading {
+  height: 72px;
+  border-radius: 8px;
+  background: linear-gradient(90deg, var(--raised), var(--hover), var(--raised));
+  opacity: 0.6;
+}
+
+.content {
+  font-size: 14.5px;
+  line-height: 1.65;
+  color: var(--text-body);
+  overflow-wrap: anywhere;
+}
+.content > :first-child {
+  margin-top: 0;
+}
+.content p,
+.content ul,
+.content ol,
+.content blockquote,
+.content pre {
+  margin: 0 0 12px;
+}
+.content h3,
+.content h4,
+.content h5 {
+  margin: 20px 0 8px;
+  font-family: var(--font-ui);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--tree, var(--accent));
+}
+.content h3 {
+  font-size: 17px;
+}
+.content a {
+  color: var(--accent);
+}
+.content a:hover {
+  color: var(--text);
+}
+.content :global(.mention) {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 6px;
+  border-radius: 6px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  text-decoration: none;
+  font-family: var(--font-ui);
+}
+.content :global(.mention)::before {
+  content: attr(data-before);
+  white-space: pre;
+}
+.content :global(.mention):hover {
+  box-shadow: inset 0 0 0 1px var(--accent);
+  color: var(--accent);
+}
+.content pre {
+  padding: 12px 14px;
+  border: 1px solid var(--hair);
+  border-radius: 9px;
+  background: var(--bg);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text);
+  white-space: pre-wrap;
+}
+.content code {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+}
+.content blockquote {
+  padding-left: 14px;
+  border-left: 2px solid var(--hair-strong);
+  color: var(--muted);
+}
+.content :global(.task) {
+  list-style: none;
+  margin-left: -20px;
+}
+.content :global(.task) input {
+  margin: 0 8px 0 0;
+  accent-color: var(--accent);
+  vertical-align: -2px;
+}
+.content img {
+  max-width: 100%;
+  height: auto;
+}
+.content hr {
+  border: 0;
+  border-top: 1px solid var(--hair);
+}
+.content table {
+  border-collapse: collapse;
+}
+.content th,
+.content td {
+  padding: 6px 10px;
+  border: 1px solid var(--hair);
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.kids {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.kid {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--hair-strong);
+  border-radius: 999px;
+  background: transparent;
+  font-size: 13px;
+  cursor: pointer;
+}
+.kid:hover {
+  border-color: var(--muted);
+}
+
+.threads {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.thread {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 38px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+.thread:hover {
+  background: var(--hover);
+}
+.thread path {
+  fill: none;
+  stroke: var(--tree, var(--accent));
+  stroke-width: 1.6px;
+}
+.thread path[data-incoming] {
+  stroke-dasharray: 3 3;
+}
+
+.threadTitle {
+  font-size: 13.5px;
+}
+
+.threadWhere {
+  margin-left: auto;
+  font-size: 10.5px;
+  color: var(--faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 45%;
+}
+
+.foot {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 56px;
+  padding: 10px 10px 10px 16px;
+  border-top: 1px solid var(--hair);
+}
+
+.path {
+  flex: 1;
+  min-width: 0;
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.openLeaf {
+  display: none;
+}
+
+/* Phone: a bottom sheet with a handle; expand fills the screen. */
+@media (max-width: 640px) {
+  .peek {
+    top: auto;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: auto;
+    max-width: none;
+    height: min(60%, 520px);
+    border-radius: 18px 18px 0 0;
+    border-width: 1px 0 0;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .peek[data-expanded] {
+    height: auto;
+    top: 0;
+    border-radius: 0;
+  }
+  .handle {
+    display: block;
+    align-self: center;
+    width: 36px;
+    height: 4px;
+    margin-top: 8px;
+    border-radius: 2px;
+    background: var(--hair-strong);
+  }
+  .head {
+    border-bottom: 0;
+  }
+  .head button {
+    width: 44px;
+    height: 44px;
+  }
+  .path {
+    display: none;
+  }
+  .openLeaf {
+    display: inline-flex;
+    flex: 1;
+    height: 48px;
+    border: 0;
+    background: var(--raised);
+    font-size: 15px;
+    font-weight: 500;
+  }
+  .kid,
+  .thread {
+    min-height: 44px;
+  }
+}

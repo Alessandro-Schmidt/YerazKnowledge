@@ -2,7 +2,7 @@
 
 Notes as Markdown in the user's own GitHub repositories; the main screen is a map of them.
 Read `ideas.txt` (why), `ARCHITECTURE.md` (how), `development-plan.md` (what, in what order).
-**Current milestone: M1.** Steps 1–4 done (parse, tree, sha, github + pull). Next: steps 5–7 (token screen, Home, Tree view).
+**Current milestone: M1** — all steps built; waiting on the owner's visual review and the phone-budget decision.
 
 ## Commands
 
@@ -10,13 +10,17 @@ Read `ideas.txt` (why), `ARCHITECTURE.md` (how), `development-plan.md` (what, in
 - `npm test` — Vitest (unit + integration); `npm run e2e` — Playwright on the production build
 - `npm run typecheck` · `npm run lint` · `npm run format` · `npm run build` · `npm run size`
 - `npm run fixture -- --leaves 1000 --threads 1500 --seed 7` — write a fixture Tree to `fixtures-out/`
-- `perf` arrives with M1, when there is a map to measure (§7.4)
+- `npm run perf` — budget tests on the 1,000-leaf fixture, laptop and 4× throttled phone (§7.4)
 
 ## Where things live (ARCHITECTURE.md §12)
 
-- `src/model/` pure logic, no DOM/network: `parse.ts`, `tree.ts`, `sha.ts`
+- `src/model/` pure logic, no DOM/network: `parse.ts`, `tree.ts`, `graph.ts` (titles, totals, threads), `sha.ts`
 - `src/github/` `client.ts` (fetch, ETag, errors) · `graphql.ts` (blobs, discover, lookup)
-- `src/store/db.ts` key/value (IndexedDB or memory) · `src/sync/pull.ts` the read path
+- `src/store/db.ts` key/value (IndexedDB or memory) · `session.ts` the Zustand store · `src/sync/pull.ts` the read path
+- `src/map/` `layout.ts` (pure, d3) · `TreeMap.tsx` · `HomeMap.tsx` · `Home.tsx` · `useZoom.ts`
+- `src/read/` `render.ts` (markdown-it, lazy) · `Peek.tsx` · `src/ui/` App, TreeView, Explorer, TokenScreen, theme
+- Map rule: React draws geometry once per layout; selection, zoom level and layers are data
+  attributes or the selection layer, never a React render of the map
 - `src/map/` · `src/editor/` · `src/read/` · `src/ui/` (`Shell.tsx`, `theme.ts`, `contrast.ts`)
 - `test/fake-github/` the fake: `fakeGitHub.ts` (handler), `graphql.ts`, `repo.ts`, `fixture.ts`,
   adapters `msw.ts` (Vitest, dev:fake), `server.ts` (e2e, real HTTP), `browser.ts` (dev:fake)
