@@ -11,6 +11,7 @@ Read `ideas.txt` (why), `ARCHITECTURE.md` (how), `development-plan.md` (what, in
 - `npm run typecheck` · `npm run lint` · `npm run format` · `npm run build` · `npm run size`
 - `npm run fixture -- --leaves 1000 --threads 1500 --seed 7` — write a fixture Tree to `fixtures-out/`
 - `npm run perf` — budget tests on the 1,000-leaf fixture, laptop and 4× throttled phone (§7.4)
+- `npm run visual` — the app in the states of `design/screens/01–07`, with the design's Trees, into `visual-review/`
 
 ## Where things live (ARCHITECTURE.md §12)
 

@@ -1,7 +1,11 @@
 // Pan and zoom for a map. d3-zoom writes one CSS transform on the camera <g>; React never
 // re-renders while you pan or zoom (ARCHITECTURE.md §6). Layout coordinates are centred
-// on (0, 0). The zoom level is published as `data-zoom` on the <svg> (semantic zoom) and
-// through `onScale`, which callers use to write the percentage straight into the DOM.
+// on (0, 0).
+//
+// As in the design, 100 % means "fitted to the screen". Leaf labels show from 85 % of that
+// (development-plan.md §3.3), but never while they would be drawn smaller than 0.6× their
+// size, so a large Tree opens on its branches. The level is published as `data-zoom` on
+// the host and through `onScale`, which callers use to write the percentage into the DOM.
 
 import { select } from 'd3-selection'
 import { zoom as d3zoom, zoomIdentity, type ZoomBehavior } from 'd3-zoom'
@@ -11,8 +15,8 @@ export interface ZoomControls {
   zoomBy(factor: number): void
   /** Fits a circle of `radius` around (0, 0), leaving `insets` (px) free on each side. */
   fit(radius: number, insets?: Partial<Insets>, animate?: boolean): void
-  /** Moves the camera so layout point (x, y) shows at the centre of the free area. */
-  centre(x: number, y: number, insets?: Partial<Insets>): void
+  /** Moves the camera so layout point (x, y) shows at the centre of the free area, at scale `k` if given. */
+  centre(x: number, y: number, insets?: Partial<Insets>, k?: number): void
   /** True when layout point (x, y) is inside the free area. */
   isVisible(x: number, y: number, insets?: Partial<Insets>): boolean
   scale(): number
@@ -27,6 +31,14 @@ export interface Insets {
 
 const NO_INSETS: Insets = { top: 0, right: 0, bottom: 0, left: 0 }
 const LABEL_ZOOM = 0.85
+const LEGIBLE = 0.6
+
+export interface ScaleInfo {
+  /** Percent of the fitted scale. */
+  percent: number
+  /** True when leaf labels are hidden. */
+  far: boolean
+}
 
 /**
  * `hostRef` receives the gestures and the `data-zoom` attribute. `cameraRef` gets the
@@ -35,11 +47,12 @@ const LABEL_ZOOM = 0.85
 export function useZoom(
   hostRef: RefObject<HTMLElement | SVGSVGElement | null>,
   cameraRef: RefObject<SVGGElement | null>,
-  options: { min: number; max: number; onScale?: (k: number) => void },
+  options: { min: number; max: number; onScale?: (info: ScaleInfo) => void },
   mirrorRef?: RefObject<SVGGElement | null>,
 ): ZoomControls {
   const svgRef = hostRef
   const behaviour = useRef<ZoomBehavior<HTMLElement | SVGSVGElement, unknown> | null>(null)
+  const fitted = useRef(1)
   const optionsRef = useRef(options)
   useEffect(() => {
     optionsRef.current = options
@@ -59,12 +72,15 @@ export function useZoom(
         const { x, y, k } = event.transform
         for (const camera of cameras)
           camera.style.transform = `translate(${x}px, ${y}px) scale(${k})`
-        const isFar = k < LABEL_ZOOM
+        const isFar = k < Math.max(LABEL_ZOOM * fitted.current, LEGIBLE)
         if (isFar !== far) {
           far = isFar
           svg.dataset.zoom = isFar ? 'far' : 'near'
         }
-        optionsRef.current.onScale?.(k)
+        optionsRef.current.onScale?.({
+          percent: Math.round((k / fitted.current) * 100),
+          far: isFar,
+        })
       })
     behaviour.current = z
     select(svg).call(z).on('dblclick.zoom', null)
@@ -135,10 +151,11 @@ export function useZoom(
           optionsRef.current.max,
           Math.max(optionsRef.current.min, size / (2 * radius)),
         )
+        fitted.current = k
         move(cx, cy, k, animate)
       },
-      centre(x, y, insets) {
-        const { k } = current()
+      centre(x, y, insets, scale) {
+        const k = scale ?? current().k
         const { cx, cy } = area(insets)
         move(cx - x * k, cy - y * k, k, true)
       },
