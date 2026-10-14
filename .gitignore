@@ -1,0 +1,8 @@
+node_modules/
+dist/
+*.tsbuildinfo
+test-results/
+playwright-report/
+blob-report/
+fixtures-out/
+.DS_Store
