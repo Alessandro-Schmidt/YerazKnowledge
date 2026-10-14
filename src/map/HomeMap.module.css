@@ -1,0 +1,46 @@
+.wrap {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.node[data-kind='leaf'] circle:last-child {
+  fill: var(--node);
+}
+.node[data-kind='branch'] circle:last-child {
+  fill: var(--bg);
+  stroke: var(--tree, var(--accent));
+}
+
+.label {
+  font-size: 9.5px;
+  stroke-width: 4px;
+}
+
+.zoom {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+}
+.zoom button {
+  color: var(--text);
+}
+
+.percent {
+  min-width: 46px;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-body);
+}
+
+.sep {
+  width: 1px;
+  height: 20px;
+  margin: 0 2px;
+  background: var(--hair);
+}
