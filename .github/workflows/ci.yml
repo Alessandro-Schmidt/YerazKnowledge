@@ -23,6 +23,8 @@ jobs:
       - run: npm run lint
       - run: npm test
       - run: npx vite build
+      - name: No test-only code in the production build
+        run: '! grep -rl "__YERAZ_API__\\|VITE_E2E" dist'
       - run: npm run size
       - uses: actions/upload-pages-artifact@v5
         with:

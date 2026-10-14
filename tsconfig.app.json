@@ -19,5 +19,5 @@
     "skipLibCheck": true
   },
   "include": ["src", "test/fake-github"],
-  "exclude": ["**/*.test.ts", "**/*.test.tsx", "test/fake-github/playwright.ts"]
+  "exclude": ["**/*.test.ts", "**/*.test.tsx", "test/fake-github/server.ts"]
 }
