@@ -1,0 +1,8 @@
+[
+  {
+    "name": "First-load JavaScript (budget: ARCHITECTURE.md §11)",
+    "path": "dist/assets/index-*.js",
+    "limit": "200 KB",
+    "gzip": true
+  }
+]
