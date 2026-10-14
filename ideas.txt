@@ -1,0 +1,52 @@
+Alright, so appearently AI kinda bursted the bubble in a way, and now it seems nice to me that we are developing our own tools for our own basic needs, specially when the cost of producing software has dropped so dramatically.
+
+Tho, it still seems to me that very well stablish scopes are still in vogue, and matter more than anymore.
+
+@ What is important to me in note taking itself :
+
+@ Why it exists ?
+- Because I love note taking and I wanna do my own.
+- Obsedian looks like something you need to take a course in.
+- Notion is starting to feel too kid like and AI slop
+- "Oh but this is already implemented somewhere else" : Answer : Go fuck yourself.
+
+@ How I want people to use it ?
+
+- I want them to come on my repo and just get an .exe file that allows them to have it both on windows, Mac, Linux and if needed, deployed on gh pages, but functional, for them to access through the phone on gh pages and add the icon on their phone home page
+- I want them to link to a gh repo, created by them, which can be private, or that they can create on the app themselves. This will be our knowledge base.
+- This repo, our knowledge base will contain a file structure of folders and files
+- Each folder can have many pages and sub-folders
+- Every file will be an .md file, and this will be our note
+- The first line will always be the title (in .md = #)
+- Inside each md file, the user can actually have : code, embed videos, pdfs, subtitles, math equations, quotes, everything that markdown can actually offer to someone
+- When writting, I want the user to see the final .md result as he writes, but also leave him the option of seeing the code.
+- Each note will also have an emoji to it, or image that the user can insert. Also, the user can add a cover, even using unsplash if he wants (Yes, this is stolen out of NotionApp 100%)
+- If the user types @... and it is the name of a existing page anywhere in the repo, he should be able to reach it just by clicking the @ reference. Before de @ and reference it can also show the emoji if the linked page has it
+- You should be able to link a repository on github, external of your knowledge base.
+- You should be able to export a page into a pdf with all its elements
+- Those functionalities should be available to anyone using in any format, mac, windows, linux, mobile, and the idea is that anyone can actually do them all across the devices, and if linked to the same repo, they can have access to same content.
+- As the user finishes his session, they are saved on the repo.
+- If the user has not updated any of the new changes in 2 minutes, update it for them.
+- IMPORTANT AND WHY THIS IS NOT A REGULAR NOTE TAKING APP :
+- I wanna steal Obsedian's functionality, and do it simpler. Omg I fucking hate Obsedian.
+- But yeah they do have one really nice feature: You can see the file structure as a knowledge tree
+- I want my user, to when entering the tree, on the left side, see the project structure, and where each of its notes are as we traditionally are used to, but I want him to see, similar to obsedian, how each of the notes is structured, and also how they connect to each other -> This we are going to call our Knowledge tree.
+- Each repo that the user has connected as a knowledge base, will be a knowledge base.
+- I like obsedians design, but I think it is nice to maybe rethink the way this could be done. I'll leave this for you. The important thing is that the user can really understand what is going on
+- If there is a link from one page to the other, make a connection between the two of them.
+- Make this tree responsive to the user, also, allow the user to go to a note from there, but when he clicks on the node of the note, it opens it partially, on the right side, for him to be able to either dismiss the new page that he oppened, or for him to expand and have it in full vision.
+- On the main page, when the user enters the app, he must see all his knowledge trees, which he has to be able to zoom in and out, see the different pages from different knowledge bases
+- He is able to create a new page from scratch, which starts in the root folder of the knowledge base
+- He must also have on the left side a file explorer, on which he can also create a new folder (Knowledge node) or a new note - Help me change the names from folder and note to something more interesting as well
+- The user must be able to dismiss both the file explorer and also the partial note, seeing only the map
+- A user can link as many knowledge basis as he wants.
+- It is important to do not a file system design to our tree, but something truly interesting
+- I want a professional design, I dont want anything that looks childish, university work, I want something modern, elegant, which the main colors are gonna be venta black for all the pages, green for the text divisions, but that allows the user to pick on each page what is going to be the color of the texts, sections, etc.
+
+@ What it is
+- It is the coolest note taking app humanity has ever seen, that allows users to see their knowledge base, on which areas they have written the biggest amount of notes and how they connect themselves, even if it does not look like it.
+- It is going to be people that are trying to learn many topics, or that for instance, developped themselves their personal curriculum.
+
+@ Brainstorm
+- Maybe I should change the name to YerazKnowledgeBase ? Too long ?
+- - He must also have on the left side a file explorer, on which he can also create a new folder (Knowledge node) or a new note - Help me change the names from folder and note to something more interesting as well
