@@ -6,6 +6,7 @@ import controls from '../ui/controls.module.css'
 import { Icon } from '../ui/icons'
 import { treeHref } from '../ui/paths'
 import { colorVar } from '../ui/theme'
+import { CreateTreeDialog } from '../ui/StructureDialogs'
 import { Divider, TopBar } from '../ui/TopBar'
 import styles from './Home.module.css'
 import { HomeMap, type HomeEntry } from './HomeMap'
@@ -15,6 +16,7 @@ export function Home() {
   const data = useSession((s) => s.data)
   const discovery = useSession((s) => s.discovery)
   const [selected, setSelected] = useState<string | null>(null)
+  const [creating, setCreating] = useState(false)
   const [, navigate] = useLocation()
 
   // Find Trees again on every visit (another device may have made one), and open each.
@@ -52,6 +54,16 @@ export function Home() {
           <Icon name="signOut" size={18} />
         </button>
       </TopBar>
+      {creating && (
+        <CreateTreeDialog
+          onClose={() => setCreating(false)}
+          onCreated={(tree) => {
+            setCreating(false)
+            void session.getState().open(tree.repo)
+            navigate(treeHref(tree.repo))
+          }}
+        />
+      )}
       <div className={styles.body}>
         <aside className={styles.rail} aria-label="Trees">
           <div className={styles.railHead}>
@@ -84,7 +96,7 @@ export function Home() {
               )
             })}
           </ul>
-          <Connect onConnected={(repo) => setSelected(repo)} />
+          <Connect onConnected={(repo) => setSelected(repo)} onCreate={() => setCreating(true)} />
         </aside>
         <main className={styles.main}>
           {entries.length > 0 && (
@@ -165,7 +177,7 @@ function leafCount(d: TreeData | undefined): string {
   return String(d.graph.stats.leaves)
 }
 
-function Connect({ onConnected }: { onConnected(repo: string): void }) {
+function Connect({ onConnected, onCreate }: { onConnected(repo: string): void; onCreate(): void }) {
   const [open, setOpen] = useState(false)
   const [value, setValue] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -194,6 +206,10 @@ function Connect({ onConnected }: { onConnected(repo: string): void }) {
         <button type="button" className={controls.ghost} onClick={() => setOpen(true)}>
           <Icon name="repo" />
           Connect repository
+        </button>
+        <button type="button" className={`${controls.ghost} ${styles.create}`} onClick={onCreate}>
+          <Icon name="plus" />
+          Create a new repository
         </button>
       </div>
     )

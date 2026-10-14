@@ -111,6 +111,11 @@
   border-top: 1px solid var(--hair);
 }
 
+.create {
+  border-color: transparent;
+  color: var(--muted);
+}
+
 .field {
   display: flex;
   flex-direction: column;

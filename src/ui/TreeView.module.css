@@ -40,6 +40,8 @@
 }
 
 .status {
+  display: flex;
+  min-width: 0;
   margin-left: auto;
   color: var(--muted);
   font-size: 12px;
@@ -51,6 +53,11 @@
 .toggles {
   display: flex;
   gap: 6px;
+}
+
+.newLeaf {
+  height: 36px;
+  margin-left: 4px;
 }
 
 .body {
@@ -152,5 +159,11 @@
   .toggles button {
     width: 44px;
     height: 44px;
+  }
+  .newLeaf {
+    padding: 0;
+  }
+  .newLeafText {
+    display: none;
   }
 }

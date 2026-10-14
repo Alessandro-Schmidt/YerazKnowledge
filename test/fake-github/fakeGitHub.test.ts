@@ -152,6 +152,55 @@ describe('GET git/trees', () => {
   })
 })
 
+describe('GET commits/{ref}', () => {
+  it('answers the head SHA alone with the sha media type, with an ETag and 304s', async () => {
+    const repo = fake.repo('you/engineering')
+    const path = '/repos/you/engineering/commits/main'
+    const first = await request(fake, 'GET', path, {
+      headers: { Accept: 'application/vnd.github.sha' },
+    })
+    expect(first.status).toBe(200)
+    expect(first.body).toBe(repo.head!.oid)
+    const etag = first.headers['etag']!
+    const again = await request(fake, 'GET', path, {
+      headers: { Accept: 'application/vnd.github.sha', 'If-None-Match': etag },
+    })
+    expect(again.status).toBe(304)
+    await repo.commit({ message: 'x', additions: [{ path: 'new.md', contents: '# New\n' }] })
+    const changed = await request(fake, 'GET', path, {
+      headers: { Accept: 'application/vnd.github.sha', 'If-None-Match': etag },
+    })
+    expect(changed.status).toBe(200)
+    expect(changed.body).toBe(repo.head!.oid)
+    expect(fake.log.map((e) => e.kind)).toEqual(['head', 'head', 'head'])
+  })
+
+  it('answers JSON with the tree SHA otherwise, and lists that commit by SHA', async () => {
+    const repo = fake.repo('you/engineering')
+    const res = JSON.parse(
+      (await request(fake, 'GET', '/repos/you/engineering/commits/main')).body!,
+    )
+    expect(res).toMatchObject({
+      sha: repo.head!.oid,
+      commit: { tree: { sha: repo.head!.root.sha } },
+    })
+    const tree = await request(
+      fake,
+      'GET',
+      `/repos/you/engineering/git/trees/${repo.head!.oid}?recursive=1`,
+    )
+    expect(JSON.parse(tree.body!).sha).toBe(repo.head!.root.sha)
+  })
+
+  it('answers 409 for an empty repository and 422 for an unknown SHA', async () => {
+    await fake.addRepo('you/empty')
+    expect((await request(fake, 'GET', '/repos/you/empty/commits/main')).status).toBe(409)
+    expect(
+      (await request(fake, 'GET', `/repos/you/engineering/commits/${'0'.repeat(40)}`)).status,
+    ).toBe(422)
+  })
+})
+
 describe('GraphQL: blobs and refs', () => {
   it('returns many blobs by OID in one aliased query, and counts them in the log', async () => {
     const shaA = await gitBlobSha('# Realms\n')

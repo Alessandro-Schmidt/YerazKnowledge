@@ -1,0 +1,169 @@
+/* The editor's look: the leaf's reading font for text, the interface font for headings,
+   every colour from the theme tokens. CodeMirror's own class names are global. */
+
+.editor :global(.cm-editor) {
+  background: transparent;
+  color: var(--text-body);
+  font-size: 15.5px;
+}
+.editor :global(.cm-editor.cm-focused) {
+  outline: none;
+}
+.editor :global(.cm-scroller) {
+  font-family: var(--font-reading);
+  line-height: 1.7;
+  overflow: visible;
+}
+.editor :global(.cm-content) {
+  padding: 0 0 40vh;
+  caret-color: var(--accent);
+}
+.editor :global(.cm-line) {
+  padding: 0;
+}
+.editor :global(.cm-cursor) {
+  border-left-color: var(--accent);
+}
+.editor :global(.cm-selectionBackground),
+.editor :global(.cm-focused .cm-selectionBackground),
+.editor :global(.cm-content ::selection) {
+  background: var(--accent-soft) !important;
+}
+.editor :global(.cm-placeholder) {
+  color: var(--faint);
+}
+
+/* Line 1 is the title. */
+.editor :global(.cm-line.cm-title) {
+  font-family: var(--font-ui);
+  font-size: 34px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  color: var(--text);
+  padding-bottom: 6px;
+}
+.editor :global(.cm-line.cm-meta) {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--faint);
+}
+
+.editor :global(.cm-line.cm-h1:not(.cm-title)),
+.editor :global(.cm-line.cm-h2),
+.editor :global(.cm-line.cm-h3),
+.editor :global(.cm-line.cm-h4),
+.editor :global(.cm-line.cm-h5),
+.editor :global(.cm-line.cm-h6) {
+  font-family: var(--font-ui);
+  font-weight: 600;
+  color: var(--tree, var(--accent));
+  padding-top: 10px;
+}
+.editor :global(.cm-line.cm-h1:not(.cm-title)) {
+  font-size: 22px;
+}
+.editor :global(.cm-line.cm-h2) {
+  font-size: 18px;
+}
+.editor :global(.cm-line.cm-h3) {
+  font-size: 16px;
+}
+
+.editor :global(.cm-strong) {
+  font-weight: 600;
+  color: var(--text);
+}
+.editor :global(.cm-em) {
+  font-style: italic;
+}
+.editor :global(.cm-strike) {
+  text-decoration: line-through;
+  color: var(--muted);
+}
+.editor :global(.cm-inline-code) {
+  font-family: var(--font-mono);
+  font-size: 0.88em;
+  color: var(--text);
+}
+.editor :global(.cm-link) {
+  color: var(--accent);
+}
+.editor :global(.cm-mention) {
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-family: var(--font-ui);
+}
+.editor :global(.cm-list-mark) {
+  color: var(--muted);
+}
+.editor :global(.cm-done) {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+.editor :global(.cm-task) {
+  margin: 0 8px 0 0;
+  width: 15px;
+  height: 15px;
+  vertical-align: -2px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+.editor :global(.cm-line.cm-quote) {
+  border-left: 2px solid var(--hair-strong);
+  padding-left: 14px;
+  color: var(--muted);
+}
+.editor :global(.cm-line.cm-code-block) {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.6;
+  background: var(--bg);
+  color: var(--text);
+  padding: 0 14px;
+}
+.editor :global(.cm-fence) {
+  color: var(--faint);
+}
+.editor :global(.cm-line.cm-rule) {
+  color: var(--faint);
+}
+.editor :global(.cm-image) {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 6px 0;
+  border-radius: 8px;
+}
+
+/* Code highlighting: Lezer's token classes, in theme colours. */
+.editor :global(.tok-keyword),
+.editor :global(.tok-operator) {
+  color: var(--c-violet);
+}
+.editor :global(.tok-string),
+.editor :global(.tok-string2) {
+  color: var(--c-green);
+}
+.editor :global(.tok-number),
+.editor :global(.tok-bool),
+.editor :global(.tok-atom) {
+  color: var(--c-amber);
+}
+.editor :global(.tok-comment) {
+  color: var(--faint);
+  font-style: italic;
+}
+.editor :global(.tok-variableName.tok-definition),
+.editor :global(.tok-typeName),
+.editor :global(.tok-className) {
+  color: var(--c-blue);
+}
+
+/* Show Markdown: the text as it is, in the monospace font. */
+.editor[data-source] :global(.cm-scroller) {
+  font-family: var(--font-mono);
+  font-size: 13.5px;
+}

@@ -71,6 +71,17 @@ test.describe('desktop', () => {
   })
 })
 
+test.describe('editor', () => {
+  test.skip(({ isMobile }) => isMobile)
+
+  test('08 Editor', async ({ page }) => {
+    await signIn(page)
+    await page.goto(`./#/edit/you/engineering/${KEYCLOAK}`)
+    await expect(page.locator('.cm-title')).toBeVisible()
+    await shot(page, '08-editor')
+  })
+})
+
 test.describe('phone', () => {
   test.skip(({ isMobile }) => !isMobile)
 

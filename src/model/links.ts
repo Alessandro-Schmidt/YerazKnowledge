@@ -1,0 +1,33 @@
+// Rewriting threads when leaves move (ARCHITECTURE.md §4: root-relative links, so only
+// links pointing *to* a moved leaf change). Everything else in the text stays byte for byte.
+
+import { codeRanges, LINK, linkTarget } from './parse'
+
+/** A root-relative destination for `path`, in angle brackets when it needs them. */
+export function destination(path: string): string {
+  return /[\s()<>]/.test(path) ? `</${path}>` : `/${path}`
+}
+
+/**
+ * Rewrites links whose target moved (`moves`: old path → new path), outside code.
+ * Anchors (`#part`) and link titles are kept.
+ */
+export function rewriteLinks(text: string, moves: ReadonlyMap<string, string>): string {
+  if (moves.size === 0) return text
+  const code = codeRanges(text)
+  const inCode = (at: number) => code.some(([start, end]) => at >= start && at < end)
+  let out = ''
+  let last = 0
+  for (const m of text.matchAll(LINK)) {
+    const [whole, bang, , dest] = m
+    if (bang || inCode(m.index)) continue
+    const target = linkTarget(dest!)
+    const moved = target && target.repo === null ? moves.get(target.path) : undefined
+    if (moved === undefined) continue
+    const anchor = /#[^>]*/.exec(dest!.replace(/^<|>$/g, ''))?.[0] ?? ''
+    const start = m.index + whole.lastIndexOf(dest!)
+    out += text.slice(last, start) + destination(moved + anchor)
+    last = start + dest!.length
+  }
+  return out + text.slice(last)
+}

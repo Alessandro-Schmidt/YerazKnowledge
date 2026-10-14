@@ -184,13 +184,14 @@ The fake GitHub lives in `test/fake-github/`.
 
 It implements exactly what the app uses, and nothing else:
 
-1. `GET /repos/{o}/{r}/git/trees/{ref}?recursive=1`
+1. `GET /repos/{o}/{r}/commits/{ref}` with the `vnd.github.sha` media type: the head commit SHA, with an ETag and `304`s (ARCHITECTURE.md §5.1).
+2. `GET /repos/{o}/{r}/git/trees/{ref}?recursive=1`
    - Returns real git blob SHAs and ETags, and answers `304` to a matching `If-None-Match`.
    - Supports a `truncated` flag for the fallback test.
-2. **GraphQL, blobs by OID:** aliased `object(oid:)` queries.
-3. **GraphQL, `createCommitOnBranch`:** applies additions and deletions, and rejects a stale `expectedHeadOid` the way GitHub does.
-4. **GraphQL, repository discovery:** repositories, plus the `.yeraz.json` marker check.
-5. `POST /user/repos`.
+3. **GraphQL, blobs by OID:** aliased `object(oid:)` queries.
+4. **GraphQL, `createCommitOnBranch`:** applies additions and deletions, and rejects a stale `expectedHeadOid` the way GitHub does.
+5. **GraphQL, repository discovery:** repositories, plus the `.yeraz.json` marker check.
+6. `POST /user/repos`.
 
 It also keeps:
 
@@ -450,6 +451,8 @@ Paste these into Claude Code, one milestone per session:
 | Product name: "Yeraz" or "YerazKnowledge" | M0 (manifest, window title) | Yeraz |
 | Licence before the repository goes public | M0 | MIT |
 | New Trees always private? | M2 | Yes |
+| Branch folder names: slug or as typed? | M2 | **Decided:** as typed (`AI Agents/`) |
+| Do the select and pan/zoom budgets apply to phones? | M2 | Open: measured, non-blocking in CI |
 | Unsplash API key (needs an Unsplash developer account; demo keys are rate-limited) | M3 | Upload-only covers |
 | Code signing for desktop | M4 | Unsigned, with install instructions |
 | Sync the theme across devices? | After launch | No: each device keeps its own |

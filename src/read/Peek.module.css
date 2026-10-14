@@ -332,6 +332,53 @@
   display: none;
 }
 
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.actions > button {
+  height: 36px;
+  font-size: 12.5px;
+}
+
+.menuHost {
+  position: relative;
+}
+
+.menu {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 6px);
+  z-index: 4;
+  min-width: 180px;
+  display: flex;
+  flex-direction: column;
+  padding: 4px;
+  border: 1px solid var(--hair-strong);
+  border-radius: 10px;
+  background: var(--panel);
+  box-shadow: 0 16px 40px var(--shadow);
+}
+.menu button {
+  display: flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  text-align: left;
+  font-size: 13px;
+  cursor: pointer;
+}
+.menu button:hover {
+  background: var(--hover);
+}
+.menu button[data-danger] {
+  color: var(--c-amber);
+}
+
 /* Phone: a bottom sheet with a handle; expand fills the screen. */
 @media (max-width: 640px) {
   .peek {
@@ -368,6 +415,9 @@
     height: 44px;
   }
   .path {
+    display: none;
+  }
+  .actions > button:first-child {
     display: none;
   }
   .openLeaf {
