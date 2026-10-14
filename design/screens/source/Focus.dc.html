@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Yeraz — Map only</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@300..700&amp;family=Geist+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0;background:#030303}
+a{color:#4BE3A0}a:hover{color:#8FF0C4}
+button{font:inherit;color:inherit}
+:focus-visible{outline:2px solid #4BE3A0;outline-offset:2px}
+input::placeholder{color:#7E827D}
+.ic{fill:none;stroke:currentColor;stroke-width:1.6px;stroke-linecap:round;stroke-linejoin:round}
+.griddot{fill:#FFFFFF;fill-opacity:.05}
+.orbit{fill:none;stroke:#FFFFFF;stroke-opacity:.05;stroke-dasharray:2 6}
+.edge{fill:none;stroke:#E8EAE6;stroke-opacity:.13;stroke-width:1px}
+.edge.hot{stroke-opacity:.42}
+.thr{fill:none;stroke-width:1.1px;stroke-opacity:.42}
+.thr.hot{stroke-opacity:.95;stroke-width:2px}
+.thr.cold{stroke-opacity:.1}
+.seg{fill:none;stroke-width:5px;stroke-opacity:.38}
+.seg.hot{stroke-opacity:1}
+.n.dim{opacity:.3}
+.dot{stroke-width:1.4px}
+.ring{fill:none;stroke:#DCE3DE;stroke-opacity:.45;stroke-width:1px}
+.halo{fill:none;stroke-width:1px}
+.lbl{font-size:13px;paint-order:stroke;stroke:#030303;stroke-width:4px;stroke-linejoin:round}
+.blbl{font-size:10.5px;letter-spacing:.14em;font-weight:500}
+.lsel{font-weight:600}
+.a-start{text-anchor:start}.a-end{text-anchor:end}.a-mid{text-anchor:middle}
+.core{fill:#0B0D0C;stroke:#FFFFFF;stroke-opacity:.09}
+.coretitle{font-size:12px;font-weight:500;fill:#E8EAE6;text-anchor:middle}
+.corelbl{font-family:'Geist Mono',ui-monospace,monospace;font-size:9.5px;fill:#8D918C;text-anchor:middle}
+.tip{fill:#0A0B0B;stroke:#2A2E2B;stroke-width:1px}
+.lead{fill:none;stroke:#4A4F4B;stroke-width:1px}
+.tipt{font-size:14px;font-weight:600;fill:#E8EAE6}
+.tipm{font-family:'Geist Mono',ui-monospace,monospace;font-size:10.5px;fill:#B9BEB9}
+.tiph{font-size:11px;fill:#8D918C}
+.hide{display:none}
+.gl{flex-shrink:0;width:9px;height:9px;border-radius:50%;box-sizing:border-box}
+.gl-leaf{background:#DCE3DE}
+.gl-sprout{background:#DCE3DE;box-shadow:0 0 0 2px #0A0B0B,0 0 0 3px #7D827C}
+.gl-branch{border:1.5px solid currentColor}
+.ibtn:hover{background:#151716}
+.primary:hover{filter:brightness(1.08)}
+.chip:hover{border-color:#3A3E3B}
+</style>
+</helmet>
+<div style="height: 100vh; min-height: 640px; display: flex; flex-direction: column; background: #030303; color: #E8EAE6; font-family: 'Geist', ui-sans-serif, system-ui, sans-serif; font-size: 14px; overflow: hidden">
+
+  <header style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap; padding: 10px 16px; border-bottom: 1px solid #1C1E1D; background: #050606">
+    <div style="display: flex; align-items: center; gap: 10px">
+      <img src="/_blob/217475af72b3e6ce501c325e380321f0" alt="" style="height: 22px; width: auto; display: block">
+      <span style="font-weight: 600; font-size: 15px; letter-spacing: 0.01em">Yeraz</span>
+    </div>
+    <span style="width: 1px; height: 20px; background: #1C1E1D"></span>
+    <nav aria-label="Breadcrumb" style="display: flex; align-items: center; gap: 8px; font-size: 14px">
+      <a href="Main.dc.html" style="color: #8D918C; text-decoration: none">All trees</a>
+      <svg class="ic" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true" style="color: #5A5E5A"><path d="M9 6l6 6-6 6"></path></svg>
+      <span style="font-weight: 500">Engineering</span>
+    </nav>
+    <div style="flex: 1 1 240px; display: flex; justify-content: center; min-width: 0">
+      <label style="display: flex; align-items: center; gap: 8px; width: 100%; max-width: 420px; height: 36px; padding: 0 10px; border: 1px solid #1C1E1D; border-radius: 9px; background: #0A0B0B; color: #8D918C; box-sizing: border-box">
+        <svg class="ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="M16 16l4.5 4.5"></path></svg>
+        <span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Search this tree</span>
+        <input type="search" placeholder="Search leaves, branches, threads" style="flex: 1; min-width: 0; height: 100%; border: 0; outline: none; background: transparent; color: #E8EAE6; font: inherit; font-size: 13px">
+        <span style="font-family: 'Geist Mono', ui-monospace, monospace; font-size: 11px; color: #8D918C; border: 1px solid #1C1E1D; border-radius: 5px; padding: 2px 6px">⌘K</span>
+      </label>
+    </div>
+    <div style="display: flex; align-items: center; gap: 6px">
+      <span style="display: inline-flex; align-items: center; gap: 7px; height: 32px; padding: 0 10px 0 4px; color: #8D918C; font-size: 12px"><span style="width: 7px; height: 7px; border-radius: 50%; background: #E3B55B"></span>Unsaved edits · auto-push in 1:24</span>
+      <a href="Tree.dc.html" class="ibtn" aria-label="Show explorer" style="width: 36px; height: 36px; display: grid; place-items: center; border-radius: 8px; color: #8D918C"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="15" rx="2.5"></rect><path d="M9.5 4.5v15"></path></svg></a>
+      <a href="Tree.dc.html" class="ibtn" aria-label="Show leaf panel" style="width: 36px; height: 36px; display: grid; place-items: center; border-radius: 8px; color: #8D918C"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="15" rx="2.5"></rect><path d="M14.5 4.5v15"></path></svg></a>
+      <button type="button" class="primary" style="display: inline-flex; align-items: center; gap: 7px; height: 36px; margin-left: 4px; padding: 0 14px; border: 0; border-radius: 9px; background: {{accent}}; color: #04130C; font-weight: 600; font-size: 13px; cursor: pointer">
+        <svg class="ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>New leaf
+      </button>
+    </div>
+  </header>
+
+  <main style="flex: 1; min-height: 560px; position: relative; overflow: hidden; background: #030303">
+    <svg viewBox="0 0 1000 860" preserveAspectRatio="xMidYMid meet" aria-label="Knowledge map of the Engineering tree, OAuth 2.0 highlighted" style="position: absolute; inset: 0; width: 100%; height: 100%; display: block; font-family: 'Geist', ui-sans-serif, system-ui, sans-serif">
+      <defs>
+        <pattern id="yz-dots-f" width="28" height="28" patternUnits="userSpaceOnUse"><circle class="griddot" cx="1.5" cy="1.5" r="1"></circle></pattern>
+      </defs>
+      <rect x="-1500" y="-1500" width="4000" height="3860" style="fill: url(#yz-dots-f)"></rect>
+      <circle class="orbit" cx="500" cy="430" r="112"></circle>
+      <circle class="orbit" cx="500" cy="430" r="222"></circle>
+      <circle class="orbit" cx="500" cy="430" r="318"></circle>
+      <sc-for list="{{edges}}" as="e" hint-placeholder-count="30"><path class="{{e.cls}}" d="{{e.d}}"></path></sc-for>
+      <sc-for list="{{threads}}" as="t" hint-placeholder-count="12"><path class="{{t.cls}}" d="{{t.d}}" style="stroke: {{t.color}}"></path></sc-for>
+      <sc-for list="{{segs}}" as="s" hint-placeholder-count="6"><path class="{{s.cls}}" d="{{s.d}}" style="stroke: {{s.color}}"></path></sc-for>
+      <sc-for list="{{nodes}}" as="n" hint-placeholder-count="30">
+        <g class="{{n.cls}}">
+          <circle class="{{n.haloCls}}" cx="{{n.x}}" cy="{{n.y}}" r="{{n.haloR}}" style="stroke: {{n.ac}}"></circle>
+          <circle class="{{n.ringCls}}" cx="{{n.x}}" cy="{{n.y}}" r="{{n.ringR}}"></circle>
+          <circle class="dot" cx="{{n.x}}" cy="{{n.y}}" r="{{n.r}}" style="fill: {{n.fill}}; stroke: {{n.stroke}}"></circle>
+          <text class="{{n.lblCls}}" x="{{n.lx}}" y="{{n.ly}}" style="fill: {{n.lblFill}}">{{n.label}}</text>
+        </g>
+      </sc-for>
+      <circle class="core" cx="500" cy="430" r="40"></circle>
+      <text class="coretitle" x="500" y="429">Engineering</text>
+      <text class="corelbl" x="500" y="444">{{totalWords}} words</text>
+      <g>
+        <path class="lead" d="{{tip.lead}}"></path>
+        <rect class="tip" x="{{tip.x}}" y="{{tip.y}}" width="236" height="78" rx="10"></rect>
+        <text class="tipt" x="{{tip.tx}}" y="{{tip.t1}}">{{tip.title}}</text>
+        <text class="tipm" x="{{tip.tx}}" y="{{tip.t2}}">{{tip.meta}}</text>
+        <text class="tiph" x="{{tip.tx}}" y="{{tip.t3}}">Click to peek · double-click to open</text>
+      </g>
+    </svg>
+
+    <div style="position: absolute; left: 16px; top: 16px; display: flex; gap: 6px; flex-wrap: wrap">
+      <button type="button" class="chip" aria-pressed="true" style="display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 12px; border: 1px solid #262927; border-radius: 999px; background: #0A0B0B; font-size: 12.5px; cursor: pointer"><svg width="16" height="10" viewBox="0 0 16 10" aria-hidden="true"><path d="M1 9C5 9 6 1 15 1" style="fill: none; stroke: #E8EAE6; stroke-opacity: 0.6; stroke-width: 1.2px"></path></svg>Branches</button>
+      <button type="button" class="chip" aria-pressed="true" style="display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 12px; border: 1px solid #262927; border-radius: 999px; background: #0A0B0B; font-size: 12.5px; cursor: pointer"><svg width="16" height="10" viewBox="0 0 16 10" aria-hidden="true"><path d="M1 9C5 9 6 1 15 1" style="fill: none; stroke: {{accent}}; stroke-width: 1.6px"></path></svg>Threads</button>
+    </div>
+
+    <div style="position: absolute; right: 16px; top: 16px; width: 248px; box-sizing: border-box; padding: 14px 16px; border: 1px solid #1C1E1D; border-radius: 12px; background: #0A0B0B; display: flex; flex-direction: column; gap: 10px">
+      <h2 style="margin: 0; font-size: 11px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; color: #8D918C">Where you write most</h2>
+      <sc-for list="{{shares}}" as="b" hint-placeholder-count="6">
+        <div style="display: flex; flex-direction: column; gap: 5px">
+          <div style="display: flex; justify-content: space-between; font-size: 12.5px"><span>{{b.name}}</span><span style="font-family: 'Geist Mono', ui-monospace, monospace; font-size: 11px; color: #8D918C">{{b.words}}</span></div>
+          <div style="height: 3px; border-radius: 2px; background: #161917"><div style="height: 3px; border-radius: 2px; background: {{accent}}; width: {{b.pct}}%"></div></div>
+        </div>
+      </sc-for>
+    </div>
+
+    <div style="position: absolute; left: 16px; bottom: 16px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; max-width: calc(100% - 32px)">
+      <div style="display: flex; align-items: center; gap: 2px; padding: 4px; border: 1px solid #1C1E1D; border-radius: 11px; background: #0A0B0B">
+        <button type="button" class="ibtn" aria-label="Zoom out" style="width: 34px; height: 34px; display: grid; place-items: center; border: 0; border-radius: 8px; background: transparent; cursor: pointer"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"></path></svg></button>
+        <span style="min-width: 44px; text-align: center; font-family: 'Geist Mono', ui-monospace, monospace; font-size: 12px; color: #B9BEB9">100%</span>
+        <button type="button" class="ibtn" aria-label="Zoom in" style="width: 34px; height: 34px; display: grid; place-items: center; border: 0; border-radius: 8px; background: transparent; cursor: pointer"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg></button>
+        <span style="width: 1px; height: 20px; background: #1C1E1D; margin: 0 2px"></span>
+        <button type="button" class="ibtn" aria-label="Fit the tree" style="width: 34px; height: 34px; display: grid; place-items: center; border: 0; border-radius: 8px; background: transparent; cursor: pointer"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V5h4M20 9V5h-4M4 15v4h4M20 15v4h-4"></path></svg></button>
+        <span style="padding: 0 8px 0 4px; font-size: 11.5px; color: #8D918C">Leaves</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 10px 14px; border: 1px solid #1C1E1D; border-radius: 11px; background: #0A0B0B; font-size: 11.5px; color: #8D918C">
+        <span style="display: inline-flex; align-items: center; gap: 7px"><span class="gl gl-leaf"></span>Leaf</span>
+        <span style="display: inline-flex; align-items: center; gap: 7px"><span class="gl gl-sprout"></span>Leaf with sub-leaves</span>
+        <span style="display: inline-flex; align-items: center; gap: 7px"><span class="gl gl-branch" style="color: {{accent}}"></span>Branch</span>
+        <span style="display: inline-flex; align-items: center; gap: 7px"><span style="width: 16px; height: 2px; border-radius: 2px; background: {{accent}}"></span>Thread (@mention)</span>
+        <span>Size = words written</span>
+      </div>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","default":"#4BE3A0","options":["#4BE3A0","#E3B55B","#7FB3F5","#E8EAE6"]},"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  engData() {
+    return { id: 'root', name: 'Engineering', children: [
+      { id: 'backend', name: 'Backend', children: [
+        { id: 'java', name: 'Java', words: 4200, children: [
+          { id: 'streams', name: 'Streams', words: 900 },
+          { id: 'records', name: 'Records', words: 600 },
+          { id: 'vthreads', name: 'Virtual Threads', words: 1300 } ] },
+        { id: 'spring', name: 'Spring Boot', words: 3100, children: [
+          { id: 'springsec', name: 'Spring Security', words: 1500 },
+          { id: 'springdata', name: 'Spring Data', words: 1100 } ] },
+        { id: 'rest', name: 'REST Design', words: 1400 } ] },
+      { id: 'identity', name: 'Identity', children: [
+        { id: 'keycloak', name: 'Keycloak', words: 2600, children: [
+          { id: 'realms', name: 'Realms', words: 700 },
+          { id: 'tokens', name: 'Tokens', words: 1200 } ] },
+        { id: 'oauth', name: 'OAuth 2.0', words: 2000 },
+        { id: 'oidc', name: 'OpenID Connect', words: 1300 } ] },
+      { id: 'cloud', name: 'Cloud', children: [
+        { id: 'gcp', name: 'Google Cloud', words: 1800, children: [
+          { id: 'cloudrun', name: 'Cloud Run', words: 900 },
+          { id: 'iam', name: 'IAM', words: 800 } ] },
+        { id: 'docker', name: 'Docker', words: 1500 },
+        { id: 'cicd', name: 'CI/CD', children: [
+          { id: 'jenkins', name: 'Jenkins', words: 700 },
+          { id: 'circleci', name: 'CircleCI', words: 400 } ] } ] },
+      { id: 'data', name: 'Data', children: [
+        { id: 'postgres', name: 'PostgreSQL', words: 2200, children: [
+          { id: 'indexes', name: 'Indexes', words: 1000 },
+          { id: 'tx', name: 'Transactions', words: 1100 } ] },
+        { id: 'oracle', name: 'Oracle DB', words: 600 },
+        { id: 'schema', name: 'Schema Design', words: 900 } ] },
+      { id: 'frontend', name: 'Frontend', children: [
+        { id: 'react', name: 'React', words: 1700, children: [
+          { id: 'hooks', name: 'Hooks', words: 800 } ] },
+        { id: 'angular', name: 'Angular', words: 1000 } ] },
+      { id: 'agents', name: 'AI Agents', children: [
+        { id: 'prompting', name: 'Prompting', words: 1100 },
+        { id: 'claudecode', name: 'Claude Code', words: 1600 },
+        { id: 'evals', name: 'Evaluations', words: 500 } ] }
+    ] };
+  }
+  engLinks() {
+    return [['springsec', 'oauth'], ['springsec', 'keycloak'], ['tokens', 'oidc'], ['keycloak', 'oauth'], ['oidc', 'oauth'],
+      ['iam', 'keycloak'], ['cloudrun', 'docker'], ['jenkins', 'docker'], ['springdata', 'tx'], ['hooks', 'rest'], ['angular', 'rest'],
+      ['claudecode', 'java'], ['vthreads', 'cloudrun'], ['schema', 'springdata'], ['evals', 'circleci'], ['prompting', 'claudecode'], ['indexes', 'schema']];
+  }
+  layoutTree(tree, links, o) {
+    const q = (v) => Math.round(v * 10) / 10;
+    const nodes = [], byId = {};
+    const walk = (n, depth, parent) => {
+      n.depth = depth; n.parent = parent; n.kids = n.children || []; byId[n.id] = n; nodes.push(n);
+      n.kids.forEach((c) => walk(c, depth + 1, n));
+      n.slots = n.kids.length ? n.kids.reduce((s, c) => s + c.slots, 0) : 1;
+      n.total = (n.words || 0) + n.kids.reduce((s, c) => s + c.total, 0);
+    };
+    walk(tree, 0, null);
+    const top = tree.kids, per = (Math.PI * 2 - o.gap * top.length) / tree.slots;
+    const place = (n, a0) => {
+      let a = a0;
+      n.kids.forEach((c) => { place(c, a); a = c.a1; });
+      n.a1 = a0 + n.slots * per;
+      n.ang = n.kids.length ? (n.kids[0].ang + n.kids[n.kids.length - 1].ang) / 2 : a0 + per / 2;
+    };
+    let a = (o.start || 0) + o.gap / 2;
+    top.forEach((b) => { place(b, a); a = b.a1 + o.gap; });
+    const pt = (ang, r) => [o.cx + r * Math.sin(ang), o.cy - r * Math.cos(ang)];
+    nodes.forEach((n) => {
+      n.rad = n.depth ? o.radii[n.depth] : 0;
+      const p = pt(n.ang || 0, n.rad);
+      n.x = q(p[0]); n.y = q(p[1]);
+      n.hasNote = !!n.words;
+      n.size = n.depth === 0 ? o.coreR : q((n.hasNote ? 2.4 + Math.sqrt(n.words) / 5.6 : 4 + Math.sqrt(n.total) / 11) * o.k);
+      const s = Math.sin(n.ang || 0), c = Math.cos(n.ang || 0), off = n.size + (n.kids.length && n.hasNote ? 9 : 6) * o.k + 2;
+      n.anc = s > 0.2 ? 'a-start' : s < -0.2 ? 'a-end' : 'a-mid';
+      n.lx = q(n.x + s * off);
+      n.ly = q(n.y - c * off + (n.anc === 'a-mid' ? (c > 0 ? -4 : 13) : 4));
+    });
+    const edges = nodes.filter((n) => n.parent).map((n) => {
+      const p = n.parent;
+      if (!p.depth) {
+        const s = pt(n.ang, o.coreR + 13 * o.k);
+        return { id: n.id, d: 'M' + q(s[0]) + ',' + q(s[1]) + 'L' + n.x + ',' + n.y };
+      }
+      const rm = (p.rad + n.rad) / 2, c1 = pt(p.ang, rm), c2 = pt(n.ang, rm);
+      return { id: n.id, d: 'M' + p.x + ',' + p.y + 'C' + q(c1[0]) + ',' + q(c1[1]) + ' ' + q(c2[0]) + ',' + q(c2[1]) + ' ' + n.x + ',' + n.y };
+    });
+    const anc = (n) => { const out = []; for (let m = n; m; m = m.parent) out.push(m); return out; };
+    const threads = links.filter((l) => byId[l[0]] && byId[l[1]]).map((l) => {
+      const A = anc(byId[l[0]]), B = anc(byId[l[1]]), lca = A.find((x) => B.indexOf(x) >= 0);
+      const up = A.slice(0, A.indexOf(lca) + 1), down = B.slice(0, B.indexOf(lca)).reverse();
+      let P = up.concat(down).map((n) => [n.x, n.y]);
+      if (!lca.depth && up.length > 1 && down.length) {
+        const u = up[up.length - 2], v = down[0];
+        P[up.length - 1] = [o.cx + ((u.x + v.x) / 2 - o.cx) * 0.5, o.cy + ((u.y + v.y) / 2 - o.cy) * 0.5];
+      }
+      const m = P.length, b = o.beta, p0 = P[0], pn = P[m - 1];
+      P = P.map((p, i) => [b * p[0] + (1 - b) * (p0[0] + (pn[0] - p0[0]) * i / (m - 1)), b * p[1] + (1 - b) * (p0[1] + (pn[1] - p0[1]) * i / (m - 1))]);
+      let d = 'M' + q(P[0][0]) + ',' + q(P[0][1]);
+      if (m === 2) d += 'L' + q(P[1][0]) + ',' + q(P[1][1]);
+      for (let i = 1; i < m - 1; i++) {
+        const e = i === m - 2 ? P[m - 1] : [(P[i][0] + P[i + 1][0]) / 2, (P[i][1] + P[i + 1][1]) / 2];
+        d += 'Q' + q(P[i][0]) + ',' + q(P[i][1]) + ' ' + q(e[0]) + ',' + q(e[1]);
+      }
+      return { from: l[0], to: l[1], d };
+    });
+    const dr = o.coreR + 7 * o.k;
+    let acc = 0;
+    const segs = top.map((b) => {
+      const span = (b.total / tree.total) * Math.PI * 2, a0 = acc + 0.04, a1 = acc + span - 0.04;
+      acc += span;
+      const s = pt(a0, dr), e = pt(a1, dr);
+      return { id: b.id, d: 'M' + q(s[0]) + ',' + q(s[1]) + 'A' + q(dr) + ',' + q(dr) + ' 0 ' + (a1 - a0 > Math.PI ? 1 : 0) + ' 1 ' + q(e[0]) + ',' + q(e[1]) };
+    });
+    return { tree, nodes, byId, edges, threads, segs };
+  }
+  compact(w) {
+    return w >= 1000 ? (Math.round(w / 100) / 10) + 'k' : String(w);
+  }
+  renderVals() {
+    if (!this._L) this._L = this.layoutTree(this.engData(), this.engLinks(), { cx: 500, cy: 430, radii: [0, 112, 222, 318], gap: 0.16, start: 0, beta: 0.82, coreR: 40, k: 1 });
+    const L = this._L;
+    const accent = this.props.accent ?? '#4BE3A0';
+    const sel = L.byId.oauth;
+    const near = {};
+    near[sel.id] = true; near[sel.parent.id] = true;
+    L.threads.forEach((t) => { if (t.from === sel.id) near[t.to] = true; if (t.to === sel.id) near[t.from] = true; });
+    const nodes = L.nodes.filter((n) => n.depth).map((n) => {
+      const isSel = n.id === sel.id;
+      return {
+        ac: accent, cls: 'n' + (near[n.id] ? '' : ' dim'),
+        x: n.x, y: n.y, r: n.size, ringR: n.size + 4, haloR: n.size + 10,
+        ringCls: 'ring' + (n.hasNote && n.kids.length ? '' : ' hide'),
+        haloCls: 'halo' + (isSel ? '' : ' hide'),
+        fill: n.hasNote ? (isSel ? accent : '#DCE3DE') : '#030303',
+        stroke: n.hasNote ? 'none' : accent,
+        lx: n.lx, ly: n.ly,
+        lblCls: 'lbl ' + (n.depth === 1 ? 'blbl ' : '') + n.anc + (isSel ? ' lsel' : ''),
+        lblFill: n.depth === 1 || isSel ? accent : '#E8EAE6',
+        label: n.depth === 1 ? n.name.toUpperCase() : n.name
+      };
+    });
+    const edges = L.edges.map((e) => ({ d: e.d, cls: 'edge' + (e.id === sel.id ? ' hot' : '') }));
+    const touches = (t) => t.from === sel.id || t.to === sel.id;
+    const threads = L.threads.map((t) => ({ d: t.d, color: accent, hot: touches(t), cls: 'thr' + (touches(t) ? ' hot' : ' cold') }))
+      .sort((x, y) => (x.hot ? 1 : 0) - (y.hot ? 1 : 0));
+    const segs = L.segs.map((g) => ({ d: g.d, color: accent, cls: 'seg' + (g.id === 'identity' ? ' hot' : '') }));
+    const inCount = L.threads.filter((t) => t.to === sel.id).length;
+    const tip = { lead: 'M' + (sel.x + 15) + ',' + (sel.y + 15) + 'L' + (sel.x + 54) + ',' + (sel.y + 66), x: sel.x + 40, y: sel.y + 66, tx: sel.x + 56, t1: sel.y + 90, t2: sel.y + 108, t3: sel.y + 128, title: sel.name, meta: sel.words.toLocaleString('en-US') + ' words · ' + inCount + ' threads in' };
+    const maxT = Math.max.apply(null, L.tree.kids.map((b) => b.total));
+    const shares = L.tree.kids.slice().sort((x, y) => y.total - x.total).map((b) => ({ name: b.name, words: this.compact(b.total), pct: Math.round((b.total / maxT) * 100) }));
+    return { accent, nodes, edges, threads, segs, tip, shares, totalWords: this.compact(L.tree.total) };
+  }
+}
+</script>
+</body>
+</html>
