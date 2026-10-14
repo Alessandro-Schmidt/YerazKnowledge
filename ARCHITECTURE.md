@@ -1,0 +1,252 @@
+# Yeraz — Architecture
+
+Yeraz is a note-taking app whose notes live as Markdown files in the user's own GitHub repositories, and whose main screen is a map of how those notes are structured and connected.
+
+- **Why and what:** `ideas.txt`
+- **Order of work and testing:** `development-plan.md`
+- **Visual design:** the "Yeraz Knowledge Map" design canvas (private to the owner): https://claude.ai/artifact/UWV7RLc2iLsYxB5Sde26c5. The tokens and screen specs that matter for building are copied into `development-plan.md`.
+
+This document was written with two lenses: **performance** and **least code**. Most decisions below serve both, and §11 reviews them explicitly.
+
+---
+
+## 1. Principles
+
+1. **GitHub is the backend.** There is no server of ours. A repository is a database, a commit is a transaction.
+2. **Markdown text is the only document model.** The editor edits text directly. Nothing is converted to another format and back, so nothing can be lost in conversion, and diffs stay minimal.
+3. **Everything is cached by content hash.** Each file version is stored locally under its git blob SHA. A SHA never changes meaning, so the cache never needs invalidating and nothing is downloaded twice.
+4. **One codebase, two shells.** The same static web build runs on GitHub Pages (installable on phones) and inside a Tauri desktop app.
+5. **Common edits touch one file.** The repository format (§4) is designed so editing, adding a sub-note or renaming a title never rewrites other files.
+6. **Measure before adding.** No Web Worker, list virtualization, canvas renderer or search engine until a performance budget (§11) fails without it.
+
+## 2. Vocabulary
+
+| Term | Means | On GitHub |
+|---|---|---|
+| **Tree** | One knowledge base | One repository |
+| **Branch** | A grouping of notes | A folder |
+| **Leaf** | A note | A `.md` file |
+| **Thread** | A link from one leaf to another (`@mention`) | A Markdown link |
+| **Explorer** | Left panel: the file view of a Tree | — |
+| **Map** | Centre: the radial knowledge map | — |
+| **Peek** | Right panel: partial view of the selected leaf | — |
+
+"Branch" here never means a git branch. Each Tree uses its repository's default branch only.
+
+## 3. System overview
+
+```
+┌──────────────────────── Yeraz (static React build) ────────────────────────┐
+│  UI      Home (all Trees) · Tree view (Explorer | Map | Peek) · Editor      │
+│  Model   in-memory index: leaves, branches, threads (derived, never saved)  │
+│  Store   IndexedDB: blobs by SHA · parsed leaves by SHA · dirty files ·     │
+│          last tree + ETag per Tree                                          │
+│  Sync    GitHub REST (2 endpoints) + GraphQL (3 operations)                 │
+└───────────────────────────────────┬────────────────────────────────────────┘
+                                    │ HTTPS, user's token
+                                    ▼
+                    api.github.com  — one repository per Tree
+
+Shells:  GitHub Pages (PWA, phones + desktop browsers)
+         Tauri 2 (Windows .exe/.msi, macOS .dmg, Linux .AppImage/.deb)
+```
+
+## 4. Repository format (the contract)
+
+These rules are the only thing that must stay stable across versions. Tests lock them.
+
+| Rule | Example |
+|---|---|
+| A leaf is a `.md` file. **Line 1 is the title.** | `# Keycloak` |
+| An emoji at the start of the title is the leaf's icon. | `# 🔐 Keycloak` |
+| Optional **line 2** is a metadata comment: cover, image icon, colours. It is invisible when GitHub renders the file. | `<!-- yeraz {"cover":"https://…","color":{"text":"#E8EAE6","heading":"#4BE3A0"}} -->` |
+| A leaf's sub-leaves and sub-branches live in a **sibling folder with the same name**. | `identity/keycloak.md` + `identity/keycloak/realms.md` |
+| A branch is a folder with no sibling `.md` file of the same name. | `identity/` |
+| A thread is a normal Markdown link with a **root-relative** path. GitHub resolves paths starting with `/` from the repository root, so threads also work on github.com. | `[Keycloak](/identity/keycloak.md)` |
+| A thread to another Tree is a full GitHub URL to a file in a connected repository. Any other `github.com/owner/repo` URL renders as a repository card. | `https://github.com/user/art-history/blob/main/baroque.md` |
+| Images and attachments live in `assets/` at the root. Images are resized to at most 2000 px WebP before they are committed. | `assets/2026-10-14-realm-diagram.webp` |
+| `.yeraz.json` at the root marks a repository as a Tree. | `{"name":"Engineering","color":"#4BE3A0"}` |
+| The filename is fixed when the leaf is created (a slug of its first title). Changing the title does not rename the file. | Title "Keycloak (IdP)" stays in `keycloak.md` |
+
+Why these rules:
+
+- **Sibling folders instead of `folder/README.md`.** Giving a leaf its first sub-leaf only adds a folder; the leaf itself never moves. With the README convention the leaf would move, and every link to it would need rewriting.
+- **Fixed filenames.** Renaming a title is the most common structural edit. It touches one file.
+- **Root-relative links.** Moving a leaf does not break that leaf's own outgoing links. Only links pointing *to* it change. The backlink index finds them, and they are rewritten in the same commit as the move.
+
+## 5. Data flow
+
+### 5.1 Opening a Tree (read path)
+
+1. **Tree listing, one request:** `GET /repos/{owner}/{repo}/git/trees/{branch}?recursive=1` with `If-None-Match: <stored ETag>`.
+   - A `304 Not Modified` means nothing changed, and it does not count against the rate limit. Done: render from IndexedDB.
+   - Keep the ETag ourselves and call `fetch` with `cache: 'no-store'`. GitHub marks API responses as cacheable for up to 60 s, and the browser's cache would otherwise hide fresh changes.
+   - Limit: 100,000 entries / 7 MB per recursive listing. That is far beyond a personal knowledge base. If the response is `truncated`, fall back to listing subtrees one at a time.
+2. **Diff:** compare each `.md` entry's blob SHA with IndexedDB. Only unknown SHAs are fetched.
+3. **Fetch missing blobs by SHA** with GraphQL, many per request (`b0: object(oid:"…"){... on Blob{text}}`, `b1: …`). Group them so each response stays around 1 MB.
+4. **Parse** each new blob into `{ title, icon, meta, words, links }`. This is one pure function, stored under the blob SHA.
+5. **Build the index** (leaves, branches, threads, backlinks, adjacency) and lay out the map.
+
+The map is **progressive**: it renders right after step 1 using only paths and blob sizes (bytes ÷ 6 ≈ words), then refines as content arrives.
+
+### 5.2 Writing and saving (write path)
+
+- A keystroke changes only the editor state. After 500 ms of no typing, the text is written to IndexedDB under `dirty[path]`. It survives crashes, closed tabs and lost connections.
+- **A commit happens when any of these occurs:**
+  - 2 minutes pass with no edits.
+  - The user leaves the leaf, or the app goes to the background (`visibilitychange` → hidden).
+  - The user presses Ctrl/Cmd+S.
+- **One request per commit,** however many files changed: GraphQL `createCommitOnBranch` with:
+  - every dirty file (additions with base64 contents, plus deletions);
+  - `expectedHeadOid` set to the last commit we know. If someone else pushed in between, the commit is refused instead of overwriting their work.
+  - GitHub signs these commits automatically.
+- **After a successful commit,** each saved file's blob SHA is computed locally: SHA-1 of `"blob " + byteLength + "\0" + content`, via `crypto.subtle`. The text moves from `dirty` into the blob cache, so the next tree listing finds every SHA already known and downloads nothing.
+- **When the commit is refused** (another device pushed first):
+  1. Run the read path.
+  2. For each dirty file that also changed remotely, do a three-way merge with `node-diff3`. The base is the cached blob our edit started from.
+  3. A clean merge is committed. If both sides edited the same lines, keep both: the remote version stays in place, ours is saved as `name.conflict-YYYY-MM-DD.md`, and a banner says so.
+  4. Text is never lost.
+- **Leaving with unsaved edits:** the edits stay in IndexedDB and are committed the next time the app opens. We do not rely on requests sent during page unload, because browsers cap `keepalive` request bodies at 64 KB.
+
+### 5.3 Finding Trees (Home)
+
+After sign-in, one GraphQL query lists the user's repositories and checks each for the marker file (`object(expression:"HEAD:.yeraz.json")`). Every repository that has it is a Tree. No device needs to be told which Trees exist.
+
+Creating a Tree from the app means:
+
+1. `POST /user/repos` with `private: true`.
+2. A first commit containing `.yeraz.json` and a welcome leaf.
+
+## 6. The map
+
+- **Layout: a radial tidy tree from `d3-hierarchy`,** with branches fanning out from a core (the Tree):
+  - `tree().size([2π, R]).separation((a, b) => (a.parent === b.parent ? 1 : 2) / a.depth)`.
+  - Each depth sits on its own ring.
+- **Threads use hierarchical edge bundling:** `d3.lineRadial().curve(d3.curveBundle.beta(0.85))` drawn through `source.path(target)`.
+  - d3 already returns the path through the two leaves' common ancestor, so this is about ten lines of code.
+  - Bundling is what keeps the map readable as threads multiply. A force-directed layout (Obsidian's approach) turns into a tangle.
+- **Encodings (from the design):**
+
+  | What you see | Means |
+  |---|---|
+  | Node area | Words written: radius = a + √words × k |
+  | Filled dot | Leaf |
+  | Hollow ring | Branch |
+  | Filled dot with a ring | Leaf with sub-leaves |
+  | Donut around the core | Share of words per top-level branch |
+  | Green curve | Thread |
+- **Rendering:**
+  - React renders the SVG geometry once per data change (memoised).
+  - Pan and zoom use `d3-zoom`, which writes a single `transform` attribute on one `<g>`. **React does not re-render during pan or zoom.**
+  - Selecting or hovering adds `data-focus` on the root and a class on the selected leaf's neighbours, which come from a precomputed adjacency map. CSS does the dimming.
+  - Semantic zoom works the same way: a class per zoom level (`z-far` hides leaf labels, `z-near` shows them).
+- **Home** lays out every Tree independently:
+  - Each is scaled by √(total words) and placed with `d3.packSiblings`.
+  - Only branch labels are drawn at that zoom.
+  - Threads between Trees are drawn as dashed curves between their cores.
+- **Ceiling:** SVG should hold 60 fps up to about 2,000 nodes on a mid-range phone; the performance tests confirm the real number. Above it, the node and edge layers can be swapped for one `<canvas>` using the same layout data. That swap is planned, not built.
+
+## 7. Editor
+
+- **CodeMirror 6** with `@codemirror/lang-markdown` (GitHub-flavoured). The document in the editor *is* the file's text.
+- **Live preview is one decoration extension.** It:
+  - hides Markdown syntax on lines that don't hold the cursor, and styles headings and quotes;
+  - replaces the right ranges with widgets: images, `@` chips, checkboxes, math (KaTeX), YouTube embeds, PDFs, and video with subtitle tracks.
+- **"Show the code" turns that extension off.** Same editor, same text, no conversion.
+- **`@` mentions** use `@codemirror/autocomplete` over the in-memory index. Picking a leaf inserts `[Title](/path.md)`, which is displayed as a chip with the target's icon.
+- **Hold Ctrl/Cmd for 2 seconds** to open the insert menu: to-do list, ordered list, bullet list, mention, image from files, new leaf, new branch.
+  - The timer starts when the modifier is pressed on its own. Any other key, or releasing the modifier, cancels it, so normal shortcuts like Ctrl+C never open the menu.
+  - Phones have no Ctrl key: a long-press or typing `/` opens the same menu.
+- **Code blocks** use CodeMirror's nested languages from `@codemirror/language-data`, loaded per language on demand. The read view highlights with the same Lezer parsers (`highlightCode`), so there is one highlighting system, not two.
+- **The header above the text** (cover, icon, colours) is drawn from line 1 and line 2. Colours are applied as CSS variables on the leaf container: `--leaf-text` and `--leaf-heading`, with headings green by default.
+
+## 8. Read view and PDF
+
+- The Peek panel and read-only pages render HTML with `markdown-it` (plus task lists and KaTeX). Output is cached by blob SHA.
+- **PDF export** uses a print stylesheet and `window.print()` on the read view.
+  - Video embeds print as a thumbnail with a link.
+  - On desktop, check Tauri's webview printing on all three OSes early in development. The fallback is a small Rust command that calls the webview's native print.
+
+## 9. Authentication
+
+- **v1:** the user pastes a fine-grained personal access token with *Contents: read and write* on the repositories they choose.
+  - Stored in IndexedDB on the web, and in the OS keychain on desktop.
+  - Creating repositories from the app needs broader permission. The token screen explains which.
+- **Later:**
+  - **Desktop:** GitHub's device flow, called from Tauri's Rust HTTP client. It needs no client secret and isn't subject to browser CORS.
+  - **Web:** the OAuth web flow with PKCE, plus a ~30-line Cloudflare Worker for the token exchange. This is needed because GitHub's OAuth endpoints don't answer browser CORS pre-flight requests, and the web flow needs the client secret.
+- **Content Security Policy:** no inline scripts, and network access only to `api.github.com` and the image hosts in use. This protects the token.
+
+## 10. Packaging and delivery
+
+- **One Vite build** produces `dist/`.
+- **Web:**
+  - A GitHub Actions workflow deploys `dist/` to GitHub Pages.
+  - `vite-plugin-pwa` generates the web manifest and a service worker that caches the app shell. Data is offline already through IndexedDB.
+  - On a phone, "Add to Home Screen" installs it. Chrome and Edge can also install it on desktop.
+  - Routing uses the URL hash (`#/tree/owner/repo/path`), because GitHub Pages cannot rewrite URLs.
+- **Desktop:**
+  - Tauri 2 wraps the same `dist/`.
+  - `tauri-apps/tauri-action` builds Windows, macOS and Linux installers when a version tag is pushed, and attaches them to the GitHub Release.
+  - Note that `.exe` is Windows-only; each OS gets its own installer.
+- **Signing:** unsigned apps show security warnings on macOS and Windows. Signing (Apple Developer Program, Windows code-signing certificate) can be added later without code changes.
+
+## 11. Performance review
+
+### Budgets
+
+| Hot path | Budget | How the design meets it |
+|---|---|---|
+| Reopen a cached Tree (1,000 leaves) | Map painted < 800 ms on a mid laptop, < 1.5 s on a mid phone | App shell from the service worker. Index and layout inputs from IndexedDB. One conditional request, normally a free 304. |
+| Open a Tree for the first time (1,000 leaves) | Structure < 1 s, all content < 5 s | One tree request. About 10 GraphQL blob requests, run three at a time. The map renders from paths before content arrives. |
+| Pan and zoom | 60 fps at 2,000 nodes | One `transform` write per frame. No React renders. Labels hidden by a zoom-level class. |
+| Select a leaf | < 50 ms to highlight and open the Peek | Precomputed adjacency. Class toggles only. Read HTML cached by SHA. |
+| Typing | < 16 ms per keystroke in a 10,000-line leaf | CodeMirror renders only visible lines. No conversion. Local writes debounced. |
+| Saving | 1 request per commit | `createCommitOnBranch` with every changed file. |
+| First load JavaScript | < 200 KB gzipped | Editor, KaTeX, `markdown-it` and language parsers are separate chunks loaded on first use. |
+| Rate limit in normal use | ≈ 0 | 304s are free. Blobs are never fetched twice. |
+
+### Decisions that remove both code and work
+
+| Decision | Instead of | Saves |
+|---|---|---|
+| The editor edits Markdown text directly | A rich-text editor (ProseMirror/TipTap) plus Markdown conversion | A whole conversion layer and its fidelity bugs. Commits change only the lines that changed. |
+| Blob-SHA cache | Timestamps and invalidation rules | Cache-invalidation code; every repeat download |
+| `createCommitOnBranch` | The blob → tree → commit → ref sequence in the REST Git API | Three of four requests, plus built-in conflict detection |
+| Sibling folders, fixed filenames, root-relative links | README promotion, title-based names, relative links | Multi-file rewrites on everyday edits |
+| d3 for layout, bundling, zoom and packing | Custom geometry | Hundreds of lines |
+| Plain `fetch` | Octokit | Bundle size; the app uses 2 REST endpoints and 3 GraphQL operations |
+| Discovery by marker file | A settings store that syncs across devices | A settings service |
+
+### Deliberately not built (until a budget fails)
+
+- A Web Worker for parsing. Regex parsing 1,000 leaves takes milliseconds.
+- A canvas map renderer.
+- A full-text search engine: title search first, MiniSearch if asked for.
+- List virtualization in the Explorer: branches start collapsed below depth 1.
+- Real-time collaboration, and any backend.
+
+### Risks to watch
+
+- **Printing in Tauri** differs per OS. Test it in the first desktop build.
+- **Linux webviews (WebKitGTK)** render SVG more slowly. The performance tests should run there too.
+- **Browsers can evict IndexedDB** under storage pressure, which matters most on phones. Call `navigator.storage.persist()`, and treat local data as a cache plus a short-lived outbox; committing on app hide keeps that outbox small.
+- **GitHub secondary rate limits** apply to bursts of writes. Batched commits keep the app well below them.
+- **Large binaries bloat a repository.** Images are resized on upload, and files over 10 MB get a warning.
+
+## 12. Module map
+
+```
+src/
+  github/   client.ts (fetch, auth, ETag) · graphql.ts (the 3 operations)
+  store/    db.ts (IndexedDB via idb-keyval) · session.ts (Zustand store)
+  model/    parse.ts · tree.ts (paths → hierarchy, sibling-folder rule)
+            links.ts (find and rewrite) · sha.ts (git blob SHA)
+  sync/     pull.ts · push.ts · merge.ts · autosave.ts
+  map/      layout.ts (d3) · TreeMap.tsx · Home.tsx
+  editor/   Editor.tsx · livePreview.ts · insertMenu.ts · mentions.ts
+  read/     render.ts (markdown-it) · Peek.tsx · print.css
+  ui/       Shell.tsx · Explorer.tsx · tokens.css
+```
+
+`model/` and the planning half of `sync/` are pure TypeScript with no DOM or network. Most of the logic lives there, and is unit-tested there.
