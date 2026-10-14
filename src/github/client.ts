@@ -5,7 +5,15 @@
 export const GITHUB_API = 'https://api.github.com'
 
 export type GitHubErrorKind =
-  'network' | 'auth' | 'not-found' | 'empty' | 'rate-limit' | 'server' | 'graphql'
+  | 'network'
+  | 'auth'
+  | 'not-found'
+  | 'empty'
+  | 'rate-limit'
+  | 'server'
+  | 'graphql'
+  /** A commit was refused because the branch moved: another device committed first. */
+  | 'stale'
 
 export class GitHubError extends Error {
   constructor(
@@ -39,6 +47,14 @@ export interface GraphQLErrorInfo {
 }
 
 export interface GitHubClient {
+  /** POST to a REST path; answers the parsed JSON. */
+  post<T>(path: string, body: unknown): Promise<T>
+  /** The branch's head commit SHA; `'not-modified'` when `etag` still matches (free of rate limit). */
+  getHead(
+    repo: string,
+    branch: string,
+    etag?: string | null,
+  ): Promise<{ sha: string; etag: string | null } | 'not-modified'>
   /** `'not-modified'` when `etag` still matches; that answer is free of rate limit. */
   getTree(
     repo: string,
@@ -101,6 +117,26 @@ export function createGitHubClient({
   }
 
   return {
+    async post<T>(path: string, body: unknown) {
+      const res = await request(path, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      return (await res.json()) as T
+    },
+
+    async getHead(repo, branch, etag) {
+      const res = await request(`/repos/${repo}/commits/${encodeURIComponent(branch)}`, {
+        headers: {
+          Accept: 'application/vnd.github.sha',
+          ...(etag ? { 'If-None-Match': etag } : {}),
+        },
+      })
+      if (res.status === 304) return 'not-modified'
+      return { sha: (await res.text()).trim(), etag: res.headers.get('etag') }
+    },
+
     async getTree(repo, ref, { recursive = true, etag } = {}) {
       const res = await request(
         `/repos/${repo}/git/trees/${encodeURIComponent(ref)}${recursive ? '?recursive=1' : ''}`,

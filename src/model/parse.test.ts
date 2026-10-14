@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseLeaf } from './parse'
+import { parseLeaf, withIcon } from './parse'
 
 describe('title and icon', () => {
   it('reads the title from line 1', () => {
@@ -164,5 +164,18 @@ describe('on a generated Tree', () => {
     expect(parsed.reduce((n, p) => n + p.links.length, 0)).toBe(stats.threads)
     expect(parsed.some((p) => p.icon !== null)).toBe(true)
     expect(parsed.some((p) => p.meta !== null)).toBe(true)
+  })
+})
+
+describe('withIcon', () => {
+  it('sets, replaces and removes the icon, changing only line 1', () => {
+    expect(withIcon('# Keycloak\r\n\r\nBody\r\n', '🔐')).toBe('# 🔐 Keycloak\r\n\r\nBody\r\n')
+    expect(withIcon('# 🔐 Keycloak\nBody', '👩‍💻')).toBe('# 👩‍💻 Keycloak\nBody')
+    expect(withIcon('# 🔐 Keycloak\nBody', null)).toBe('# Keycloak\nBody')
+    expect(withIcon('# 🔐', null)).toBe('# Untitled')
+  })
+
+  it('adds a title line when there is none', () => {
+    expect(withIcon('Just text\n', '📚')).toBe('# 📚 Untitled\n\nJust text\n')
   })
 })

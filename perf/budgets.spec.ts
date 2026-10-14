@@ -53,7 +53,7 @@ test('first open of a 1,000-leaf Tree: structure, then all content', async ({ pa
   const start = await markTime(page, 'tree-open')
   const structure = await markTime(page, 'map-painted', 'first')
   await expect(page.locator('[data-node][data-kind="leaf"]')).toHaveCount(1000)
-  await expect(page.getByRole('status')).toBeEmpty({ timeout: 30_000 })
+  await expect(page.getByRole('status')).toHaveText('Synced to main', { timeout: 30_000 })
   const content = await markTime(page, 'map-painted', 'last')
   report('structure', structure - start, budgets().structure)
   report('content', content - start, budgets().content)
@@ -63,7 +63,7 @@ test('reopen a cached 1,000-leaf Tree: map painted', async ({ page }) => {
   await page.goto('./#/tree/you/engineering')
   await signInHere(page)
   await expect(page.locator('[data-node][data-kind="leaf"]')).toHaveCount(1000)
-  await expect(page.getByRole('status')).toBeEmpty({ timeout: 30_000 })
+  await expect(page.getByRole('status')).toHaveText('Synced to main', { timeout: 30_000 })
   await throttle(page)
   await page.reload()
   const painted = await markTime(page, 'map-painted', 'last')
@@ -73,7 +73,7 @@ test('reopen a cached 1,000-leaf Tree: map painted', async ({ page }) => {
 test('select a leaf: highlight and Peek', async ({ page, graph }) => {
   await page.goto('./#/tree/you/engineering')
   await signInHere(page)
-  await expect(page.getByRole('status')).toBeEmpty({ timeout: 30_000 })
+  await expect(page.getByRole('status')).toHaveText('Synced to main', { timeout: 30_000 })
   await throttle(page)
   const leaves = [...graph.nodes.values()].filter((n) => n.kind === 'leaf').slice(0, 5)
   const times: number[] = []
@@ -91,7 +91,7 @@ test('select a leaf: highlight and Peek', async ({ page, graph }) => {
 test('pan and zoom: frame time over 3 s of wheel zooming', async ({ page }) => {
   await page.goto('./#/tree/you/engineering')
   await signInHere(page)
-  await expect(page.getByRole('status')).toBeEmpty({ timeout: 30_000 })
+  await expect(page.getByRole('status')).toHaveText('Synced to main', { timeout: 30_000 })
   await throttle(page)
   const box = (await page.locator('[data-map]').boundingBox())!
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)

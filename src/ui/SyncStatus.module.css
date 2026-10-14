@@ -1,0 +1,31 @@
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dot {
+  flex-shrink: 0;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.status[data-state='pending'] .dot,
+.status[data-state='saving'] .dot {
+  background: var(--c-amber);
+}
+.status[data-state='offline'] .dot {
+  background: var(--faint);
+}
+.status[data-state='conflict'] .dot,
+.status[data-state='error'] .dot {
+  background: var(--c-amber);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--c-amber) 25%, transparent);
+}

@@ -1,0 +1,299 @@
+// The dialogs behind New leaf, New branch, Move, Delete and Create a Tree
+// (development-plan.md M2 steps 2 and 5). Plans come from sync/structure.ts.
+
+import { useMemo, useState } from 'react'
+import type { TreeRef } from '../github/graphql'
+import { crumbs, type Graph } from '../model/graph'
+import { ROOT } from '../model/tree'
+import { session } from '../store/session'
+import { leavesUnder, planDelete, planMove, planNewBranch, planNewLeaf } from '../sync/structure'
+import controls from './controls.module.css'
+import { Dialog, Field } from './Dialog'
+import styles from './Dialog.module.css'
+
+export type StructureAction =
+  | { kind: 'new-leaf'; parent: string }
+  | { kind: 'new-branch'; parent: string }
+  | { kind: 'move'; id: string }
+  | { kind: 'delete'; id: string }
+
+/** Where new leaves and branches go: the selected branch, beside the selected leaf, or the root. */
+export function parentFor(graph: Graph, selected: string | null): string {
+  const node = selected !== null ? graph.nodes.get(selected) : undefined
+  if (!node || node.kind === 'root') return ROOT
+  return node.kind === 'branch' ? node.id : (node.parent ?? ROOT)
+}
+
+const where = (graph: Graph, id: string) =>
+  id === ROOT
+    ? 'At the top of the Tree'
+    : [...crumbs(graph, id), graph.nodes.get(id)!.title].join(' / ')
+
+export function StructureDialog({
+  tree,
+  graph: current,
+  action,
+  onDone,
+  onClose,
+}: {
+  tree: TreeRef
+  graph: Graph
+  action: StructureAction
+  /** Where to go afterwards: the leaf to edit or select, or null for the Tree. */
+  onDone(result: { edit?: string; select?: string | null }): void
+  onClose(): void
+}) {
+  // The graph as it was when the dialog opened: applying the change updates the live one
+  // while the dialog is still on screen, and the moved or deleted node is gone from it.
+  const [graph] = useState(current)
+  const [name, setName] = useState('')
+  const [first, setFirst] = useState('')
+  const [dest, setDest] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const run = async (work: () => Promise<void>) => {
+    setBusy(true)
+    setError(null)
+    try {
+      await work()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+      setBusy(false)
+    }
+  }
+
+  // Destinations for a move: anything outside the moved leaf's own subtree.
+  const destinations = useMemo(() => {
+    if (action.kind !== 'move') return []
+    const inside = new Set(leavesUnder(graph, action.id))
+    const prefix = `${action.id.slice(0, -3)}/`
+    return [...graph.nodes.values()]
+      .filter((n) => n.kind !== 'leaf' || !inside.has(n.id))
+      .filter((n) => !n.id.startsWith(prefix) && n.id !== graph.nodes.get(action.id)!.parent)
+      .map((n) => n.id)
+  }, [action, graph])
+
+  switch (action.kind) {
+    case 'new-leaf':
+      return (
+        <Dialog
+          title={graph.nodes.get(action.parent)?.kind === 'leaf' ? 'New sub-leaf' : 'New leaf'}
+          submit="Create leaf"
+          busy={busy}
+          error={error}
+          onClose={onClose}
+          onSubmit={() =>
+            run(async () => {
+              const change = planNewLeaf(graph, action.parent, name)
+              await session.getState().apply(tree.repo, [change])
+              onDone({ edit: change.path })
+            })
+          }
+        >
+          <Field label="Title" hint={where(graph, action.parent)}>
+            <input
+              className={controls.input}
+              autoFocus
+              required
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+          </Field>
+        </Dialog>
+      )
+
+    case 'new-branch':
+      return (
+        <Dialog
+          title="New branch"
+          submit="Create branch"
+          busy={busy}
+          error={error}
+          onClose={onClose}
+          onSubmit={() =>
+            run(async () => {
+              const { leaf } = planNewBranch(graph, action.parent, name, first || 'Untitled')
+              await session.getState().apply(tree.repo, [leaf])
+              onDone({ edit: leaf.path })
+            })
+          }
+        >
+          <Field
+            label="Branch name"
+            hint={`${where(graph, action.parent)}. The folder keeps this name.`}
+          >
+            <input
+              className={controls.input}
+              autoFocus
+              required
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+          </Field>
+          <Field
+            label="First leaf"
+            hint="A branch starts with one leaf: git stores no empty folders."
+          >
+            <input
+              className={controls.input}
+              placeholder="Untitled"
+              value={first}
+              onChange={(e) => setFirst(e.target.value)}
+            />
+          </Field>
+        </Dialog>
+      )
+
+    case 'move': {
+      const leaf = graph.nodes.get(action.id)!
+      return (
+        <Dialog
+          title={`Move ${leaf.title}`}
+          submit="Move"
+          busy={busy}
+          error={error}
+          onClose={onClose}
+          onSubmit={() =>
+            run(async () => {
+              if (dest === null) throw new Error('Choose where to move it.')
+              const moved = leavesUnder(graph, action.id)
+              const linking = moved.flatMap((p) => graph.in.get(p) ?? [])
+              const paths = [...new Set([...moved, ...linking])]
+              const texts = new Map(
+                await Promise.all(
+                  paths.map(
+                    async (p) => [p, await session.getState().textOf(tree.repo, p)] as const,
+                  ),
+                ),
+              )
+              const { changes, moves } = planMove(graph, (p) => texts.get(p)!, action.id, dest)
+              await session.getState().apply(tree.repo, changes)
+              onDone({ select: moves.get(action.id) ?? action.id })
+            })
+          }
+        >
+          <p className={styles.text}>
+            Its sub-leaves move with it, and every link to them is updated in the same commit.
+          </p>
+          <fieldset className={styles.fieldset}>
+            <legend className={controls.eyebrow}>Move to</legend>
+            <ul className={styles.list}>
+              {destinations.map((id) => (
+                <li key={id || 'root'}>
+                  <label>
+                    <input
+                      type="radio"
+                      name="dest"
+                      checked={dest === id}
+                      onChange={() => setDest(id)}
+                    />
+                    {where(graph, id)}
+                    {graph.nodes.get(id)!.kind === 'leaf' && (
+                      <span className={styles.hint}> · as a sub-leaf</span>
+                    )}
+                  </label>
+                </li>
+              ))}
+            </ul>
+          </fieldset>
+        </Dialog>
+      )
+    }
+
+    case 'delete': {
+      const node = graph.nodes.get(action.id)!
+      const { changes, linkedFrom } = planDelete(graph, action.id)
+      return (
+        <Dialog
+          title={`Delete ${node.title}`}
+          submit={changes.length > 1 ? `Delete ${changes.length} leaves` : 'Delete leaf'}
+          danger
+          busy={busy}
+          error={error}
+          onClose={onClose}
+          onSubmit={() =>
+            run(async () => {
+              await session.getState().apply(tree.repo, changes)
+              onDone({ select: null })
+            })
+          }
+        >
+          <p className={styles.text}>
+            {changes.length > 1
+              ? `This deletes ${changes.length} leaves. GitHub keeps them in the repository's history.`
+              : "GitHub keeps it in the repository's history."}
+          </p>
+          {linkedFrom.length > 0 && (
+            <p className={controls.error}>
+              {linkedFrom.length === 1 ? '1 leaf links' : `${linkedFrom.length} leaves link`} here:{' '}
+              {linkedFrom.map((p) => graph.nodes.get(p)!.title).join(', ')}. Those links will lead
+              nowhere.
+            </p>
+          )}
+        </Dialog>
+      )
+    }
+  }
+}
+
+export function CreateTreeDialog({
+  onCreated,
+  onClose,
+}: {
+  onCreated(tree: TreeRef): void
+  onClose(): void
+}) {
+  const [title, setTitle] = useState('')
+  const [name, setName] = useState('')
+  const [touched, setTouched] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const suggested = title
+    .normalize('NFKD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+  const repoName = touched ? name : suggested
+  return (
+    <Dialog
+      title="Create a new Tree"
+      submit="Create Tree"
+      busy={busy}
+      error={error}
+      onClose={onClose}
+      onSubmit={async () => {
+        setBusy(true)
+        setError(null)
+        try {
+          onCreated(await session.getState().createTree({ name: repoName, title }))
+        } catch (e) {
+          setError(e instanceof Error ? e.message : String(e))
+          setBusy(false)
+        }
+      }}
+    >
+      <Field label="Name">
+        <input
+          className={controls.input}
+          autoFocus
+          required
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+        />
+      </Field>
+      <Field label="Repository" hint="A new private repository on your GitHub account.">
+        <input
+          className={`${controls.input} ${controls.mono}`}
+          required
+          value={repoName}
+          onChange={(e) => {
+            setTouched(true)
+            setName(e.target.value)
+          }}
+        />
+      </Field>
+    </Dialog>
+  )
+}

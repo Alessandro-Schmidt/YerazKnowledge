@@ -2,7 +2,7 @@
 
 Notes as Markdown in the user's own GitHub repositories; the main screen is a map of them.
 Read `ideas.txt` (why), `ARCHITECTURE.md` (how), `development-plan.md` (what, in what order).
-**Current milestone: M1** — all steps built; waiting on the owner's visual review and the phone-budget decision.
+**Current milestone: M2** (writing and sync) built; waiting on the owner's review. Next: M3.
 
 ## Commands
 
@@ -17,12 +17,13 @@ Read `ideas.txt` (why), `ARCHITECTURE.md` (how), `development-plan.md` (what, in
 
 - `src/model/` pure logic, no DOM/network: `parse.ts`, `tree.ts`, `graph.ts` (titles, totals, threads), `sha.ts`
 - `src/github/` `client.ts` (fetch, ETag, errors) · `graphql.ts` (blobs, discover, lookup)
-- `src/store/db.ts` key/value (IndexedDB or memory) · `session.ts` the Zustand store · `src/sync/pull.ts` the read path
+- `src/store/db.ts` key/value (IndexedDB or memory) · `session.ts` the Zustand store, pending edits, autosave
+- `src/sync/` `pull.ts` read · `push.ts` commit · `merge.ts` three-way · `autosave.ts` · `structure.ts` (new/move/delete plans) · `overlay.ts`
+- `src/editor/` CodeMirror 6 (lazy chunk): `Editor.tsx`, `livePreview.ts`, `EditorPage.tsx` (`#/edit/...`)
 - `src/map/` `layout.ts` (pure, d3) · `TreeMap.tsx` · `HomeMap.tsx` · `Home.tsx` · `useZoom.ts`
 - `src/read/` `render.ts` (markdown-it, lazy) · `Peek.tsx` · `src/ui/` App, TreeView, Explorer, TokenScreen, theme
 - Map rule: React draws geometry once per layout; selection, zoom level and layers are data
   attributes or the selection layer, never a React render of the map
-- `src/map/` · `src/editor/` · `src/read/` · `src/ui/` (`Shell.tsx`, `theme.ts`, `contrast.ts`)
 - `test/fake-github/` the fake: `fakeGitHub.ts` (handler), `graphql.ts`, `repo.ts`, `fixture.ts`,
   adapters `msw.ts` (Vitest, dev:fake), `server.ts` (e2e, real HTTP), `browser.ts` (dev:fake)
 - `e2e/` Playwright specs; `e2e/fixtures.ts` gives each test its own `fake` and `api` URL.
@@ -36,6 +37,8 @@ Read `ideas.txt` (why), `ARCHITECTURE.md` (how), `development-plan.md` (what, in
   colour function in `src/` (test files exempt).
 - Least code wins; a new dependency needs a one-line reason in the commit message. Pin exact versions.
 - Don't build ahead of the current milestone. When plan and reality disagree, stop and ask.
+- Scripted find-and-replace edits must assert that they matched: Prettier reflows code, and a silent
+  no-op has shipped bugs here before.
 - The fake implements only what the app uses. If the app needs a new endpoint or field, add it to
   the fake with a test first.
 
@@ -44,7 +47,7 @@ Read `ideas.txt` (why), `ARCHITECTURE.md` (how), `development-plan.md` (what, in
 - [ ] A leaf is a `.md` file; line 1 is the title (`# 🔐 Keycloak`, leading emoji = icon)
 - [ ] Optional line 2: `<!-- yeraz {...} -->` metadata; colours are names (`"amber"`), not hex
 - [ ] Sub-leaves live in a sibling folder with the same name (`keycloak.md` + `keycloak/`)
-- [ ] A branch is a folder without a same-named `.md`
+- [ ] A branch is a folder without a same-named `.md`; its name is the folder name, as typed
 - [ ] Threads are root-relative Markdown links (`[Keycloak](/identity/keycloak.md)`)
 - [ ] Images in `/assets/`; `.yeraz.json` marks the root; filenames never change on retitle
 
@@ -53,8 +56,3 @@ Read `ideas.txt` (why), `ARCHITECTURE.md` (how), `development-plan.md` (what, in
 Reopen cached 1k-leaf Tree < 800 ms laptop / 1.5 s phone · first open structure < 1 s, content < 5 s ·
 pan/zoom 60 fps at 2k nodes · select < 50 ms · keystroke < 16 ms · 1 request per commit ·
 first-load JS < 200 KB gzip (`npm run size`) · theme switch < 50 ms, no React render.
-
-## Known gaps
-
-- Creating a Tree needs `auto_init: true` on `POST /user/repos`: `createCommitOnBranch` can't
-  commit to an empty repository (no branch yet). The fake behaves the same way.

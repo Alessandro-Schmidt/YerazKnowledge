@@ -1,5 +1,5 @@
 import { setupServer } from 'msw/node'
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createFakeGitHub, type FakeGitHub } from '../../test/fake-github/fakeGitHub'
 import { makeFixture } from '../../test/fake-github/fixture'
 import { fakeGitHubHandlers } from '../../test/fake-github/msw'
@@ -60,6 +60,7 @@ describe('session', () => {
     const data = s.getState().data['you/engineering']!
     expect(data.status).toBe('ready')
     expect(data.status === 'ready' && data.graph.stats.leaves).toBe(60)
+    expect(fake.log.filter((e) => e.kind === 'head')).toHaveLength(1)
     expect(fake.log.filter((e) => e.kind === 'tree')).toHaveLength(1)
   })
 
@@ -106,5 +107,84 @@ describe('session', () => {
     const again = createSession({ store })
     await again.getState().start()
     expect(again.getState().phase).toBe('signed-out')
+  })
+
+  it('applies edits at once and commits them when the autosave fires', async () => {
+    const store = memoryStore()
+    const s = createSession({ store, autosaveDelay: 50 })
+    await s.getState().signIn('good')
+    await s.getState().open('you/engineering')
+    const leaf = s.getState().data['you/engineering']!.graph!.nodes.get('')!.children[0]!
+    await s.getState().apply('you/engineering', [{ path: 'brand-new.md', text: '# Brand new\n\n' }])
+    expect(s.getState().data['you/engineering']!.graph!.nodes.get('brand-new.md')!.title).toBe(
+      'Brand new',
+    )
+    expect(s.getState().sync['you/engineering']).toMatchObject({ status: 'pending', files: 1 })
+    expect(fake.repo('you/engineering').read('brand-new.md')).toBeUndefined()
+    await vi.waitFor(() =>
+      expect(fake.repo('you/engineering').read('brand-new.md')).toBe('# Brand new\n\n'),
+    )
+    await vi.waitFor(() =>
+      expect(s.getState().sync['you/engineering']).toEqual({ status: 'synced' }),
+    )
+    expect(s.getState().data['you/engineering']!.graph!.nodes.get(leaf)).toBeDefined()
+  })
+
+  it('keeps edits on the device while offline, and commits them when the Tree opens again', async () => {
+    const store = memoryStore()
+    const first = createSession({ store })
+    await first.getState().signIn('good')
+    await first.getState().open('you/engineering')
+    fake.faults.offline = true
+    await first
+      .getState()
+      .apply('you/engineering', [{ path: 'offline.md', text: '# Written offline\n' }])
+    await first.getState().flush('you/engineering')
+    expect(first.getState().sync['you/engineering']).toMatchObject({ status: 'offline', files: 1 })
+    expect(await first.getState().textOf('you/engineering', 'offline.md')).toBe(
+      '# Written offline\n',
+    )
+
+    // A reload: a new session over the same storage, back online.
+    fake.faults.offline = false
+    const second = createSession({ store })
+    await second.getState().start()
+    await second.getState().open('you/engineering')
+    await vi.waitFor(() =>
+      expect(fake.repo('you/engineering').read('offline.md')).toBe('# Written offline\n'),
+    )
+    await vi.waitFor(() =>
+      expect(second.getState().sync['you/engineering']).toEqual({ status: 'synced' }),
+    )
+  })
+
+  it('reports conflict copies, and forgets a file made and deleted before it was committed', async () => {
+    const s = createSession({ store: memoryStore() })
+    await s.getState().signIn('good')
+    await s.getState().open('you/engineering')
+    await s.getState().apply('you/engineering', [{ path: 'temp.md', text: '# Temp\n' }])
+    await s.getState().apply('you/engineering', [{ path: 'temp.md', text: null }])
+    expect(s.getState().sync['you/engineering']).toEqual({ status: 'synced' })
+
+    const path =
+      s
+        .getState()
+        .data['you/engineering']!.graph!.nodes.get('')!
+        .children.find((id) => id.endsWith('.md')) ??
+      [...s.getState().data['you/engineering']!.graph!.nodes.keys()].find((id) =>
+        id.endsWith('.md'),
+      )!
+    const original = await s.getState().textOf('you/engineering', path)
+    fake.faults.pushBeforeNextCommit = {
+      message: 'phone',
+      additions: [{ path, contents: original + 'Phone line.\n' }],
+    }
+    await s.getState().apply('you/engineering', [{ path, text: original + 'Laptop line.\n' }])
+    await s.getState().flush('you/engineering')
+    const state = s.getState().sync['you/engineering']!
+    expect(state.status).toBe('conflict')
+    expect(state.status === 'conflict' && state.copies[0]).toMatch(
+      /\.conflict-\d{4}-\d{2}-\d{2}\.md$/,
+    )
   })
 })

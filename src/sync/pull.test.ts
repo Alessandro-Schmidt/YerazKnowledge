@@ -26,7 +26,7 @@ beforeEach(async () => {
 })
 
 describe('pullTree', () => {
-  it('first open: one tree request, about ten blob requests, every leaf parsed', async () => {
+  it('first open: the head, one tree request, about ten blob requests, every leaf parsed', async () => {
     const store = memoryStore()
     const pulled = await pullTree(ref, { client, store })
     expect(pulled.offline).toBe(false)
@@ -36,7 +36,9 @@ describe('pullTree', () => {
 
     const trees = fake.log.filter((e) => e.kind === 'tree')
     const blobs = fake.log.filter((e) => e.kind === 'graphql')
+    expect(fake.log[0]).toMatchObject({ kind: 'head', status: 200 })
     expect(trees).toHaveLength(1)
+    expect(pulled.head).toBe(fake.repo('you/engineering').head!.oid)
     expect(blobs).toHaveLength(10)
     expect(blobs.reduce((n, e) => n + e.blobs, 0)).toBe(1000)
     const threads = [...pulled.leaves.values()].reduce((n, p) => n + p.links.length, 0)
@@ -48,7 +50,7 @@ describe('pullTree', () => {
     await pullTree(ref, { client, store })
     fake.resetLog()
     const again = await pullTree(ref, { client, store })
-    expect(fake.log).toEqual([expect.objectContaining({ kind: 'tree', status: 304, blobs: 0 })])
+    expect(fake.log).toEqual([expect.objectContaining({ kind: 'head', status: 304, blobs: 0 })])
     expect(again.leaves.size).toBe(1000)
   })
 
@@ -63,6 +65,7 @@ describe('pullTree', () => {
     fake.resetLog()
     const pulled = await pullTree(ref, { client, store })
     expect(fake.log.map((e) => [e.kind, e.status, e.blobs])).toEqual([
+      ['head', 200, 0],
       ['tree', 200, 0],
       ['graphql', 200, 1],
     ])

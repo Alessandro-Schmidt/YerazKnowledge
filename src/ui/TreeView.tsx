@@ -10,7 +10,10 @@ import { session, useSession } from '../store/session'
 import controls from './controls.module.css'
 import { Explorer } from './Explorer'
 import { Icon } from './icons'
-import { decodePath, treeHref } from './paths'
+import { ConflictBanner } from './ConflictBanner'
+import { decodePath, editHref, treeHref } from './paths'
+import { parentFor, StructureDialog, type StructureAction } from './StructureDialogs'
+import { SyncStatus } from './SyncStatus'
 import { colorVar } from './theme'
 import { Divider, TopBar } from './TopBar'
 import styles from './TreeView.module.css'
@@ -27,6 +30,7 @@ export function TreeView({ params }: { params: { owner: string; name: string; '*
   const [explorerOpen, setExplorerOpen] = useState(() => !window.matchMedia(PHONE).matches)
   const [peekOpen, setPeekOpen] = useState(true)
   const [expanded, setExpanded] = useState(false)
+  const [action, setAction] = useState<StructureAction | null>(null)
 
   useEffect(() => {
     markNow('tree-open')
@@ -78,8 +82,8 @@ export function TreeView({ params }: { params: { owner: string; name: string; '*
           </span>
           <h1 className={styles.title}>{tree?.title ?? params.name}</h1>
         </nav>
-        <span className={styles.status} role="status">
-          <Status data={data} />
+        <span className={styles.status}>
+          <Status data={data} repo={repo} branch={tree?.branch ?? 'main'} />
         </span>
         <div className={styles.toggles}>
           <button
@@ -105,8 +109,33 @@ export function TreeView({ params }: { params: { owner: string; name: string; '*
           >
             <Icon name="panelRight" size={18} />
           </button>
+          {graph && (
+            <button
+              type="button"
+              className={`${controls.primary} ${styles.newLeaf}`}
+              aria-label="New leaf"
+              onClick={() => setAction({ kind: 'new-leaf', parent: parentFor(graph, selected) })}
+            >
+              <Icon name="plus" />
+              <span className={styles.newLeafText}>New leaf</span>
+            </button>
+          )}
         </div>
       </TopBar>
+      <ConflictBanner repo={repo} />
+      {action && graph && tree && (
+        <StructureDialog
+          tree={tree}
+          graph={graph}
+          action={action}
+          onClose={() => setAction(null)}
+          onDone={(result) => {
+            setAction(null)
+            if (result.edit) navigate(editHref(repo, result.edit))
+            else select(result.select ?? null)
+          }}
+        />
+      )}
 
       <div className={styles.body}>
         {explorerOpen && graph && tree && (
@@ -119,6 +148,7 @@ export function TreeView({ params }: { params: { owner: string; name: string; '*
               if (phone) setExplorerOpen(false)
             }}
             onClose={() => setExplorerOpen(false)}
+            onAction={setAction}
           />
         )}
         <main className={styles.main}>
@@ -153,6 +183,8 @@ export function TreeView({ params }: { params: { owner: string; name: string; '*
                 setPeekOpen(false)
                 setExpanded(false)
               }}
+              onEdit={(id) => navigate(editHref(repo, id))}
+              onAction={setAction}
             />
           )}
           {graph && !explorerOpen && !peekVisible && !phone && <WhereYouWrite graph={graph} />}
@@ -164,21 +196,26 @@ export function TreeView({ params }: { params: { owner: string; name: string; '*
 
 function Status({
   data,
+  repo,
+  branch,
 }: {
   data: ReturnType<typeof session.getState>['data'][string] | undefined
+  repo: string
+  branch: string
 }) {
+  const sync = useSession((s) => s.sync[repo.toLowerCase()])
   if (!data) return null
-  if (data.status === 'loading')
-    return data.total > 0 ? (
-      <>
-        Loading {data.fetched}/{data.total} leaves
-      </>
-    ) : (
-      <>Loading…</>
+  if (data.status === 'loading') {
+    return (
+      <span role="status">
+        {data.total > 0 ? `Loading ${data.fetched}/${data.total} leaves` : 'Loading…'}
+      </span>
     )
-  if (data.status === 'error' && data.graph) return <>{data.error}</>
-  if (data.status === 'ready' && data.offline) return <>Offline · showing the saved copy</>
-  return null
+  }
+  if (data.status === 'error') return data.graph ? <span role="status">{data.error}</span> : null
+  if (data.offline && (!sync || sync.status === 'synced'))
+    return <span role="status">Offline · showing the saved copy</span>
+  return <SyncStatus repo={repo} branch={branch} />
 }
 
 function Placeholder({
