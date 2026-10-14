@@ -1,0 +1,231 @@
+/* The knowledge map, shared by the Tree view and Home. Colours are theme tokens;
+   --tree is the Tree's colour (its .yeraz.json colour, or the accent). Selection,
+   hover and zoom level are data attributes set without React renders. */
+
+/* The Tree map's stage holds the map and the selection layer; gestures land here. */
+.stage {
+  position: absolute;
+  inset: 0;
+  touch-action: none;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.stage:active,
+.svg:active {
+  cursor: grabbing;
+}
+
+.svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Own compositor layers: panels and the selection paint over the map without
+   re-rasterising it (select budget: < 50 ms). */
+.stage > .svg {
+  will-change: transform;
+}
+.selection {
+  pointer-events: none;
+}
+.selection .node,
+.selection .core {
+  pointer-events: all;
+}
+
+.grid {
+  fill: var(--grid);
+}
+
+.camera {
+  transform-origin: 0 0;
+}
+.camera[data-animate] {
+  transition: transform 0.45s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.orbit {
+  fill: none;
+  stroke: var(--grid);
+  stroke-dasharray: 2 6;
+  vector-effect: non-scaling-stroke;
+}
+
+.edge {
+  fill: none;
+  stroke: var(--line);
+  stroke-opacity: 0.13;
+  stroke-width: 1px;
+  transition: stroke-opacity 0.25s;
+}
+
+.thread {
+  fill: none;
+  stroke: var(--tree, var(--accent));
+  stroke-width: 1.1px;
+  stroke-opacity: 0.42;
+  transition: stroke-opacity 0.25s;
+}
+
+.hotThread {
+  fill: none;
+  stroke: var(--tree, var(--accent));
+  stroke-width: 2px;
+  stroke-opacity: 0.95;
+  pointer-events: none;
+}
+
+.segment {
+  fill: none;
+  stroke: var(--tree, var(--accent));
+  stroke-width: 5px;
+  stroke-opacity: 0.38;
+}
+
+.node {
+  cursor: pointer;
+}
+
+.hit {
+  fill: transparent;
+}
+
+.dot {
+  stroke-width: 1.4px;
+}
+.node[data-kind='leaf'] .dot {
+  fill: var(--node);
+}
+.node[data-kind='branch'] .dot {
+  fill: var(--bg);
+  stroke: var(--tree, var(--accent));
+}
+
+.ring {
+  fill: none;
+  stroke: var(--node);
+  stroke-opacity: 0.45;
+  stroke-width: 1px;
+}
+
+.label {
+  font-size: 13px;
+  fill: var(--text);
+  paint-order: stroke;
+  stroke: var(--bg);
+  stroke-width: 4px;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+.branchLabel {
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  font-weight: 500;
+  fill: var(--tree, var(--accent));
+}
+
+.core {
+  cursor: pointer;
+}
+.coreCircle {
+  fill: var(--core);
+  stroke: var(--line);
+  stroke-opacity: 0.12;
+}
+.coreTitle {
+  font-size: 12px;
+  font-weight: 500;
+  fill: var(--text);
+  text-anchor: middle;
+}
+.coreWords {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  fill: var(--muted);
+  text-anchor: middle;
+}
+
+.halo {
+  fill: none;
+  stroke: var(--tree, var(--accent));
+  stroke-width: 1px;
+  pointer-events: none;
+}
+
+/* Layer toggles */
+[data-hide-branches] .edges,
+[data-hide-branches] .overlay .edge,
+[data-hide-threads] .threads,
+[data-hide-threads] .overlay .hotThread {
+  display: none;
+}
+
+/* Semantic zoom: far away, only branch labels (and the selection's) stay. */
+[data-zoom='far'] .node[data-deep] .label {
+  display: none;
+}
+[data-zoom='far'] .node[data-sel] .label {
+  display: inline;
+}
+
+/* Selection: a veil dims the map; the neighbourhood is copied above it (TreeMap.tsx). */
+.veil {
+  fill: var(--bg);
+  opacity: 0.7;
+  animation: veil 0.25s ease-out;
+}
+@keyframes veil {
+  from {
+    opacity: 0;
+  }
+}
+.overlay .edge[data-hot] {
+  stroke-opacity: 0.42;
+}
+.overlay .segment[data-hot] {
+  stroke-opacity: 1;
+}
+.node[data-sel] .dot {
+  fill: var(--tree, var(--accent));
+  stroke: none;
+}
+.node[data-sel] .label {
+  font-weight: 600;
+  fill: var(--tree, var(--accent));
+}
+.core[data-sel] .coreCircle {
+  stroke-opacity: 0.5;
+}
+
+/* Home: whole Trees dim when another is selected. */
+.tree {
+  cursor: pointer;
+  transition: opacity 0.25s;
+}
+[data-focus] .tree:not([data-sel]) {
+  opacity: 0.26;
+}
+.treeName {
+  font-size: 17px;
+  font-weight: 500;
+  fill: var(--text);
+  text-anchor: middle;
+}
+.treeMeta {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  fill: var(--muted);
+  text-anchor: middle;
+}
+.treeOrbit {
+  fill: none;
+  stroke: var(--grid);
+  stroke-dasharray: 2 6;
+}

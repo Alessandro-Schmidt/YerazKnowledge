@@ -25,8 +25,8 @@ export interface ParsedLeaf {
   links: LeafLink[]
 }
 
-const HEADING = /^ {0,3}#(?:[ \t]+(.*?))?(?:[ \t]+#+)?[ \t]*$/
-const META = /^<!--\s*yeraz\s+(\{.*\})\s*-->\s*$/
+export const HEADING = /^ {0,3}#(?:[ \t]+(.*?))?(?:[ \t]+#+)?[ \t]*$/
+export const META = /^<!--\s*yeraz\s+(\{.*\})\s*-->\s*$/
 const FENCE = /^ {0,3}(`{3,}|~{3,})/
 const CODE_SPAN = /(`+)(?!`)[\s\S]*?[^`]\1(?!`)/g
 // [text](destination "optional title"), text may hold one level of brackets; not after "\".
@@ -37,6 +37,9 @@ const WORD = /[\p{L}\p{N}]+(?:['’\-_.][\p{L}\p{N}]+)*/gu
 // An icon is an emoji shown as emoji: not © or a digit, which are text unless followed by U+FE0F.
 const EMOJI =
   /^(?:\p{Regional_Indicator}{2}|(?=.*(?:\p{Emoji_Presentation}|️))\p{Extended_Pictographic})/u
+
+/** Drops a leading byte-order mark (U+FEFF). */
+export const stripBom = (text: string) => (text.charCodeAt(0) === 0xfeff ? text.slice(1) : text)
 
 const graphemes = new Intl.Segmenter(undefined, { granularity: 'grapheme' })
 
@@ -58,7 +61,8 @@ function parseMeta(line: string | undefined): LeafMeta | null {
   }
 }
 
-function linkTarget(destination: string): LeafLink | null {
+/** Where a link destination points, if it is a leaf here or in another Tree. */
+export function linkTarget(destination: string): LeafLink | null {
   let url = destination.startsWith('<') ? destination.slice(1, -1) : destination
   try {
     url = decodeURI(url)
@@ -96,7 +100,7 @@ function prose(lines: string[]): string {
 }
 
 export function parseLeaf(text: string): ParsedLeaf {
-  const lines = text.replace(/^\uFEFF/, '').split(/\r\n|\r|\n/)
+  const lines = stripBom(text).split(/\r\n|\r|\n/)
   const heading = HEADING.exec(lines[0] ?? '')
   const { icon, title } = heading ? splitIcon(heading[1] ?? '') : { icon: null, title: null }
   const meta = parseMeta(lines[1])

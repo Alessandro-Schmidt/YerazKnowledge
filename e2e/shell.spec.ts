@@ -6,19 +6,14 @@ test.beforeEach(async ({ page }) => {
   await page.evaluate(() => document.fonts.ready)
 })
 
-test('shows the top bar on the Vanta background', async ({ page }) => {
-  await expect(page.getByRole('banner')).toBeVisible()
-  await expect(page.getByRole('heading', { level: 1, name: 'All trees' })).toBeVisible()
-  await expect(page.getByText('Yeraz', { exact: true })).toBeVisible()
-
-  const colours = await page.evaluate(() => {
-    const css = getComputedStyle(document.documentElement)
-    return {
-      body: getComputedStyle(document.body).backgroundColor,
-      bg: css.getPropertyValue('--bg').trim(),
-      top: getComputedStyle(document.querySelector('header')!).backgroundColor,
-    }
-  })
+test('starts on the token screen, on the Vanta background', async ({ page }) => {
+  await expect(page.getByRole('heading', { name: 'Connect GitHub' })).toBeVisible()
+  await expect(page.locator('header img').first()).toBeVisible()
+  const colours = await page.evaluate(() => ({
+    body: getComputedStyle(document.body).backgroundColor,
+    bg: getComputedStyle(document.documentElement).getPropertyValue('--bg').trim(),
+    top: getComputedStyle(document.querySelector('header')!).backgroundColor,
+  }))
   expect(colours.bg.toUpperCase()).toBe('#030303')
   expect(colours.body).toBe('rgb(3, 3, 3)')
   expect(colours.top).toBe('rgb(5, 6, 6)')
@@ -35,8 +30,11 @@ test('applies the default theme with four attributes on <html>', async ({ page }
 
 test('switches theme through the data attributes alone', async ({ page }) => {
   await page.evaluate(() => {
-    const root = document.documentElement
-    Object.assign(root.dataset, { base: 'paper', mode: 'light', accent: 'violet' })
+    Object.assign(document.documentElement.dataset, {
+      base: 'paper',
+      mode: 'light',
+      accent: 'violet',
+    })
   })
   const result = await page.evaluate(() => ({
     body: getComputedStyle(document.body).backgroundColor,
@@ -54,41 +52,26 @@ test('loads the Geist interface font', async ({ page }) => {
   expect(await page.evaluate(() => document.fonts.check('500 14px "Geist Variable"'))).toBe(true)
 })
 
-test('has no accessibility violations', async ({ page }) => {
-  const results = await new AxeBuilder({ page }).analyze()
-  expect(results.violations).toEqual([])
+test('the token screen has no accessibility violations', async ({ page }) => {
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
+})
+
+test('refuses a token GitHub rejects, and says why', async ({ page }) => {
+  await page.getByLabel('Personal access token').fill('wrong')
+  await page.getByRole('button', { name: 'Continue' }).click()
+  await expect(page.getByRole('alert')).toContainText("GitHub didn't accept this token")
+  await expect(page.getByRole('heading', { name: 'Connect GitHub' })).toBeVisible()
 })
 
 const AUTH = { Authorization: 'Bearer fake-token' }
-
-test('reaches the fake GitHub over HTTP, with CORS', async ({ page, fake, api }) => {
-  const result = await page.evaluate(
-    async ({ api, headers }) => {
-      const res = await fetch(`${api}/repos/you/engineering/git/trees/main?recursive=1`, {
-        headers,
-        cache: 'no-store',
-      })
-      const body = (await res.json()) as { tree: { path: string }[] }
-      return {
-        leaves: body.tree.filter((e) => e.path.endsWith('.md')).length,
-        etag: res.headers.get('etag'),
-      }
-    },
-    { api, headers: AUTH },
-  )
-  expect(result.leaves).toBe(300)
-  expect(result.etag).toMatch(/^W\//)
-  expect(fake.log.map((e) => e.status)).toEqual([200])
-})
 
 test('passes a 304 through to the app, in every engine', async ({ page, fake, api }) => {
   const status = await page.evaluate(
     async ({ api, headers }) => {
       const url = `${api}/repos/you/engineering/git/trees/main?recursive=1`
       const first = await fetch(url, { headers, cache: 'no-store' })
-      const etag = first.headers.get('etag')!
       const second = await fetch(url, {
-        headers: { ...headers, 'If-None-Match': etag },
+        headers: { ...headers, 'If-None-Match': first.headers.get('etag')! },
         cache: 'no-store',
       })
       return second.status
@@ -110,8 +93,4 @@ test('fails like a real network error when the fake is offline', async ({ page, 
     { api, headers: AUTH },
   )
   expect(error).toBe('TypeError')
-})
-
-test('points the app at the fake only in end-to-end builds', async ({ page, api }) => {
-  expect(await page.evaluate(() => window.__YERAZ_API__)).toBe(api)
 })

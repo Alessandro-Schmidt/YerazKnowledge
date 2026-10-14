@@ -2,14 +2,31 @@
 // lives as long as the Playwright worker. The app finds it through window.__YERAZ_API__,
 // which only VITE_E2E=1 builds read (src/github/endpoint.ts).
 
-import { test as base } from '@playwright/test'
+import { test as base, type Page } from '@playwright/test'
+import { buildGraph, type Graph } from '../src/model/graph'
+import { parseLeaf } from '../src/model/parse'
+import { buildTree } from '../src/model/tree'
 import { createFakeGitHub, type FakeGitHub } from '../test/fake-github/fakeGitHub'
-import { makeFixture } from '../test/fake-github/fixture'
+import { makeFixture, type Fixture } from '../test/fake-github/fixture'
 import { startFakeServer, type FakeServer } from '../test/fake-github/server'
 // Brings in the window.__YERAZ_API__ declaration.
 import type {} from '../src/github/endpoint'
 
-export const test = base.extend<{ fake: FakeGitHub; api: string }, { fakeServer: FakeServer }>({
+export const TOKEN = 'fake-token'
+
+interface Fixtures {
+  /** Leaves in the you/engineering fixture. */
+  leaves: number
+  fixture: Fixture
+  fake: FakeGitHub
+  api: string
+  /** The same graph the app builds, for checking what the screen shows. */
+  graph: Graph
+}
+
+export const test = base.extend<Fixtures, { fakeServer: FakeServer }>({
+  leaves: [300, { option: true }],
+
   fakeServer: [
     // eslint-disable-next-line no-empty-pattern
     async ({}, use) => {
@@ -20,14 +37,34 @@ export const test = base.extend<{ fake: FakeGitHub; api: string }, { fakeServer:
     { scope: 'worker' },
   ],
 
-  // eslint-disable-next-line no-empty-pattern
-  fake: async ({}, use) => {
-    const fake = createFakeGitHub({ login: 'you' })
-    await fake.addRepo(
-      'you/engineering',
-      makeFixture({ name: 'Engineering', leaves: 300, threads: 450, seed: 7 }).files,
+  fixture: async ({ leaves }, use) => {
+    await use(
+      makeFixture({ name: 'Engineering', leaves, threads: Math.round(leaves * 1.5), seed: 7 }),
     )
+  },
+
+  fake: async ({ fixture }, use) => {
+    const fake = createFakeGitHub({ login: 'you', tokens: [TOKEN] })
+    await fake.addRepo('you/engineering', fixture.files)
     await use(fake)
+  },
+
+  graph: async ({ fixture }, use) => {
+    const model = buildTree(
+      Object.entries(fixture.files).map(([path, text]) => ({
+        path,
+        type: 'blob' as const,
+        sha: path,
+        size: text.length,
+      })),
+    )
+    await use(
+      buildGraph(
+        model,
+        new Map(model.leaves.map((p) => [p, parseLeaf(fixture.files[p]!)])),
+        'Engineering',
+      ),
+    )
   },
 
   api: [
@@ -42,5 +79,21 @@ export const test = base.extend<{ fake: FakeGitHub; api: string }, { fakeServer:
     { auto: true },
   ],
 })
+
+/** Signs in on the token screen and waits for Home. */
+export async function signIn(page: Page) {
+  await page.goto('./')
+  await signInHere(page)
+  await page.getByRole('heading', { name: 'All trees', level: 1 }).waitFor()
+}
+
+/** Signs in on whatever URL the page is at; the app then shows that route. */
+export async function signInHere(page: Page) {
+  await page.getByLabel('Personal access token').fill(TOKEN)
+  await page.getByRole('button', { name: 'Continue' }).click()
+  await page.getByRole('heading', { name: 'Connect GitHub' }).waitFor({ state: 'detached' })
+}
+
+export const isPhone = (page: Page) => (page.viewportSize()?.width ?? 1000) <= 640
 
 export { expect } from '@playwright/test'

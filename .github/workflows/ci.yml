@@ -48,6 +48,27 @@ jobs:
           path: playwright-report
           retention-days: 14
 
+  perf:
+    # Budgets from ARCHITECTURE.md §11 (development-plan.md §7.4). Non-blocking for now:
+    # shared runners are noisy, and two phone budgets wait on a decision (see the PR).
+    runs-on: ubuntu-24.04
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run perf
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: perf-results
+          path: perf-results
+          retention-days: 30
+
   deploy:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: [check, e2e]
