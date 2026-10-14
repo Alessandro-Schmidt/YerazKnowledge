@@ -1,4 +1,5 @@
 dist/
+dist-e2e/
 node_modules/
 design/
 package-lock.json
