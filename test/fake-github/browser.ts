@@ -2,6 +2,7 @@
 
 import { setupWorker } from 'msw/browser'
 import { createFakeGitHub, type FakeGitHub } from './fakeGitHub'
+import { designTrees } from './designFixture'
 import { makeFixture } from './fixture'
 import { fakeGitHubHandlers } from './msw'
 
@@ -16,19 +17,13 @@ export const FAKE_TOKEN = 'fake-token'
 
 export async function startFakeGitHub(): Promise<FakeGitHub> {
   const fake = createFakeGitHub({ login: 'you' })
-  await fake.addRepo(
-    'you/engineering',
-    makeFixture({ name: 'Engineering', leaves: 300, threads: 450, seed: 7 }).files,
-  )
-  await fake.addRepo(
-    'you/art-history',
-    makeFixture({ name: 'Art History', color: 'amber', leaves: 34, threads: 40, seed: 11 }).files,
-  )
-  await fake.addRepo(
-    'you/languages',
-    makeFixture({ name: 'Languages', leaves: 22, threads: 20, seed: 13 }).files,
-  )
+  // Added oldest first: Home lists the most recently updated first, as in the design.
   await fake.addRepo('you/dotfiles', { 'README.md': '# dotfiles\n' }) // not a Tree: no .yeraz.json
+  await fake.addRepo(
+    'you/fixture-300',
+    makeFixture({ name: 'Fixture 300', leaves: 300, threads: 450, seed: 7 }).files,
+  )
+  for (const tree of designTrees().reverse()) await fake.addRepo(tree.repo, tree.files)
 
   await setupWorker(...fakeGitHubHandlers(fake)).start({
     onUnhandledRequest: 'bypass',
@@ -37,7 +32,7 @@ export async function startFakeGitHub(): Promise<FakeGitHub> {
   })
   window.__yerazFake = fake
   console.info(
-    '[yeraz] Fake GitHub running: you/engineering (300 leaves), you/art-history, you/languages',
+    "[yeraz] Fake GitHub running: the design's four Trees and you/fixture-300 (300 leaves)",
   )
   return fake
 }

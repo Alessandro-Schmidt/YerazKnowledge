@@ -39,8 +39,8 @@ export function HomeMap({
   const zoom = useZoom(svgRef, cameraRef, {
     min: 0.1,
     max: 4,
-    onScale: (k) => {
-      if (percentRef.current) percentRef.current.textContent = `${Math.round(k * 100)}%`
+    onScale: ({ percent }) => {
+      if (percentRef.current) percentRef.current.textContent = `${percent}%`
     },
   })
 
