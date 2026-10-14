@@ -1,0 +1,400 @@
+import { beforeEach, describe, expect, it } from 'vitest'
+import { gitBlobSha } from '../../src/model/sha'
+import { createFakeGitHub, NetworkError, type FakeGitHub } from './fakeGitHub'
+
+const API = 'https://api.github.com'
+const TOKEN = 'test-token'
+
+function request(
+  fake: FakeGitHub,
+  method: string,
+  path: string,
+  init: { body?: unknown; headers?: Record<string, string>; token?: string | null } = {},
+) {
+  const token = init.token === undefined ? TOKEN : init.token
+  return fake.handle({
+    method,
+    url: `${API}${path}`,
+    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), ...init.headers },
+    body: init.body === undefined ? null : JSON.stringify(init.body),
+  })
+}
+
+async function gql(fake: FakeGitHub, query: string, variables?: Record<string, unknown>) {
+  const res = await request(fake, 'POST', '/graphql', { body: { query, variables } })
+  expect(res.status).toBe(200)
+  return JSON.parse(res.body!) as {
+    data?: any
+    errors?: { message: string; type?: string; path?: unknown[] }[]
+  }
+}
+
+const b64 = (text: string) => btoa(String.fromCharCode(...new TextEncoder().encode(text)))
+
+let fake: FakeGitHub
+
+beforeEach(async () => {
+  fake = createFakeGitHub({ login: 'you', tokens: [TOKEN] })
+  await fake.addRepo('you/engineering', {
+    '.yeraz.json': '{"name":"Engineering","color":"green"}\n',
+    'identity.md': '# 🔐 Identity\n\nSee [Keycloak](/identity/keycloak.md).\n',
+    'identity/keycloak.md': '# Keycloak\n\nRealms and clients.\n',
+    'identity/keycloak/realms.md': '# Realms\n',
+    'cloud/aws.md': '# AWS\r\n\r\nCRLF body\r\n',
+    'a-b.md': '# Sorting\n',
+  })
+})
+
+describe('GET git/trees', () => {
+  it('lists every entry recursively, in git order, with real blob SHAs', async () => {
+    const res = await request(fake, 'GET', '/repos/you/engineering/git/trees/main?recursive=1')
+    expect(res.status).toBe(200)
+    const body = JSON.parse(res.body!)
+    expect(body.truncated).toBe(false)
+    // Git order: a directory sorts as if named "identity/", so "identity.md" comes first;
+    // a directory's contents follow its own entry.
+    expect(body.tree.map((e: { path: string }) => e.path)).toEqual([
+      '.yeraz.json',
+      'a-b.md',
+      'cloud',
+      'cloud/aws.md',
+      'identity.md',
+      'identity',
+      'identity/keycloak.md',
+      'identity/keycloak',
+      'identity/keycloak/realms.md',
+    ])
+    const aws = body.tree.find((e: { path: string }) => e.path === 'cloud/aws.md')
+    expect(aws).toMatchObject({ type: 'blob', mode: '100644', size: 20 })
+    expect(aws.sha).toBe(await gitBlobSha('# AWS\r\n\r\nCRLF body\r\n'))
+    expect(body.tree.find((e: { path: string }) => e.path === 'cloud')).toMatchObject({
+      type: 'tree',
+      mode: '040000',
+    })
+  })
+
+  it('answers 304 to a matching If-None-Match, and 200 again after a commit', async () => {
+    const path = '/repos/you/engineering/git/trees/main?recursive=1'
+    const first = await request(fake, 'GET', path)
+    const etag = first.headers['etag']!
+    expect(etag).toMatch(/^W\/".+"$/)
+    expect(first.headers['access-control-expose-headers']).toContain('ETag')
+
+    const second = await request(fake, 'GET', path, { headers: { 'If-None-Match': etag } })
+    expect(second.status).toBe(304)
+    expect(second.body).toBeNull()
+
+    await fake
+      .repo('you/engineering')
+      .commit({ message: 'edit', additions: [{ path: 'a-b.md', contents: '# Sorting!\n' }] })
+    const third = await request(fake, 'GET', path, { headers: { 'If-None-Match': etag } })
+    expect(third.status).toBe(200)
+    expect(third.headers['etag']).not.toBe(etag)
+  })
+
+  it('lists a subtree by its SHA, non-recursively, with paths relative to it', async () => {
+    const root = JSON.parse(
+      (await request(fake, 'GET', '/repos/you/engineering/git/trees/main')).body!,
+    )
+    expect(root.tree.map((e: { path: string }) => e.path)).toEqual([
+      '.yeraz.json',
+      'a-b.md',
+      'cloud',
+      'identity.md',
+      'identity',
+    ])
+    const identity = root.tree.find((e: { path: string }) => e.path === 'identity')
+    const sub = JSON.parse(
+      (await request(fake, 'GET', `/repos/you/engineering/git/trees/${identity.sha}`)).body!,
+    )
+    expect(sub.sha).toBe(identity.sha)
+    expect(sub.tree.map((e: { path: string }) => e.path)).toEqual(['keycloak.md', 'keycloak'])
+  })
+
+  it('returns a truncated listing when the fault is on, and subtrees still list in full', async () => {
+    fake.faults.truncateTrees = true
+    const body = JSON.parse(
+      (await request(fake, 'GET', '/repos/you/engineering/git/trees/main?recursive=1')).body!,
+    )
+    expect(body.truncated).toBe(true)
+    expect(body.tree.every((e: { path: string }) => !e.path.includes('/'))).toBe(true)
+    const identity = body.tree.find((e: { path: string }) => e.path === 'identity')
+    const sub = JSON.parse(
+      (await request(fake, 'GET', `/repos/you/engineering/git/trees/${identity.sha}?recursive=1`))
+        .body!,
+    )
+    expect(sub.truncated).toBe(false)
+    expect(sub.tree).toHaveLength(3)
+  })
+
+  it('answers 404 for unknown repositories and refs, and hides private ones without a token', async () => {
+    expect((await request(fake, 'GET', '/repos/you/nope/git/trees/main')).status).toBe(404)
+    expect((await request(fake, 'GET', '/repos/you/engineering/git/trees/nope')).status).toBe(404)
+    expect(
+      (await request(fake, 'GET', '/repos/you/engineering/git/trees/main', { token: null })).status,
+    ).toBe(404)
+    await fake.addRepo('you/public', { 'a.md': '# A\n' }, { private: false })
+    expect(
+      (await request(fake, 'GET', '/repos/you/public/git/trees/main', { token: null })).status,
+    ).toBe(200)
+  })
+
+  it('answers 409 for an empty repository and 401 for a bad token', async () => {
+    await fake.addRepo('you/empty')
+    const empty = await request(fake, 'GET', '/repos/you/empty/git/trees/main')
+    expect(empty.status).toBe(409)
+    expect(JSON.parse(empty.body!).message).toBe('Git Repository is empty.')
+    const bad = await request(fake, 'GET', '/repos/you/engineering/git/trees/main', {
+      token: 'wrong',
+    })
+    expect(bad.status).toBe(401)
+    expect(JSON.parse(bad.body!).message).toBe('Bad credentials')
+  })
+})
+
+describe('GraphQL: blobs and refs', () => {
+  it('returns many blobs by OID in one aliased query, and counts them in the log', async () => {
+    const shaA = await gitBlobSha('# Realms\n')
+    const shaB = await gitBlobSha('# AWS\r\n\r\nCRLF body\r\n')
+    fake.resetLog()
+    const res = await gql(
+      fake,
+      `query { repository(owner: "you", name: "engineering") {
+        b0: object(oid: "${shaA}") { ... on Blob { text } }
+        b1: object(oid: "${shaB}") { ... on Blob { text byteSize } }
+        missing: object(oid: "${'0'.repeat(40)}") { ... on Blob { text } }
+      } }`,
+    )
+    expect(res.errors).toBeUndefined()
+    expect(res.data.repository).toEqual({
+      b0: { text: '# Realms\n' },
+      b1: { text: '# AWS\r\n\r\nCRLF body\r\n', byteSize: 20 },
+      missing: null,
+    })
+    expect(fake.log).toEqual([
+      {
+        method: 'POST',
+        path: '/graphql',
+        status: 200,
+        kind: 'graphql',
+        operation: 'query',
+        blobs: 2,
+      },
+    ])
+  })
+
+  it('reads the head commit, its tree, and a file by expression, with variables', async () => {
+    const res = await gql(
+      fake,
+      `query Head($owner: String!, $name: String!) {
+        repository(owner: $owner, name: $name) {
+          defaultBranchRef { name target { oid ... on Commit { tree { oid } } } }
+          marker: object(expression: "HEAD:.yeraz.json") { __typename ... on Blob { text } }
+          dir: object(expression: "HEAD:identity") { __typename }
+        }
+      }`,
+      { owner: 'you', name: 'engineering' },
+    )
+    const repo = fake.repo('you/engineering')
+    expect(res.data.repository).toEqual({
+      defaultBranchRef: {
+        name: 'main',
+        target: { oid: repo.head!.oid, tree: { oid: repo.head!.root.sha } },
+      },
+      marker: { __typename: 'Blob', text: '{"name":"Engineering","color":"green"}\n' },
+      dir: { __typename: 'Tree' },
+    })
+  })
+
+  it('reports unknown fields and repositories the way GitHub does', async () => {
+    const typo = await gql(fake, '{ repository(owner: "you", name: "engineering") { nam } }')
+    expect(typo.errors![0]!.message).toBe("Field 'nam' doesn't exist on type 'Repository'")
+    const missing = await gql(fake, '{ repository(owner: "you", name: "nope") { name } }')
+    expect(missing.data.repository).toBeNull()
+    expect(missing.errors![0]).toMatchObject({ type: 'NOT_FOUND', path: ['repository'] })
+  })
+
+  it('requires a token', async () => {
+    const res = await request(fake, 'POST', '/graphql', {
+      body: { query: '{ viewer { login } }' },
+      token: null,
+    })
+    expect(res.status).toBe(401)
+  })
+})
+
+describe('GraphQL: discovery', () => {
+  const discover = `query($cursor: String) { viewer { login repositories(first: 2, after: $cursor, ownerAffiliations: [OWNER, COLLABORATOR], orderBy: { field: UPDATED_AT, direction: DESC }) {
+    pageInfo { hasNextPage endCursor }
+    nodes { nameWithOwner isPrivate marker: object(expression: "HEAD:.yeraz.json") { ... on Blob { text } } }
+  } } }`
+
+  it('pages through repositories, newest first, with the marker file', async () => {
+    await fake.addRepo('you/dotfiles', { 'README.md': '# dotfiles\n' })
+    await fake.addRepo('you/art', { '.yeraz.json': '{"name":"Art"}\n' })
+    const page1 = (await gql(fake, discover)).data.viewer.repositories
+    expect(page1.nodes.map((n: { nameWithOwner: string }) => n.nameWithOwner)).toEqual([
+      'you/art',
+      'you/dotfiles',
+    ])
+    expect(page1.nodes[0].marker).toEqual({ text: '{"name":"Art"}\n' })
+    expect(page1.nodes[1].marker).toBeNull()
+    expect(page1.pageInfo.hasNextPage).toBe(true)
+    const page2 = (await gql(fake, discover, { cursor: page1.pageInfo.endCursor })).data.viewer
+      .repositories
+    expect(page2.nodes.map((n: { nameWithOwner: string }) => n.nameWithOwner)).toEqual([
+      'you/engineering',
+    ])
+    expect(page2.pageInfo.hasNextPage).toBe(false)
+  })
+
+  it('rejects more than 100 records per page', async () => {
+    const res = await gql(fake, '{ viewer { repositories(first: 101) { nodes { name } } } }')
+    expect(res.errors![0]!.message).toContain('exceeds the `first` limit of 100 records')
+  })
+})
+
+describe('GraphQL: createCommitOnBranch', () => {
+  const mutation = `mutation($input: CreateCommitOnBranchInput!) {
+    createCommitOnBranch(input: $input) { commit { oid } }
+  }`
+  const input = (expectedHeadOid: string, extra: object = {}) => ({
+    input: {
+      branch: { repositoryNameWithOwner: 'you/engineering', branchName: 'main' },
+      expectedHeadOid,
+      message: { headline: 'Edit from Yeraz' },
+      fileChanges: {
+        additions: [
+          { path: 'identity/keycloak.md', contents: b64('# Keycloak (IdP)\n\nÉdité.\n') },
+        ],
+        deletions: [{ path: 'a-b.md' }],
+      },
+      ...extra,
+    },
+  })
+
+  it('applies additions and deletions in one commit and moves the head', async () => {
+    const repo = fake.repo('you/engineering')
+    const before = repo.head!.oid
+    const res = await gql(fake, mutation, input(before))
+    expect(res.errors).toBeUndefined()
+    expect(res.data.createCommitOnBranch.commit.oid).toBe(repo.head!.oid)
+    expect(repo.head!.parent).toBe(before)
+    expect(repo.read('identity/keycloak.md')).toBe('# Keycloak (IdP)\n\nÉdité.\n')
+    expect(repo.read('a-b.md')).toBeUndefined()
+    // The SHA the app computes locally after a commit is the one the next listing reports.
+    const tree = JSON.parse(
+      (await request(fake, 'GET', '/repos/you/engineering/git/trees/main?recursive=1')).body!,
+    )
+    const entry = tree.tree.find((e: { path: string }) => e.path === 'identity/keycloak.md')
+    expect(entry.sha).toBe(await gitBlobSha('# Keycloak (IdP)\n\nÉdité.\n'))
+  })
+
+  it('refuses a stale expectedHeadOid instead of overwriting', async () => {
+    const repo = fake.repo('you/engineering')
+    const stale = repo.head!.oid
+    await repo.commit({
+      message: 'other device',
+      additions: [{ path: 'cloud/gcp.md', contents: '# GCP\n' }],
+    })
+    const res = await gql(fake, mutation, input(stale))
+    expect(res.data.createCommitOnBranch).toBeNull()
+    expect(res.errors![0]).toMatchObject({
+      type: 'STALE_DATA',
+      message: `Expected branch to point to "${stale}" but it did not. Pull and try again.`,
+    })
+    expect(repo.read('a-b.md')).toBe('# Sorting\n')
+  })
+
+  it('simulates another device pushing first with the pushBeforeNextCommit fault', async () => {
+    const repo = fake.repo('you/engineering')
+    fake.faults.pushBeforeNextCommit = {
+      message: 'phone',
+      additions: [{ path: 'identity/keycloak.md', contents: '# Keycloak\n\nFrom the phone.\n' }],
+    }
+    const res = await gql(fake, mutation, input(repo.head!.oid))
+    expect(res.errors![0]!.type).toBe('STALE_DATA')
+    expect(repo.read('identity/keycloak.md')).toBe('# Keycloak\n\nFrom the phone.\n')
+    expect(fake.faults.pushBeforeNextCommit).toBeNull()
+  })
+
+  it('rejects deleting a missing file, and committing to an empty repository', async () => {
+    const repo = fake.repo('you/engineering')
+    const res = await gql(
+      fake,
+      mutation,
+      input(repo.head!.oid, { fileChanges: { deletions: [{ path: 'nope.md' }] } }),
+    )
+    expect(res.errors![0]!.message).toContain('does not exist')
+    await fake.addRepo('you/empty')
+    const empty = await gql(fake, mutation, {
+      input: {
+        ...input('x').input,
+        branch: { repositoryNameWithOwner: 'you/empty', branchName: 'main' },
+      },
+    })
+    expect(empty.errors![0]!.type).toBe('NOT_FOUND')
+  })
+})
+
+describe('POST /user/repos', () => {
+  it('creates a public repository unless private is set, and refuses duplicates', async () => {
+    const res = await request(fake, 'POST', '/user/repos', { body: { name: 'notes' } })
+    expect(res.status).toBe(201)
+    expect(JSON.parse(res.body!)).toMatchObject({
+      full_name: 'you/notes',
+      private: false,
+      default_branch: 'main',
+    })
+    expect(fake.repo('you/notes').head).toBeNull()
+
+    const priv = await request(fake, 'POST', '/user/repos', {
+      body: { name: 'diary', private: true, auto_init: true },
+    })
+    expect(JSON.parse(priv.body!).private).toBe(true)
+    expect(fake.repo('you/diary').read('README.md')).toBe('# diary\n')
+
+    const dup = await request(fake, 'POST', '/user/repos', { body: { name: 'notes' } })
+    expect(dup.status).toBe(422)
+  })
+
+  it('requires a token', async () => {
+    expect(
+      (await request(fake, 'POST', '/user/repos', { body: { name: 'x' }, token: null })).status,
+    ).toBe(401)
+  })
+})
+
+describe('faults and protocol', () => {
+  it('fails as a network error when offline, and logs the attempt', async () => {
+    fake.faults.offline = true
+    await expect(
+      request(fake, 'GET', '/repos/you/engineering/git/trees/main'),
+    ).rejects.toBeInstanceOf(NetworkError)
+    expect(fake.log.at(-1)).toMatchObject({ kind: 'tree', failed: 'offline' })
+  })
+
+  it('answers 500 when the server-error fault is on', async () => {
+    fake.faults.serverError = true
+    expect((await request(fake, 'GET', '/repos/you/engineering/git/trees/main')).status).toBe(500)
+  })
+
+  it('waits for the configured latency', async () => {
+    fake.faults.latencyMs = 30
+    const start = performance.now()
+    await request(fake, 'GET', '/repos/you/engineering/git/trees/main')
+    expect(performance.now() - start).toBeGreaterThanOrEqual(25)
+  })
+
+  it('answers CORS pre-flights without logging them', async () => {
+    const res = await request(fake, 'OPTIONS', '/graphql', { token: null })
+    expect(res.status).toBe(204)
+    expect(res.headers['access-control-allow-headers']).toContain('If-None-Match')
+    expect(fake.log).toHaveLength(0)
+  })
+
+  it('answers 404 to endpoints the app does not use', async () => {
+    expect((await request(fake, 'GET', '/repos/you/engineering/contents/a-b.md')).status).toBe(404)
+    expect(fake.log.at(-1)!.kind).toBe('unknown')
+  })
+})
