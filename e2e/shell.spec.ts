@@ -59,32 +59,32 @@ test('has no accessibility violations', async ({ page }) => {
   expect(results.violations).toEqual([])
 })
 
-const TREE = 'https://api.github.com/repos/you/engineering/git/trees/main?recursive=1'
 const AUTH = { Authorization: 'Bearer fake-token' }
 
-test('reaches the fake GitHub through page.route', async ({ page, fake }) => {
+test('reaches the fake GitHub over HTTP, with CORS', async ({ page, fake, api }) => {
   const result = await page.evaluate(
-    async ({ url, headers }) => {
-      const res = await fetch(url, { headers, cache: 'no-store' })
+    async ({ api, headers }) => {
+      const res = await fetch(`${api}/repos/you/engineering/git/trees/main?recursive=1`, {
+        headers,
+        cache: 'no-store',
+      })
       const body = (await res.json()) as { tree: { path: string }[] }
       return {
         leaves: body.tree.filter((e) => e.path.endsWith('.md')).length,
         etag: res.headers.get('etag'),
       }
     },
-    { url: TREE, headers: AUTH },
+    { api, headers: AUTH },
   )
   expect(result.leaves).toBe(300)
   expect(result.etag).toMatch(/^W\//)
   expect(fake.log.map((e) => e.status)).toEqual([200])
 })
 
-test('passes a 304 through to the app', async ({ page, fake, browserName }) => {
-  // Playwright refuses to fulfil a 3xx status in WebKit ("Cannot fulfill with redirect
-  // status: 304"), so the page.route adapter can't serve 304s there. See CLAUDE.md.
-  test.skip(browserName === 'webkit', 'page.route cannot fulfil 304 in WebKit')
+test('passes a 304 through to the app, in every engine', async ({ page, fake, api }) => {
   const status = await page.evaluate(
-    async ({ url, headers }) => {
+    async ({ api, headers }) => {
+      const url = `${api}/repos/you/engineering/git/trees/main?recursive=1`
       const first = await fetch(url, { headers, cache: 'no-store' })
       const etag = first.headers.get('etag')!
       const second = await fetch(url, {
@@ -93,8 +93,25 @@ test('passes a 304 through to the app', async ({ page, fake, browserName }) => {
       })
       return second.status
     },
-    { url: TREE, headers: AUTH },
+    { api, headers: AUTH },
   )
   expect(status).toBe(304)
   expect(fake.log.map((e) => e.status)).toEqual([200, 304])
+})
+
+test('fails like a real network error when the fake is offline', async ({ page, fake, api }) => {
+  fake.faults.offline = true
+  const error = await page.evaluate(
+    async ({ api, headers }) =>
+      fetch(`${api}/graphql`, { method: 'POST', headers, body: '{}' }).then(
+        () => null,
+        (e: unknown) => (e instanceof TypeError ? 'TypeError' : String(e)),
+      ),
+    { api, headers: AUTH },
+  )
+  expect(error).toBe('TypeError')
+})
+
+test('points the app at the fake only in end-to-end builds', async ({ page, api }) => {
+  expect(await page.evaluate(() => window.__YERAZ_API__)).toBe(api)
 })

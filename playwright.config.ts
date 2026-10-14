@@ -18,9 +18,10 @@ export default defineConfig({
     { name: 'pixel', use: { ...devices['Pixel 7'] } },
     { name: 'iphone', use: { ...devices['iPhone 14'] } },
   ],
-  // End-to-end tests run against the production build, the same files GitHub Pages serves.
+  // End-to-end tests run against a production build that differs in one switch: VITE_E2E=1
+  // lets tests point it at the local fake GitHub (src/github/endpoint.ts).
   webServer: {
-    command: `npm run build && npx vite preview --port ${PORT} --strictPort`,
+    command: `VITE_E2E=1 npx vite build --outDir dist-e2e && npx vite preview --outDir dist-e2e --port ${PORT} --strictPort`,
     port: PORT,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
