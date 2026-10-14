@@ -32,6 +32,7 @@ export interface TreeMapProps {
 }
 
 const SVG_NS = 'http://www.w3.org/2000/svg'
+const PHONE_WIDTH = 640
 
 /** Room for the floating controls around the map, plus whatever the panels cover. */
 const padded = (area: Insets): Insets => ({
@@ -68,9 +69,9 @@ export function TreeMap({
     {
       min: 0.05,
       max: 4,
-      onScale: (k) => {
-        if (percentRef.current) percentRef.current.textContent = `${Math.round(k * 100)}%`
-        if (levelRef.current) levelRef.current.textContent = k < 0.85 ? 'Branches' : 'Leaves'
+      onScale: ({ percent, far }) => {
+        if (percentRef.current) percentRef.current.textContent = `${percent}%`
+        if (levelRef.current) levelRef.current.textContent = far ? 'Branches' : 'Leaves'
       },
     },
     overlayCameraRef,
@@ -93,7 +94,12 @@ export function TreeMap({
     if (fitted.current === treeKey) return
     fitted.current = treeKey
     zoom.fit(layout.extent, padded(area))
-  }, [treeKey, layout, zoom, area])
+    // On a phone, a Tree opened on a leaf zooms in on it (design screen 07): the whole
+    // Tree above the bottom sheet would be too small to read.
+    const at = selected !== null ? layout.byId.get(selected) : undefined
+    if (at && (stageRef.current?.clientWidth ?? 0) <= PHONE_WIDTH)
+      zoom.centre(at.x, at.y, area, Math.max(zoom.scale(), 1))
+  }, [treeKey, layout, zoom, area, selected])
 
   // Elements by id, collected once per render of the geometry.
   const elements = useRef({

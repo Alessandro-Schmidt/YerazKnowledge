@@ -2,6 +2,7 @@ node_modules/
 dist/
 dist-e2e/
 perf-results/
+visual-review/
 *.tsbuildinfo
 test-results/
 playwright-report/
