@@ -1,5 +1,6 @@
 dist/
 dist-e2e/
+perf-results/
 node_modules/
 design/
 package-lock.json

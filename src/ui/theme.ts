@@ -60,11 +60,21 @@ export function themeCss(): string {
       )
     }
   }
+  // Named colours for Trees and leaves (`"color": "amber"`), resolved per mode (§13).
+  for (const mode of ['dark', 'light'] as const) {
+    const named = Object.fromEntries(ACCENT_IDS.map((id) => [`c-${id}`, themes.accents[id][mode]]))
+    blocks.push(`:root[data-mode='${mode}']{${declarations(named)}}`)
+  }
   for (const id of FONT_IDS) {
     const stack = themes.fonts[id].reading.replace(/'[^']+'/, (f) => FONT_FACES[f] ?? f)
     blocks.push(`:root[data-font='${id}']{--font-reading:${stack};}`)
   }
   return blocks.join('\n')
+}
+
+/** A named colour as a CSS value; anything else falls back to the theme accent. */
+export function colorVar(name: string | null | undefined): string {
+  return name && (ACCENT_IDS as string[]).includes(name) ? `var(--c-${name})` : 'var(--accent)'
 }
 
 /** Applies a theme. CSS does the rest, so no React component re-renders. */

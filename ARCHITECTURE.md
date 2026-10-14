@@ -138,8 +138,9 @@ Creating a Tree from the app means:
 - **Rendering:**
   - React renders the SVG geometry once per data change (memoised).
   - Pan and zoom use `d3-zoom`, which writes a single `transform` attribute on one `<g>`. **React does not re-render during pan or zoom.**
-  - Selecting or hovering adds `data-focus` on the root and a class on the selected leaf's neighbours, which come from a precomputed adjacency map. CSS does the dimming.
-  - Semantic zoom works the same way: a class per zoom level (`z-far` hides leaf labels, `z-near` shows them).
+  - Selecting adds `data-focus` on the map, then draws a translucent veil over the map and copies of the selection's neighbours (from a precomputed adjacency map) above it, in a second `<svg>` with its own compositor layer. The work depends on the number of neighbours, not the size of the Tree, and the map itself is never repainted. (Restyling every node to dim it cost about 4× more on a throttled phone.)
+  - Semantic zoom works the same way: a `data-zoom` attribute (`far` hides labels below the first ring, `near` shows them).
+- **Labels:** horizontal, as in the design, for Trees of up to 60 leaves. Larger Trees turn leaf labels to follow the radius, so neighbours 15 px apart never overlap.
 - **Home** lays out every Tree independently:
   - Each is scaled by √(total words) and placed with `d3.packSiblings`.
   - Only branch labels are drawn at that zoom.
@@ -263,14 +264,17 @@ Every image a user sees should be sharp on any screen, including 2× and 3× dis
 ```
 src/
   github/   client.ts (fetch, auth, ETag) · graphql.ts (the 3 operations)
+            endpoint.ts (the API base; a local fake only in e2e builds)
   store/    db.ts (IndexedDB via idb-keyval) · session.ts (Zustand store)
   model/    parse.ts · tree.ts (paths → hierarchy, sibling-folder rule)
+            graph.ts (titles, word totals, threads, backlinks)
             links.ts (find and rewrite) · sha.ts (git blob SHA)
   sync/     pull.ts · push.ts · merge.ts · autosave.ts
-  map/      layout.ts (d3) · TreeMap.tsx · Home.tsx
+  map/      layout.ts (d3) · TreeMap.tsx · HomeMap.tsx · Home.tsx · useZoom.ts
   editor/   Editor.tsx · livePreview.ts · insertMenu.ts · mentions.ts
   read/     render.ts (markdown-it) · Peek.tsx · print.css
-  ui/       Shell.tsx · Explorer.tsx · Appearance.tsx
+  ui/       App.tsx (routes) · TopBar.tsx · TokenScreen.tsx · TreeView.tsx
+            Explorer.tsx · Appearance.tsx
             theme.ts (turns design/themes/themes.json into CSS, applies it)
 ```
 
