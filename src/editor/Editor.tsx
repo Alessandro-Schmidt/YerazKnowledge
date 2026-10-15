@@ -9,12 +9,18 @@ import { Compartment, EditorState } from '@codemirror/state'
 import { EditorView, keymap, placeholder } from '@codemirror/view'
 import { classHighlighter } from '@lezer/highlight'
 import { useEffect, useRef } from 'react'
-import { withIcon } from '../model/parse'
+import { parseLeaf, withIcon, withMeta, type LeafMeta } from '../model/parse'
 import styles from './Editor.module.css'
-import { livePreview } from './livePreview'
+import { assetSource, livePreview } from './livePreview'
+import { insertMenu, type InsertHost } from './insertMenu'
+import { mentions, type MentionSource } from './mentions'
 
 export interface EditorHandle {
   setIcon(icon: string | null): void
+  /** Changes line 2's metadata (cover, colours); other keys are kept. */
+  setMeta(update: (meta: LeafMeta) => LeafMeta): void
+  /** Inserts text at the cursor, on a line of its own when `block`, and focuses. */
+  insertText(text: string, block?: boolean): void
   focus(): void
 }
 
@@ -26,15 +32,39 @@ export interface EditorProps {
   handleRef?: React.RefObject<EditorHandle | null>
   /** Focus with the cursor at the end, as for a leaf that was just created. */
   autoFocus?: boolean
+  /** The Tree's leaves, for @ mentions and their chips. */
+  mentionsFrom?: MentionSource
+  /** Insert menu items the page handles: images, new leaves and branches. */
+  onInsert?: InsertHost
+  /** Files pasted or dropped into the text (images). */
+  onFiles?(files: File[]): void
+  /** URLs for the Tree's own files, such as `assets/…` images. */
+  assetUrl?(path: string): Promise<string | null>
 }
 
-export default function Editor({ initial, source, onChange, handleRef, autoFocus }: EditorProps) {
+export default function Editor({
+  initial,
+  source,
+  onChange,
+  handleRef,
+  autoFocus,
+  mentionsFrom,
+  onInsert,
+  onFiles,
+  assetUrl,
+}: EditorProps) {
   const host = useRef<HTMLDivElement>(null)
   const view = useRef<EditorView | null>(null)
   const preview = useRef(new Compartment())
   const changed = useRef(onChange)
+  const insertRef = useRef(onInsert)
+  const filesRef = useRef(onFiles)
+  const assetRef = useRef(assetUrl)
   useEffect(() => {
     changed.current = onChange
+    insertRef.current = onInsert
+    filesRef.current = onFiles
+    assetRef.current = assetUrl
   })
 
   useEffect(() => {
@@ -50,6 +80,27 @@ export default function Editor({ initial, source, onChange, handleRef, autoFocus
           EditorView.lineWrapping,
           EditorView.contentAttributes.of({ 'aria-label': 'Leaf text', spellcheck: 'true' }),
           placeholder('Start writing…'),
+          mentionsFrom ? mentions(mentionsFrom) : [],
+          insertMenu((kind, v) => insertRef.current?.(kind, v)),
+          assetSource.of(async (path) => (await assetRef.current?.(path)) ?? null),
+          EditorView.domEventHandlers({
+            paste(event) {
+              const files = [...(event.clipboardData?.files ?? [])]
+              if (!files.length || !filesRef.current) return false
+              event.preventDefault()
+              filesRef.current(files)
+              return true
+            },
+            drop(event, v) {
+              const files = [...(event.dataTransfer?.files ?? [])]
+              if (!files.length || !filesRef.current) return false
+              event.preventDefault()
+              const at = v.posAtCoords({ x: event.clientX, y: event.clientY })
+              if (at !== null) v.dispatch({ selection: { anchor: at } })
+              filesRef.current(files)
+              return true
+            },
+          }),
           preview.current.of(source ? [] : livePreview),
           EditorView.updateListener.of((u) => {
             if (u.docChanged) changed.current(u.state.doc.toString())
@@ -76,15 +127,41 @@ export default function Editor({ initial, source, onChange, handleRef, autoFocus
 
   useEffect(() => {
     if (!handleRef) return
+    /** Rewrites the text as one change covering only what differs (lines 1 and 2 here). */
+    const rewrite = (edit: (text: string) => string) => {
+      const v = view.current
+      if (!v) return
+      const text = v.state.doc.toString()
+      const next = edit(text)
+      let from = 0
+      while (from < text.length && text[from] === next[from]) from++
+      let end = 0
+      while (
+        end < text.length - from &&
+        end < next.length - from &&
+        text[text.length - 1 - end] === next[next.length - 1 - end]
+      )
+        end++
+      v.dispatch({
+        changes: { from, to: text.length - end, insert: next.slice(from, next.length - end) },
+      })
+    }
     handleRef.current = {
-      setIcon(icon) {
+      setIcon: (icon) => rewrite((text) => withIcon(text, icon)),
+      setMeta: (update) => rewrite((text) => withMeta(text, update(parseLeaf(text).meta ?? {}))),
+      insertText(text, block) {
         const v = view.current
         if (!v) return
-        const text = v.state.doc.toString()
-        const next = withIcon(text, icon)
-        const firstLine = v.state.doc.line(1)
-        const newFirst = next.slice(0, next.length - (text.length - firstLine.to))
-        v.dispatch({ changes: { from: 0, to: firstLine.to, insert: newFirst } })
+        const { head } = v.state.selection.main
+        const line = v.state.doc.lineAt(head)
+        const insert = block
+          ? `${head > line.from ? '\n' : ''}${text}${head < line.to ? '\n' : ''}`
+          : text
+        v.dispatch({
+          changes: { from: head, insert },
+          selection: { anchor: head + insert.length },
+        })
+        v.focus()
       },
       focus: () => view.current?.focus(),
     }

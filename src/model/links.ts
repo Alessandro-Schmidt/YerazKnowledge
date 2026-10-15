@@ -8,6 +8,11 @@ export function destination(path: string): string {
   return /[\s()<>]/.test(path) ? `</${path}>` : `/${path}`
 }
 
+/** `[Title](/path.md)`: a thread, as the repository format writes it (ARCHITECTURE.md §4). */
+export function mentionLink(title: string, path: string): string {
+  return `[${title.replace(/[[\]\\]/g, '\\$&')}](${destination(path)})`
+}
+
 /**
  * Rewrites links whose target moved (`moves`: old path → new path), outside code.
  * Anchors (`#part`) and link titles are kept.

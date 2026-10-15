@@ -1,7 +1,7 @@
 // The Peek: a partial view of the selected node, floating over the map (420 px), or the
 // full read page when expanded (760 px column). On phones it is a bottom sheet.
 
-import { useEffect, useLayoutEffect, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { TreeRef } from '../github/graphql'
 import { compactWords, crumbs, type Graph } from '../model/graph'
 import { ROOT } from '../model/tree'
@@ -11,7 +11,9 @@ import { isLocal } from '../sync/overlay'
 import controls from '../ui/controls.module.css'
 import { Glyph } from '../ui/Glyph'
 import { Icon } from '../ui/icons'
+import { treeHref } from '../ui/paths'
 import styles from './Peek.module.css'
+import { Cover, leafColors } from './LeafLook'
 import { renderLeaf } from './render'
 import type { StructureAction } from '../ui/StructureDialogs'
 
@@ -53,11 +55,6 @@ export function Peek({
       : [graph.nodes.get(ROOT)!.title, ...crumbs(graph, id)].join(' / ')
   const path =
     node.kind === 'root' ? `${tree.repo} @ ${tree.branch}` : node.kind === 'branch' ? `${id}/` : id
-  const cover =
-    typeof node.meta?.cover === 'string' && /^https:\/\//.test(node.meta.cover)
-      ? node.meta.cover
-      : null
-
   const chips =
     node.kind === 'root'
       ? [
@@ -113,10 +110,8 @@ export function Peek({
 
       <div className={styles.scroll}>
         <div className={styles.column}>
-          {cover && (
-            <img className={styles.cover} src={cover} alt="" loading="lazy" decoding="async" />
-          )}
-          <article className={styles.article}>
+          <Cover repo={tree.repo} src={node.meta?.cover} className={styles.cover} />
+          <article className={styles.article} style={leafColors(node.meta)}>
             <div className={styles.titleRow}>
               {node.icon ? (
                 <span className={styles.icon} aria-hidden="true">
@@ -345,6 +340,13 @@ function LeafBody({
           {
             leafHref: (path) => (graph.nodes.get(path)?.kind === 'leaf' ? href(path) : null),
             leafIcon: (path) => graph.nodes.get(path)?.icon ?? null,
+            files: () => session.getState().files(repo),
+            tree: (other) => {
+              const t = session
+                .getState()
+                .trees.find((t) => t.repo.toLowerCase() === other.toLowerCase())
+              return t ? { title: t.title, href: `#${treeHref(t.repo)}` } : null
+            },
           },
           // Pending edits have no SHA yet, so they are not cached.
           isLocal(sha) ? undefined : sha,
@@ -357,8 +359,26 @@ function LeafBody({
     }
   }, [repo, id, sha, graph, href])
 
+  // The Tree's own files (images, PDFs, videos) come from the blob cache, with the token.
+  const body = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    for (const el of body.current?.querySelectorAll<HTMLElement>(
+      '[data-asset], [data-asset-href]',
+    ) ?? []) {
+      const href = el.dataset.assetHref
+      void session
+        .getState()
+        .assetUrl(repo, href ?? el.dataset.asset!)
+        .then((url) => url && el.setAttribute(href ? 'href' : 'src', url))
+    }
+  }, [html, repo])
+
   if (html?.sha !== sha) return <div className={styles.loading} aria-busy="true" />
   return (
-    <div className={`reading ${styles.content}`} dangerouslySetInnerHTML={{ __html: html.html }} />
+    <div
+      ref={body}
+      className={`reading ${styles.content}`}
+      dangerouslySetInnerHTML={{ __html: html.html }}
+    />
   )
 }

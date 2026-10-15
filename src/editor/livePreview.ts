@@ -3,7 +3,7 @@
 // shows its Markdown. "Show Markdown" turns this extension off: same editor, same text.
 
 import { syntaxTree } from '@codemirror/language'
-import { RangeSetBuilder, type EditorState, type Range } from '@codemirror/state'
+import { Facet, RangeSetBuilder, type EditorState, type Range } from '@codemirror/state'
 import {
   Decoration,
   EditorView,
@@ -12,7 +12,10 @@ import {
   type DecorationSet,
   type ViewUpdate,
 } from '@codemirror/view'
-import { leadingIcon, linkTarget, META } from '../model/parse'
+import type { SyntaxNode } from '@lezer/common'
+import { embedOf, mathSpans, type Embed } from '../model/embeds'
+import { leadingIcon, linkTarget, META, ownPath } from '../model/parse'
+import { mentionSource } from './mentions'
 
 /** The title's icon with the space after it, so both can be hidden. */
 const titleIcon = (rest: string) => {
@@ -40,10 +43,17 @@ class CheckboxWidget extends WidgetType {
   }
 }
 
+/** URLs for the Tree's own files (`/assets/…`): private repositories need the token. */
+export const assetSource = Facet.define<
+  (path: string) => Promise<string | null>,
+  ((path: string) => Promise<string | null>) | null
+>({ combine: (values) => values[0] ?? null })
+
 class ImageWidget extends WidgetType {
   constructor(
     readonly src: string,
     readonly alt: string,
+    readonly resolve: ((path: string) => Promise<string | null>) | null,
   ) {
     super()
   }
@@ -52,12 +62,76 @@ class ImageWidget extends WidgetType {
   }
   toDOM() {
     const img = document.createElement('img')
-    img.src = this.src
+    const own = ownPath(this.src)
+    if (own === null) img.src = this.src
+    else void this.resolve?.(own).then((url) => url && (img.src = url))
     img.alt = this.alt
     img.className = 'cm-image'
     img.loading = 'lazy'
     img.decoding = 'async'
     return img
+  }
+}
+
+/** KaTeX, loaded the first time math is shown. */
+class MathWidget extends WidgetType {
+  constructor(
+    readonly tex: string,
+    readonly display: boolean,
+  ) {
+    super()
+  }
+  eq(other: MathWidget) {
+    return other.tex === this.tex && other.display === this.display
+  }
+  toDOM() {
+    const el = document.createElement('span')
+    el.className = this.display ? 'cm-math cm-math-display' : 'cm-math'
+    el.textContent = this.tex
+    void import('../read/katex').then(({ default: katex }) =>
+      katex.render(this.tex, el, { displayMode: this.display, throwOnError: false }),
+    )
+    return el
+  }
+}
+
+/** A YouTube video, or a PDF or video kept in the Tree, in place of its link. */
+class EmbedWidget extends WidgetType {
+  constructor(
+    readonly embed: Embed,
+    readonly resolve: ((path: string) => Promise<string | null>) | null,
+  ) {
+    super()
+  }
+  eq(other: EmbedWidget) {
+    return JSON.stringify(other.embed) === JSON.stringify(this.embed)
+  }
+  toDOM() {
+    const { embed } = this
+    const box = document.createElement('div')
+    box.className = `cm-embed cm-embed-${embed.kind}`
+    if (embed.kind === 'repo') {
+      box.textContent = `${embed.title || embed.repo} · GitHub repository`
+      return box
+    }
+    const el = document.createElement(embed.kind === 'video' ? 'video' : 'iframe')
+    el.title = embed.title || (embed.kind === 'youtube' ? 'YouTube video' : embed.path)
+    if (embed.kind === 'youtube') {
+      el.src = `https://www.youtube-nocookie.com/embed/${embed.id}${embed.start ? `?start=${embed.start}` : ''}`
+      el.setAttribute('allow', 'encrypted-media; picture-in-picture; fullscreen')
+      el.setAttribute('referrerpolicy', 'strict-origin-when-cross-origin')
+    } else {
+      if (el instanceof HTMLVideoElement) {
+        el.controls = true
+        el.preload = 'metadata'
+      }
+      void this.resolve?.(embed.path).then((url) => url && (el.src = url))
+    }
+    box.append(el)
+    return box
+  }
+  ignoreEvent() {
+    return true
   }
 }
 
@@ -139,13 +213,24 @@ function build(view: EditorView): DecorationSet {
             const url = node.node.getChild('URL')
             const dest = url ? state.sliceDoc(url.from, url.to) : ''
             const target = linkTarget(dest)
+            const active = isActive(node.from)
+            const leaf =
+              target && target.repo === null
+                ? state.facet(mentionSource)?.leaf(target.path)
+                : undefined
             decorations.push(
-              mark(target && target.repo === null ? 'cm-mention' : 'cm-link').range(
-                node.from,
-                node.to,
-              ),
+              (leaf && !active
+                ? Decoration.mark({
+                    class: 'cm-mention',
+                    attributes: {
+                      'data-path': leaf.path,
+                      'data-before': `@ ${leaf.icon ? `${leaf.icon} ` : ''}`,
+                    },
+                  })
+                : mark(target && target.repo === null ? 'cm-mention' : 'cm-link')
+              ).range(node.from, node.to),
             )
-            if (!isActive(node.from)) {
+            if (!active) {
               for (const child of [...node.node.getChildren('LinkMark'), ...(url ? [url] : [])]) {
                 decorations.push(hide.range(child.from, child.to))
               }
@@ -162,7 +247,11 @@ function build(view: EditorView): DecorationSet {
             if (url) {
               decorations.push(
                 Decoration.replace({
-                  widget: new ImageWidget(state.sliceDoc(url.from, url.to), alt),
+                  widget: new ImageWidget(
+                    state.sliceDoc(url.from, url.to),
+                    alt,
+                    state.facet(assetSource),
+                  ),
                 }).range(node.from, node.to),
               )
             }
@@ -218,11 +307,53 @@ function build(view: EditorView): DecorationSet {
     })
   }
 
+  // Math and embeds replace whole spans; what was decorated inside them gives way.
+  const replaced = richRanges(view, isActive)
+  const inside = (d: Range<Decoration>) =>
+    d.from !== d.to && replaced.some((r) => d.from < r.to && d.to > r.from)
   const builder = new RangeSetBuilder<Decoration>()
-  decorations
+  ;[...decorations.filter((d) => !inside(d)), ...replaced]
     .sort((a, b) => a.from - b.from || a.value.startSide - b.value.startSide)
     .forEach((d) => builder.add(d.from, d.to, d.value))
   return builder.finish()
+}
+
+/** Single-line math and embed lines, away from the cursor and outside code. */
+function richRanges(view: EditorView, isActive: (pos: number) => boolean): Range<Decoration>[] {
+  const { state } = view
+  const out: Range<Decoration>[] = []
+  const resolve = state.facet(assetSource)
+  const inCode = (pos: number) => {
+    for (let n: SyntaxNode | null = syntaxTree(state).resolveInner(pos, 1); n; n = n.parent)
+      if (n.name === 'FencedCode' || n.name === 'CodeBlock') return true
+    return false
+  }
+  for (const { from, to } of view.visibleRanges) {
+    for (let pos = from; pos <= to;) {
+      const l = state.doc.lineAt(pos)
+      pos = l.to + 1
+      if (l.number === 1 || isActive(l.from) || !l.text.trim() || inCode(l.from)) continue
+      const alone =
+        state.doc.line(l.number - 1).text.trim() === '' &&
+        (l.number === state.doc.lines || state.doc.line(l.number + 1).text.trim() === '')
+      const embed = alone ? embedOf(l.text) : null
+      if (embed) {
+        out.push(
+          Decoration.replace({ widget: new EmbedWidget(embed, resolve) }).range(l.from, l.to),
+        )
+        continue
+      }
+      for (const m of mathSpans(l.text)) {
+        out.push(
+          Decoration.replace({ widget: new MathWidget(m.tex, m.display) }).range(
+            l.from + m.from,
+            l.from + m.to,
+          ),
+        )
+      }
+    }
+  }
+  return out
 }
 
 /** Toggles a task when its checkbox is clicked: `[ ]` ↔ `[x]` in the text. */

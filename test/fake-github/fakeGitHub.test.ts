@@ -1,6 +1,12 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { gitBlobSha } from '../../src/model/sha'
-import { createFakeGitHub, NetworkError, type FakeGitHub } from './fakeGitHub'
+import {
+  createFakeGitHub,
+  NetworkError,
+  type FakeGitHub,
+  type FakeRequest,
+  type FakeResponse,
+} from './fakeGitHub'
 
 const API = 'https://api.github.com'
 const TOKEN = 'test-token'
@@ -12,7 +18,8 @@ function request(
   init: { body?: unknown; headers?: Record<string, string>; token?: string | null } = {},
 ) {
   const token = init.token === undefined ? TOKEN : init.token
-  return fake.handle({
+  // Bodies are text, except a raw blob's bytes (cast where a test reads those).
+  return (fake.handle as (r: FakeRequest) => Promise<FakeResponse & { body: string | null }>)({
     method,
     url: `${API}${path}`,
     headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), ...init.headers },
@@ -300,6 +307,49 @@ describe('GraphQL: discovery', () => {
   it('rejects more than 100 records per page', async () => {
     const res = await gql(fake, '{ viewer { repositories(first: 101) { nodes { name } } } }')
     expect(res.errors![0]!.message).toContain('exceeds the `first` limit of 100 records')
+  })
+})
+
+describe('GET git/blobs (images and other binary files)', () => {
+  const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 255, 128])
+
+  beforeEach(async () => {
+    await fake.repo('you/engineering').commit({
+      message: 'image',
+      additions: [{ path: 'assets/dot.png', contents: png }],
+    })
+  })
+
+  it('returns the raw bytes with the raw media type', async () => {
+    const sha = await gitBlobSha(png)
+    const res = await request(fake, 'GET', `/repos/you/engineering/git/blobs/${sha}`, {
+      headers: { Accept: 'application/vnd.github.raw+json' },
+    })
+    expect(res.status).toBe(200)
+    expect(res.headers['content-type']).toBe('application/octet-stream')
+    expect(res.body).toEqual(png)
+    expect(fake.log.at(-1)).toMatchObject({ kind: 'blob', status: 200 })
+  })
+
+  it('returns base64 JSON by default, as GitHub does', async () => {
+    const sha = await gitBlobSha(png)
+    const res = await request(fake, 'GET', `/repos/you/engineering/git/blobs/${sha}`)
+    const body = JSON.parse(res.body!)
+    expect(body).toMatchObject({ sha, size: png.byteLength, encoding: 'base64' })
+    expect(Uint8Array.from(atob(body.content.replace(/\n/g, '')), (c) => c.charCodeAt(0))).toEqual(
+      png,
+    )
+  })
+
+  it('answers 404 for an unknown SHA, or a repository the token cannot see', async () => {
+    const sha = await gitBlobSha(png)
+    expect(
+      (await request(fake, 'GET', `/repos/you/engineering/git/blobs/${'0'.repeat(40)}`)).status,
+    ).toBe(404)
+    expect(
+      (await request(fake, 'GET', `/repos/you/engineering/git/blobs/${sha}`, { token: null }))
+        .status,
+    ).toBe(404)
   })
 })
 

@@ -25,6 +25,7 @@
     "visual": "playwright test -c playwright.visual.config.ts"
   },
   "dependencies": {
+    "@codemirror/autocomplete": "6.20.3",
     "@codemirror/commands": "6.11.1",
     "@codemirror/lang-markdown": "6.5.2",
     "@codemirror/language": "6.12.4",
@@ -41,6 +42,7 @@
     "d3-shape": "3.2.0",
     "d3-zoom": "3.0.0",
     "idb-keyval": "6.3.0",
+    "katex": "0.18.11",
     "markdown-it": "15.0.2",
     "node-diff3": "3.2.1",
     "react": "19.3.1",

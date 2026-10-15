@@ -67,15 +67,25 @@ function parseMeta(line: string | undefined): LeafMeta | null {
   }
 }
 
+/** A destination as written, without angle brackets or percent-encoding. */
+function plainUrl(destination: string): string {
+  const url = destination.startsWith('<') ? destination.slice(1, -1) : destination
+  try {
+    return decodeURI(url)
+  } catch {
+    return url
+  }
+}
+
+/** The repository path of a root-relative destination (`/assets/a.png`), or null. */
+export function ownPath(destination: string): string | null {
+  const url = plainUrl(destination)
+  return url.startsWith('/') && !url.startsWith('//') ? url.slice(1) : null
+}
+
 /** Where a link destination points, if it is a leaf here or in another Tree. */
 export function linkTarget(destination: string): LeafLink | null {
-  let url = destination.startsWith('<') ? destination.slice(1, -1) : destination
-  try {
-    url = decodeURI(url)
-  } catch {
-    // Keep it as written.
-  }
-  url = url.replace(/[?#].*$/, '')
+  const url = plainUrl(destination).replace(/[?#].*$/, '')
   if (!url.endsWith('.md')) return null
   if (url.startsWith('/') && !url.startsWith('//')) return { path: url.slice(1), repo: null }
   const other = GITHUB_FILE.exec(url)
@@ -161,4 +171,36 @@ export function withIcon(text: string, icon: string | null): string {
   const title = heading ? (splitIcon(heading[1] ?? '').title ?? '') : ''
   const line = `# ${icon ? `${icon} ` : ''}${title || 'Untitled'}`.trimEnd()
   return heading ? line + text.slice(end) : `${line}\n\n${text}`
+}
+
+/** JSON with sorted keys: two metadata objects are equal when these are. */
+const canonical = (value: unknown): string =>
+  JSON.stringify(value, (_, v: unknown) =>
+    v && typeof v === 'object' && !Array.isArray(v)
+      ? Object.fromEntries(Object.entries(v).sort(([a], [b]) => a.localeCompare(b)))
+      : v,
+  )
+
+/**
+ * Line 2 with new metadata (cover, colours…), or without line 2 when `meta` is empty.
+ * Unchanged metadata leaves the text byte for byte as it was; only line 2 ever changes.
+ */
+export function withMeta(text: string, meta: LeafMeta | null): string {
+  const newline = /\r\n|\r|\n/.exec(text)?.[0] ?? '\n'
+  if (!HEADING.test(stripBom(text.slice(0, text.search(/\r\n|\r|\n|$/)))))
+    text = `# Untitled${newline}${newline}${text}`
+  const titleEnd = text.search(/\r\n|\r|\n|$/)
+  const secondStart = titleEnd + (/^\r\n/.test(text.slice(titleEnd)) ? 2 : 1)
+  const secondEnd =
+    titleEnd === text.length
+      ? titleEnd
+      : secondStart + text.slice(secondStart).search(/\r\n|\r|\n|$/)
+  const current = titleEnd === text.length ? null : parseMeta(text.slice(secondStart, secondEnd))
+  const empty = !meta || Object.keys(meta).length === 0
+  if (current && !empty && canonical(current) === canonical(meta)) return text
+  const before = text.slice(0, titleEnd)
+  const after = current ? text.slice(secondEnd) : text.slice(titleEnd)
+  if (empty) return before + after
+  const line = `<!-- yeraz ${JSON.stringify(meta).replace(/-->/g, '--\\u003e')} -->`
+  return `${before}${newline}${line}${after}`
 }

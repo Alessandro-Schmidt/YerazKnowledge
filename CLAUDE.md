@@ -2,7 +2,7 @@
 
 Notes as Markdown in the user's own GitHub repositories; the main screen is a map of them.
 Read `ideas.txt` (why), `ARCHITECTURE.md` (how), `development-plan.md` (what, in what order).
-**Current milestone: M2** (writing and sync) built; waiting on the owner's review. Next: M3.
+**Current milestone: M3** (threads and rich content) built; waiting on the owner's review. Next: M4.
 
 ## Commands
 
@@ -18,8 +18,8 @@ Read `ideas.txt` (why), `ARCHITECTURE.md` (how), `development-plan.md` (what, in
 - `src/model/` pure logic, no DOM/network: `parse.ts`, `tree.ts`, `graph.ts` (titles, totals, threads), `sha.ts`
 - `src/github/` `client.ts` (fetch, ETag, errors) · `graphql.ts` (blobs, discover, lookup)
 - `src/store/db.ts` key/value (IndexedDB or memory) · `session.ts` the Zustand store, pending edits, autosave
-- `src/sync/` `pull.ts` read · `push.ts` commit · `merge.ts` three-way · `autosave.ts` · `structure.ts` (new/move/delete plans) · `overlay.ts`
-- `src/editor/` CodeMirror 6 (lazy chunk): `Editor.tsx`, `livePreview.ts`, `EditorPage.tsx` (`#/edit/...`)
+- `src/sync/` `pull.ts` read · `push.ts` commit · `merge.ts` three-way · `autosave.ts` · `structure.ts` (new/move/delete plans) · `overlay.ts` · `assets.ts` (images: fetch by SHA, name)
+- `src/editor/` CodeMirror 6 (lazy chunk): `Editor.tsx`, `livePreview.ts`, `EditorPage.tsx` (`#/edit/...`), `mentions.ts`, `insertMenu.ts`, `images.ts`
 - `src/map/` `layout.ts` (pure, d3) · `TreeMap.tsx` · `HomeMap.tsx` · `Home.tsx` · `useZoom.ts`
 - `src/read/` `render.ts` (markdown-it, lazy) · `Peek.tsx` · `src/ui/` App, TreeView, Explorer, TokenScreen,
   theme (saved per device in `localStorage`, applied before paint by `index.html`), Appearance (`#/settings/appearance`)
@@ -51,6 +51,7 @@ Read `ideas.txt` (why), `ARCHITECTURE.md` (how), `development-plan.md` (what, in
 - [ ] A branch is a folder without a same-named `.md`; its name is the folder name, as typed
 - [ ] Threads are root-relative Markdown links (`[Keycloak](/identity/keycloak.md)`)
 - [ ] Images in `/assets/`; `.yeraz.json` marks the root; filenames never change on retitle
+- [ ] Embeds: a paragraph of one link to YouTube or `/assets/*.pdf|mp4|webm` (subtitles `name.<lang>.vtt`); math `$…$`, `$$…$$`
 
 ## Budgets (ARCHITECTURE.md §11)
 

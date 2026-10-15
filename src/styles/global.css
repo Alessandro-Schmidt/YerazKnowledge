@@ -47,3 +47,27 @@ input {
 .reading {
   font-family: var(--font-reading);
 }
+
+/* Code highlighting, in the editor and the read view: Lezer's token classes. */
+.tok-keyword,
+.tok-operator {
+  color: var(--c-violet);
+}
+.tok-string,
+.tok-string2 {
+  color: var(--c-green);
+}
+.tok-number,
+.tok-bool,
+.tok-atom {
+  color: var(--c-amber);
+}
+.tok-comment {
+  color: var(--faint);
+  font-style: italic;
+}
+.tok-variableName.tok-definition,
+.tok-typeName,
+.tok-className {
+  color: var(--c-blue);
+}
