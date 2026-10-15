@@ -1,6 +1,8 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation } from 'wouter'
 import type { GraphNode } from '../model/graph'
+import type { LeafMeta } from '../model/parse'
+import { Cover, leafColors } from '../read/LeafLook'
 import { destination, mentionLink } from '../model/links'
 import { assetPath } from '../sync/assets'
 import { session, useSession } from '../store/session'
@@ -10,7 +12,7 @@ import { Icon } from '../ui/icons'
 import { decodePath, treeHref } from '../ui/paths'
 import { parentFor, StructureDialog, type StructureAction } from '../ui/StructureDialogs'
 import { SyncStatus } from '../ui/SyncStatus'
-import { colorVar } from '../ui/theme'
+import { ACCENT_IDS, colorVar } from '../ui/theme'
 import { Divider, TopBar } from '../ui/TopBar'
 import type { EditorHandle } from './Editor'
 import styles from './EditorPage.module.css'
@@ -69,25 +71,42 @@ export function EditorPage({ params }: { params: { owner: string; name: string; 
   }
 
   // Images, picked, pasted or dropped: saved in assets/ and shown where the cursor is.
-  const addImages = async (files: File[]) => {
+  /** Saves an image in assets/ as a pending edit; null when it isn't an image or was declined. */
+  const saveImage = async (file: File) => {
+    if (!file.type.startsWith('image/')) return null
     const { prepareImage, WARN_BYTES } = await import('./images')
-    for (const file of files.filter((f) => f.type.startsWith('image/'))) {
-      const { bytes, ext } = await prepareImage(file)
-      const megabytes = (bytes.byteLength / 1024 / 1024).toFixed(1)
-      if (
-        bytes.byteLength > WARN_BYTES &&
-        !window.confirm(
-          `${file.name} is ${megabytes} MB. Large files make the repository slow to download. Add it anyway?`,
-        )
+    const { bytes, ext } = await prepareImage(file)
+    const megabytes = (bytes.byteLength / 1024 / 1024).toFixed(1)
+    if (
+      bytes.byteLength > WARN_BYTES &&
+      !window.confirm(
+        `${file.name} is ${megabytes} MB. Large files make the repository slow to download. Add it anyway?`,
       )
-        continue
-      const taken = new Set(session.getState().files(repo))
-      const asset = assetPath(file.name, ext, new Date(), (p) => taken.has(p))
-      await session.getState().apply(repo, [{ path: asset, text: bytes }])
+    )
+      return null
+    const taken = new Set(session.getState().files(repo))
+    const asset = assetPath(file.name, ext, new Date(), (p) => taken.has(p))
+    await session.getState().apply(repo, [{ path: asset, text: bytes }])
+    return asset
+  }
+  const addImages = async (files: File[]) => {
+    for (const file of files) {
+      const asset = await saveImage(file)
+      if (!asset) continue
       const alt = file.name.replace(/\.[^.]*$/, '').replace(/[[\]\\]/g, '') || 'Image'
       handle.current?.insertText(`![${alt}](${destination(asset)})`, true)
     }
   }
+
+  // The leaf's look (line 2): cover and colours. Shown at once, written to the text.
+  const [look, setLook] = useState<{ path: string; meta: LeafMeta } | null>(null)
+  const meta = look?.path === path ? look.meta : (node?.meta ?? null)
+  const changeLook = (update: (meta: LeafMeta) => LeafMeta) => {
+    const next = update(meta ?? {})
+    setLook({ path, meta: next })
+    handle.current?.setMeta(() => next)
+  }
+  const coverPicker = useRef<HTMLInputElement>(null)
   const assetUrl = useCallback((p: string) => session.getState().assetUrl(repo, p), [repo])
   const mentionCreated = (id: string | undefined) => {
     setAction(null)
@@ -201,10 +220,31 @@ export function EditorPage({ params }: { params: { owner: string; name: string; 
             This leaf isn't in the Tree any more. <Link href={treeHref(repo)}>Back to the map</Link>
           </p>
         ) : text?.path === path ? (
-          <article className={styles.column}>
+          <article className={styles.column} style={leafColors(meta)}>
+            <Cover repo={repo} src={meta?.cover} className={styles.cover} />
             <IconPicker
               icon={node?.icon ?? null}
               onPick={(icon) => handle.current?.setIcon(icon)}
+            />
+            <LeafStyle
+              meta={meta}
+              onChange={changeLook}
+              onCover={() => coverPicker.current?.click()}
+            />
+            <input
+              ref={coverPicker}
+              type="file"
+              accept="image/*"
+              hidden
+              aria-label="Choose a cover image"
+              onChange={(e) => {
+                const file = e.target.files?.[0]
+                e.target.value = ''
+                if (file)
+                  void saveImage(file).then(
+                    (asset) => asset && changeLook((m) => ({ ...m, cover: `/${asset}` })),
+                  )
+              }}
             />
             <Suspense fallback={<div className={styles.loading} aria-busy="true" />}>
               <Editor
@@ -248,6 +288,66 @@ export function EditorPage({ params }: { params: { owner: string; name: string; 
           onClose={() => mentionCreated(undefined)}
         />
       )}
+    </div>
+  )
+}
+
+const COLORS = ['', ...ACCENT_IDS] as const
+const colorName = (id: string) => (id ? id[0]!.toUpperCase() + id.slice(1) : 'Default')
+
+/** Cover and colours: what line 2 holds. Colours are names, so they follow every theme. */
+function LeafStyle({
+  meta,
+  onChange,
+  onCover,
+}: {
+  meta: LeafMeta | null
+  onChange(update: (meta: LeafMeta) => LeafMeta): void
+  onCover(): void
+}) {
+  const setColor = (part: 'heading' | 'text', value: string) =>
+    onChange(({ color, ...rest }) => {
+      const next = { ...color, [part]: value || undefined }
+      if (!next.heading) delete next.heading
+      if (!next.text) delete next.text
+      return Object.keys(next).length ? { ...rest, color: next } : rest
+    })
+  return (
+    <div className={styles.look}>
+      <button type="button" className={controls.ghost} onClick={onCover}>
+        {meta?.cover ? 'Change cover' : 'Add cover'}
+      </button>
+      {meta?.cover !== undefined && (
+        <button
+          type="button"
+          className={controls.ghost}
+          onClick={() =>
+            onChange((m) => {
+              const rest = { ...m }
+              delete rest.cover
+              return rest
+            })
+          }
+        >
+          Remove cover
+        </button>
+      )}
+      {(['heading', 'text'] as const).map((part) => (
+        <label key={part} className={styles.color}>
+          {part === 'heading' ? 'Heading colour' : 'Text colour'}
+          <select
+            className={controls.input}
+            value={typeof meta?.color?.[part] === 'string' ? meta.color[part] : ''}
+            onChange={(e) => setColor(part, e.target.value)}
+          >
+            {COLORS.map((id) => (
+              <option key={id} value={id}>
+                {colorName(id)}
+              </option>
+            ))}
+          </select>
+        </label>
+      ))}
     </div>
   )
 }
