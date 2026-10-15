@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseLeaf, withIcon } from './parse'
+import { ownPath, parseLeaf, withIcon, withMeta } from './parse'
 
 describe('title and icon', () => {
   it('reads the title from line 1', () => {
@@ -177,5 +177,59 @@ describe('withIcon', () => {
 
   it('adds a title line when there is none', () => {
     expect(withIcon('Just text\n', '📚')).toBe('# 📚 Untitled\n\nJust text\n')
+  })
+})
+
+describe('ownPath', () => {
+  it('reads a root-relative destination as a path in this repository', () => {
+    expect(ownPath('/assets/2026-10-14-diagram.png')).toBe('assets/2026-10-14-diagram.png')
+    expect(ownPath('</assets/my diagram.png>')).toBe('assets/my diagram.png')
+    expect(ownPath('/assets/my%20diagram.png')).toBe('assets/my diagram.png')
+  })
+
+  it('leaves other destinations alone', () => {
+    expect(ownPath('https://example.com/a.png')).toBeNull()
+    expect(ownPath('//cdn.example.com/a.png')).toBeNull()
+    expect(ownPath('assets/relative.png')).toBeNull()
+  })
+})
+
+describe('withMeta: line 2, the metadata comment', () => {
+  it('survives a round trip byte for byte, whatever its spacing and keys', () => {
+    const text =
+      '# 🔐 Keycloak\r\n<!-- yeraz { "cover": "/assets/c.png" ,"x-later":[1,2] } -->\r\n\r\nBody\r\n'
+    expect(withMeta(text, parseLeaf(text).meta)).toBe(text)
+  })
+
+  it('writes changed metadata on line 2, keeping keys it doesn’t know and the line endings', () => {
+    const text = '# Keycloak\r\n<!-- yeraz {"x-later":true} -->\r\nBody\r\n'
+    const meta = { ...parseLeaf(text).meta, color: { heading: 'amber' } }
+    expect(withMeta(text, meta)).toBe(
+      '# Keycloak\r\n<!-- yeraz {"x-later":true,"color":{"heading":"amber"}} -->\r\nBody\r\n',
+    )
+  })
+
+  it('adds line 2 when there is none, and removes it when nothing is left', () => {
+    const plain = '# Keycloak\n\nBody\n'
+    const styled = withMeta(plain, { cover: '/assets/c.png' })
+    expect(styled).toBe('# Keycloak\n<!-- yeraz {"cover":"/assets/c.png"} -->\n\nBody\n')
+    expect(parseLeaf(styled)).toMatchObject({ title: 'Keycloak', meta: { cover: '/assets/c.png' } })
+    expect(withMeta(styled, {})).toBe(plain)
+    expect(withMeta(styled, null)).toBe(plain)
+  })
+
+  it('keeps the title line, adding one to text without it', () => {
+    expect(withMeta('# T', { cover: 'x' })).toBe('# T\n<!-- yeraz {"cover":"x"} -->')
+    expect(withMeta('Just text\n', { cover: 'x' })).toBe(
+      '# Untitled\n<!-- yeraz {"cover":"x"} -->\n\nJust text\n',
+    )
+  })
+
+  it('never writes "-->" inside the comment', () => {
+    const line = withMeta('# T\n', { cover: 'https://e.com/a-->b' }).split('\n')[1]!
+    expect(line.indexOf('-->')).toBe(line.length - 3)
+    expect(parseLeaf(withMeta('# T\n', { cover: 'https://e.com/a-->b' })).meta).toEqual({
+      cover: 'https://e.com/a-->b',
+    })
   })
 })

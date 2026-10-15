@@ -9,3 +9,4 @@ playwright-report/
 blob-report/
 fixtures-out/
 .DS_Store
+.claude/worktrees/

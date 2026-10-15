@@ -116,15 +116,15 @@ export async function lookupTree(client: GitHubClient, repo: string): Promise<Tr
 
 export interface FileWrite {
   path: string
-  /** UTF-8 text; null deletes the file. */
-  text: string | null
+  /** UTF-8 text, or bytes (images); null deletes the file. */
+  text: string | Uint8Array | null
 }
 
 const encoder = new TextEncoder()
 
-/** UTF-8 text as base64, in chunks so long files don't overflow the call stack. */
-export function toBase64(text: string): string {
-  const bytes = encoder.encode(text)
+/** Text (as UTF-8) or bytes as base64, in chunks so big files don't overflow the call stack. */
+export function toBase64(content: string | Uint8Array): string {
+  const bytes = typeof content === 'string' ? encoder.encode(content) : content
   let binary = ''
   for (let i = 0; i < bytes.length; i += 0x8000)
     binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000))

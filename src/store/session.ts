@@ -17,11 +17,12 @@ import { buildGraph, type Graph } from '../model/graph'
 import type { ParsedLeaf } from '../model/parse'
 import { gitBlobSha } from '../model/sha'
 import { buildTree } from '../model/tree'
+import { assetBytes, mimeOf } from '../sync/assets'
 import { createAutosave, type Autosave } from '../sync/autosave'
 import { isLocal, overlay } from '../sync/overlay'
 import { fillContent, pullTree, type CachedListing } from '../sync/pull'
 import { pushTree, type Dirty } from '../sync/push'
-import type { FileChange } from '../sync/structure'
+import { sameContent, type FileChange } from '../sync/structure'
 import { openStore, type KeyValueStore } from './db'
 
 export type TreeData =
@@ -58,6 +59,10 @@ export interface SessionState {
   open(repo: string): Promise<void>
   /** A leaf's current text: the pending edit, or the committed version. */
   textOf(repo: string, path: string): Promise<string>
+  /** A URL showing an attachment (`assets/…`), or null when the Tree has no such file. */
+  assetUrl(repo: string, path: string): Promise<string | null>
+  /** Every file path in an open Tree, pending edits included. */
+  files(repo: string): string[]
   /** Records edits (text, or null to delete); they are committed by the autosave. */
   apply(repo: string, changes: readonly FileChange[]): Promise<void>
   /** Commits a Tree's pending edits now. */
@@ -114,6 +119,8 @@ export function createSession(deps: {
   const bases = new Map<string, Base>()
   const dirty = new Map<string, Dirty>()
   const autosaves = new Map<string, Autosave>()
+  // ponytail: object URLs live as long as the page; revoke them if memory ever matters.
+  const urls = new Map<string | Uint8Array, string>()
   let client: GitHubClient | null = null
 
   return createStore<SessionState>()((set, get) => {
@@ -171,7 +178,7 @@ export function createSession(deps: {
         for (const [path, sent] of Object.entries(snapshot)) {
           const now = current[path]
           if (!now) continue
-          if (now.text === sent.text) delete current[path]
+          if (sameContent(now.text, sent.text)) delete current[path]
           else now.base = sent.text === null ? null : await gitBlobSha(sent.text)
         }
         await saveDirty(key)
@@ -386,11 +393,38 @@ export function createSession(deps: {
         // The map can show a Tree's structure before its content arrives: wait for it.
         await pulls.get(key)
         const pending = (await loadDirty(key))[path]
-        if (pending && pending.text !== null) return pending.text
+        if (typeof pending?.text === 'string') return pending.text
         const sha = bases.get(key)?.entries.find((e) => e.path === path)?.sha
         const text = sha && !isLocal(sha) ? await store.get<string>(`blob:${sha}`) : undefined
         if (text === undefined) throw new Error(`No text for ${path}`)
         return text
+      },
+
+      async assetUrl(repo, path) {
+        const key = repo.toLowerCase()
+        await pulls.get(key)
+        const pending = (await loadDirty(key))[path]?.text
+        const sha = bases.get(key)?.entries.find((e) => e.path === path)?.sha
+        const id = pending instanceof Uint8Array ? pending : sha && !isLocal(sha) ? sha : null
+        if (id === null) return null
+        let url = urls.get(id)
+        if (!url) {
+          const bytes =
+            id instanceof Uint8Array ? id : await assetBytes(repo, id, { client: github(), store })
+          url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: mimeOf(path) }))
+          urls.set(id, url)
+        }
+        return url
+      },
+
+      files(repo) {
+        const key = repo.toLowerCase()
+        const pending = dirty.get(key) ?? {}
+        const committed = (bases.get(key)?.entries ?? [])
+          .filter((e) => e.type === 'blob' && !(e.path in pending))
+          .map((e) => e.path)
+        const added = Object.entries(pending).filter(([, f]) => f.text !== null)
+        return [...committed, ...added.map(([path]) => path)]
       },
 
       async apply(repo, changes) {

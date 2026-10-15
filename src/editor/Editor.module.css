@@ -3,7 +3,7 @@
 
 .editor :global(.cm-editor) {
   background: transparent;
-  color: var(--text-body);
+  color: var(--leaf-text, var(--text-body));
   font-size: 15.5px;
 }
 .editor :global(.cm-editor.cm-focused) {
@@ -57,7 +57,7 @@
 .editor :global(.cm-line.cm-h6) {
   font-family: var(--font-ui);
   font-weight: 600;
-  color: var(--tree, var(--accent));
+  color: var(--leaf-heading, var(--tree, var(--accent)));
   padding-top: 10px;
 }
 .editor :global(.cm-line.cm-h1:not(.cm-title)) {
@@ -95,6 +95,12 @@
   background: var(--accent-soft);
   color: var(--accent);
   font-family: var(--font-ui);
+}
+.editor :global(.cm-mention[data-path]) {
+  cursor: pointer;
+}
+.editor :global(.cm-mention[data-before])::before {
+  content: attr(data-before);
 }
 .editor :global(.cm-list-mark) {
   color: var(--muted);
@@ -138,32 +144,106 @@
   border-radius: 8px;
 }
 
-/* Code highlighting: Lezer's token classes, in theme colours. */
-.editor :global(.tok-keyword),
-.editor :global(.tok-operator) {
-  color: var(--c-violet);
-}
-.editor :global(.tok-string),
-.editor :global(.tok-string2) {
-  color: var(--c-green);
-}
-.editor :global(.tok-number),
-.editor :global(.tok-bool),
-.editor :global(.tok-atom) {
-  color: var(--c-amber);
-}
-.editor :global(.tok-comment) {
-  color: var(--faint);
-  font-style: italic;
-}
-.editor :global(.tok-variableName.tok-definition),
-.editor :global(.tok-typeName),
-.editor :global(.tok-className) {
-  color: var(--c-blue);
-}
-
 /* Show Markdown: the text as it is, in the monospace font. */
 .editor[data-source] :global(.cm-scroller) {
   font-family: var(--font-mono);
   font-size: 13.5px;
+}
+
+/* The @ mention list: CodeMirror's tooltip in the theme's colours. */
+.editor :global(.cm-tooltip.cm-tooltip-autocomplete) {
+  border: 1px solid var(--hair-strong);
+  border-radius: 10px;
+  background: var(--raised);
+  box-shadow: 0 16px 40px var(--shadow);
+  overflow: hidden;
+  font-family: var(--font-ui);
+}
+.editor :global(.cm-tooltip-autocomplete > ul) {
+  max-height: 280px;
+  font-family: var(--font-ui);
+}
+.editor :global(.cm-tooltip-autocomplete > ul > li) {
+  padding: 6px 12px;
+  color: var(--text);
+}
+.editor :global(.cm-tooltip-autocomplete > ul > li[aria-selected]) {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.editor :global(.cm-completionDetail) {
+  margin-left: 10px;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.8em;
+  font-style: normal;
+}
+.editor :global(.cm-completionMatchedText) {
+  text-decoration: none;
+  font-weight: 600;
+}
+
+/* The insert menu (hold Ctrl/Cmd for 2 s, or / and long-press on touch screens). */
+.editor :global(.cm-tooltip:has(.cm-insert-menu)) {
+  border: 0;
+  background: none;
+}
+.editor :global(.cm-insert-menu) {
+  display: flex;
+  flex-direction: column;
+  min-width: 200px;
+  padding: 6px;
+  border: 1px solid var(--hair-strong);
+  border-radius: 10px;
+  background: var(--raised);
+  box-shadow: 0 16px 40px var(--shadow);
+  font-family: var(--font-ui);
+}
+.editor :global(.cm-insert-menu button) {
+  min-height: 36px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+.editor :global(.cm-insert-menu button:hover),
+.editor :global(.cm-insert-menu button:focus-visible) {
+  outline: none;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+@media (pointer: coarse) {
+  .editor :global(.cm-insert-menu button) {
+    min-height: 44px;
+  }
+}
+
+/* Math and embeds in live preview (the line with the cursor shows their Markdown). */
+.editor :global(.cm-math-display) {
+  display: block;
+  overflow-x: auto;
+  text-align: center;
+}
+.editor :global(.cm-embed) {
+  display: block;
+  margin: 6px 0;
+}
+.editor :global(.cm-embed iframe),
+.editor :global(.cm-embed video) {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border: 0;
+  border-radius: 9px;
+  background: var(--bg);
+}
+.editor :global(.cm-embed-pdf iframe) {
+  aspect-ratio: auto;
+  height: min(70vh, 800px);
+  border: 1px solid var(--hair);
 }

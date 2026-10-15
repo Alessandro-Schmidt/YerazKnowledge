@@ -7,9 +7,20 @@ import { slugify } from '../model/slug'
 import { ROOT } from '../model/tree'
 
 /** A file to write, or to delete when `text` is null. */
+/** A file's contents: a leaf's text, or the bytes of an image or other attachment. */
+export type Content = string | Uint8Array
+
+export const sameContent = (a: Content | null, b: Content | null) =>
+  a === b ||
+  (a instanceof Uint8Array &&
+    b instanceof Uint8Array &&
+    a.length === b.length &&
+    a.every((byte, i) => byte === b[i]))
+
 export interface FileChange {
   path: string
-  text: string | null
+  /** The new contents; null when the file is deleted. */
+  text: Content | null
 }
 
 export class StructureError extends Error {}

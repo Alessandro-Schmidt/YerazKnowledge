@@ -144,6 +144,47 @@ describe('pushTree', () => {
     expect(repo.read('identity/keycloak.conflict-2026-10-15.md')).toBe(ours)
   })
 
+  it('commits an image byte for byte with the leaf that shows it, in one request', async () => {
+    const store = await setUp()
+    const png = Uint8Array.from({ length: 300 }, (_, i) => (i * 37) % 256)
+    const text = `${KEYCLOAK}\n![Realm diagram](/assets/2026-10-15-realm-diagram.png)\n`
+    await pushTree(
+      ref,
+      {
+        'assets/2026-10-15-realm-diagram.png': { text: png, base: null },
+        'identity/keycloak.md': { text, base: await gitBlobSha(KEYCLOAK) },
+      },
+      { client, store },
+    )
+    expect(fake.log.filter((e) => e.operation === 'mutation')).toHaveLength(1)
+    const repo = fake.repo('you/eng')
+    const sha = repo.head!.files.get('assets/2026-10-15-realm-diagram.png')!
+    expect(sha).toBe(await gitBlobSha(png))
+    expect(repo.blobs.get(sha)).toEqual(png)
+    expect(repo.head!.message).toBe(
+      'Update 2 files\n\nAdd assets/2026-10-15-realm-diagram.png\nUpdate identity/keycloak.md',
+    )
+    // Cached by SHA, so showing it never downloads it.
+    expect(await store.get(`asset:${sha}`)).toEqual(png)
+  })
+
+  it('keeps an image as it is when another device committed first', async () => {
+    const store = await setUp()
+    fake.faults.pushBeforeNextCommit = {
+      message: 'phone',
+      additions: [{ path: 'welcome.md', contents: '# Welcome, phone\n' }],
+    }
+    const png = new Uint8Array([137, 80, 78, 71, 0, 1, 2])
+    const pushed = await pushTree(
+      ref,
+      { 'assets/dot.png': { text: png, base: null } },
+      { client, store },
+    )
+    expect(pushed.conflicts).toEqual([])
+    const repo = fake.repo('you/eng')
+    expect(repo.blobs.get(repo.head!.files.get('assets/dot.png')!)).toEqual(png)
+  })
+
   it('throws a network error offline, keeping nothing half-done', async () => {
     const store = await setUp()
     fake.faults.offline = true

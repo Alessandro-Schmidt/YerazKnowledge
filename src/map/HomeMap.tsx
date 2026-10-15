@@ -4,7 +4,7 @@
 import { packEnclose, packSiblings } from 'd3-hierarchy'
 import { memo, useId, useLayoutEffect, useMemo, useRef, type CSSProperties } from 'react'
 import type { TreeRef } from '../github/graphql'
-import { compactWords, type Graph } from '../model/graph'
+import { compactWords, treeThreads, type Graph } from '../model/graph'
 import controls from '../ui/controls.module.css'
 import { Icon } from '../ui/icons'
 import { colorVar } from '../ui/theme'
@@ -56,7 +56,21 @@ export function HomeMap({
       c.x -= enclosing.x
       c.y -= enclosing.y
     }
-    return { circles, extent: enclosing.r }
+    // Threads between Trees: dashed curves between cores, bowed to one side, so the two
+    // directions between a pair don't overlap (ARCHITECTURE.md §6).
+    const at = new Map(circles.map((c) => [c.tree.repo, c]))
+    const between = treeThreads(entries.map((e) => ({ repo: e.tree.repo, graph: e.graph }))).map(
+      (t) => {
+        const a = at.get(t.from)!
+        const b = at.get(t.to)!
+        const bow = 0.18
+        const cx = (a.x + b.x) / 2 - (b.y - a.y) * bow
+        const cy = (a.y + b.y) / 2 + (b.x - a.x) * bow
+        const label = `${a.tree.title} → ${b.tree.title} · ${t.count} thread${t.count === 1 ? '' : 's'}`
+        return { ...t, label, d: `M${a.x},${a.y} Q${cx},${cy} ${b.x},${b.y}` }
+      },
+    )
+    return { circles, between, extent: enclosing.r }
   }, [entries])
 
   const count = placed.circles.length
@@ -88,6 +102,16 @@ export function HomeMap({
         </defs>
         <rect width="100%" height="100%" fill={`url(#${CSS.escape(gridId)})`} />
         <g ref={cameraRef} className={styles.camera}>
+          {placed.between.map((t) => (
+            <path
+              key={`${t.from}>${t.to}`}
+              className={ui.between}
+              d={t.d}
+              data-between={`${t.from}>${t.to}`}
+            >
+              <title>{t.label}</title>
+            </path>
+          ))}
           {placed.circles.map((c) => (
             <g
               key={c.tree.repo}
