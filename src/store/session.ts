@@ -24,6 +24,7 @@ import { fillContent, pullTree, type CachedListing } from '../sync/pull'
 import { pushTree, type Dirty } from '../sync/push'
 import { sameContent, type FileChange } from '../sync/structure'
 import { openStore, type KeyValueStore } from './db'
+import { desktopInvoke, tokenStore, type TokenStore } from './token'
 
 export type TreeData =
   | { status: 'loading'; graph: Graph | null; fetched: number; total: number }
@@ -73,7 +74,7 @@ export interface SessionState {
   dismissConflict(repo: string): void
 }
 
-const KEYS = { token: 'session:token', trees: 'session:trees', connected: 'session:connected' }
+const KEYS = { trees: 'session:trees', connected: 'session:connected' }
 const dirtyKey = (repo: string) => `dirty:${repo.toLowerCase()}`
 
 export function describeError(e: unknown): {
@@ -110,10 +111,13 @@ interface Base {
 
 export function createSession(deps: {
   store: KeyValueStore
+  /** Where the token is kept: the key/value store, or the keychain in the desktop app. */
+  tokens?: TokenStore
   api?: () => string
   autosaveDelay?: number
 }): StoreApi<SessionState> {
   const { store } = deps
+  const tokens = deps.tokens ?? tokenStore(store)
   const api = deps.api ?? (() => 'https://api.github.com')
   const pulls = new Map<string, Promise<void>>()
   const bases = new Map<string, Base>()
@@ -228,10 +232,7 @@ export function createSession(deps: {
       sync: {},
 
       async start() {
-        const [token, trees] = await Promise.all([
-          store.get<string>(KEYS.token),
-          store.get<TreeRef[]>(KEYS.trees),
-        ])
+        const [token, trees] = await Promise.all([tokens.get(), store.get<TreeRef[]>(KEYS.trees)])
         set({ phase: token ? 'signed-in' : 'signed-out', token: token ?? null, trees: trees ?? [] })
       },
 
@@ -240,7 +241,7 @@ export function createSession(deps: {
         set({ token: token.trim() })
         try {
           const found = await discoverTrees(client)
-          await store.set(KEYS.token, token.trim())
+          await tokens.set(token.trim())
           await saveTrees(found)
           set({ phase: 'signed-in', discovery: 'done' })
         } catch (e) {
@@ -258,7 +259,7 @@ export function createSession(deps: {
         pulls.clear()
         bases.clear()
         dirty.clear()
-        await Promise.all([store.set(KEYS.token, undefined), store.set(KEYS.trees, undefined)])
+        await Promise.all([tokens.set(undefined), store.set(KEYS.trees, undefined)])
         set({ phase: 'signed-out', token: null, trees: [], data: {}, sync: {}, discovery: 'idle' })
       },
 
@@ -465,5 +466,9 @@ export function createSession(deps: {
 }
 
 const appStore = openStore()
-export const session = createSession({ store: appStore, api: githubApi })
+export const session = createSession({
+  store: appStore,
+  tokens: tokenStore(appStore, desktopInvoke),
+  api: githubApi,
+})
 export const useSession = <T>(selector: (s: SessionState) => T): T => useStore(session, selector)
