@@ -41,6 +41,12 @@ export function App() {
     }
   }, [])
 
+  // Browsers can evict IndexedDB under storage pressure, and it holds the pending edits:
+  // ask to keep it once someone is signed in (ARCHITECTURE.md §11).
+  useEffect(() => {
+    if (phase === 'signed-in') void navigator.storage?.persist?.().catch(() => false)
+  }, [phase])
+
   if (phase === 'starting') return null
   if (phase === 'signed-out') return <TokenScreen />
   return (
