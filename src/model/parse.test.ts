@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseLeaf, withIcon } from './parse'
+import { ownPath, parseLeaf, withIcon } from './parse'
 
 describe('title and icon', () => {
   it('reads the title from line 1', () => {
@@ -177,5 +177,19 @@ describe('withIcon', () => {
 
   it('adds a title line when there is none', () => {
     expect(withIcon('Just text\n', '📚')).toBe('# 📚 Untitled\n\nJust text\n')
+  })
+})
+
+describe('ownPath', () => {
+  it('reads a root-relative destination as a path in this repository', () => {
+    expect(ownPath('/assets/2026-10-14-diagram.png')).toBe('assets/2026-10-14-diagram.png')
+    expect(ownPath('</assets/my diagram.png>')).toBe('assets/my diagram.png')
+    expect(ownPath('/assets/my%20diagram.png')).toBe('assets/my diagram.png')
+  })
+
+  it('leaves other destinations alone', () => {
+    expect(ownPath('https://example.com/a.png')).toBeNull()
+    expect(ownPath('//cdn.example.com/a.png')).toBeNull()
+    expect(ownPath('assets/relative.png')).toBeNull()
   })
 })

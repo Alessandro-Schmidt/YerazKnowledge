@@ -67,15 +67,25 @@ function parseMeta(line: string | undefined): LeafMeta | null {
   }
 }
 
+/** A destination as written, without angle brackets or percent-encoding. */
+function plainUrl(destination: string): string {
+  const url = destination.startsWith('<') ? destination.slice(1, -1) : destination
+  try {
+    return decodeURI(url)
+  } catch {
+    return url
+  }
+}
+
+/** The repository path of a root-relative destination (`/assets/a.png`), or null. */
+export function ownPath(destination: string): string | null {
+  const url = plainUrl(destination)
+  return url.startsWith('/') && !url.startsWith('//') ? url.slice(1) : null
+}
+
 /** Where a link destination points, if it is a leaf here or in another Tree. */
 export function linkTarget(destination: string): LeafLink | null {
-  let url = destination.startsWith('<') ? destination.slice(1, -1) : destination
-  try {
-    url = decodeURI(url)
-  } catch {
-    // Keep it as written.
-  }
-  url = url.replace(/[?#].*$/, '')
+  const url = plainUrl(destination).replace(/[?#].*$/, '')
   if (!url.endsWith('.md')) return null
   if (url.startsWith('/') && !url.startsWith('//')) return { path: url.slice(1), repo: null }
   const other = GITHUB_FILE.exec(url)

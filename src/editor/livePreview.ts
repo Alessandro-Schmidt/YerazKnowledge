@@ -3,7 +3,7 @@
 // shows its Markdown. "Show Markdown" turns this extension off: same editor, same text.
 
 import { syntaxTree } from '@codemirror/language'
-import { RangeSetBuilder, type EditorState, type Range } from '@codemirror/state'
+import { Facet, RangeSetBuilder, type EditorState, type Range } from '@codemirror/state'
 import {
   Decoration,
   EditorView,
@@ -12,7 +12,7 @@ import {
   type DecorationSet,
   type ViewUpdate,
 } from '@codemirror/view'
-import { leadingIcon, linkTarget, META } from '../model/parse'
+import { leadingIcon, linkTarget, META, ownPath } from '../model/parse'
 import { mentionSource } from './mentions'
 
 /** The title's icon with the space after it, so both can be hidden. */
@@ -41,10 +41,17 @@ class CheckboxWidget extends WidgetType {
   }
 }
 
+/** URLs for the Tree's own files (`/assets/…`): private repositories need the token. */
+export const assetSource = Facet.define<
+  (path: string) => Promise<string | null>,
+  ((path: string) => Promise<string | null>) | null
+>({ combine: (values) => values[0] ?? null })
+
 class ImageWidget extends WidgetType {
   constructor(
     readonly src: string,
     readonly alt: string,
+    readonly resolve: ((path: string) => Promise<string | null>) | null,
   ) {
     super()
   }
@@ -53,7 +60,9 @@ class ImageWidget extends WidgetType {
   }
   toDOM() {
     const img = document.createElement('img')
-    img.src = this.src
+    const own = ownPath(this.src)
+    if (own === null) img.src = this.src
+    else void this.resolve?.(own).then((url) => url && (img.src = url))
     img.alt = this.alt
     img.className = 'cm-image'
     img.loading = 'lazy'
@@ -174,7 +183,11 @@ function build(view: EditorView): DecorationSet {
             if (url) {
               decorations.push(
                 Decoration.replace({
-                  widget: new ImageWidget(state.sliceDoc(url.from, url.to), alt),
+                  widget: new ImageWidget(
+                    state.sliceDoc(url.from, url.to),
+                    alt,
+                    state.facet(assetSource),
+                  ),
                 }).range(node.from, node.to),
               )
             }

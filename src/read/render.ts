@@ -3,7 +3,7 @@
 // never run. Links to leaves become @ chips that open the leaf in the app.
 
 import type MarkdownItClass from 'markdown-it'
-import { HEADING, linkTarget, META, stripBom } from '../model/parse'
+import { HEADING, linkTarget, META, ownPath, stripBom } from '../model/parse'
 
 export interface RenderContext {
   /** In-app href for a leaf of this Tree, or null when there is no such leaf. */
@@ -29,6 +29,20 @@ function load(): Promise<MarkdownIt> {
         }
       }
     })
+    // The Tree's own images (`/assets/…`) need the token in private repositories: the
+    // read view fills in `src` from the blob cache (hydrateAssets).
+    const renderImage = md.renderer.rules.image!
+    md.renderer.rules.image = (tokens, i, options, env, self) => {
+      const token = tokens[i]!
+      const own = ownPath(String(token.attrGet('src') ?? ''))
+      if (own !== null) {
+        token.attrs = token.attrs?.filter(([name]) => name !== 'src') ?? null
+        token.attrSet('data-asset', own)
+      }
+      token.attrSet('loading', 'lazy')
+      token.attrSet('decoding', 'async')
+      return renderImage(tokens, i, options, env, self)
+    }
     const renderLink =
       md.renderer.rules.link_open ??
       ((tokens, i, options, _env, self) => self.renderToken(tokens, i, options))

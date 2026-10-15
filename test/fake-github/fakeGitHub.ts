@@ -2,6 +2,7 @@
 // It implements exactly what Yeraz uses (development-plan.md §5.1):
 //   GET  /repos/{o}/{r}/commits/{ref}                    head SHA (vnd.github.sha), ETags and 304s
 //   GET  /repos/{o}/{r}/git/trees/{ref}[?recursive=1]   ETags and 304s
+//   GET  /repos/{o}/{r}/git/blobs/{sha}                  images: raw bytes (vnd.github.raw+json)
 //   POST /graphql   object(oid:) / object(expression:), defaultBranchRef,
 //                   viewer.repositories (discovery), createCommitOnBranch
 //   POST /user/repos
@@ -22,14 +23,14 @@ export interface FakeRequest {
 export interface FakeResponse {
   status: number
   headers: Record<string, string>
-  body: string | null
+  body: string | Uint8Array | null
 }
 
 export interface LogEntry {
   method: string
   path: string
   status: number
-  kind: 'head' | 'tree' | 'graphql' | 'create-repo' | 'unknown'
+  kind: 'head' | 'tree' | 'blob' | 'graphql' | 'create-repo' | 'unknown'
   /** GraphQL only. */
   operation?: 'query' | 'mutation'
   /** Number of blob texts returned. */
@@ -194,6 +195,40 @@ export function createFakeGitHub(options: { login?: string; tokens?: string[] } 
         url: `${base}/trees/${treeSha}`,
         tree: entries.map((e) => ({ ...e, url: `${base}/${e.type}s/${e.sha}` })),
         truncated,
+      },
+      cache,
+    )
+  }
+
+  // ---------- REST: git blobs (images; leaf texts come through GraphQL) ----------
+
+  function getBlob(
+    owner: string,
+    name: string,
+    sha: string,
+    req: FakeRequest,
+    authed: boolean,
+  ): FakeResponse {
+    const repo = visibleRepo(owner, name, authed)
+    const bytes = repo?.blobs.get(sha)
+    if (!repo || !bytes) return restError(404, 'Not Found')
+    const cache = { etag: `"${sha}"`, 'cache-control': 'private, max-age=60, s-maxage=60' }
+    if ((req.headers['accept'] ?? '').includes('application/vnd.github.raw')) {
+      return {
+        status: 200,
+        headers: { ...CORS, ...cache, 'content-type': 'application/octet-stream' },
+        body: bytes,
+      }
+    }
+    const content = btoa(Array.from(bytes, (b) => String.fromCharCode(b)).join(''))
+    return json(
+      200,
+      {
+        sha,
+        size: bytes.byteLength,
+        url: `${API}/repos/${repo.nameWithOwner}/git/blobs/${sha}`,
+        content: content.replace(/.{60}/g, '$&\n'),
+        encoding: 'base64',
       },
       cache,
     )
@@ -524,16 +559,19 @@ export function createFakeGitHub(options: { login?: string; tokens?: string[] } 
 
     const tree = url.pathname.match(/^\/repos\/([^/]+)\/([^/]+)\/git\/trees\/(.+)$/)
     const head = url.pathname.match(/^\/repos\/([^/]+)\/([^/]+)\/commits\/([^/]+)$/)
+    const blob = url.pathname.match(/^\/repos\/([^/]+)\/([^/]+)\/git\/blobs\/([0-9a-f]{40})$/)
     const kind: LogEntry['kind'] =
       method === 'GET' && head
         ? 'head'
         : method === 'GET' && tree
           ? 'tree'
-          : method === 'POST' && url.pathname === '/graphql'
-            ? 'graphql'
-            : method === 'POST' && url.pathname === '/user/repos'
-              ? 'create-repo'
-              : 'unknown'
+          : method === 'GET' && blob
+            ? 'blob'
+            : method === 'POST' && url.pathname === '/graphql'
+              ? 'graphql'
+              : method === 'POST' && url.pathname === '/user/repos'
+                ? 'create-repo'
+                : 'unknown'
     const entry: LogEntry = { method, path: url.pathname + url.search, status: 0, kind, blobs: 0 }
     log.push(entry)
 
@@ -562,6 +600,9 @@ export function createFakeGitHub(options: { login?: string; tokens?: string[] } 
         request,
         auth === true,
       )
+    } else if (kind === 'blob') {
+      const [, owner, name, sha] = blob!
+      response = getBlob(owner!, name!, sha!, request, auth === true)
     } else if (kind === 'graphql') {
       if (!auth) {
         response = json(401, {

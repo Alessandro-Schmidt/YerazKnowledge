@@ -41,7 +41,7 @@ This document was written with two lenses: **performance** and **least code**. M
 │  Model   in-memory index: leaves, branches, threads (derived, never saved)  │
 │  Store   IndexedDB: blobs by SHA · parsed leaves by SHA · dirty files ·     │
 │          last tree + ETag per Tree                                          │
-│  Sync    GitHub REST (2 endpoints) + GraphQL (3 operations)                 │
+│  Sync    GitHub REST (4 endpoints) + GraphQL (3 operations)                 │
 └───────────────────────────────────┬────────────────────────────────────────┘
                                     │ HTTPS, user's token
                                     ▼
@@ -184,9 +184,11 @@ Every image a user sees should be sharp on any screen, including 2× and 3× dis
 - **Images people add** (paste, drop or pick):
   - **Committed unchanged** when the long edge is 4096 px or less and the format is PNG, JPEG, WebP, GIF or SVG. No re-encoding means no quality loss.
   - **Larger images** are scaled down to 4096 px on the long edge, the most a full-width image needs on a 2× display up to 2048 px wide. Photos are saved as WebP at quality 92. Screenshots, diagrams and images with transparency are saved as lossless WebP so text and edges stay crisp.
-  - **Never upscaled.**
+  - **Never upscaled.** SVG (a vector) and GIF (possibly animated) are always committed as they are.
+  - Images go into the same commit as the leaf that shows them; they are never merged, since their names (date and slug) are unique.
 - **Display:**
   - The browser shows the original image, scaled by CSS. Browsers resample well, and the full pixel density is kept on high-resolution screens.
+  - The Tree's own images are fetched the first time they are shown, with `GET /repos/{owner}/{repo}/git/blobs/{sha}` and the raw media type, and kept in IndexedDB by blob SHA. Private repositories need the token, so they are shown through blob URLs.
   - Images load with `loading="lazy"` and `decoding="async"`, so they don't slow down opening a leaf.
   - Smaller display copies, cached by blob SHA, are planned only if a phone memory or speed budget fails.
 - **Covers from Unsplash:** store the photo's URL. When displaying it, request the width the slot needs multiplied by the device's pixel ratio; Unsplash resizes images from URL parameters. Covers then stay sharp on any screen without storing large files.
@@ -241,7 +243,7 @@ Every image a user sees should be sharp on any screen, including 2× and 3× dis
 | `createCommitOnBranch` | The blob → tree → commit → ref sequence in the REST Git API | Three of four requests, plus built-in conflict detection |
 | Sibling folders, fixed filenames, root-relative links | README promotion, title-based names, relative links | Multi-file rewrites on everyday edits |
 | d3 for layout, bundling, zoom and packing | Custom geometry | Hundreds of lines |
-| Plain `fetch` | Octokit | Bundle size; the app uses 3 REST endpoints and 3 GraphQL operations |
+| Plain `fetch` | Octokit | Bundle size; the app uses 4 REST endpoints and 3 GraphQL operations |
 | Discovery by marker file | A settings store that syncs across devices | A settings service |
 | Themes are CSS variables generated from one JSON file | A theming library or CSS-in-JS | A runtime dependency, and a re-render on every theme switch |
 
@@ -271,11 +273,11 @@ src/
   model/    parse.ts · tree.ts (paths → hierarchy, sibling-folder rule)
             graph.ts (titles, word totals, threads, backlinks)
             links.ts (find and rewrite) · sha.ts (git blob SHA)
-  sync/     pull.ts · push.ts · merge.ts · autosave.ts
+  sync/     pull.ts · push.ts · merge.ts · autosave.ts · assets.ts (images by SHA)
             structure.ts (new leaf, branch, move, delete as file changes) · overlay.ts
   map/      layout.ts (d3) · TreeMap.tsx · HomeMap.tsx · Home.tsx · useZoom.ts
   editor/   Editor.tsx · EditorPage.tsx · livePreview.ts · IconPicker.tsx
-            insertMenu.ts · mentions.ts (M3)
+            insertMenu.ts · mentions.ts · images.ts (scale, encode)
   read/     render.ts (markdown-it) · Peek.tsx · print.css
   ui/       App.tsx (routes) · TopBar.tsx · TokenScreen.tsx · TreeView.tsx
             Explorer.tsx · Appearance.tsx

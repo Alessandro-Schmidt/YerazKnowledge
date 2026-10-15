@@ -1,7 +1,7 @@
 // The Peek: a partial view of the selected node, floating over the map (420 px), or the
 // full read page when expanded (760 px column). On phones it is a bottom sheet.
 
-import { useEffect, useLayoutEffect, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { TreeRef } from '../github/graphql'
 import { compactWords, crumbs, type Graph } from '../model/graph'
 import { ROOT } from '../model/tree'
@@ -357,8 +357,23 @@ function LeafBody({
     }
   }, [repo, id, sha, graph, href])
 
+  // The Tree's own files (images, PDFs, videos) come from the blob cache, with the token.
+  const body = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    for (const el of body.current?.querySelectorAll<HTMLElement>('[data-asset]') ?? []) {
+      void session
+        .getState()
+        .assetUrl(repo, el.dataset.asset!)
+        .then((url) => url && el.setAttribute('src', url))
+    }
+  }, [html, repo])
+
   if (html?.sha !== sha) return <div className={styles.loading} aria-busy="true" />
   return (
-    <div className={`reading ${styles.content}`} dangerouslySetInnerHTML={{ __html: html.html }} />
+    <div
+      ref={body}
+      className={`reading ${styles.content}`}
+      dangerouslySetInnerHTML={{ __html: html.html }}
+    />
   )
 }
