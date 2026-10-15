@@ -32,7 +32,7 @@ const KEYCLOAK = 'Identity/keycloak.md'
 
 async function matches(page: Page, name: string) {
   await page.evaluate(() => document.fonts.ready)
-  await expect(page.getByRole('status').first()).not.toContainText(/Loading|Saving/)
+  await expect(page.getByText(/Loading|Saving/)).toHaveCount(0)
   await page.mouse.move(0, 0)
   await expect(page).toHaveScreenshot(`${name}.png`, { maxDiffPixelRatio: 0.002 })
 }
