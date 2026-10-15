@@ -21,7 +21,7 @@ export default defineConfig({
   // End-to-end tests run against a production build that differs in one switch: VITE_E2E=1
   // lets tests point it at the local fake GitHub (src/github/endpoint.ts).
   webServer: {
-    command: `VITE_E2E=1 npx vite build --outDir dist-e2e && npx vite preview --outDir dist-e2e --port ${PORT} --strictPort`,
+    command: `npx cross-env VITE_E2E=1 vite build --outDir dist-e2e && npx vite preview --outDir dist-e2e --port ${PORT} --strictPort`,
     port: PORT,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
