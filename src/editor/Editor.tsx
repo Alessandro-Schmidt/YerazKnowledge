@@ -11,7 +11,7 @@ import { classHighlighter } from '@lezer/highlight'
 import { useEffect, useRef } from 'react'
 import { withIcon } from '../model/parse'
 import styles from './Editor.module.css'
-import { livePreview } from './livePreview'
+import { assetSource, livePreview } from './livePreview'
 import { insertMenu, type InsertHost } from './insertMenu'
 import { mentions, type MentionSource } from './mentions'
 
@@ -34,6 +34,10 @@ export interface EditorProps {
   mentionsFrom?: MentionSource
   /** Insert menu items the page handles: images, new leaves and branches. */
   onInsert?: InsertHost
+  /** Files pasted or dropped into the text (images). */
+  onFiles?(files: File[]): void
+  /** URLs for the Tree's own files, such as `assets/…` images. */
+  assetUrl?(path: string): Promise<string | null>
 }
 
 export default function Editor({
@@ -44,15 +48,21 @@ export default function Editor({
   autoFocus,
   mentionsFrom,
   onInsert,
+  onFiles,
+  assetUrl,
 }: EditorProps) {
   const host = useRef<HTMLDivElement>(null)
   const view = useRef<EditorView | null>(null)
   const preview = useRef(new Compartment())
   const changed = useRef(onChange)
   const insertRef = useRef(onInsert)
+  const filesRef = useRef(onFiles)
+  const assetRef = useRef(assetUrl)
   useEffect(() => {
     changed.current = onChange
     insertRef.current = onInsert
+    filesRef.current = onFiles
+    assetRef.current = assetUrl
   })
 
   useEffect(() => {
@@ -70,6 +80,25 @@ export default function Editor({
           placeholder('Start writing…'),
           mentionsFrom ? mentions(mentionsFrom) : [],
           insertMenu((kind, v) => insertRef.current?.(kind, v)),
+          assetSource.of(async (path) => (await assetRef.current?.(path)) ?? null),
+          EditorView.domEventHandlers({
+            paste(event) {
+              const files = [...(event.clipboardData?.files ?? [])]
+              if (!files.length || !filesRef.current) return false
+              event.preventDefault()
+              filesRef.current(files)
+              return true
+            },
+            drop(event, v) {
+              const files = [...(event.dataTransfer?.files ?? [])]
+              if (!files.length || !filesRef.current) return false
+              event.preventDefault()
+              const at = v.posAtCoords({ x: event.clientX, y: event.clientY })
+              if (at !== null) v.dispatch({ selection: { anchor: at } })
+              filesRef.current(files)
+              return true
+            },
+          }),
           preview.current.of(source ? [] : livePreview),
           EditorView.updateListener.of((u) => {
             if (u.docChanged) changed.current(u.state.doc.toString())

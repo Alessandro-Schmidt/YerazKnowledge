@@ -1,7 +1,8 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation } from 'wouter'
 import type { GraphNode } from '../model/graph'
-import { mentionLink } from '../model/links'
+import { destination, mentionLink } from '../model/links'
+import { assetPath } from '../sync/assets'
 import { session, useSession } from '../store/session'
 import { ConflictBanner } from '../ui/ConflictBanner'
 import controls from '../ui/controls.module.css'
@@ -58,12 +59,37 @@ export function EditorPage({ params }: { params: { owner: string; name: string; 
 
   // Insert menu items the page handles. A new leaf or branch also gets a mention here.
   const [action, setAction] = useState<StructureAction | null>(null)
+  const filePicker = useRef<HTMLInputElement>(null)
   const onInsert: InsertHost = (kind) => {
     const graph = graphRef.current
-    if (kind === 'leaf') setAction({ kind: 'new-leaf', parent: path })
+    if (kind === 'image') filePicker.current?.click()
+    else if (kind === 'leaf') setAction({ kind: 'new-leaf', parent: path })
     else if (kind === 'branch' && graph)
       setAction({ kind: 'new-branch', parent: parentFor(graph, path) })
   }
+
+  // Images, picked, pasted or dropped: saved in assets/ and shown where the cursor is.
+  const addImages = async (files: File[]) => {
+    const { prepareImage, WARN_BYTES } = await import('./images')
+    for (const file of files.filter((f) => f.type.startsWith('image/'))) {
+      const { bytes, ext } = await prepareImage(file)
+      const megabytes = (bytes.byteLength / 1024 / 1024).toFixed(1)
+      if (
+        bytes.byteLength > WARN_BYTES &&
+        !window.confirm(
+          `${file.name} is ${megabytes} MB. Large files make the repository slow to download. Add it anyway?`,
+        )
+      )
+        continue
+      const asset = assetPath(file.name, ext, new Date(), (p) =>
+        session.getState().hasFile(repo, p),
+      )
+      await session.getState().apply(repo, [{ path: asset, text: bytes }])
+      const alt = file.name.replace(/\.[^.]*$/, '').replace(/[[\]\\]/g, '') || 'Image'
+      handle.current?.insertText(`![${alt}](${destination(asset)})`, true)
+    }
+  }
+  const assetUrl = useCallback((p: string) => session.getState().assetUrl(repo, p), [repo])
   const mentionCreated = (id: string | undefined) => {
     setAction(null)
     const created = id && session.getState().data[key]?.graph?.nodes.get(id)
@@ -190,11 +216,25 @@ export function EditorPage({ params }: { params: { owner: string; name: string; 
                 handleRef={handle}
                 mentionsFrom={mentionsFrom}
                 onInsert={onInsert}
+                onFiles={(files) => void addImages(files)}
+                assetUrl={assetUrl}
                 // A new leaf holds only its title: start writing below it.
                 autoFocus={text.text.trim().split('\n').length === 1}
               />
             </Suspense>
             <p className={`${controls.mono} ${styles.path}`}>{path}</p>
+            <input
+              ref={filePicker}
+              type="file"
+              accept="image/*"
+              multiple
+              hidden
+              aria-label="Add images"
+              onChange={(e) => {
+                void addImages([...(e.target.files ?? [])])
+                e.target.value = ''
+              }}
+            />
           </article>
         ) : (
           <div className={styles.loading} aria-busy="true" />

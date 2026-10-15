@@ -10,12 +10,12 @@ import { gitBlobSha } from '../model/sha'
 import type { KeyValueStore } from '../store/db'
 import { reconcile, type Pending } from './merge'
 import { blobTexts, freshListing, type CachedListing } from './pull'
-import type { FileChange } from './structure'
+import type { Content, FileChange } from './structure'
 
 /** A file changed on this device and not committed yet. */
 export interface DirtyFile {
-  /** The new text; null when the file was deleted. */
-  text: string | null
+  /** The new text, or bytes for an image; null when the file was deleted. */
+  text: Content | null
   /** Blob SHA of the version the edit started from; null for a new file. */
   base: string | null
 }
@@ -32,6 +32,9 @@ export interface Pushed {
 
 const ATTEMPTS = 3
 const encoder = new TextEncoder()
+
+export const byteLength = (content: Content) =>
+  typeof content === 'string' ? encoder.encode(content).byteLength : content.byteLength
 
 export async function pushTree(
   ref: TreeRef,
@@ -79,20 +82,27 @@ async function merge(
   const remote = new Map(
     listing.entries.filter((e) => e.type === 'blob').map((e) => [e.path, e.sha]),
   )
-  const shas = Object.entries(dirty).flatMap(([path, f]) =>
+  // Images aren't merged: their names are unique (a date and a slug), so they go in as they are.
+  const binary = Object.entries(dirty).filter(([, f]) => f.text instanceof Uint8Array)
+  const text = Object.entries(dirty).filter(([, f]) => !(f.text instanceof Uint8Array))
+  const shas = text.flatMap(([path, f]) =>
     [f.base, remote.get(path)].filter((s): s is string => !!s),
   )
   const texts = await blobTexts(client, store, ref.repo, shas)
-  const pending: Pending[] = Object.entries(dirty).map(([path, f]) => {
+  const pending: Pending[] = text.map(([path, f]) => {
     const theirs = remote.get(path)
     return {
       path,
-      ours: f.text,
+      ours: f.text as string | null,
       base: f.base ? (texts.get(f.base) ?? null) : null,
       theirs: theirs ? (texts.get(theirs) ?? null) : null,
     }
   })
-  return reconcile(pending, date, (p) => remote.has(p))
+  const reconciled = reconcile(pending, date, (p) => remote.has(p))
+  return {
+    ...reconciled,
+    changes: [...reconciled.changes, ...binary.map(([path, f]) => ({ path, text: f.text }))],
+  }
 }
 
 /** Caches what was committed: blobs by SHA, and the listing at the new head. */
@@ -111,13 +121,10 @@ async function remember(
       continue
     }
     const sha = await gitBlobSha(text)
-    entries.set(path, {
-      path,
-      type: 'blob',
-      sha,
-      size: encoder.encode(text).byteLength,
-    } satisfies TreeEntry)
-    writes.push([`blob:${sha}`, text], [`leaf:${sha}`, parseLeaf(text)])
+    entries.set(path, { path, type: 'blob', sha, size: byteLength(text) } satisfies TreeEntry)
+    if (typeof text === 'string')
+      writes.push([`blob:${sha}`, text], [`leaf:${sha}`, parseLeaf(text)])
+    else writes.push([`asset:${sha}`, text])
   }
   const next: CachedListing = { ...listing, head, etag: null, entries: [...entries.values()] }
   writes.push([`tree:${ref.repo}`, next])
@@ -130,7 +137,8 @@ export function describe(
   existing: ReadonlySet<string>,
 ): { headline: string; body?: string } {
   const title = (c: FileChange) =>
-    (c.text !== null && parseLeaf(c.text).title) || c.path.replace(/^.*\//, '').replace(/\.md$/, '')
+    (typeof c.text === 'string' && parseLeaf(c.text).title) ||
+    c.path.replace(/^.*\//, '').replace(/\.md$/, '')
   const added = changes.filter((c) => c.text !== null && !existing.has(c.path))
   const deleted = changes.filter((c) => c.text === null)
   const updated = changes.filter((c) => c.text !== null && existing.has(c.path))

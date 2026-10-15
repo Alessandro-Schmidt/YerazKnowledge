@@ -65,6 +65,19 @@ describe('renderLeaf', () => {
     expect(html).toContain('<li>plain</li>')
   })
 
+  it('marks the Tree’s own images for the app to show, lazily; web images load as they are', async () => {
+    const html = await renderLeaf(
+      '# T\n\n![Realm diagram](/assets/2026-10-14-realm.png)\n\n![Logo](https://example.com/l.png)\n',
+      context,
+    )
+    expect(html).toContain(
+      '<img alt="Realm diagram" data-asset="assets/2026-10-14-realm.png" loading="lazy" decoding="async">',
+    )
+    expect(html).toContain(
+      '<img src="https://example.com/l.png" alt="Logo" loading="lazy" decoding="async">',
+    )
+  })
+
   it('caches by blob SHA', async () => {
     const first = await renderLeaf('# T\n\nOne\n', context, 'sha-1')
     expect(await renderLeaf('# T\n\nChanged\n', context, 'sha-1')).toBe(first)

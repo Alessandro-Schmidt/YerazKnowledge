@@ -1,5 +1,6 @@
 // M3's exit tests (development-plan.md §6): mentions, the insert menu, images and embeds.
 
+import type { Page } from '@playwright/test'
 import type { Graph } from '../src/model/graph'
 import { expect, signInHere, test } from './fixtures'
 
@@ -124,3 +125,130 @@ test.describe('insert menu', () => {
     expect(fake.repo(REPO).read(sub.slice(1))).toMatch(/^# Quarterly report\n/)
   })
 })
+
+test.describe('images', () => {
+  test.skip(({ isMobile }) => isMobile, 'Adding files runs on desktop engines')
+  test.setTimeout(60_000)
+
+  /** An image drawn in the page: a sharp-edged screenshot (PNG) or a photo-like JPEG. */
+  const draw = (page: Page, kind: 'screenshot' | 'photo', width: number, height: number) =>
+    page
+      .evaluate(
+        ([kind, width, height]) => {
+          const canvas = document.createElement('canvas')
+          canvas.width = width
+          canvas.height = height
+          const c = canvas.getContext('2d')!
+          const sky = c.createLinearGradient(0, 0, width, height)
+          sky.addColorStop(0, kind === 'photo' ? 'steelblue' : 'white')
+          sky.addColorStop(1, kind === 'photo' ? 'darkorange' : 'white')
+          c.fillStyle = sky
+          c.fillRect(0, 0, width, height)
+          c.fillStyle = 'black'
+          c.font = '40px sans-serif'
+          for (let y = 60; y < height; y += 80) c.fillText('Realm → client → token', 40, y)
+          return canvas.toDataURL(kind === 'photo' ? 'image/jpeg' : 'image/png', 0.95)
+        },
+        [kind, width, height] as const,
+      )
+      .then((url) => Buffer.from(url.slice(url.indexOf(',') + 1), 'base64'))
+
+  /** Width and height of committed image bytes, decoded by the browser. */
+  const size = (page: Page, bytes: Uint8Array) =>
+    page.evaluate(async (b64) => {
+      const bytes = Uint8Array.from(atob(b64), (ch) => ch.charCodeAt(0))
+      const bitmap = await createImageBitmap(new Blob([bytes]))
+      return { width: bitmap.width, height: bitmap.height }
+    }, Buffer.from(bytes).toString('base64'))
+
+  async function addImage(page: Page, name: string, mimeType: string, buffer: Buffer) {
+    await page.keyboard.down('Control')
+    await page.clock.runFor(2000)
+    await page.keyboard.up('Control')
+    const chooser = page.waitForEvent('filechooser')
+    await page.getByRole('menuitem', { name: 'Image from files' }).click()
+    await (await chooser).setFiles({ name, mimeType, buffer })
+  }
+
+  test('a screenshot is committed byte for byte, a large photo at 4,096 px, both in one commit', async ({
+    page,
+    fake,
+    graph,
+  }) => {
+    await page.clock.install()
+    const leaf = pair(graph).from.id
+    await page.goto(`./#/edit/${REPO}/${leaf}`)
+    await signInHere(page)
+    await page.locator('.cm-content').click()
+    await page.keyboard.press('ControlOrMeta+End')
+
+    const screenshot = await draw(page, 'screenshot', 1200, 800)
+    const photo = await draw(page, 'photo', 6000, 4000)
+    await addImage(page, 'Realm diagram.png', 'image/png', screenshot)
+    await expect(page.locator('.cm-content')).toContainText('Realm diagram')
+    await addImage(page, 'Ararat.jpg', 'image/jpeg', photo)
+    await expect(page.locator('.cm-content')).toContainText('Ararat', { timeout: 20_000 })
+    await expect(page.getByRole('status')).toContainText('Unsaved edits')
+
+    fake.resetLog()
+    await page.keyboard.press('ControlOrMeta+s')
+    await expect.poll(() => mutations(fake).length).toBe(1)
+    const repo = fake.repo(REPO)
+    const files = [...repo.head!.files.keys()].filter((p) => p.startsWith('assets/'))
+    const png = files.find((p) => p.endsWith('realm-diagram.png'))!
+    const webp = files.find((p) => p.endsWith('ararat.webp'))!
+    expect(png).toMatch(/^assets\/\d{4}-\d{2}-\d{2}-realm-diagram\.png$/)
+    expect(Buffer.from(repo.blobs.get(repo.head!.files.get(png)!)!)).toEqual(screenshot)
+    const committed = repo.blobs.get(repo.head!.files.get(webp)!)!
+    expect(await size(page, committed)).toEqual({ width: 4096, height: 2731 })
+    expect(repo.read(leaf)).toContain(`![Realm diagram](/${png})`)
+    expect(repo.read(leaf)).toContain(`![Ararat](/${webp})`)
+  })
+})
+
+for (const dpr of [2, 3]) {
+  test.describe(`images at pixel density ${dpr}`, () => {
+    test.skip(({ isMobile }) => isMobile, 'Desktop engines')
+    test.use({ deviceScaleFactor: dpr })
+
+    test('the read view shows the original image, never a smaller copy', async ({
+      page,
+      fake,
+      graph,
+    }, info) => {
+      const leaf = pair(graph).from.id
+      const png = await page.evaluate(async () => {
+        const canvas = document.createElement('canvas')
+        canvas.width = 1200
+        canvas.height = 600
+        const c = canvas.getContext('2d')!
+        c.fillStyle = 'white'
+        c.fillRect(0, 0, 1200, 600)
+        c.fillStyle = 'black'
+        c.font = '28px sans-serif'
+        for (let y = 50; y < 600; y += 50)
+          c.fillText('Fine print stays sharp at every density', 30, y)
+        const blob = await new Promise<Blob>((r) => canvas.toBlob((b) => r(b!), 'image/png'))
+        return [...new Uint8Array(await blob.arrayBuffer())]
+      })
+      const repo = fake.repo(REPO)
+      await repo.commit({
+        message: 'image',
+        additions: [
+          { path: 'assets/fine-print.png', contents: new Uint8Array(png) },
+          { path: leaf, contents: `${repo.read(leaf)}\n![Fine print](/assets/fine-print.png)\n` },
+        ],
+      })
+      await page.goto(`./#/tree/${REPO}/${leaf}`)
+      await signInHere(page)
+      await page.getByRole('button', { name: 'Open full page' }).click()
+      const img = page.getByRole('img', { name: 'Fine print' })
+      await expect(img).toBeVisible()
+      await expect.poll(() => img.evaluate((i: HTMLImageElement) => i.naturalWidth)).toBe(1200)
+      await info.attach(`fine-print-dpr${dpr}`, {
+        body: await img.screenshot(),
+        contentType: 'image/png',
+      })
+    })
+  })
+}

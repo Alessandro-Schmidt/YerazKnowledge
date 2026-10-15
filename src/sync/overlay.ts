@@ -3,9 +3,7 @@
 
 import type { TreeEntry } from '../github/client'
 import { parseLeaf, type ParsedLeaf } from '../model/parse'
-import type { Dirty } from './push'
-
-const encoder = new TextEncoder()
+import { byteLength, type Dirty } from './push'
 
 /** The SHA a pending file carries until it is committed. */
 export const localSha = (path: string) => `local:${path}`
@@ -23,13 +21,8 @@ export function overlay(
       byPath.delete(path)
       parsed.delete(path)
     } else {
-      byPath.set(path, {
-        path,
-        type: 'blob',
-        sha: localSha(path),
-        size: encoder.encode(text).byteLength,
-      })
-      parsed.set(path, parseLeaf(text))
+      byPath.set(path, { path, type: 'blob', sha: localSha(path), size: byteLength(text) })
+      if (typeof text === 'string') parsed.set(path, parseLeaf(text))
     }
   }
   return { entries: [...byPath.values()], leaves: parsed }

@@ -1,3 +1,4 @@
+import { resolveObjectURL } from 'node:buffer'
 import { setupServer } from 'msw/node'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createFakeGitHub, type FakeGitHub } from '../../test/fake-github/fakeGitHub'
@@ -186,5 +187,40 @@ describe('session', () => {
     expect(state.status === 'conflict' && state.copies[0]).toMatch(
       /\.conflict-\d{4}-\d{2}-\d{2}\.md$/,
     )
+  })
+
+  it('shows images: pending bytes at once, committed ones without downloading them again', async () => {
+    const s = createSession({ store: memoryStore() })
+    await s.getState().signIn('good')
+    await s.getState().open('you/engineering')
+    const png = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10, 1, 2, 3])
+    await s.getState().apply('you/engineering', [{ path: 'assets/a.png', text: png }])
+    const pending = await s.getState().assetUrl('you/engineering', 'assets/a.png')
+    expect(pending).toMatch(/^blob:/)
+    const blob = await resolveObjectURL(pending!)!.arrayBuffer()
+    expect(new Uint8Array(blob)).toEqual(png)
+
+    await s.getState().flush('you/engineering')
+    expect(s.getState().sync['you/engineering']).toEqual({ status: 'synced' })
+    fake.resetLog()
+    expect(await s.getState().assetUrl('you/engineering', 'assets/a.png')).toMatch(/^blob:/)
+    expect(fake.log).toEqual([])
+    expect(await s.getState().assetUrl('you/engineering', 'assets/none.png')).toBeNull()
+  })
+
+  it('downloads an image committed elsewhere, once', async () => {
+    const png = new Uint8Array([137, 80, 78, 71, 9, 9, 9])
+    await fake.repo('you/engineering').commit({
+      message: 'from the phone',
+      additions: [{ path: 'assets/b.png', contents: png }],
+    })
+    const s = createSession({ store: memoryStore() })
+    await s.getState().signIn('good')
+    await s.getState().open('you/engineering')
+    fake.resetLog()
+    const url = await s.getState().assetUrl('you/engineering', 'assets/b.png')
+    await s.getState().assetUrl('you/engineering', 'assets/b.png')
+    expect(new Uint8Array(await resolveObjectURL(url!)!.arrayBuffer())).toEqual(png)
+    expect(fake.log.map((e) => e.kind)).toEqual(['blob'])
   })
 })

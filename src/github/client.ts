@@ -1,4 +1,5 @@
-// Plain fetch to GitHub: one REST endpoint for tree listings (with ETags) and GraphQL.
+// Plain fetch to GitHub: REST for the head commit and tree listings (with ETags) and for
+// image bytes, GraphQL for the rest.
 // `cache: 'no-store'` because GitHub marks responses cacheable for 60 s and the browser
 // cache would hide fresh changes; we keep the ETag ourselves (ARCHITECTURE.md §5.1).
 
@@ -65,6 +66,8 @@ export interface GitHubClient {
     query: string,
     variables?: Record<string, unknown>,
   ): Promise<{ data: T; errors: GraphQLErrorInfo[] }>
+  /** A file's raw bytes by blob SHA: images and other attachments (leaf texts use GraphQL). */
+  getBlob(repo: string, sha: string): Promise<Uint8Array>
 }
 
 export interface ClientOptions {
@@ -152,6 +155,13 @@ export function createGitHubClient({
         ),
         truncated: body.truncated,
       }
+    },
+
+    async getBlob(repo, sha) {
+      const res = await request(`/repos/${repo}/git/blobs/${sha}`, {
+        headers: { Accept: 'application/vnd.github.raw+json' },
+      })
+      return new Uint8Array(await res.arrayBuffer())
     },
 
     async graphql<T>(query: string, variables: Record<string, unknown> = {}) {
