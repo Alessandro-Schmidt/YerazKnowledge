@@ -177,15 +177,8 @@ export function createSession(deps: {
       setSync(key, { status: 'saving', files: Object.keys(snapshot).length })
       try {
         const pushed = await pushTree(base.ref, snapshot, { client: github(), store })
-        // Edits made while committing stay pending, now on top of what was just committed.
-        const current = dirty.get(key)!
-        for (const [path, sent] of Object.entries(snapshot)) {
-          const now = current[path]
-          if (!now) continue
-          if (sameContent(now.text, sent.text)) delete current[path]
-          else now.base = sent.text === null ? null : await gitBlobSha(sent.text)
-        }
-        await saveDirty(key)
+        // The new base first, then the committed edits go: a file is always in one of the
+        // two, so an image being shown doesn't vanish mid-commit.
         const listing = await store.get<CachedListing>(`tree:${base.ref.repo}`)
         if (listing) {
           const { leaves } = await fillContent(listing, {
@@ -195,6 +188,15 @@ export function createSession(deps: {
           })
           bases.set(key, { ...base, entries: listing.entries, leaves, offline: false })
         }
+        // Edits made while committing stay pending, now on top of what was just committed.
+        const current = dirty.get(key)!
+        for (const [path, sent] of Object.entries(snapshot)) {
+          const now = current[path]
+          if (!now) continue
+          if (sameContent(now.text, sent.text)) delete current[path]
+          else now.base = sent.text === null ? null : await gitBlobSha(sent.text)
+        }
+        await saveDirty(key)
         show(key)
         setSync(
           key,
