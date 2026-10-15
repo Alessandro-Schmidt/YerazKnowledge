@@ -21,6 +21,8 @@
     "playwright.config.ts",
     "playwright.perf.config.ts",
     "playwright.visual.config.ts",
+    "playwright.contract.config.ts",
+    "contract",
     "perf",
     "visual",
     "scripts",

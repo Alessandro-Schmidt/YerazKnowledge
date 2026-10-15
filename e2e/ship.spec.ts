@@ -79,3 +79,37 @@ test.describe('PDF export', () => {
     await expect(root).toHaveCount(0)
   })
 })
+
+test.describe('installable app', () => {
+  test('has a manifest with every icon, and a service worker that serves the shell offline', async ({
+    page,
+    context,
+    browserName,
+  }) => {
+    test.skip(browserName !== 'chromium', 'Installability is checked in Chromium')
+    await page.goto('./')
+    const href = await page.locator('link[rel="manifest"]').getAttribute('href')
+    const manifest = await (await page.request.get(new URL(href!, page.url()).href)).json()
+    expect(manifest).toMatchObject({
+      name: 'Yeraz',
+      display: 'standalone',
+      start_url: './',
+      background_color: '#000000',
+    })
+    const icons = manifest.icons as { src: string; sizes: string; purpose: string }[]
+    expect(icons.map((i) => `${i.sizes} ${i.purpose}`)).toEqual([
+      '192x192 any',
+      '512x512 any',
+      '192x192 maskable',
+      '512x512 maskable',
+    ])
+    for (const icon of icons)
+      expect((await page.request.get(new URL(icon.src, page.url()).href)).status()).toBe(200)
+
+    await page.evaluate(() => navigator.serviceWorker.ready)
+    await context.setOffline(true)
+    await page.reload()
+    await expect(page.getByRole('heading', { name: 'Connect GitHub' })).toBeVisible()
+    await context.setOffline(false)
+  })
+})
