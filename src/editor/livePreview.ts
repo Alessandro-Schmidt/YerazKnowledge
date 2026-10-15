@@ -110,6 +110,10 @@ class EmbedWidget extends WidgetType {
     const { embed } = this
     const box = document.createElement('div')
     box.className = `cm-embed cm-embed-${embed.kind}`
+    if (embed.kind === 'repo') {
+      box.textContent = `${embed.title || embed.repo} · GitHub repository`
+      return box
+    }
     const el = document.createElement(embed.kind === 'video' ? 'video' : 'iframe')
     el.title = embed.title || (embed.kind === 'youtube' ? 'YouTube video' : embed.path)
     if (embed.kind === 'youtube') {

@@ -2,7 +2,7 @@
 
 Notes as Markdown in the user's own GitHub repositories; the main screen is a map of them.
 Read `ideas.txt` (why), `ARCHITECTURE.md` (how), `development-plan.md` (what, in what order).
-**Current milestone: M2** (writing and sync) built; waiting on the owner's review. Next: M3.
+**Current milestone: M3** (threads and rich content) built; waiting on the owner's review. Next: M4.
 
 ## Commands
 

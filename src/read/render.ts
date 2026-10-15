@@ -5,6 +5,7 @@
 
 import type MarkdownItClass from 'markdown-it'
 import { HEADING, linkTarget, META, ownPath, stripBom } from '../model/parse'
+import { encodePath } from '../ui/paths'
 import { prepare, rich, type RichEnv } from './rich'
 
 export interface RenderContext {
@@ -13,6 +14,8 @@ export interface RenderContext {
   leafIcon(path: string): string | null
   /** Every file path in the Tree, for a video's subtitle tracks. */
   files?(): Iterable<string>
+  /** Another connected Tree by `owner/name`: its title and in-app href (`#/tree/…`). */
+  tree?(repo: string): { title: string; href: string } | null
 }
 
 type MarkdownIt = InstanceType<typeof MarkdownItClass>
@@ -57,9 +60,16 @@ function load(): Promise<MarkdownIt> {
         const token = tokens[i]!
         const href = String(token.attrGet('href') ?? '')
         const target = linkTarget(href)
-        const inApp = target && target.repo === null ? context.leafHref(target.path) : null
+        const other = target?.repo ? context.tree?.(target.repo) : null
+        const inApp = !target
+          ? null
+          : target.repo === null
+            ? context.leafHref(target.path)
+            : other
+              ? `${other.href}/${encodePath(target.path)}`
+              : null
         if (inApp && target) {
-          const icon = context.leafIcon(target.path)
+          const icon = target.repo === null ? context.leafIcon(target.path) : null
           token.attrSet('href', inApp)
           token.attrJoin('class', 'mention')
           token.attrSet('data-before', `@ ${icon ? `${icon} ` : ''}`)
@@ -120,6 +130,7 @@ export async function renderLeaf(
   const md = await load()
   const env: RichEnv & { context: RenderContext } = { context }
   if (context.files) env.files = context.files
+  if (context.tree) env.tree = context.tree
   const tokens = md.parse(bodyOf(text), env)
   await prepare(tokens, env)
   const html = md.renderer.render(tokens, md.options, env)

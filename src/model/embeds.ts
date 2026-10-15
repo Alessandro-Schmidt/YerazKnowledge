@@ -1,6 +1,6 @@
 // Embeds (ARCHITECTURE.md §7, §8), written so a leaf still reads well on github.com:
 // - a paragraph that is only a link to a YouTube video, or to a PDF or video in the Tree,
-//   becomes a player; on GitHub it stays a link;
+//   becomes a player; one to a GitHub repository becomes a card; on GitHub it stays a link;
 // - a video's subtitles are `name.<lang>.vtt` files beside it;
 // - math is $inline$ and $$display$$, as GitHub writes it.
 // Shared by the read view and the editor's live preview. Pure.
@@ -10,6 +10,7 @@ import { codeRanges, ownPath } from './parse'
 export type Embed =
   | { kind: 'youtube'; id: string; start: number; title: string }
   | { kind: 'pdf' | 'video'; path: string; title: string }
+  | { kind: 'repo'; repo: string; title: string }
 
 const YOUTUBE =
   /^https?:\/\/(?:www\.|m\.)?(?:youtube\.com\/(?:watch\?(?:[^#]*&)?v=|shorts\/|embed\/)|youtu\.be\/)([\w-]{11})(?=$|[?&#])/
@@ -40,6 +41,8 @@ export function embedOf(paragraph: string): Embed | null {
     const start = seconds(params.get('t') ?? params.get('start'))
     return { kind: 'youtube', id: video[1]!, start, title }
   }
+  const repo = /^https?:\/\/github\.com\/([\w.-]+\/[\w.-]+?)(?:\.git)?\/?$/.exec(url)
+  if (repo) return { kind: 'repo', repo: repo[1]!, title }
   const own = ownPath(dest)
   if (own && /\.pdf$/i.test(own)) return { kind: 'pdf', path: own, title }
   if (own && /\.(mp4|webm)$/i.test(own)) return { kind: 'video', path: own, title }
