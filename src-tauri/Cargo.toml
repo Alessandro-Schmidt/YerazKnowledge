@@ -1,0 +1,24 @@
+[package]
+name = "yeraz"
+version = "0.1.0"
+description = "Your notes as a map, kept in your own GitHub repositories."
+edition = "2021"
+
+[lib]
+# The Tauri 2 layout: the app is a library, main.rs only calls run().
+name = "yeraz_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "=2.7.1", features = [] }
+
+[dependencies]
+tauri = { version = "=2.12.1", features = [] }
+# The token in the OS keychain: macOS Keychain, Windows Credential Manager, Secret Service.
+keyring = { version = "=3.6.3", features = ["apple-native", "windows-native", "sync-secret-service", "crypto-rust"] }
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+strip = true

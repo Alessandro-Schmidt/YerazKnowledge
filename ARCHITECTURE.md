@@ -284,6 +284,9 @@ src/
   ui/       App.tsx (routes) · TopBar.tsx · TokenScreen.tsx · TreeView.tsx
             Explorer.tsx · Appearance.tsx
             theme.ts (turns design/themes/themes.json into CSS, applies it)
+  store/    token.ts (the token: IndexedDB on the web, the OS keychain on desktop)
+src-tauri/  the desktop shell (Tauri 2): tauri.conf.json (window, CSP, bundle) ·
+            src/lib.rs (keychain commands get_token / set_token / delete_token) · icons/
 ```
 
 `model/` and the planning half of `sync/` are pure TypeScript with no DOM or network. Most of the logic lives there, and is unit-tested there.
