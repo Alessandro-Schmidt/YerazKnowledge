@@ -48,6 +48,33 @@ jobs:
           path: playwright-report
           retention-days: 14
 
+  visual:
+    # Visual snapshots (development-plan.md §7.3) in the image the baselines were rendered
+    # in (snapshots.yml). Its tag follows @playwright/test in package.json.
+    runs-on: ubuntu-24.04
+    container:
+      image: mcr.microsoft.com/playwright:v1.64.1-noble
+      options: --ipc=host
+    env:
+      YERAZ_SNAPSHOTS: '1'
+      HOME: /root
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: The image matches @playwright/test
+        run: test "$(node -p "require('@playwright/test/package.json').version")" = 1.64.1
+      - run: npx playwright test e2e/visual.spec.ts
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: visual-diffs
+          path: test-results
+          retention-days: 14
+
   perf:
     # Budgets from ARCHITECTURE.md §11 (development-plan.md §7.4). Non-blocking for now:
     # shared runners are noisy.
@@ -108,7 +135,7 @@ jobs:
 
   deploy:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [check, e2e]
+    needs: [check, e2e, visual]
     runs-on: ubuntu-24.04
     permissions:
       pages: write
