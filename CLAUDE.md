@@ -21,7 +21,8 @@ Read `ideas.txt` (why), `ARCHITECTURE.md` (how), `development-plan.md` (what, in
 - `src/sync/` `pull.ts` read · `push.ts` commit · `merge.ts` three-way · `autosave.ts` · `structure.ts` (new/move/delete plans) · `overlay.ts`
 - `src/editor/` CodeMirror 6 (lazy chunk): `Editor.tsx`, `livePreview.ts`, `EditorPage.tsx` (`#/edit/...`)
 - `src/map/` `layout.ts` (pure, d3) · `TreeMap.tsx` · `HomeMap.tsx` · `Home.tsx` · `useZoom.ts`
-- `src/read/` `render.ts` (markdown-it, lazy) · `Peek.tsx` · `src/ui/` App, TreeView, Explorer, TokenScreen, theme
+- `src/read/` `render.ts` (markdown-it, lazy) · `Peek.tsx` · `src/ui/` App, TreeView, Explorer, TokenScreen,
+  theme (saved per device in `localStorage`, applied before paint by `index.html`), Appearance (`#/settings/appearance`)
 - Map rule: React draws geometry once per layout; selection, zoom level and layers are data
   attributes or the selection layer, never a React render of the map
 - `test/fake-github/` the fake: `fakeGitHub.ts` (handler), `graphql.ts`, `repo.ts`, `fixture.ts`,

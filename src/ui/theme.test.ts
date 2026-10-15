@@ -3,7 +3,17 @@ import { join, relative } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import themes from '../../design/themes/themes.json'
 import { CONTRAST_RULES, contrastRatio } from './contrast'
-import { ACCENT_IDS, BASE_IDS, colorVar, DEFAULT_THEME, resolveTokens, themeCss } from './theme'
+import {
+  ACCENT_IDS,
+  BASE_IDS,
+  colorVar,
+  DEFAULT_THEME,
+  resolveTokens,
+  savedTheme,
+  saveTheme,
+  THEME_KEY,
+  themeCss,
+} from './theme'
 
 describe('themes.json', () => {
   it('defines every token for every base', () => {
@@ -43,6 +53,33 @@ describe('contrast', () => {
   it('agrees with known WCAG values', () => {
     expect(contrastRatio('#000000', '#FFFFFF')).toBeCloseTo(21, 5)
     expect(contrastRatio('#777777', '#FFFFFF')).toBeCloseTo(4.48, 2)
+  })
+})
+
+describe('saved choice', () => {
+  const memory = (): Storage => {
+    const items = new Map<string, string>()
+    return {
+      getItem: (k: string) => items.get(k) ?? null,
+      setItem: (k: string, v: string) => void items.set(k, v),
+    } as Storage
+  }
+
+  it('round-trips, with the mode the inline script in index.html applies', () => {
+    const store = memory()
+    saveTheme({ base: 'paper', accent: 'violet', font: 'serif' }, store)
+    expect(JSON.parse(store.getItem(THEME_KEY)!)).toMatchObject({ mode: 'light' })
+    expect(savedTheme(store)).toEqual({ base: 'paper', accent: 'violet', font: 'serif' })
+  })
+
+  it('falls back to the default for anything unknown or unreadable', () => {
+    const store = memory()
+    expect(savedTheme(store)).toEqual(DEFAULT_THEME)
+    store.setItem(THEME_KEY, '{"base":"neon","accent":"blue","font":"geist"}')
+    expect(savedTheme(store)).toEqual({ ...DEFAULT_THEME, accent: 'blue' })
+    store.setItem(THEME_KEY, 'not json')
+    expect(savedTheme(store)).toEqual(DEFAULT_THEME)
+    expect(savedTheme(undefined)).toEqual(DEFAULT_THEME)
   })
 })
 
