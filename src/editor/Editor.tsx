@@ -10,6 +10,7 @@ import { EditorView, keymap, placeholder } from '@codemirror/view'
 import { classHighlighter } from '@lezer/highlight'
 import { useEffect, useRef } from 'react'
 import { parseLeaf, withIcon, withMeta, type LeafMeta } from '../model/parse'
+import { markNow } from '../perf'
 import styles from './Editor.module.css'
 import { assetSource, livePreview } from './livePreview'
 import { insertMenu, type InsertHost } from './insertMenu'
@@ -84,6 +85,10 @@ export default function Editor({
           insertMenu((kind, v) => insertRef.current?.(kind, v)),
           assetSource.of(async (path) => (await assetRef.current?.(path)) ?? null),
           EditorView.domEventHandlers({
+            keydown() {
+              markNow('keystroke')
+              return false
+            },
             paste(event) {
               const files = [...(event.clipboardData?.files ?? [])]
               if (!files.length || !filesRef.current) return false
@@ -103,7 +108,9 @@ export default function Editor({
           }),
           preview.current.of(source ? [] : livePreview),
           EditorView.updateListener.of((u) => {
-            if (u.docChanged) changed.current(u.state.doc.toString())
+            if (!u.docChanged) return
+            changed.current(u.state.doc.toString())
+            markNow('keystroke-done')
           }),
         ],
       }),

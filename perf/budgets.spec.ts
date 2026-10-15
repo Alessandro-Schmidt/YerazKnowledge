@@ -1,6 +1,7 @@
-// The budgets that M1 can measure (ARCHITECTURE.md §11). A number may exceed its budget by
-// up to 20 % before the test fails (development-plan.md §7.4); every number is attached to
-// the report, so trends stay visible in CI artifacts.
+// The budgets of ARCHITECTURE.md §11, each scenario on the 1,000 and 5,000-leaf fixtures
+// (development-plan.md §7.4). Budgets are set for 1,000 leaves; at 5,000 the numbers are
+// measured and reported only. A number may exceed its budget by up to 20 % before the test
+// fails; every number is attached to the report, so trends stay visible in CI artifacts.
 
 import type { Page } from '@playwright/test'
 import { expect, signInHere, test } from '../e2e/fixtures'
@@ -10,11 +11,24 @@ const TOLERANCE = 1.2
 // ARCHITECTURE.md §11. Only reopening has a separate phone budget. On phones, select and
 // frame time are reported but don't fail (owner's decision, development-plan.md §11).
 const BUDGETS = {
-  laptop: { reopen: 800, structure: 1000, content: 5000, select: 50, frame: 1000 / 60 },
-  phone: { reopen: 1500, structure: 1000, content: 5000, select: null, frame: null },
+  laptop: {
+    reopen: 800,
+    structure: 1000,
+    content: 5000,
+    select: 50,
+    frame: 1000 / 60,
+    keystroke: 16,
+  },
+  phone: {
+    reopen: 1500,
+    structure: 1000,
+    content: 5000,
+    select: null,
+    frame: null,
+    keystroke: 16,
+  },
 }
-
-test.use({ leaves: 1000 })
+type Budget = keyof typeof BUDGETS.laptop
 
 async function throttle(page: Page) {
   const rate = (test.info().project.use as { cpuThrottling?: number }).cpuThrottling
@@ -23,100 +37,179 @@ async function throttle(page: Page) {
   await cdp.send('Emulation.setCPUThrottlingRate', { rate })
 }
 
-const budgets = () => BUDGETS[test.info().project.name as keyof typeof BUDGETS]
-
 function report(name: string, ms: number, budget: number | null) {
-  test
-    .info()
-    .annotations.push({ type: name, description: `${ms.toFixed(1)} ms (budget ${budget} ms)` })
+  test.info().annotations.push({
+    type: name,
+    description: `${ms.toFixed(1)} ms${budget === null ? ' (reported only)' : ` (budget ${budget} ms)`}`,
+  })
   if (budget === null) return
   expect(ms, `${name}: ${ms.toFixed(1)} ms, budget ${budget} ms`).toBeLessThanOrEqual(
     budget * TOLERANCE,
   )
 }
 
+/** The app's marks (window.__yerazPerf in test builds). */
+const marks = (page: Page, name: string) =>
+  page.evaluate(
+    (n) =>
+      (window as unknown as { __yerazPerf: { marks(n: string): number[] } }).__yerazPerf.marks(n),
+    name,
+  )
+
 const markTime = (page: Page, name: string, which: 'first' | 'last' = 'first') =>
   page
     .waitForFunction(
       ([n, w]) => {
-        const marks = performance.getEntriesByName(`yeraz:${n}`)
-        return marks.length ? (w === 'first' ? marks[0]! : marks.at(-1)!).startTime : false
+        const all = (
+          window as unknown as { __yerazPerf: { marks(n: string): number[] } }
+        ).__yerazPerf.marks(n)
+        return all.length ? (w === 'first' ? all[0]! : all.at(-1)!) : false
       },
       [name, which] as const,
-      { timeout: 30_000 },
+      { timeout: 60_000 },
     )
     .then((h) => h.jsonValue() as Promise<number>)
 
-test('first open of a 1,000-leaf Tree: structure, then all content', async ({ page }) => {
-  await throttle(page)
-  // Signing in on the Tree's own URL opens it straight away, with an empty cache.
-  await page.goto('./#/tree/you/engineering')
-  await signInHere(page)
-  const start = await markTime(page, 'tree-open')
-  const structure = await markTime(page, 'map-painted', 'first')
-  await expect(page.locator('[data-node][data-kind="leaf"]')).toHaveCount(1000)
-  await expect(page.getByRole('status')).toHaveText('Synced to main', { timeout: 30_000 })
-  const content = await markTime(page, 'map-painted', 'last')
-  report('structure', structure - start, budgets().structure)
-  report('content', content - start, budgets().content)
-})
+for (const leaves of [1000, 5000]) {
+  const size = `${leaves.toLocaleString('en-US')}-leaf`
+  test.describe(`${size} Tree`, () => {
+    test.use({ leaves })
+    test.setTimeout(leaves > 1000 ? 180_000 : 60_000)
+    const budget = (name: Budget) =>
+      leaves === 1000 ? BUDGETS[test.info().project.name as keyof typeof BUDGETS][name] : null
 
-test('reopen a cached 1,000-leaf Tree: map painted', async ({ page }) => {
-  await page.goto('./#/tree/you/engineering')
-  await signInHere(page)
-  await expect(page.locator('[data-node][data-kind="leaf"]')).toHaveCount(1000)
-  await expect(page.getByRole('status')).toHaveText('Synced to main', { timeout: 30_000 })
-  await throttle(page)
-  await page.reload()
-  const painted = await markTime(page, 'map-painted', 'last')
-  report('reopen', painted, budgets().reopen)
-})
+    test(`first open of a ${size} Tree: structure, then all content`, async ({ page }) => {
+      await throttle(page)
+      // Signing in on the Tree's own URL opens it straight away, with an empty cache.
+      await page.goto('./#/tree/you/engineering')
+      await signInHere(page)
+      const start = await markTime(page, 'tree-open')
+      const structure = await markTime(page, 'map-painted', 'first')
+      await expect(page.locator('[data-node][data-kind="leaf"]')).toHaveCount(leaves)
+      await expect(page.getByRole('status')).toHaveText('Synced to main', { timeout: 120_000 })
+      const content = await markTime(page, 'map-painted', 'last')
+      report('structure', structure - start, budget('structure'))
+      report('content', content - start, budget('content'))
+    })
 
-test('select a leaf: highlight and Peek', async ({ page, graph }) => {
-  await page.goto('./#/tree/you/engineering')
-  await signInHere(page)
-  await expect(page.getByRole('status')).toHaveText('Synced to main', { timeout: 30_000 })
-  await throttle(page)
-  const leaves = [...graph.nodes.values()].filter((n) => n.kind === 'leaf').slice(0, 5)
-  const times: number[] = []
-  for (const leaf of leaves) {
-    await page.evaluate(() => performance.clearMarks())
-    await page.locator(`[data-node][data-id="${leaf.id}"] circle`).first().dispatchEvent('click')
-    const painted = await markTime(page, 'peek-painted', 'last')
-    const start = await markTime(page, 'select', 'last')
-    times.push(painted - start)
-  }
-  times.sort((a, b) => a - b)
-  report('select (median of 5)', times[2]!, budgets().select)
-})
+    test(`reopen a cached ${size} Tree: map painted`, async ({ page }) => {
+      await page.goto('./#/tree/you/engineering')
+      await signInHere(page)
+      await expect(page.locator('[data-node][data-kind="leaf"]')).toHaveCount(leaves)
+      await expect(page.getByRole('status')).toHaveText('Synced to main', { timeout: 120_000 })
+      await throttle(page)
+      await page.reload()
+      const painted = await markTime(page, 'map-painted', 'last')
+      report('reopen', painted, budget('reopen'))
+    })
 
-test('pan and zoom: frame time over 3 s of wheel zooming', async ({ page }) => {
-  await page.goto('./#/tree/you/engineering')
-  await signInHere(page)
-  await expect(page.getByRole('status')).toHaveText('Synced to main', { timeout: 30_000 })
-  await throttle(page)
-  const box = (await page.locator('[data-map]').boundingBox())!
-  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
-  await page.evaluate(() => {
-    const w = window as unknown as { __frames: number[] }
-    w.__frames = []
-    let last = performance.now()
-    const tick = (t: number) => {
-      w.__frames.push(t - last)
-      last = t
-      if (w.__frames.length < 400) requestAnimationFrame(tick)
-    }
-    requestAnimationFrame(tick)
+    test('select a leaf: highlight and Peek', async ({ page, graph }) => {
+      await page.goto('./#/tree/you/engineering')
+      await signInHere(page)
+      await expect(page.getByRole('status')).toHaveText('Synced to main', { timeout: 120_000 })
+      await throttle(page)
+      const leaves = [...graph.nodes.values()].filter((n) => n.kind === 'leaf').slice(0, 5)
+      const times: number[] = []
+      for (const leaf of leaves) {
+        await page.evaluate(() => performance.clearMarks())
+        await page
+          .locator(`[data-node][data-id="${leaf.id}"] circle`)
+          .first()
+          .dispatchEvent('click')
+        const painted = await markTime(page, 'peek-painted', 'last')
+        const start = await markTime(page, 'select', 'last')
+        times.push(painted - start)
+      }
+      times.sort((a, b) => a - b)
+      report('select (median of 5)', times[2]!, budget('select'))
+    })
+
+    test('pan and zoom: frame time over 3 s of wheel zooming', async ({ page }) => {
+      await page.goto('./#/tree/you/engineering')
+      await signInHere(page)
+      await expect(page.getByRole('status')).toHaveText('Synced to main', { timeout: 120_000 })
+      await throttle(page)
+      const box = (await page.locator('[data-map]').boundingBox())!
+      await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+      await page.evaluate(() => {
+        const w = window as unknown as { __frames: number[] }
+        w.__frames = []
+        let last = performance.now()
+        const tick = (t: number) => {
+          w.__frames.push(t - last)
+          last = t
+          if (w.__frames.length < 400) requestAnimationFrame(tick)
+        }
+        requestAnimationFrame(tick)
+      })
+      const end = Date.now() + 3000
+      for (let i = 0; Date.now() < end; i++) {
+        await page.mouse.wheel(0, i % 40 < 20 ? -60 : 60)
+        await page.waitForTimeout(16)
+      }
+      const frames = (
+        await page.evaluate(() => (window as unknown as { __frames: number[] }).__frames)
+      ).slice(5)
+      frames.sort((a, b) => a - b)
+      const p95 = frames[Math.floor(frames.length * 0.95)]!
+      report('frame p95', p95, budget('frame'))
+    })
   })
-  const end = Date.now() + 3000
-  for (let i = 0; Date.now() < end; i++) {
-    await page.mouse.wheel(0, i % 40 < 20 ? -60 : 60)
-    await page.waitForTimeout(16)
-  }
-  const frames = (
-    await page.evaluate(() => (window as unknown as { __frames: number[] }).__frames)
-  ).slice(5)
-  frames.sort((a, b) => a - b)
-  const p95 = frames[Math.floor(frames.length * 0.95)]!
-  report('frame p95', p95, budgets().frame)
+}
+
+test.describe('typing', () => {
+  test('a keystroke in a 10,000-line leaf', async ({ page, fake }) => {
+    // Written the way long notes are: sections, paragraphs and lists. (One 10,000-line
+    // paragraph would be re-parsed whole on every keystroke: Markdown can't split it.)
+    const lines = Array.from({ length: 10_000 }, (_, i) =>
+      i % 40 === 0
+        ? `## Section ${i / 40 + 1}`
+        : i % 8 === 7
+          ? ''
+          : i % 40 > 30
+            ? `- Item ${i} with *emphasis* and \`code\``
+            : `Line ${i + 1}: an ordinary sentence, about as long as people write them.`,
+    )
+    await fake.repo('you/engineering').commit({
+      message: 'A long leaf',
+      additions: [{ path: 'long.md', contents: `# Long\n\n${lines.join('\n')}\n` }],
+    })
+    await page.goto('./#/edit/you/engineering/long.md')
+    await signInHere(page)
+    await page.locator('.cm-content').click()
+    await page.keyboard.press('ControlOrMeta+End')
+    await throttle(page)
+    // Settle first: right after opening, CodeMirror is still parsing the long document in
+    // the background and the code is cold, so the first keystrokes cost more.
+    await page.keyboard.type('Warm up. ')
+    await expect.poll(() => marks(page, 'keystroke-done')).toHaveLength(9)
+    // Then until the page is idle: five idle periods in a row with nothing else to run.
+    await page.evaluate(
+      () =>
+        new Promise<void>((resolve) => {
+          let quiet = 0
+          const check = (deadline: IdleDeadline) => {
+            quiet = deadline.timeRemaining() > 40 ? quiet + 1 : 0
+            if (quiet === 5) resolve()
+            else requestIdleCallback(check)
+          }
+          requestIdleCallback(check)
+        }),
+    )
+    await page.evaluate(() => performance.clearMarks())
+    const text = 'typing at the end of a long leaf'
+    for (const ch of text) {
+      await page.keyboard.type(ch)
+      await page.waitForTimeout(30)
+    }
+    await expect.poll(() => marks(page, 'keystroke-done')).toHaveLength(text.length)
+    const down = await marks(page, 'keystroke')
+    const done = await marks(page, 'keystroke-done')
+    const times = done.map((t, i) => t - down[i]!).sort((a, b) => a - b)
+    report(
+      'keystroke (p95)',
+      times[Math.floor(times.length * 0.95)]!,
+      BUDGETS[test.info().project.name as keyof typeof BUDGETS].keystroke,
+    )
+  })
 })
