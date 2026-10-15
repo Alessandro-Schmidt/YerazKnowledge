@@ -78,6 +78,69 @@ describe('renderLeaf', () => {
     )
   })
 
+  it('renders $inline$ and $$display$$ math with KaTeX, leaving prices alone', async () => {
+    const html = await renderLeaf(
+      '# T\n\nEuler: $e^{i\\pi} + 1 = 0$, costs $5 and $10.\n\n$$\n\\int_0^1 x\\,dx = \\tfrac12\n$$\n',
+      context,
+    )
+    expect(html).toMatch(
+      /<span class="katex">.*<annotation encoding="application\/x-tex">e\^\{i\\pi\} \+ 1 = 0<\/annotation>/s,
+    )
+    expect(html).toContain('costs $5 and $10.')
+    expect(html).toContain('<span class="katex-display">')
+    expect(html).not.toContain('$$')
+  })
+
+  it('shows broken math as its source instead of failing', async () => {
+    const html = await renderLeaf('# T\n\n$\\frac{1}$\n', context)
+    expect(html).toContain('katex-error')
+  })
+
+  it('highlights code with the same Lezer parsers as the editor', async () => {
+    const html = await renderLeaf('# T\n\n```js\nconst a = "x" // note\n```\n', context)
+    expect(html).toContain('<pre><code class="language-js">')
+    expect(html).toContain('<span class="tok-keyword">const</span>')
+    expect(html).toContain('<span class="tok-string">&quot;x&quot;</span>')
+    expect(html).toContain('<span class="tok-comment">// note</span>')
+  })
+
+  it('leaves code in unknown languages plain and escaped', async () => {
+    const html = await renderLeaf('# T\n\n```nope\n<b>\n```\n', context)
+    expect(html).toContain('<pre><code class="language-nope">&lt;b&gt;\n</code></pre>')
+  })
+
+  it('embeds YouTube, PDFs and videos written as a paragraph of one link', async () => {
+    const html = await renderLeaf(
+      [
+        '# T',
+        '',
+        '[Talk](https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=90)',
+        '',
+        '[OIDC spec](/assets/oidc.pdf)',
+        '',
+        '[Demo](/assets/demo.mp4)',
+        '',
+        'A link in a sentence: https://youtu.be/dQw4w9WgXcQ stays a link.',
+      ].join('\n'),
+      { ...context, files: () => ['assets/demo.mp4', 'assets/demo.en.vtt', 'assets/demo.hy.vtt'] },
+    )
+    expect(html).toContain(
+      '<iframe src="https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?start=90" title="Talk"',
+    )
+    expect(html).toContain('<iframe class="pdf" data-asset="assets/oidc.pdf" title="OIDC spec"')
+    expect(html).toContain('<a data-asset-href="assets/oidc.pdf" download="oidc.pdf">')
+    expect(html).toContain(
+      '<video controls preload="metadata" data-asset="assets/demo.mp4" title="Demo">',
+    )
+    expect(html).toContain(
+      '<track kind="subtitles" srclang="en" label="English" data-asset="assets/demo.en.vtt" default>',
+    )
+    expect(html).toContain(
+      '<track kind="subtitles" srclang="hy" label="Armenian" data-asset="assets/demo.hy.vtt">',
+    )
+    expect(html).toContain('<a href="https://youtu.be/dQw4w9WgXcQ"')
+  })
+
   it('caches by blob SHA', async () => {
     const first = await renderLeaf('# T\n\nOne\n', context, 'sha-1')
     expect(await renderLeaf('# T\n\nChanged\n', context, 'sha-1')).toBe(first)

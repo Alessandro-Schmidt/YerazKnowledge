@@ -252,3 +252,68 @@ for (const dpr of [2, 3]) {
     })
   })
 }
+
+test.describe('embeds', () => {
+  test.skip(({ isMobile }) => isMobile, 'Desktop engines; the read view is the same on phones')
+
+  const LEAF = [
+    '# Embeds',
+    '',
+    'Euler: $e^{i\\pi} + 1 = 0$, and it costs $5 and $10.',
+    '',
+    '```ts',
+    'const answer: number = 42 // the answer',
+    '```',
+    '',
+    '[OIDC spec](/assets/oidc.pdf)',
+    '',
+    '[Demo](/assets/demo.mp4)',
+    '',
+    '[The talk](https://www.youtube.com/watch?v=dQw4w9WgXcQ)',
+    '',
+  ].join('\n')
+
+  test.beforeEach(async ({ fake }) => {
+    await fake.repo(REPO).commit({
+      message: 'embeds',
+      additions: [
+        { path: 'embeds.md', contents: LEAF },
+        { path: 'assets/oidc.pdf', contents: '%PDF-1.4\n%%EOF\n' },
+        { path: 'assets/demo.mp4', contents: new Uint8Array([0, 0, 0, 24, 102, 116, 121, 112]) },
+        { path: 'assets/demo.en.vtt', contents: 'WEBVTT\n\n00:00.000 --> 00:01.000\nHello\n' },
+      ],
+    })
+  })
+
+  test('the read view shows math, highlighted code, a PDF, a subtitled video and YouTube', async ({
+    page,
+  }) => {
+    await page.goto(`./#/tree/${REPO}/embeds.md`)
+    await signInHere(page)
+    const body = page.getByRole('region', { name: 'Leaf preview' })
+    await expect(body.locator('.katex')).toHaveCount(1)
+    await expect(body.getByText('it costs $5 and $10.')).toBeVisible()
+    await expect(body.locator('pre .tok-keyword').first()).toHaveText('const')
+    await expect(body.locator('iframe.pdf')).toHaveAttribute('src', /^blob:/)
+    await expect(body.locator('video')).toHaveAttribute('src', /^blob:/)
+    await expect(body.locator('video track')).toHaveAttribute('src', /^blob:/)
+    await expect(body.locator('video track')).toHaveAttribute('label', 'English')
+    await expect(body.locator('iframe[title="The talk"]')).toHaveAttribute(
+      'src',
+      'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ',
+    )
+  })
+
+  test('live preview shows math and players away from the cursor', async ({ page }) => {
+    await page.goto(`./#/edit/${REPO}/embeds.md`)
+    await signInHere(page)
+    const editor = page.locator('.cm-content')
+    await expect(editor.locator('.cm-math .katex')).toHaveCount(1)
+    await expect(editor.locator('.cm-embed-youtube iframe')).toHaveCount(1)
+    await expect(editor.locator('.cm-embed-video video')).toHaveAttribute('src', /^blob:/)
+    // On the cursor's line, the Markdown is back.
+    await editor.getByText('Euler').click()
+    await expect(editor.locator('.cm-math')).toHaveCount(0)
+    await expect(editor).toContainText('$e^{i\\pi} + 1 = 0$')
+  })
+})

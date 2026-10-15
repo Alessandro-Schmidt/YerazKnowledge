@@ -50,6 +50,7 @@ Read `ideas.txt` (why), `ARCHITECTURE.md` (how), `development-plan.md` (what, in
 - [ ] A branch is a folder without a same-named `.md`; its name is the folder name, as typed
 - [ ] Threads are root-relative Markdown links (`[Keycloak](/identity/keycloak.md)`)
 - [ ] Images in `/assets/`; `.yeraz.json` marks the root; filenames never change on retitle
+- [ ] Embeds: a paragraph of one link to YouTube or `/assets/*.pdf|mp4|webm` (subtitles `name.<lang>.vtt`); math `$…$`, `$$…$$`
 
 ## Budgets (ARCHITECTURE.md §11)
 

@@ -61,8 +61,8 @@ export interface SessionState {
   textOf(repo: string, path: string): Promise<string>
   /** A URL showing an attachment (`assets/…`), or null when the Tree has no such file. */
   assetUrl(repo: string, path: string): Promise<string | null>
-  /** Whether a file exists in an open Tree, pending edits included. */
-  hasFile(repo: string, path: string): boolean
+  /** Every file path in an open Tree, pending edits included. */
+  files(repo: string): string[]
   /** Records edits (text, or null to delete); they are committed by the autosave. */
   apply(repo: string, changes: readonly FileChange[]): Promise<void>
   /** Commits a Tree's pending edits now. */
@@ -417,11 +417,14 @@ export function createSession(deps: {
         return url
       },
 
-      hasFile(repo, path) {
+      files(repo) {
         const key = repo.toLowerCase()
-        const pending = dirty.get(key)?.[path]
-        if (pending) return pending.text !== null
-        return !!bases.get(key)?.entries.some((e) => e.path === path)
+        const pending = dirty.get(key) ?? {}
+        const committed = (bases.get(key)?.entries ?? [])
+          .filter((e) => e.type === 'blob' && !(e.path in pending))
+          .map((e) => e.path)
+        const added = Object.entries(pending).filter(([, f]) => f.text !== null)
+        return [...committed, ...added.map(([path]) => path)]
       },
 
       async apply(repo, changes) {
