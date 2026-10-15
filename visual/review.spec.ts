@@ -71,6 +71,36 @@ test.describe('desktop', () => {
   })
 })
 
+test.describe('themes', () => {
+  test.skip(({ isMobile }) => isMobile)
+
+  const withTheme = (page: Page, theme: object) =>
+    page.addInitScript((t) => localStorage.setItem('yeraz-theme', t), JSON.stringify(theme))
+
+  test('09–10 Appearance', async ({ page }) => {
+    await signIn(page)
+    await page.goto('./#/settings/appearance')
+    await shot(page, '09-appearance')
+    await page.getByRole('radio', { name: /Paper/ }).check()
+    await page.getByRole('radio', { name: 'Violet' }).check()
+    await page.getByRole('radio', { name: /Newsreader/ }).check()
+    await shot(page, '10-appearance-paper-violet')
+  })
+
+  for (const [name, theme] of [
+    ['11-tree-graphite-blue', { base: 'graphite', mode: 'dark', accent: 'blue', font: 'geist' }],
+    ['12-tree-paper-green-serif', { base: 'paper', mode: 'light', accent: 'green', font: 'serif' }],
+  ] as const) {
+    test(name, async ({ page }) => {
+      await withTheme(page, theme)
+      await signIn(page)
+      await page.goto(`./#/tree/you/engineering/${KEYCLOAK}`)
+      await expect(page.locator('.mention').first()).toBeVisible()
+      await shot(page, name)
+    })
+  }
+})
+
 test.describe('editor', () => {
   test.skip(({ isMobile }) => isMobile)
 
