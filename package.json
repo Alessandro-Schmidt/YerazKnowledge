@@ -23,6 +23,7 @@
     "fixture": "tsx scripts/make-fixture.ts",
     "perf": "playwright test -c playwright.perf.config.ts",
     "visual": "playwright test -c playwright.visual.config.ts",
+    "contract": "playwright test -c playwright.contract.config.ts",
     "tauri": "tauri"
   },
   "dependencies": {
@@ -79,6 +80,7 @@
     "typescript": "6.0.3",
     "typescript-eslint": "8.71.2",
     "vite": "8.3.4",
+    "vite-plugin-pwa": "1.3.0",
     "vitest": "5.0.4"
   }
 }
