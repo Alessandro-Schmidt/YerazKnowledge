@@ -2,7 +2,7 @@
 
 Notes as Markdown in the user's own GitHub repositories; the main screen is a map of them.
 Read `ideas.txt` (why), `ARCHITECTURE.md` (how), `development-plan.md` (what, in what order).
-**Current milestone: M3** (threads and rich content) built; waiting on the owner's review. Next: M4.
+**Current milestone: M4** (ship) built: every milestone of the plan is done. Left for the owner: the visual review, the manual checklist (development-plan.md §7.6), the contract-test secret, and a `v*` tag for the first installers.
 
 ## Commands
 
