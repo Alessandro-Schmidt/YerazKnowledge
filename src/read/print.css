@@ -1,0 +1,41 @@
+/* Printing a leaf (print.ts): only #print-root prints; players print as links. */
+#print-root,
+.print-only {
+  display: none;
+}
+
+@media print {
+  @page {
+    margin: 18mm 16mm;
+  }
+  body > :not(#print-root) {
+    display: none !important;
+  }
+  html,
+  body {
+    background: var(--bg);
+  }
+  #print-root {
+    display: block;
+    color: var(--text);
+  }
+  #print-root .print-only {
+    display: block;
+  }
+  #print-root iframe,
+  #print-root video {
+    display: none;
+  }
+  #print-root img {
+    max-width: 100%;
+    break-inside: avoid;
+  }
+  #print-root pre,
+  #print-root blockquote,
+  #print-root .katex-display {
+    break-inside: avoid;
+  }
+  #print-root a {
+    color: var(--accent);
+  }
+}
