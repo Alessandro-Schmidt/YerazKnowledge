@@ -14,6 +14,7 @@ import { Icon } from '../ui/icons'
 import { treeHref } from '../ui/paths'
 import styles from './Peek.module.css'
 import { Cover, leafColors } from './LeafLook'
+import { printLeaf } from './print'
 import { renderLeaf } from './render'
 import type { StructureAction } from '../ui/StructureDialogs'
 
@@ -44,6 +45,7 @@ export function Peek({
   onAction,
 }: PeekProps) {
   const [menu, setMenu] = useState(false)
+  const column = useRef<HTMLDivElement>(null)
   useLayoutEffect(() => mark('peek-painted'), [id])
   const node = graph.nodes.get(id)!
   const kind = node.kind === 'root' ? 'Tree' : node.kind === 'branch' ? 'Branch' : 'Leaf'
@@ -109,7 +111,7 @@ export function Peek({
       </div>
 
       <div className={styles.scroll}>
-        <div className={styles.column}>
+        <div ref={column} className={styles.column}>
           <Cover repo={tree.repo} src={node.meta?.cover} className={styles.cover} />
           <article className={styles.article} style={leafColors(node.meta)}>
             <div className={styles.titleRow}>
@@ -225,6 +227,15 @@ export function Peek({
               </button>
               {menu && (
                 <div className={styles.menu} role="menu" onClick={() => setMenu(false)}>
+                  {node.kind === 'leaf' && (
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => column.current && printLeaf(column.current)}
+                    >
+                      Export PDF
+                    </button>
+                  )}
                   {node.kind === 'leaf' && (
                     <button
                       type="button"
