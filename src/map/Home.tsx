@@ -226,7 +226,13 @@ function Connect({ onConnected, onCreate }: { onConnected(repo: string): void; o
     )
   }
   return (
-    <form className={styles.railFoot} onSubmit={submit}>
+    <form
+      className={styles.railFoot}
+      onSubmit={submit}
+      onKeyDown={(e) => {
+        if (e.key === 'Escape') setOpen(false)
+      }}
+    >
       <label className={styles.field}>
         <span className={controls.eyebrow}>Repository</span>
         <input
