@@ -3,7 +3,7 @@
 
 .editor :global(.cm-editor) {
   background: transparent;
-  color: var(--text-body);
+  color: var(--leaf-text, var(--text-body));
   font-size: 15.5px;
 }
 .editor :global(.cm-editor.cm-focused) {
@@ -57,7 +57,7 @@
 .editor :global(.cm-line.cm-h6) {
   font-family: var(--font-ui);
   font-weight: 600;
-  color: var(--tree, var(--accent));
+  color: var(--leaf-heading, var(--tree, var(--accent)));
   padding-top: 10px;
 }
 .editor :global(.cm-line.cm-h1:not(.cm-title)) {

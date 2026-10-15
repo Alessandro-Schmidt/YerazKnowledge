@@ -9,7 +9,7 @@ import { Compartment, EditorState } from '@codemirror/state'
 import { EditorView, keymap, placeholder } from '@codemirror/view'
 import { classHighlighter } from '@lezer/highlight'
 import { useEffect, useRef } from 'react'
-import { withIcon } from '../model/parse'
+import { parseLeaf, withIcon, withMeta, type LeafMeta } from '../model/parse'
 import styles from './Editor.module.css'
 import { assetSource, livePreview } from './livePreview'
 import { insertMenu, type InsertHost } from './insertMenu'
@@ -17,6 +17,8 @@ import { mentions, type MentionSource } from './mentions'
 
 export interface EditorHandle {
   setIcon(icon: string | null): void
+  /** Changes line 2's metadata (cover, colours); other keys are kept. */
+  setMeta(update: (meta: LeafMeta) => LeafMeta): void
   /** Inserts text at the cursor, on a line of its own when `block`, and focuses. */
   insertText(text: string, block?: boolean): void
   focus(): void
@@ -125,16 +127,28 @@ export default function Editor({
 
   useEffect(() => {
     if (!handleRef) return
+    /** Rewrites the text as one change covering only what differs (lines 1 and 2 here). */
+    const rewrite = (edit: (text: string) => string) => {
+      const v = view.current
+      if (!v) return
+      const text = v.state.doc.toString()
+      const next = edit(text)
+      let from = 0
+      while (from < text.length && text[from] === next[from]) from++
+      let end = 0
+      while (
+        end < text.length - from &&
+        end < next.length - from &&
+        text[text.length - 1 - end] === next[next.length - 1 - end]
+      )
+        end++
+      v.dispatch({
+        changes: { from, to: text.length - end, insert: next.slice(from, next.length - end) },
+      })
+    }
     handleRef.current = {
-      setIcon(icon) {
-        const v = view.current
-        if (!v) return
-        const text = v.state.doc.toString()
-        const next = withIcon(text, icon)
-        const firstLine = v.state.doc.line(1)
-        const newFirst = next.slice(0, next.length - (text.length - firstLine.to))
-        v.dispatch({ changes: { from: 0, to: firstLine.to, insert: newFirst } })
-      },
+      setIcon: (icon) => rewrite((text) => withIcon(text, icon)),
+      setMeta: (update) => rewrite((text) => withMeta(text, update(parseLeaf(text).meta ?? {}))),
       insertText(text, block) {
         const v = view.current
         if (!v) return

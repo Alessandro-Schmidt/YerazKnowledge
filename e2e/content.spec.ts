@@ -317,3 +317,55 @@ test.describe('embeds', () => {
     await expect(editor).toContainText('$e^{i\\pi} + 1 = 0$')
   })
 })
+
+test.describe('leaf styling', () => {
+  test.skip(({ isMobile }) => isMobile, 'Desktop engines')
+
+  test('colours and a cover go on line 2; the read view shows them in the theme', async ({
+    page,
+    fake,
+    graph,
+  }) => {
+    const leaf = pair(graph).from.id
+    await page.goto(`./#/edit/${REPO}/${leaf}`)
+    await signInHere(page)
+    await page.getByLabel('Heading colour').selectOption('amber')
+    await page.getByLabel('Text colour').selectOption('blue')
+    const png = await page.evaluate(() => {
+      const canvas = document.createElement('canvas')
+      canvas.width = 1500
+      canvas.height = 500
+      canvas.getContext('2d')!.fillRect(0, 0, 1500, 500)
+      return canvas.toDataURL('image/png')
+    })
+    const chooser = page.waitForEvent('filechooser')
+    await page.getByRole('button', { name: 'Add cover' }).click()
+    await (
+      await chooser
+    ).setFiles({
+      name: 'Mount Ararat.png',
+      mimeType: 'image/png',
+      buffer: Buffer.from(png.slice(png.indexOf(',') + 1), 'base64'),
+    })
+    await expect(page.getByRole('button', { name: 'Change cover' })).toBeVisible()
+    await expect(page.locator('main img').first()).toHaveAttribute('src', /^blob:/)
+
+    await expect(page.getByRole('status')).toContainText('Unsaved edits')
+    await page.keyboard.press('ControlOrMeta+s')
+    await expect
+      .poll(() => fake.repo(REPO).read(leaf)?.split('\n')[1])
+      .toMatch(
+        /^<!-- yeraz \{"color":\{"heading":"amber","text":"blue"\},"cover":"\/assets\/\d{4}-\d{2}-\d{2}-mount-ararat\.png"\} -->$/,
+      )
+
+    await page.getByRole('button', { name: 'Done' }).click()
+    const peek = page.getByRole('region', { name: 'Leaf preview' })
+    await expect(peek.locator('img').first()).toHaveAttribute('src', /^blob:/)
+    const amber = await page.evaluate(() =>
+      getComputedStyle(document.documentElement).getPropertyValue('--c-amber').trim(),
+    )
+    const article = peek.locator('article').first()
+    expect(amber).toMatch(/^#[0-9A-Fa-f]{6}$/)
+    await expect(article).toHaveCSS('--leaf-heading', amber)
+  })
+})

@@ -12,6 +12,7 @@ import controls from '../ui/controls.module.css'
 import { Glyph } from '../ui/Glyph'
 import { Icon } from '../ui/icons'
 import styles from './Peek.module.css'
+import { Cover, leafColors } from './LeafLook'
 import { renderLeaf } from './render'
 import type { StructureAction } from '../ui/StructureDialogs'
 
@@ -53,11 +54,6 @@ export function Peek({
       : [graph.nodes.get(ROOT)!.title, ...crumbs(graph, id)].join(' / ')
   const path =
     node.kind === 'root' ? `${tree.repo} @ ${tree.branch}` : node.kind === 'branch' ? `${id}/` : id
-  const cover =
-    typeof node.meta?.cover === 'string' && /^https:\/\//.test(node.meta.cover)
-      ? node.meta.cover
-      : null
-
   const chips =
     node.kind === 'root'
       ? [
@@ -113,10 +109,8 @@ export function Peek({
 
       <div className={styles.scroll}>
         <div className={styles.column}>
-          {cover && (
-            <img className={styles.cover} src={cover} alt="" loading="lazy" decoding="async" />
-          )}
-          <article className={styles.article}>
+          <Cover repo={tree.repo} src={node.meta?.cover} className={styles.cover} />
+          <article className={styles.article} style={leafColors(node.meta)}>
             <div className={styles.titleRow}>
               {node.icon ? (
                 <span className={styles.icon} aria-hidden="true">
