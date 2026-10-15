@@ -60,3 +60,67 @@ test.describe('mentions', () => {
     await expect(page.locator('[data-map] [data-thread]')).toHaveCount(threads + 1)
   })
 })
+
+test.describe('insert menu', () => {
+  test.skip(({ isMobile }) => isMobile, 'Ctrl/Cmd runs on desktop engines')
+
+  test.beforeEach(async ({ page, graph }) => {
+    await page.clock.install()
+    const leaf = pair(graph).from
+    await page.goto(`./#/edit/${REPO}/${leaf.id}`)
+    await signInHere(page)
+    await page.locator('.cm-content').click()
+    await page.keyboard.press('ControlOrMeta+End')
+  })
+
+  test('holding Ctrl/Cmd for 1.9 s shows nothing; at 2.0 s the menu opens', async ({ page }) => {
+    const menu = page.getByRole('menu', { name: 'Insert' })
+    await page.keyboard.down('Control')
+    await page.clock.runFor(1900)
+    await expect(menu).toHaveCount(0)
+    await page.clock.runFor(100)
+    await expect(menu).toBeVisible()
+    await page.keyboard.up('Control')
+    await expect(page.getByRole('menuitem', { name: 'To-do list' })).toBeFocused()
+    await page.keyboard.press('Escape')
+    await expect(menu).toHaveCount(0)
+  })
+
+  for (const key of ['c', 'v']) {
+    test(`Ctrl+${key.toUpperCase()} never opens it`, async ({ page }) => {
+      await page.keyboard.down('Control')
+      await page.keyboard.press(key)
+      await page.clock.runFor(5000)
+      await page.keyboard.up('Control')
+      await expect(page.getByRole('menu', { name: 'Insert' })).toHaveCount(0)
+    })
+  }
+
+  test('a to-do list item, and a new leaf with a mention to it', async ({ page, fake, graph }) => {
+    const hold = async () => {
+      await page.keyboard.down('Control')
+      await page.clock.runFor(2000)
+      await page.keyboard.up('Control')
+    }
+    await page.keyboard.press('Enter')
+    await hold()
+    await page.getByRole('menuitem', { name: 'To-do list' }).click()
+    await page.keyboard.type('Write the report')
+    await expect(page.locator('.cm-content')).toContainText('Write the report')
+
+    await page.keyboard.press('Enter')
+    await hold()
+    await page.getByRole('menuitem', { name: 'New leaf' }).click()
+    await page.getByRole('dialog').getByLabel('Title').fill('Quarterly report')
+    await page.getByRole('button', { name: 'Create leaf' }).click()
+    await expect(page.getByRole('dialog')).toHaveCount(0)
+    await page.keyboard.press('ControlOrMeta+s')
+    // Enter continues the list; the new leaf is a sub-leaf of this one.
+    const leaf = pair(graph).from.id
+    const sub = `/${leaf.replace(/\.md$/, '')}/quarterly-report.md`
+    await expect
+      .poll(() => fake.repo(REPO).read(leaf))
+      .toContain(`- [ ] Write the report\n- [ ] [Quarterly report](${sub})`)
+    expect(fake.repo(REPO).read(sub.slice(1))).toMatch(/^# Quarterly report\n/)
+  })
+})

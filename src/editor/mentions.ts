@@ -10,7 +10,7 @@ import {
 } from '@codemirror/autocomplete'
 import { Facet } from '@codemirror/state'
 import { EditorView } from '@codemirror/view'
-import { destination } from '../model/links'
+import { mentionLink } from '../model/links'
 
 export interface MentionLeaf {
   path: string
@@ -28,11 +28,6 @@ export interface MentionSource {
 export const mentionSource = Facet.define<MentionSource, MentionSource | null>({
   combine: (values) => values[0] ?? null,
 })
-
-/** `[Title](/path.md)`, the repository format's thread (ARCHITECTURE.md §4). */
-export function mentionLink(title: string, path: string): string {
-  return `[${title.replace(/[[\]\\]/g, '\\$&')}](${destination(path)})`
-}
 
 export function completeMention(context: CompletionContext): CompletionResult | null {
   const source = context.state.facet(mentionSource)
