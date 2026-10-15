@@ -95,13 +95,7 @@ jobs:
       - if: steps.changed.outputs.run
         run: npm ci && npx vite build
       - if: steps.changed.outputs.run
-        run: cargo check --manifest-path src-tauri/Cargo.toml
-      - if: steps.changed.outputs.run
-        uses: actions/upload-artifact@v7
-        with:
-          name: cargo-lock
-          path: src-tauri/Cargo.lock
-          retention-days: 7
+        run: cargo check --locked --manifest-path src-tauri/Cargo.toml
 
   deploy:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
