@@ -1,12 +1,14 @@
+import { readdirSync, readFileSync, statSync } from 'node:fs'
+import { join, relative } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { designTrees } from '../../test/fake-github/designFixture'
 import { makeFixture } from '../../test/fake-github/fixture'
 import { buildGraph, type Graph } from '../model/graph'
 import { parseLeaf } from '../model/parse'
 import { buildTree, ROOT } from '../model/tree'
-import { dotRadius, layoutTree, threadRoute } from './layout'
+import { dotRadius, layoutTree, overlaps, threadRoute } from './layout'
 
-function fixtureGraph(leaves: number): Graph {
-  const { files } = makeFixture({ leaves, threads: Math.round(leaves * 1.5), seed: 7 })
+function graphOf(files: Record<string, string>, title: string): Graph {
   const model = buildTree(
     Object.entries(files).map(([path, text]) => ({
       path,
@@ -16,7 +18,27 @@ function fixtureGraph(leaves: number): Graph {
     })),
   )
   const parsed = new Map(model.leaves.map((p) => [p, parseLeaf(files[p]!)]))
-  return buildGraph(model, parsed, 'Fixture')
+  return buildGraph(model, parsed, title)
+}
+
+function fixtureGraph(leaves: number): Graph {
+  const { files } = makeFixture({ leaves, threads: Math.round(leaves * 1.5), seed: 7 })
+  return graphOf(files, 'Fixture')
+}
+
+/** knowledge-base-example/, the example Tree in this repository. */
+function exampleGraph(): Graph {
+  const root = 'knowledge-base-example'
+  const files: Record<string, string> = {}
+  const walk = (dir: string) => {
+    for (const name of readdirSync(dir)) {
+      const path = join(dir, name)
+      if (statSync(path).isDirectory()) walk(path)
+      else files[relative(root, path)] = readFileSync(path, 'utf8')
+    }
+  }
+  walk(root)
+  return graphOf(files, 'Armenia, Mathematics & Chess')
 }
 
 const graphs = [100, 1000, 5000].map((n) => [n, fixtureGraph(n)] as const)
@@ -86,7 +108,7 @@ describe.each(graphs)('layout invariants, %i leaves', (_, graph) => {
     expect(layout.segments.map((s) => s.id)).toEqual(graph.nodes.get(ROOT)!.children)
   })
 
-  it('spaces neighbours on every ring at least 15 px apart, and holds every node in its extent', () => {
+  it('spaces neighbours on every ring at least 15 px apart, and holds every node in its bounds', () => {
     for (let depth = 1; depth <= layout.rings.length; depth++) {
       const angles = layout.nodes
         .filter((n) => n.depth === depth)
@@ -98,17 +120,90 @@ describe.each(graphs)('layout invariants, %i leaves', (_, graph) => {
       )
       expect(closest, `depth ${depth}`).toBeGreaterThanOrEqual(14.9)
     }
-    for (const n of layout.nodes) expect(Math.hypot(n.x, n.y) + n.r).toBeLessThan(layout.extent)
+    const { x0, y0, x1, y1 } = layout.bounds
+    for (const n of layout.nodes) {
+      expect(n.x - n.r).toBeGreaterThan(x0)
+      expect(n.x + n.r).toBeLessThan(x1)
+      expect(n.y - n.r).toBeGreaterThan(y0)
+      expect(n.y + n.r).toBeLessThan(y1)
+    }
   })
 })
 
 describe('labels', () => {
-  it('follow the radius on large Trees and stay horizontal on small ones', () => {
+  const trees: [string, Graph][] = [
+    ['the example Tree', exampleGraph()],
+    ...designTrees().map(
+      (t) => [t.repo, graphOf(t.files as Record<string, string>, t.repo)] as [string, Graph],
+    ),
+    ...[12, 30, 40, 60, 80, 300].map((n) => [`${n} leaves`, fixtureGraph(n)] as [string, Graph]),
+    ['1000 leaves', graphs[1]![1]],
+  ]
+
+  it.each(trees)('never overlap each other or a dot: %s', (_, graph) => {
+    expect(overlaps(layoutTree(graph))).toEqual([])
+  })
+
+  // Odd shapes: long single-child chains, wide fans, long titles (some one unbroken word),
+  // huge leaves, branches and leaves mixed at every depth.
+  function randomTree(seed: number): Record<string, string> {
+    let state = seed
+    const rand = () => {
+      state = (state + 0x6d2b79f5) | 0
+      let t = Math.imul(state ^ (state >>> 15), 1 | state)
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+    }
+    const int = (lo: number, hi: number) => lo + Math.floor(rand() * (hi - lo + 1))
+    const syllables = ['ka', 'lo', 'rin', 'te', 'mas', 'quo', 'vel', 'dra', 'sen', 'pho']
+    const word = () => Array.from({ length: int(1, 4) }, () => syllables[int(0, 9)]).join('')
+    const title = () =>
+      rand() < 0.1
+        ? Array.from({ length: int(8, 14) }, () => syllables[int(0, 9)]).join('')
+        : Array.from({ length: int(1, rand() < 0.2 ? 9 : 3) }, word).join(' ')
+    const files: Record<string, string> = { '.yeraz.json': '{"name":"Random"}\n' }
+    let budget = int(5, 400)
+    const fill = (dir: string, depth: number) => {
+      const shape = rand()
+      const count =
+        depth === 0 ? int(1, 9) : shape < 0.25 ? 1 : shape < 0.9 ? int(1, 5) : int(10, 80)
+      for (let i = 0; i < count && budget > 0; i++, budget--) {
+        const name = `${dir}n${depth}-${i}`
+        const deeper = depth < 7 && rand() < (shape < 0.25 ? 0.9 : 0.35)
+        if (deeper && rand() < 0.3) {
+          fill(`${name}/`, depth + 1) // a branch: a folder of its own
+          continue
+        }
+        const words = rand() < 0.05 ? int(5000, 30000) : int(0, 800)
+        files[`${name}.md`] = `# ${title()}\n\n${'word '.repeat(words)}\n`
+        if (deeper) fill(`${name}/`, depth + 1) // a leaf with sub-leaves
+      }
+    }
+    fill('', 0)
+    return files
+  }
+
+  it('never overlap each other or a dot, whatever the shape of the Tree', () => {
+    for (let seed = 1; seed <= 60; seed++) {
+      const layout = layoutTree(graphOf(randomTree(seed), `Random ${seed}`))
+      expect(overlaps(layout), `seed ${seed}`).toEqual([])
+    }
+  })
+
+  it('stay horizontal on small Trees where they fit, and follow the radius on large ones', () => {
     const big = layoutTree(graphs[0]![1])
     expect(big.nodes.some((n) => n.kind === 'leaf' && n.labelRotate !== 0)).toBe(true)
-    const small = layoutTree(fixtureGraph(30))
-    expect(small.nodes.every((n) => n.labelRotate === 0)).toBe(true)
-    expect(small.R).toBe(318)
+    const small = layoutTree(fixtureGraph(12))
+    expect(small.nodes.filter((n) => n.labelRotate === 0).length).toBeGreaterThan(
+      small.nodes.length / 2,
+    )
+  })
+
+  it('keep a long Tree title inside the core', () => {
+    const layout = layoutTree(exampleGraph())
+    expect(layout.coreLines).toEqual(['Armenia,', 'Mathematics & Chess'])
+    expect(layout.coreR).toBeGreaterThan(70)
+    expect(layoutTree(fixtureGraph(12)).coreLines).toEqual(['Fixture'])
   })
 
   it('upper-cases top-level branch names', () => {
