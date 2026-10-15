@@ -89,7 +89,7 @@ export function IconPicker({
         ) : (
           groups.map(([group, list]) => (
             <section key={group} className={styles.emojiGroup} aria-label={GROUPS[group]}>
-              <h3 className={controls.eyebrow}>{GROUPS[group]}</h3>
+              <h2 className={controls.eyebrow}>{GROUPS[group]}</h2>
               <div className={styles.emojiGrid}>{list.map(button)}</div>
             </section>
           ))
