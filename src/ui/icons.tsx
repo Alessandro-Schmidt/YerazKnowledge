@@ -22,6 +22,7 @@ const PATHS = {
   pencil: 'M4 20h4L19 9l-4-4L4 16z',
   more: 'M5 12h.01M12 12h.01M19 12h.01',
   external: 'M14 4h6v6M20 4l-9 9M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4',
+  search: 'M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM20 20l-4-4',
 } as const
 
 export type IconName = keyof typeof PATHS
