@@ -10,11 +10,12 @@
 import { select } from 'd3-selection'
 import { zoom as d3zoom, zoomIdentity, type ZoomBehavior } from 'd3-zoom'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, type RefObject } from 'react'
+import type { Box } from './layout'
 
 export interface ZoomControls {
   zoomBy(factor: number): void
-  /** Fits a circle of `radius` around (0, 0), leaving `insets` (px) free on each side. */
-  fit(radius: number, insets?: Partial<Insets>, animate?: boolean): void
+  /** Fits a box, or a circle of that radius around (0, 0), leaving `insets` (px) free on each side. */
+  fit(area: Box | number, insets?: Partial<Insets>, animate?: boolean): void
   /** Moves the camera so layout point (x, y) shows at the centre of the free area, at scale `k` if given. */
   centre(x: number, y: number, insets?: Partial<Insets>, k?: number): void
   /** True when layout point (x, y) is inside the free area. */
@@ -144,15 +145,19 @@ export function useZoom(
         const cy = (h / 2 - y) / k
         move(w / 2 - cx * next, h / 2 - cy * next, next, true)
       },
-      fit(radius, insets, animate = false) {
+      fit(box, insets, animate = false) {
+        const { x0, y0, x1, y1 } =
+          typeof box === 'number' ? { x0: -box, y0: -box, x1: box, y1: box } : box
         const { i, w, h, cx, cy } = area(insets)
-        const size = Math.min(w - i.left - i.right, h - i.top - i.bottom)
         const k = Math.min(
           optionsRef.current.max,
-          Math.max(optionsRef.current.min, size / (2 * radius)),
+          Math.max(
+            optionsRef.current.min,
+            Math.min((w - i.left - i.right) / (x1 - x0), (h - i.top - i.bottom) / (y1 - y0)),
+          ),
         )
         fitted.current = k
-        move(cx, cy, k, animate)
+        move(cx - ((x0 + x1) / 2) * k, cy - ((y0 + y1) / 2) * k, k, animate)
       },
       centre(x, y, insets, scale) {
         const k = scale ?? current().k

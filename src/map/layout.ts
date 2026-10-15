@@ -1,11 +1,15 @@
 // The radial map of one Tree (ARCHITECTURE.md §6, development-plan.md §3.3). Pure: the
 // same graph always gives the same geometry, centred on (0, 0).
-//   - d3's tidy tree orders and spaces the nodes; each depth sits on its own ring,
+//   - d3's cluster layout orders the nodes: every node without children has an angle of
+//     its own, and a parent sits among its children. Each depth sits on its own ring,
 //     with a gap between top-level branches.
+//   - Labels never overlap each other or a dot: neighbours are spaced by their dots and
+//     labels, each ring leaves room for the labels of the ring inside it, and a label
+//     turns to follow the radius when it wouldn't fit horizontally.
 //   - Threads are bundled through the two leaves' common ancestor (curveBundle).
 //   - A donut around the core shows each top-level branch's share of the words.
 
-import { hierarchy, tree, type HierarchyPointNode } from 'd3-hierarchy'
+import { cluster, hierarchy, type HierarchyPointNode } from 'd3-hierarchy'
 import { curveBundle, line } from 'd3-shape'
 import type { Graph, GraphNode } from '../model/graph'
 import { ROOT } from '../model/tree'
@@ -39,8 +43,17 @@ export interface MapLayout {
   edges: { id: string; d: string }[]
   threads: { from: string; to: string; d: string }[]
   segments: { id: string; d: string }[]
-  /** Radius that holds every node and label, for fitting the map to the screen. */
-  extent: number
+  /** The Tree's title in the core, on one line or two. */
+  coreLines: string[]
+  /** The box that holds every node and label, for fitting the map to the screen. */
+  bounds: Box
+}
+
+export interface Box {
+  x0: number
+  y0: number
+  x1: number
+  y1: number
 }
 
 export interface LayoutOptions {
@@ -49,7 +62,7 @@ export interface LayoutOptions {
   /** Radians between top-level branches. */
   gap?: number
   beta?: number
-  /** Above this many leaves, labels turn to follow the radius so they can't overlap. */
+  /** Above this many leaves, leaf labels always follow the radius. */
   radialLabelsAbove?: number
 }
 
@@ -61,19 +74,158 @@ export function dotRadius(node: GraphNode): number {
   return node.kind === 'leaf' ? 2.4 + Math.sqrt(node.words) / 5.6 : 4 + Math.sqrt(node.total) / 11
 }
 
+// Label sizes, as map.module.css draws them: leaves 13 px, top-level branches 10.5 px
+// upper case with 0.14em tracking, the core title 12 px. Widths are estimated from the
+// characters, since layout runs without a DOM: within 1 % of Geist as drawn, plus 6 % so
+// the selected label (bold) fits too.
+const LEAF_FONT = 13
+const BRANCH_FONT = 10.5
+const CORE_FONT = 12
+
+function textWidth(text: string, size: number, tracking = 0): number {
+  let em = 0
+  for (const ch of text) {
+    if (ch === ' ') em += 0.3
+    else if (/[iljtfrI.,:;'!|()[\]]/.test(ch)) em += 0.36
+    else if (/[mwMW@%]/.test(ch)) em += 0.86
+    else if (/[A-Z0-9&#?]/.test(ch)) em += 0.68
+    else if (/[a-z]/.test(ch)) em += 0.56
+    else em += 1 // emoji, CJK and the rest
+  }
+  return (em + tracking * text.length) * size * 1.06
+}
+
+/** A line segment with a radius: a dot (zero length) or a line of text. */
+interface Capsule {
+  x1: number
+  y1: number
+  x2: number
+  y2: number
+  r: number
+}
+
+/** The space a node's dot takes, its sub-leaf ring included. */
+const dotCapsule = (n: LaidNode): Capsule => {
+  const r = n.r + (n.kind === 'leaf' && n.hasChildren ? 4 : 0) + 1
+  return { x1: n.x, y1: n.y, x2: n.x, y2: n.y, r }
+}
+
+/** The space a node's label takes. */
+function labelCapsule(n: LaidNode): Capsule {
+  const branch = n.depth === 1 && n.kind === 'branch'
+  const size = branch ? BRANCH_FONT : LEAF_FONT
+  const w = textWidth(n.label, size, branch ? 0.14 : 0)
+  const r = size / 2 + 0.75 // a little air between lines
+  const length = Math.max(0, w - 2 * r)
+  if (n.labelRotate !== 0) {
+    // Rotated about (labelX, labelY) and centred on it vertically (dy 0.32em): the text
+    // runs outward along the radius from there.
+    const ux = Math.sin(n.angle)
+    const uy = -Math.cos(n.angle)
+    const x1 = n.labelX + ux * r
+    const y1 = n.labelY + uy * r
+    return { x1, y1, x2: x1 + ux * length, y2: y1 + uy * length, r }
+  }
+  const left =
+    n.anchor === 'start' ? n.labelX : n.anchor === 'end' ? n.labelX - w : n.labelX - w / 2
+  const y = n.labelY - size * 0.33
+  return { x1: left + r, y1: y, x2: left + r + length, y2: y, r }
+}
+
+const side = (ax: number, ay: number, bx: number, by: number, cx: number, cy: number) =>
+  (bx - ax) * (cy - ay) - (by - ay) * (cx - ax)
+
+function pointToSegment(px: number, py: number, s: Capsule): number {
+  const dx = s.x2 - s.x1
+  const dy = s.y2 - s.y1
+  const length = dx * dx + dy * dy
+  const t = length ? Math.min(1, Math.max(0, ((px - s.x1) * dx + (py - s.y1) * dy) / length)) : 0
+  return Math.hypot(px - s.x1 - t * dx, py - s.y1 - t * dy)
+}
+
+function touch(a: Capsule, b: Capsule): boolean {
+  const reach = a.r + b.r
+  if (
+    Math.min(a.x1, a.x2) - Math.max(b.x1, b.x2) > reach ||
+    Math.min(b.x1, b.x2) - Math.max(a.x1, a.x2) > reach ||
+    Math.min(a.y1, a.y2) - Math.max(b.y1, b.y2) > reach ||
+    Math.min(b.y1, b.y2) - Math.max(a.y1, a.y2) > reach
+  )
+    return false
+  const crossing =
+    side(a.x1, a.y1, a.x2, a.y2, b.x1, b.y1) * side(a.x1, a.y1, a.x2, a.y2, b.x2, b.y2) < 0 &&
+    side(b.x1, b.y1, b.x2, b.y2, a.x1, a.y1) * side(b.x1, b.y1, b.x2, b.y2, a.x2, a.y2) < 0
+  if (crossing) return true
+  return (
+    Math.min(
+      pointToSegment(a.x1, a.y1, b),
+      pointToSegment(a.x2, a.y2, b),
+      pointToSegment(b.x1, b.y1, a),
+      pointToSegment(b.x2, b.y2, a),
+    ) < reach
+  )
+}
+
+/** Labels that overlap another label or a dot, as pairs of node ids (label first). */
+export function overlaps(layout: MapLayout): [string, string][] {
+  const found: [string, string][] = []
+  const labels = layout.nodes.map(labelCapsule)
+  const dots = layout.nodes.map(dotCapsule)
+  layout.nodes.forEach((a, i) => {
+    layout.nodes.forEach((b, j) => {
+      if (i === j) return
+      if (j > i && touch(labels[i]!, labels[j]!)) found.push([a.id, b.id])
+      if (touch(labels[i]!, dots[j]!)) found.push([a.id, b.id])
+    })
+  })
+  return found
+}
+
+/** Splits a long title into two balanced lines. */
+function coreLinesOf(title: string): string[] {
+  const words = title.split(' ')
+  if (words.length < 2 || textWidth(title, CORE_FONT) <= 2 * (DESIGN_CORE - 8)) return [title]
+  let best = [title]
+  let widest = Infinity
+  for (let i = 1; i < words.length; i++) {
+    const lines = [words.slice(0, i).join(' '), words.slice(i).join(' ')]
+    const w = Math.max(...lines.map((l) => textWidth(l, CORE_FONT)))
+    if (w < widest) [best, widest] = [lines, w]
+  }
+  return best
+}
+
 export function layoutTree(graph: Graph, options: LayoutOptions = {}): MapLayout {
   const { minArc = 15, gap: topGap = 0.16, beta = 0.85, radialLabelsAbove = 60 } = options
   const get = (id: string) => graph.nodes.get(id)!
   const root = hierarchy(get(ROOT), (n) => n.children.map(get))
-  // Rings: the design's 0.35R, 0.70R, R for three levels, generalised to any depth.
+  // Rings: the design's 0.35R, 0.70R, R for three levels, generalised to any depth. These
+  // are the smallest radii; a ring moves out when the labels inside it need room.
   const maxDepth = Math.max(1, root.height)
   const fraction = (depth: number) =>
     depth === 0 ? 0 : maxDepth === 1 ? 1 : 0.35 + (0.65 * (depth - 1)) / (maxDepth - 1)
-  // Inner rings are shorter, so neighbours there get proportionally more room: every ring
-  // then has the same smallest gap (ARCHITECTURE.md §6: separation divided by depth).
-  const laid = tree<GraphNode>()
-    .nodeSize([1, 1])
-    .separation((a, b) => (a.parent === b.parent ? 1 : 1.5) / fraction(a.depth))(root)
+
+  // Half the room a node needs beside it on its ring: its dot, or a line of label text.
+  const half = (d: HierarchyPointNode<GraphNode>) =>
+    Math.max(minArc / 2, dotRadius(d.data) + (d.data.kind === 'leaf' && d.children ? 4 : 0) + 2)
+  // Neighbouring nodes without children, a and b. Going out from the ring where their
+  // ancestors part, each ring has two nodes (or a node and a label passing through) that
+  // must sit far enough apart; inner rings are shorter, so they need more of the angle.
+  // In units where 1 is minArc on the outer ring.
+  const separation = (a: HierarchyPointNode<GraphNode>, b: HierarchyPointNode<GraphNode>) => {
+    const as = a.ancestors().reverse()
+    const bs = b.ancestors().reverse()
+    let k = 1
+    while (k < as.length && k < bs.length && as[k] === bs[k]) k++
+    let units = 0
+    for (; k < Math.max(as.length, bs.length); k++) {
+      const room =
+        (k < as.length ? half(as[k]!) : minArc / 2) + (k < bs.length ? half(bs[k]!) : minArc / 2)
+      units = Math.max(units, room / (minArc * fraction(k)))
+    }
+    return units
+  }
+  const laid = cluster<GraphNode>().nodeSize([1, 1]).separation(separation)(root)
 
   const all = laid.descendants()
   const top = laid.children ?? []
@@ -87,78 +239,120 @@ export function layoutTree(graph: Graph, options: LayoutOptions = {}): MapLayout
     t.each((d) => void groupOf.set(d as HierarchyPointNode<GraphNode>, groups - 1))
   })
 
-  // Angles: the tidy tree's x order, spread over the circle minus the gaps.
+  // Angles: the cluster's x order, spread over the circle minus the gaps. The last and
+  // first nodes are neighbours too.
+  const ends = laid.leaves()
   const xs = all.filter((d) => d.depth > 0).map((d) => d.x)
   const minX = xs.length ? Math.min(...xs) : 0
-  const span = xs.length ? Math.max(...xs) - minX + 1 : 1
+  const around = ends.length > 1 ? separation(ends.at(-1)!, ends[0]!) : 1
+  const span = xs.length ? Math.max(...xs) - minX + around : 1
   // Gaps never take more than a quarter of the circle.
   const gap = groups > 1 ? Math.min(topGap, Math.PI / 2 / groups) : 0
   const unit = (2 * Math.PI - gap * groups) / span
   const angleOf = (d: HierarchyPointNode<GraphNode>) =>
-    d.depth === 0 ? 0 : gap / 2 + (groupOf.get(d) ?? 0) * gap + (d.x - minX + 0.5) * unit
+    d.depth === 0 ? 0 : gap / 2 + (groupOf.get(d) ?? 0) * gap + (d.x - minX + around / 2) * unit
 
   const R = Math.max(DESIGN_R, minArc / unit)
-  const ringOf = (depth: number) => R * fraction(depth)
-  const coreR = DESIGN_CORE * Math.sqrt(R / DESIGN_R)
+  const coreLines = coreLinesOf(get(ROOT).title)
+  const coreR = Math.max(
+    DESIGN_CORE * Math.sqrt(R / DESIGN_R),
+    Math.max(...coreLines.map((l) => textWidth(l, CORE_FONT))) / 2 + 12,
+  )
   const point = (angle: number, radius: number): [number, number] => [
     radius * Math.sin(angle),
     -radius * Math.cos(angle),
   ]
 
-  const radialLabels = graph.stats.leaves > radialLabelsAbove
-  const nodes: LaidNode[] = []
-  const byId = new Map<string, LaidNode>()
-  const pos = new Map<HierarchyPointNode<GraphNode>, [number, number]>([[laid, [0, 0]]])
-  let extent = coreR
-  for (const d of all) {
-    if (d.depth === 0) continue
-    const g = d.data
-    const angle = angleOf(d)
-    const ring = ringOf(d.depth)
-    const [x, y] = point(angle, ring)
-    pos.set(d, [x, y])
-    const r = dotRadius(g)
-    const s = Math.sin(angle)
-    const c = Math.cos(angle)
-    const offset = r + (g.children.length && g.kind === 'leaf' ? 9 : 6) + 2
-    const label = g.kind === 'branch' && d.depth === 1 ? g.title.toUpperCase() : g.title
-    let anchor: LaidNode['anchor']
-    let labelX: number
-    let labelY: number
-    let labelRotate = 0
-    if (radialLabels && g.kind === 'leaf') {
-      // Along the radius, reading outward; flipped on the left so text is never upside down.
-      const deg = (angle * 180) / Math.PI - 90
-      const left = s < 0
-      anchor = left ? 'end' : 'start'
-      labelRotate = left ? deg + 180 : deg
-      labelX = x + s * offset
-      labelY = y - c * offset
-    } else {
-      anchor = s > 0.2 ? 'start' : s < -0.2 ? 'end' : 'middle'
-      labelX = x + s * offset
-      labelY = y - c * offset + (anchor === 'middle' ? (c > 0 ? -4 : 13) : 4)
-    }
-    const node: LaidNode = {
-      id: g.id,
-      kind: g.kind === 'branch' ? 'branch' : 'leaf',
-      depth: d.depth,
-      angle,
-      x: round(x),
-      y: round(y),
-      r: round(r),
-      hasChildren: g.children.length > 0,
-      label,
-      labelX: round(labelX),
-      labelY: round(labelY),
-      anchor,
-      labelRotate: round(labelRotate),
-    }
-    nodes.push(node)
-    byId.set(g.id, node)
-    extent = Math.max(extent, ring + offset + (radialLabels ? 8 * Math.min(label.length, 28) : 0))
+  const labelOf = (g: GraphNode, depth: number) =>
+    g.kind === 'branch' && depth === 1 ? g.title.toUpperCase() : g.title
+  const offsetOf = (g: GraphNode) =>
+    dotRadius(g) + (g.children.length && g.kind === 'leaf' ? 9 : 6) + 2
+  const widthOf = (d: HierarchyPointNode<GraphNode>) => {
+    const branch = d.depth === 1 && d.data.kind === 'branch'
+    return textWidth(labelOf(d.data, d.depth), branch ? BRANCH_FONT : LEAF_FONT, branch ? 0.14 : 0)
   }
-  if (!radialLabels) extent += 120 // horizontal labels reach sideways
+  // Rings start at the design's radii, the first one clear of the core.
+  const rings = [0]
+  for (let depth = 1; depth <= maxDepth; depth++)
+    rings.push(
+      Math.max(R * fraction(depth), depth === 1 ? coreR + 20 + Math.max(...top.map(half)) : 0),
+    )
+
+  const radialLeaves = graph.stats.leaves > radialLabelsAbove
+  const inner = all.filter((d) => d.depth > 0)
+  const pos = new Map<HierarchyPointNode<GraphNode>, [number, number]>([[laid, [0, 0]]])
+  let nodes: LaidNode[] = []
+  let labels: Capsule[] = []
+  for (;;) {
+    nodes = inner.map((d) => {
+      const g = d.data
+      const angle = angleOf(d)
+      const [x, y] = point(angle, rings[d.depth]!)
+      pos.set(d, [x, y])
+      return {
+        id: g.id,
+        kind: g.kind === 'branch' ? 'branch' : 'leaf',
+        depth: d.depth,
+        angle,
+        x: round(x),
+        y: round(y),
+        r: round(dotRadius(g)),
+        hasChildren: g.children.length > 0,
+        label: labelOf(g, d.depth),
+        labelX: 0,
+        labelY: 0,
+        anchor: 'middle',
+        labelRotate: 0,
+      }
+    })
+    const radial = inner.map((d) => radialLeaves && d.data.kind === 'leaf')
+    nodes.forEach((n, i) => placeLabel(n, offsetOf(inner[i]!.data), radial[i]!))
+
+    // Horizontal labels that would touch a dot or another label turn to follow the
+    // radius, where the spacing above leaves them room. Repeat until nothing turns.
+    const dots = nodes.map(dotCapsule)
+    labels = nodes.map(labelCapsule)
+    for (let turned = true; turned;) {
+      turned = false
+      nodes.forEach((n, i) => {
+        if (radial[i]) return
+        const mine = labels[i]!
+        if (!nodes.some((_, j) => j !== i && (touch(mine, labels[j]!) || touch(mine, dots[j]!))))
+          return
+        radial[i] = true
+        placeLabel(n, offsetOf(inner[i]!.data), true)
+        labels[i] = labelCapsule(n)
+        turned = true
+      })
+    }
+
+    // A parent's label along the radius runs out between its children's edges, so it must
+    // end before their ring. Where one doesn't, move that ring (and those outside it) out
+    // and lay out again. Rings only grow, so this ends.
+    const short = rings.map(() => 0)
+    inner.forEach((d, i) => {
+      if (!radial[i] || !d.children) return
+      const need = offsetOf(d.data) + widthOf(d) + 6 + Math.max(...d.children.map(half))
+      const have = rings[d.depth + 1]! - rings[d.depth]!
+      short[d.depth + 1] = Math.max(short[d.depth + 1]!, need - have)
+    })
+    if (short.every((v) => v < 0.5)) break
+    let moved = 0
+    for (let depth = 1; depth <= maxDepth; depth++) {
+      moved += Math.max(0, short[depth]!)
+      rings[depth]! += moved
+    }
+  }
+  const byId = new Map(nodes.map((n) => [n.id, n]))
+  const ringOf = (depth: number) => rings[depth]!
+
+  const bounds: Box = { x0: -coreR, y0: -coreR, x1: coreR, y1: coreR }
+  for (const c of [...labels, ...nodes.map(dotCapsule)]) {
+    bounds.x0 = Math.min(bounds.x0, c.x1 - c.r, c.x2 - c.r)
+    bounds.y0 = Math.min(bounds.y0, c.y1 - c.r, c.y2 - c.r)
+    bounds.x1 = Math.max(bounds.x1, c.x1 + c.r, c.x2 + c.r)
+    bounds.y1 = Math.max(bounds.y1, c.y1 + c.r, c.y2 + c.r)
+  }
 
   const edges = all
     .filter((d) => d.depth > 0)
@@ -218,13 +412,39 @@ export function layoutTree(graph: Graph, options: LayoutOptions = {}): MapLayout
   return {
     R: round(R),
     coreR: round(coreR),
-    rings: Array.from({ length: maxDepth }, (_, i) => round(ringOf(i + 1))),
+    rings: rings.slice(1).map(round),
     nodes,
     byId,
     edges,
     threads,
     segments,
-    extent: round(extent),
+    coreLines,
+    bounds: {
+      x0: round(bounds.x0 - 8),
+      y0: round(bounds.y0 - 8),
+      x1: round(bounds.x1 + 8),
+      y1: round(bounds.y1 + 8),
+    },
+  }
+}
+
+/** Puts a node's label beside its dot: horizontal, or along the radius reading outward. */
+function placeLabel(node: LaidNode, offset: number, radial: boolean) {
+  const s = Math.sin(node.angle)
+  const c = Math.cos(node.angle)
+  // Flipped on the left so text is never upside down.
+  const deg = (node.angle * 180) / Math.PI - 90
+  const rotate = round(s < 0 ? deg + 180 : deg)
+  node.labelX = round(node.x + s * offset)
+  // At 3 o'clock the radius is horizontal, and so is the label.
+  if (radial && rotate !== 0) {
+    node.anchor = s < 0 ? 'end' : 'start'
+    node.labelRotate = rotate
+    node.labelY = round(node.y - c * offset)
+  } else {
+    node.anchor = s > 0.2 ? 'start' : s < -0.2 ? 'end' : 'middle'
+    node.labelRotate = 0
+    node.labelY = round(node.y - c * offset + (node.anchor === 'middle' ? (c > 0 ? -4 : 13) : 4))
   }
 }
 
