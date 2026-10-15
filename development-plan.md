@@ -452,7 +452,7 @@ Paste these into Claude Code, one milestone per session:
 | Licence before the repository goes public | M0 | MIT |
 | New Trees always private? | M2 | Yes |
 | Branch folder names: slug or as typed? | M2 | **Decided:** as typed (`AI Agents/`) |
-| Do the select and pan/zoom budgets apply to phones? | M2 | Open: measured, non-blocking in CI |
+| Do the select and pan/zoom budgets apply to phones? | M2 | **Decided:** no. On phones they are measured and reported, not enforced |
 | Unsplash API key (needs an Unsplash developer account; demo keys are rate-limited) | M3 | Upload-only covers |
 | Code signing for desktop | M4 | Unsigned, with install instructions |
 | Sync the theme across devices? | After launch | No: each device keeps its own |
