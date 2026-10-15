@@ -1,17 +1,20 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation } from 'wouter'
 import type { GraphNode } from '../model/graph'
+import { mentionLink } from '../model/links'
 import { session, useSession } from '../store/session'
 import { ConflictBanner } from '../ui/ConflictBanner'
 import controls from '../ui/controls.module.css'
 import { Icon } from '../ui/icons'
 import { decodePath, treeHref } from '../ui/paths'
+import { parentFor, StructureDialog, type StructureAction } from '../ui/StructureDialogs'
 import { SyncStatus } from '../ui/SyncStatus'
 import { colorVar } from '../ui/theme'
 import { Divider, TopBar } from '../ui/TopBar'
 import type { EditorHandle } from './Editor'
 import styles from './EditorPage.module.css'
 import { IconPicker } from './IconPicker'
+import type { InsertHost } from './insertMenu'
 import type { MentionLeaf, MentionSource } from './mentions'
 
 // CodeMirror is its own chunk: it loads the first time a leaf is edited (ARCHITECTURE.md §11).
@@ -52,6 +55,21 @@ export function EditorPage({ params }: { params: { owner: string; name: string; 
       open: (id) => navigate(treeHref(repo, id)),
     }
   }, [repo, path, navigate])
+
+  // Insert menu items the page handles. A new leaf or branch also gets a mention here.
+  const [action, setAction] = useState<StructureAction | null>(null)
+  const onInsert: InsertHost = (kind) => {
+    const graph = graphRef.current
+    if (kind === 'leaf') setAction({ kind: 'new-leaf', parent: path })
+    else if (kind === 'branch' && graph)
+      setAction({ kind: 'new-branch', parent: parentFor(graph, path) })
+  }
+  const mentionCreated = (id: string | undefined) => {
+    setAction(null)
+    const created = id && session.getState().data[key]?.graph?.nodes.get(id)
+    if (created) handle.current?.insertText(mentionLink(created.title, created.id))
+    else handle.current?.focus()
+  }
 
   useEffect(() => {
     void session.getState().open(repo)
@@ -171,6 +189,7 @@ export function EditorPage({ params }: { params: { owner: string; name: string; 
                 onChange={onChange}
                 handleRef={handle}
                 mentionsFrom={mentionsFrom}
+                onInsert={onInsert}
                 // A new leaf holds only its title: start writing below it.
                 autoFocus={text.text.trim().split('\n').length === 1}
               />
@@ -181,6 +200,15 @@ export function EditorPage({ params }: { params: { owner: string; name: string; 
           <div className={styles.loading} aria-busy="true" />
         )}
       </main>
+      {action && tree && data?.graph && (
+        <StructureDialog
+          tree={tree}
+          graph={data.graph}
+          action={action}
+          onDone={({ edit }) => mentionCreated(edit)}
+          onClose={() => mentionCreated(undefined)}
+        />
+      )}
     </div>
   )
 }

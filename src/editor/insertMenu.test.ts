@@ -1,0 +1,78 @@
+import { EditorState } from '@codemirror/state'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { createHold, HOLD_MS, listChange, type ListKind } from './insertMenu'
+
+const key = (k: string, repeat = false) => ({ key: k, repeat })
+
+describe('createHold: Ctrl/Cmd held alone for 2 s opens the menu', () => {
+  beforeEach(() => vi.useFakeTimers())
+  afterEach(() => vi.useRealTimers())
+
+  const setup = () => {
+    const fire = vi.fn()
+    return { fire, hold: createHold(fire) }
+  }
+
+  it('fires at 2.0 s, not at 1.9 s', () => {
+    const { fire, hold } = setup()
+    hold.down(key('Control'))
+    vi.advanceTimersByTime(HOLD_MS - 100)
+    expect(fire).not.toHaveBeenCalled()
+    vi.advanceTimersByTime(100)
+    expect(fire).toHaveBeenCalledOnce()
+  })
+
+  it('works with Cmd (Meta) too, and ignores the auto-repeat of the held key', () => {
+    const { fire, hold } = setup()
+    hold.down(key('Meta'))
+    vi.advanceTimersByTime(1000)
+    hold.down(key('Meta', true))
+    vi.advanceTimersByTime(1000)
+    expect(fire).toHaveBeenCalledOnce()
+  })
+
+  it('never fires for a shortcut: any other key cancels', () => {
+    const { fire, hold } = setup()
+    hold.down(key('Control'))
+    hold.down(key('c'))
+    vi.advanceTimersByTime(5000)
+    expect(fire).not.toHaveBeenCalled()
+  })
+
+  it('releasing the modifier cancels', () => {
+    const { fire, hold } = setup()
+    hold.down(key('Control'))
+    vi.advanceTimersByTime(1500)
+    hold.up()
+    vi.advanceTimersByTime(5000)
+    expect(fire).not.toHaveBeenCalled()
+  })
+})
+
+describe('listChange', () => {
+  const apply = (doc: string, at: number, kind: ListKind) => {
+    const state = EditorState.create({ doc, selection: { anchor: at } })
+    return state.update(listChange(state, kind)).state.doc.toString()
+  }
+
+  it('turns the line into a to-do, numbered or bullet item', () => {
+    expect(apply('# T\n\nBuy milk', 9, 'todo')).toBe('# T\n\n- [ ] Buy milk')
+    expect(apply('# T\n\nFirst', 6, 'ordered')).toBe('# T\n\n1. First')
+    expect(apply('# T\n\n', 5, 'bullet')).toBe('# T\n\n- ')
+  })
+
+  it('replaces an existing list marker and keeps indentation', () => {
+    expect(apply('# T\n\n  - item', 8, 'todo')).toBe('# T\n\n  - [ ] item')
+    expect(apply('# T\n\n- [x] done', 8, 'ordered')).toBe('# T\n\n1. done')
+    expect(apply('# T\n\n3. third', 7, 'bullet')).toBe('# T\n\n- third')
+  })
+
+  it('never touches the title line: it starts a new line below it', () => {
+    expect(apply('# T', 3, 'bullet')).toBe('# T\n- ')
+  })
+
+  it('leaves the cursor after the marker on an empty line', () => {
+    const state = EditorState.create({ doc: '# T\n\n', selection: { anchor: 5 } })
+    expect(state.update(listChange(state, 'todo')).state.selection.main.head).toBe(11)
+  })
+})

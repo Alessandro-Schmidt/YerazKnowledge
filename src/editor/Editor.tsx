@@ -12,10 +12,13 @@ import { useEffect, useRef } from 'react'
 import { withIcon } from '../model/parse'
 import styles from './Editor.module.css'
 import { livePreview } from './livePreview'
+import { insertMenu, type InsertHost } from './insertMenu'
 import { mentions, type MentionSource } from './mentions'
 
 export interface EditorHandle {
   setIcon(icon: string | null): void
+  /** Inserts text at the cursor, on a line of its own when `block`, and focuses. */
+  insertText(text: string, block?: boolean): void
   focus(): void
 }
 
@@ -29,6 +32,8 @@ export interface EditorProps {
   autoFocus?: boolean
   /** The Tree's leaves, for @ mentions and their chips. */
   mentionsFrom?: MentionSource
+  /** Insert menu items the page handles: images, new leaves and branches. */
+  onInsert?: InsertHost
 }
 
 export default function Editor({
@@ -38,13 +43,16 @@ export default function Editor({
   handleRef,
   autoFocus,
   mentionsFrom,
+  onInsert,
 }: EditorProps) {
   const host = useRef<HTMLDivElement>(null)
   const view = useRef<EditorView | null>(null)
   const preview = useRef(new Compartment())
   const changed = useRef(onChange)
+  const insertRef = useRef(onInsert)
   useEffect(() => {
     changed.current = onChange
+    insertRef.current = onInsert
   })
 
   useEffect(() => {
@@ -61,6 +69,7 @@ export default function Editor({
           EditorView.contentAttributes.of({ 'aria-label': 'Leaf text', spellcheck: 'true' }),
           placeholder('Start writing…'),
           mentionsFrom ? mentions(mentionsFrom) : [],
+          insertMenu((kind, v) => insertRef.current?.(kind, v)),
           preview.current.of(source ? [] : livePreview),
           EditorView.updateListener.of((u) => {
             if (u.docChanged) changed.current(u.state.doc.toString())
@@ -96,6 +105,20 @@ export default function Editor({
         const firstLine = v.state.doc.line(1)
         const newFirst = next.slice(0, next.length - (text.length - firstLine.to))
         v.dispatch({ changes: { from: 0, to: firstLine.to, insert: newFirst } })
+      },
+      insertText(text, block) {
+        const v = view.current
+        if (!v) return
+        const { head } = v.state.selection.main
+        const line = v.state.doc.lineAt(head)
+        const insert = block
+          ? `${head > line.from ? '\n' : ''}${text}${head < line.to ? '\n' : ''}`
+          : text
+        v.dispatch({
+          changes: { from: head, insert },
+          selection: { anchor: head + insert.length },
+        })
+        v.focus()
       },
       focus: () => view.current?.focus(),
     }

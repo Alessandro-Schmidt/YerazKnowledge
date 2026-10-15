@@ -2,7 +2,8 @@ import { CompletionContext, type CompletionResult } from '@codemirror/autocomple
 import { EditorState } from '@codemirror/state'
 import { describe, expect, it } from 'vitest'
 import { parseLeaf } from '../model/parse'
-import { completeMention, mentionLink, mentionSource, type MentionLeaf } from './mentions'
+import { mentionLink } from '../model/links'
+import { completeMention, mentionSource, type MentionLeaf } from './mentions'
 
 const LEAVES: MentionLeaf[] = [
   { path: 'identity/keycloak.md', title: 'Keycloak', icon: '🔐' },
