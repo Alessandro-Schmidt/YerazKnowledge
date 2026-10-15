@@ -7,10 +7,11 @@ import { expect, signInHere, test } from '../e2e/fixtures'
 
 const TOLERANCE = 1.2
 
-// ARCHITECTURE.md §11. Only reopening has a separate phone budget; the rest apply to both.
+// ARCHITECTURE.md §11. Only reopening has a separate phone budget. On phones, select and
+// frame time are reported but don't fail (owner's decision, development-plan.md §11).
 const BUDGETS = {
   laptop: { reopen: 800, structure: 1000, content: 5000, select: 50, frame: 1000 / 60 },
-  phone: { reopen: 1500, structure: 1000, content: 5000, select: 50, frame: 1000 / 60 },
+  phone: { reopen: 1500, structure: 1000, content: 5000, select: null, frame: null },
 }
 
 test.use({ leaves: 1000 })
@@ -24,10 +25,11 @@ async function throttle(page: Page) {
 
 const budgets = () => BUDGETS[test.info().project.name as keyof typeof BUDGETS]
 
-function report(name: string, ms: number, budget: number) {
+function report(name: string, ms: number, budget: number | null) {
   test
     .info()
     .annotations.push({ type: name, description: `${ms.toFixed(1)} ms (budget ${budget} ms)` })
+  if (budget === null) return
   expect(ms, `${name}: ${ms.toFixed(1)} ms, budget ${budget} ms`).toBeLessThanOrEqual(
     budget * TOLERANCE,
   )
