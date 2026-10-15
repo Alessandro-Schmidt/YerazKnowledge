@@ -8,13 +8,21 @@
     <link rel="icon" href="./favicon.ico" sizes="16x16 32x32 48x48" />
     <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" />
     <title>Yeraz</title>
-    <!-- The saved theme, set before the first paint so the wrong one never flashes (ui/theme.ts). -->
+    <!-- The saved theme, set before the first paint so the wrong one never flashes (ui/theme.ts).
+         A custom theme's CSS was generated from checked colours (ui/customTheme.ts). -->
     <script>
       try {
         var t = JSON.parse(localStorage.getItem('yeraz-theme'))
         if (t)
           for (var k of ['base', 'mode', 'accent', 'font'])
             if (t[k]) document.documentElement.dataset[k] = t[k]
+        if (t && t.custom) {
+          var s = document.createElement('style')
+          s.id = 'yeraz-custom'
+          s.textContent = t.custom
+          document.head.appendChild(s)
+          document.documentElement.dataset.custom = ''
+        }
       } catch (e) {}
     </script>
   </head>

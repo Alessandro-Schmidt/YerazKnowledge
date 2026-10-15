@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import AxeBuilder from '@axe-core/playwright'
 import type { Page } from '@playwright/test'
 import { expect, signIn, test } from './fixtures'
@@ -98,4 +99,95 @@ test('Done returns to all Trees', async ({ page }) => {
 test('the Appearance screen has no accessibility violations', async ({ page }) => {
   await openAppearance(page)
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
+})
+
+test.describe('custom theme', () => {
+  const body = (page: Page) => page.evaluate(() => getComputedStyle(document.body).backgroundColor)
+
+  test('created from the current theme, edited with contrast checks, kept with no flash', async ({
+    page,
+    context,
+  }) => {
+    await openAppearance(page)
+    await page.getByRole('button', { name: 'Create from current' }).click()
+    await expect(page.locator('html')).toHaveAttribute('data-custom', '')
+    await expect(page.getByText('My theme · custom · contrast AA')).toBeVisible()
+
+    await page.getByLabel('Page', { exact: true }).fill('#102030')
+    await expect.poll(() => body(page)).toBe('rgb(16, 32, 48)')
+    await page.getByLabel('Secondary text').fill('#111111')
+    await expect(
+      page.getByText(/Adjusted to stay readable: Secondary text #111111 → #/),
+    ).toBeVisible()
+
+    await context.addInitScript(() => {
+      new MutationObserver((_, observer) => {
+        if (!document.body) return
+        window.__firstFrame = {
+          ...document.documentElement.dataset,
+          style: document.getElementById('yeraz-custom') ? 'yes' : 'no',
+        }
+        observer.disconnect()
+      }).observe(document, { childList: true, subtree: true })
+    })
+    await page.reload()
+    expect(await page.evaluate(() => window.__firstFrame)).toMatchObject({
+      custom: '',
+      style: 'yes',
+    })
+    expect(await body(page)).toBe('rgb(16, 32, 48)')
+    await expect(page.getByLabel('Page', { exact: true })).toHaveValue('#102030')
+  })
+
+  test('imported, exported, picked from the community, and left for a built-in theme', async ({
+    page,
+  }) => {
+    const midnight = readFileSync('themes/midnight.json', 'utf8')
+    await openAppearance(page)
+
+    let chooser = page.waitForEvent('filechooser')
+    await page.getByRole('button', { name: 'Import…' }).click()
+    await (
+      await chooser
+    ).setFiles({
+      name: 'oops.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from('{"name":"x"}'),
+    })
+    await expect(page.getByRole('alert')).toHaveText('This is not a Yeraz theme.')
+
+    chooser = page.waitForEvent('filechooser')
+    await page.getByRole('button', { name: 'Import…' }).click()
+    await (
+      await chooser
+    ).setFiles({
+      name: 'midnight.json',
+      mimeType: 'application/json',
+      buffer: Buffer.from(midnight),
+    })
+    await expect(page.getByText('Midnight · custom · contrast AA')).toBeVisible()
+    await expect(page.locator('html')).toHaveAttribute('data-base', 'graphite')
+    await expect.poll(() => body(page)).toBe('rgb(14, 17, 22)')
+
+    const download = page.waitForEvent('download')
+    await page.getByRole('button', { name: 'Export' }).click()
+    const file = await download
+    expect(file.suggestedFilename()).toBe('midnight.json')
+    const chunks: Buffer[] = []
+    for await (const chunk of (await file.createReadStream())!) chunks.push(chunk as Buffer)
+    expect(JSON.parse(Buffer.concat(chunks).toString())).toEqual(JSON.parse(midnight))
+
+    await page.getByRole('button', { name: 'Stop using it' }).click()
+    await expect(page.locator('html')).not.toHaveAttribute('data-custom')
+    await page.getByRole('button', { name: 'Sepia' }).click()
+    await expect(page.locator('html')).toHaveAttribute('data-base', 'paper')
+    await expect(page.locator('html')).toHaveAttribute('data-font', 'serif')
+    await expect(page.getByRole('radio', { name: /Paper/ })).toBeChecked()
+
+    await page.getByRole('radio', { name: /Vanta/ }).check()
+    await expect(page.locator('html')).not.toHaveAttribute('data-custom')
+    await expect(page.getByText(/^Vanta · /)).toBeVisible()
+    await page.reload()
+    await expect(page.locator('html')).not.toHaveAttribute('data-custom')
+  })
 })

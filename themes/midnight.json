@@ -1,0 +1,8 @@
+{
+  "yerazTheme": 1,
+  "name": "Midnight",
+  "base": "graphite",
+  "accent": "#5AC8FA",
+  "font": "geist",
+  "tokens": { "bg": "#0E1116", "top": "#0B0E12", "panel": "#12161C", "core": "#10141A" }
+}

@@ -2,7 +2,7 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } fro
 import { Link, useLocation } from 'wouter'
 import type { GraphNode } from '../model/graph'
 import type { LeafMeta } from '../model/parse'
-import { leafColors } from '../read/LeafLook'
+import { leafColors } from '../read/colors'
 import { destination, mentionLink } from '../model/links'
 import { assetPath } from '../sync/assets'
 import { session, useSession } from '../store/session'
@@ -226,7 +226,7 @@ export function EditorPage({ params }: { params: { owner: string; name: string; 
             This leaf isn't in the Tree any more. <Link href={treeHref(repo)}>Back to the map</Link>
           </p>
         ) : text?.path === path ? (
-          <article className={styles.column} style={leafColors(meta)}>
+          <article className={styles.column} style={leafColors(meta)} data-leaf="">
             <EditableCover
               key={`${path} ${repositioning}`}
               repo={repo}

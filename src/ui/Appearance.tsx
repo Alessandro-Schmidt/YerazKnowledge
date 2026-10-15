@@ -3,6 +3,8 @@ import { Link, useLocation } from 'wouter'
 import themes from '../../design/themes/themes.json'
 import styles from './Appearance.module.css'
 import controls from './controls.module.css'
+import { CustomThemeEditor } from './ThemeEditor'
+import { applyCustom, savedCustom, saveCustom, type CustomTheme } from './customTheme'
 import { Icon } from './icons'
 import {
   ACCENT_IDS,
@@ -21,6 +23,7 @@ import { Divider, TopBar } from './TopBar'
 // Settings › Appearance (design/screens/09, 10). The choices are native radio inputs, so
 // switching changes four attributes on <html> and nothing in React re-renders, not even
 // this screen: CSS shows the checked card, and the preview label is written directly.
+// Below them, a custom theme (ThemeEditor.tsx) overrides colours on top of the choice.
 
 const BASE_NOTES: Record<BaseId, string> = {
   vanta: 'Dark · default',
@@ -55,15 +58,35 @@ export function Appearance() {
   const [, navigate] = useLocation()
   const status = useRef<HTMLSpanElement>(null)
   const [initial] = useState(current)
+  const [custom, setCustom] = useState(savedCustom)
 
   // Show the serif in its card even before anyone picks it.
   useEffect(() => void import('@fontsource-variable/newsreader'), [])
 
   const choose = (part: keyof ThemeChoice, value: string) => {
     const choice = { ...current(), [part]: value }
+    // A built-in choice leaves the custom theme; only then does this screen re-render.
+    if (custom) chooseCustom(null)
     applyTheme(choice)
     saveTheme(choice)
     status.current!.textContent = label(choice)
+  }
+
+  const chooseCustom = (theme: CustomTheme | null) => {
+    const kept = theme && { ...theme, name: theme.name.trim() || 'My theme' }
+    setCustom(theme)
+    applyCustom(kept)
+    saveCustom(kept)
+    // Every radio of the group is set, not only the new one: React tracks each radio's
+    // checked state, and one unchecked behind its back would never report a change again.
+    if (kept)
+      for (const [name, value] of [
+        ['base', kept.base],
+        ['font', kept.font],
+      ] as const)
+        for (const radio of document.querySelectorAll<HTMLInputElement>(`input[name="${name}"]`))
+          radio.checked = radio.value === value
+    status.current!.textContent = kept ? `${kept.name} · custom · contrast AA` : label(current())
   }
 
   return (
@@ -172,13 +195,18 @@ export function Appearance() {
                 ))}
               </div>
             </fieldset>
+
+            <CustomThemeEditor theme={custom} current={current} onChange={chooseCustom} />
           </div>
 
           <section className={styles.preview} aria-label="Preview">
             <div className={styles.previewHead}>
               <p className={controls.eyebrow}>Preview</p>
               <span className={styles.status}>
-                ✓ <span ref={status}>{label(initial)}</span>
+                ✓{' '}
+                <span ref={status}>
+                  {custom ? `${custom.name} · custom · contrast AA` : label(initial)}
+                </span>
               </span>
             </div>
             <div className={`${controls.panel} ${styles.previewCard}`}>

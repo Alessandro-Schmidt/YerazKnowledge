@@ -72,11 +72,20 @@ export function themeCss(): string {
   }
   for (const id of FONT_IDS)
     blocks.push(`:root[data-font='${id}']{--font-reading:${fontStack(id)};}`)
+  // A leaf's raw hex colour comes adjusted for each mode (read/colors.ts); pick the mode's.
+  const leaf = (mode: Mode) =>
+    `[data-leaf]{${declarations({
+      'leaf-heading': `var(--leaf-heading-${mode})`,
+      'leaf-text': `var(--leaf-text-${mode})`,
+    })}}`
+  for (const mode of ['dark', 'light'] as const)
+    blocks.push(`:root[data-mode='${mode}'] ${leaf(mode)}`)
   // Printing always uses Paper and the light accents, so a dark theme never prints black
   // (ARCHITECTURE.md §8). Extra attribute selectors outrank the screen blocks above.
   const light = Object.fromEntries(ACCENT_IDS.map((id) => [`c-${id}`, themes.accents[id].light]))
   const print = [
     `:root[data-base][data-mode]{${declarations({ ...themes.bases.paper.tokens, ...light })}}`,
+    `:root[data-base][data-mode] ${leaf('light')}`,
     ...ACCENT_IDS.map(
       (id) =>
         `:root[data-base][data-mode][data-accent='${id}']{${declarations({

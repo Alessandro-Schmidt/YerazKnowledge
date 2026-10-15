@@ -98,7 +98,7 @@
 }
 
 /* Invisible, covering its whole card: still focusable, announced and clickable. */
-.group input {
+.group input[type='radio'] {
   position: absolute;
   inset: 0;
   z-index: 1;
@@ -394,4 +394,84 @@
   .font {
     min-height: 44px;
   }
+}
+
+/* Custom theme (ThemeEditor.tsx) */
+.customButtons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+.community {
+  margin-top: 22px;
+}
+.communityList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+.communityTheme {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+  padding: 0 14px 0 10px;
+  border: 1px solid var(--hair-strong);
+  border-radius: 9px;
+  background: var(--panel);
+  color: var(--text);
+  font-size: 13px;
+  cursor: pointer;
+}
+.communityTheme:hover {
+  background: var(--hover);
+}
+.swatches {
+  display: inline-flex;
+}
+.swatches span {
+  width: 14px;
+  height: 22px;
+  border: 1px solid var(--hair);
+}
+.swatches span:first-child {
+  border-radius: 5px 0 0 5px;
+}
+.swatches span:last-child {
+  border-radius: 0 5px 5px 0;
+}
+.customEditor {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.customName {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 320px;
+}
+.tokens {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 8px 14px;
+}
+.token {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+}
+.token input {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--hair-strong);
+  border-radius: 7px;
+  background: none;
+  cursor: pointer;
 }
