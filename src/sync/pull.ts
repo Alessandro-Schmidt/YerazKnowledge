@@ -1,5 +1,6 @@
-// The read path (ARCHITECTURE.md §5.1): one conditional tree request, then only the
-// blobs whose SHA we have never seen, many per GraphQL request, three requests at a time.
+// The read path (ARCHITECTURE.md §5.1): one conditional request for the head commit, the
+// tree of a new head, then only the blobs whose SHA we have never seen, many per GraphQL
+// request, three requests at a time.
 // Structure is reported first, so the map can draw from paths and sizes before content arrives.
 
 import { GitHubError, type GitHubClient, type TreeEntry } from '../github/client'
@@ -9,8 +10,12 @@ import { buildTree, type LeafNode, type TreeModel } from '../model/tree'
 import type { KeyValueStore } from '../store/db'
 
 export interface CachedListing {
-  sha: string
+  /** The commit this listing belongs to: what the next commit builds on (`expectedHeadOid`). */
+  head: string
+  /** ETag of the head-commit answer. */
   etag: string | null
+  /** The root tree's SHA. */
+  sha: string
   entries: TreeEntry[]
 }
 
@@ -25,6 +30,10 @@ export interface PulledTree {
   leaves: Map<string, ParsedLeaf>
   /** True when GitHub couldn't be reached and the cached copy was used. */
   offline: boolean
+  /** The commit this content belongs to. */
+  head: string
+  /** The listing the model was built from. */
+  entries: TreeEntry[]
 }
 
 export interface PullDeps {
@@ -67,62 +76,119 @@ async function inParallel<T>(items: readonly T[], limit: number, run: (item: T) 
   await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker))
 }
 
-/** The full listing; when GitHub truncates it, lists subtrees one at a time. */
+/** The full listing of a commit; when GitHub truncates it, lists subtrees one at a time. */
 async function listTree(
   client: GitHubClient,
-  ref: TreeRef,
-  etag: string | null,
-): Promise<CachedListing | 'not-modified'> {
-  const listing = await client.getTree(ref.repo, ref.branch, { etag })
-  if (listing === 'not-modified' || !listing.truncated) return listing
+  repo: string,
+  commit: string,
+): Promise<{ sha: string; entries: TreeEntry[] }> {
+  const listing = await client.getTree(repo, commit)
+  if (listing === 'not-modified') throw new Error('A tree listed by SHA never answers 304')
+  if (!listing.truncated) return listing
 
   const entries: TreeEntry[] = []
   const walk = async (sha: string, prefix: string): Promise<void> => {
-    const sub = await client.getTree(ref.repo, sha, { recursive: true })
+    const sub = await client.getTree(repo, sha, { recursive: true })
     if (sub === 'not-modified') return
     if (!sub.truncated) {
       entries.push(...sub.entries.map((e) => ({ ...e, path: prefix + e.path })))
       return
     }
-    const flat = await client.getTree(ref.repo, sha, { recursive: false })
+    const flat = await client.getTree(repo, sha, { recursive: false })
     if (flat === 'not-modified') return
     for (const e of flat.entries) {
       entries.push({ ...e, path: prefix + e.path })
       if (e.type === 'tree') await walk(e.sha, `${prefix}${e.path}/`)
     }
   }
-  const root = await client.getTree(ref.repo, ref.branch, { recursive: false })
-  if (root === 'not-modified') return root
+  const root = await client.getTree(repo, commit, { recursive: false })
+  if (root === 'not-modified') throw new Error('A tree listed by SHA never answers 304')
   for (const e of root.entries) {
     entries.push(e)
     if (e.type === 'tree') await walk(e.sha, `${e.path}/`)
   }
-  return { sha: listing.sha, etag: listing.etag, entries }
+  return { sha: listing.sha, entries }
 }
 
-export async function pullTree(
+/** The cached listing brought up to the branch's head. */
+export async function freshListing(
+  client: GitHubClient,
+  store: KeyValueStore,
   ref: TreeRef,
-  { client, store, onProgress }: PullDeps,
-): Promise<PulledTree> {
-  const treeKey = `tree:${ref.repo}`
-  const cached = await store.get<CachedListing>(treeKey)
-
-  let listing: CachedListing
-  let offline = false
+): Promise<{ listing: CachedListing; offline: boolean }> {
+  const key = `tree:${ref.repo}`
+  const cached = await store.get<CachedListing>(key)
   try {
-    const fresh = await listTree(client, ref, cached?.etag ?? null)
-    if (fresh === 'not-modified') {
-      listing = cached!
-    } else {
-      listing = fresh
-      await store.set(treeKey, fresh)
+    const head = await client.getHead(ref.repo, ref.branch, cached?.etag ?? null)
+    if (head === 'not-modified') return { listing: cached!, offline: false }
+    if (cached && head.sha === cached.head) {
+      const listing = { ...cached, etag: head.etag }
+      await store.set(key, listing)
+      return { listing, offline: false }
     }
+    const tree = await listTree(client, ref.repo, head.sha)
+    const listing: CachedListing = {
+      head: head.sha,
+      etag: head.etag,
+      sha: tree.sha,
+      entries: tree.entries,
+    }
+    await store.set(key, listing)
+    return { listing, offline: false }
   } catch (e) {
     if (!(e instanceof GitHubError) || e.kind !== 'network' || !cached) throw e
-    listing = cached
-    offline = true
+    return { listing: cached, offline: true }
   }
+}
 
+/** Text of blobs by SHA: from the cache, fetching (and caching) the rest. */
+export async function blobTexts(
+  client: GitHubClient,
+  store: KeyValueStore,
+  repo: string,
+  shas: readonly string[],
+): Promise<Map<string, string>> {
+  const wanted = [...new Set(shas)]
+  const cached = await store.getMany<string>(wanted.map((sha) => `blob:${sha}`))
+  const out = new Map<string, string>()
+  const missing: string[] = []
+  wanted.forEach((sha, i) =>
+    cached[i] === undefined ? missing.push(sha) : out.set(sha, cached[i]!),
+  )
+  for (const batch of planBatches(missing.map((sha) => ({ sha, size: 0 })))) {
+    const texts = await fetchBlobs(
+      client,
+      repo,
+      batch.map((b) => b.sha),
+    )
+    const writes: [string, unknown][] = []
+    for (const [sha, text] of texts) {
+      out.set(sha, text ?? '')
+      writes.push([`blob:${sha}`, text ?? ''], [`leaf:${sha}`, parseLeaf(text ?? '')])
+    }
+    await store.setMany(writes)
+  }
+  return out
+}
+
+/**
+ * The model and parsed leaves of a listing. With a client, missing content is fetched;
+ * without one (offline, or right after our own commit) only the cache is used.
+ */
+export async function fillContent(
+  listing: CachedListing,
+  {
+    client,
+    store,
+    repo,
+    onProgress,
+  }: {
+    client: GitHubClient | null
+    store: KeyValueStore
+    repo: string
+    onProgress?: PullDeps['onProgress']
+  },
+): Promise<{ model: TreeModel; leaves: Map<string, ParsedLeaf> }> {
   const model = buildTree(listing.entries)
   const leafNodes = model.leaves.map((id) => model.nodes.get(id) as LeafNode)
   const known = await store.getMany<ParsedLeaf>(leafNodes.map((leaf) => `leaf:${leaf.sha}`))
@@ -133,14 +199,14 @@ export async function pullTree(
   const missing = [
     ...new Map(leafNodes.filter((l) => !bySha.has(l.sha)).map((l) => [l.sha, l])).values(),
   ]
-  onProgress?.({ stage: 'structure', model, missing: offline ? 0 : missing.length })
+  onProgress?.({ stage: 'structure', model, missing: client ? missing.length : 0 })
 
-  if (!offline && missing.length) {
+  if (client && missing.length) {
     let fetched = 0
     await inParallel(planBatches(missing), PARALLEL, async (batch) => {
       const texts = await fetchBlobs(
         client,
-        ref.repo,
+        repo,
         batch.map((leaf) => leaf.sha),
       )
       const writes: [string, unknown][] = []
@@ -160,5 +226,19 @@ export async function pullTree(
     const parsed = bySha.get(leaf.sha)
     if (parsed) leaves.set(leaf.id, parsed)
   }
-  return { ref, model, leaves, offline }
+  return { model, leaves }
+}
+
+export async function pullTree(
+  ref: TreeRef,
+  { client, store, onProgress }: PullDeps,
+): Promise<PulledTree> {
+  const { listing, offline } = await freshListing(client, store, ref)
+  const { model, leaves } = await fillContent(listing, {
+    client: offline ? null : client,
+    store,
+    repo: ref.repo,
+    ...(onProgress ? { onProgress } : {}),
+  })
+  return { ref, model, leaves, offline, head: listing.head, entries: listing.entries }
 }

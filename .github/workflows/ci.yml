@@ -50,7 +50,7 @@ jobs:
 
   perf:
     # Budgets from ARCHITECTURE.md §11 (development-plan.md §7.4). Non-blocking for now:
-    # shared runners are noisy, and two phone budgets wait on a decision (see the PR).
+    # shared runners are noisy.
     runs-on: ubuntu-24.04
     continue-on-error: true
     steps:

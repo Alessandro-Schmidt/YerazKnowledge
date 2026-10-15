@@ -1,3 +1,7 @@
+import { slugify } from '../../src/model/slug'
+
+export { slugify }
+
 // Deterministic, realistic Trees for tests and `npm run dev:fake` (development-plan.md §5.3).
 // Same options, same files, byte for byte. Every file follows the repository format
 // in ARCHITECTURE.md §4: line 1 is the title, sub-leaves live in a sibling folder,
@@ -178,17 +182,6 @@ function mulberry32(seed: number) {
     t ^= t + Math.imul(t ^ (t >>> 7), t | 61)
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296
   }
-}
-
-export function slugify(title: string): string {
-  return (
-    title
-      .normalize('NFKD')
-      .replace(/[̀-ͯ]/g, '')
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-|-$/g, '') || 'untitled'
-  )
 }
 
 export function makeFixture(options: FixtureOptions): Fixture {

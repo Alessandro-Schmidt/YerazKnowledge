@@ -1,5 +1,6 @@
 // The fake GitHub: (request) → response over in-memory repositories.
 // It implements exactly what Yeraz uses (development-plan.md §5.1):
+//   GET  /repos/{o}/{r}/commits/{ref}                    head SHA (vnd.github.sha), ETags and 304s
 //   GET  /repos/{o}/{r}/git/trees/{ref}[?recursive=1]   ETags and 304s
 //   POST /graphql   object(oid:) / object(expression:), defaultBranchRef,
 //                   viewer.repositories (discovery), createCommitOnBranch
@@ -28,7 +29,7 @@ export interface LogEntry {
   method: string
   path: string
   status: number
-  kind: 'tree' | 'graphql' | 'create-repo' | 'unknown'
+  kind: 'head' | 'tree' | 'graphql' | 'create-repo' | 'unknown'
   /** GraphQL only. */
   operation?: 'query' | 'mutation'
   /** Number of blob texts returned. */
@@ -193,6 +194,52 @@ export function createFakeGitHub(options: { login?: string; tokens?: string[] } 
         url: `${base}/trees/${treeSha}`,
         tree: entries.map((e) => ({ ...e, url: `${base}/${e.type}s/${e.sha}` })),
         truncated,
+      },
+      cache,
+    )
+  }
+
+  // ---------- REST: the head commit ----------
+
+  async function getHead(
+    owner: string,
+    name: string,
+    ref: string,
+    req: FakeRequest,
+    authed: boolean,
+  ): Promise<FakeResponse> {
+    const repo = visibleRepo(owner, name, authed)
+    if (!repo) return restError(404, 'Not Found')
+    if (!repo.head) return restError(409, 'Git Repository is empty.')
+    const commit =
+      ref === repo.defaultBranch || ref === 'HEAD'
+        ? repo.head
+        : repo.commits.find((c) => c.oid === ref)
+    if (!commit) return restError(422, `No commit found for SHA: ${ref}`)
+    const onlySha = (req.headers['accept'] ?? '').includes('application/vnd.github.sha')
+    const etag = `W/"${await sha1Hex(`${commit.oid}:${onlySha}`)}"`
+    const cache = {
+      etag,
+      'cache-control': 'private, max-age=60, s-maxage=60',
+      vary: 'Accept, Authorization',
+    }
+    const sent = req.headers['if-none-match']
+    if (sent && (sent === etag || sent === etag.slice(2)))
+      return { status: 304, headers: { ...CORS, ...cache }, body: null }
+    if (onlySha) {
+      return {
+        status: 200,
+        headers: { ...CORS, ...cache, 'content-type': 'application/vnd.github.sha; charset=utf-8' },
+        body: commit.oid,
+      }
+    }
+    return json(
+      200,
+      {
+        sha: commit.oid,
+        url: `${API}/repos/${repo.nameWithOwner}/commits/${commit.oid}`,
+        commit: { message: commit.message, tree: { sha: commit.root.sha } },
+        parents: commit.parent ? [{ sha: commit.parent }] : [],
       },
       cache,
     )
@@ -476,14 +523,17 @@ export function createFakeGitHub(options: { login?: string; tokens?: string[] } 
     }
 
     const tree = url.pathname.match(/^\/repos\/([^/]+)\/([^/]+)\/git\/trees\/(.+)$/)
+    const head = url.pathname.match(/^\/repos\/([^/]+)\/([^/]+)\/commits\/([^/]+)$/)
     const kind: LogEntry['kind'] =
-      method === 'GET' && tree
-        ? 'tree'
-        : method === 'POST' && url.pathname === '/graphql'
-          ? 'graphql'
-          : method === 'POST' && url.pathname === '/user/repos'
-            ? 'create-repo'
-            : 'unknown'
+      method === 'GET' && head
+        ? 'head'
+        : method === 'GET' && tree
+          ? 'tree'
+          : method === 'POST' && url.pathname === '/graphql'
+            ? 'graphql'
+            : method === 'POST' && url.pathname === '/user/repos'
+              ? 'create-repo'
+              : 'unknown'
     const entry: LogEntry = { method, path: url.pathname + url.search, status: 0, kind, blobs: 0 }
     log.push(entry)
 
@@ -499,6 +549,9 @@ export function createFakeGitHub(options: { login?: string; tokens?: string[] } 
       response = json(500, { message: 'Server Error' })
     } else if (auth === false) {
       response = restError(401, 'Bad credentials')
+    } else if (kind === 'head') {
+      const [, owner, name, ref] = head!
+      response = await getHead(owner!, name!, decodeURIComponent(ref!), request, auth === true)
     } else if (kind === 'tree') {
       const [, owner, name, ref] = tree!
       response = await getTree(
