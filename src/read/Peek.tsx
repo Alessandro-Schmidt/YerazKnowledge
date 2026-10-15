@@ -13,6 +13,7 @@ import { Glyph } from '../ui/Glyph'
 import { Icon } from '../ui/icons'
 import { treeHref } from '../ui/paths'
 import styles from './Peek.module.css'
+import { coverPosition } from './cover'
 import { Cover, leafColors } from './LeafLook'
 import { printLeaf } from './print'
 import { renderLeaf } from './render'
@@ -112,7 +113,12 @@ export function Peek({
 
       <div className={styles.scroll}>
         <div ref={column} className={styles.column}>
-          <Cover repo={tree.repo} src={node.meta?.cover} className={styles.cover} />
+          <Cover
+            repo={tree.repo}
+            src={node.meta?.cover}
+            position={coverPosition(node.meta)}
+            className={styles.cover}
+          />
           <article className={styles.article} style={leafColors(node.meta)}>
             <div className={styles.titleRow}>
               {node.icon ? (

@@ -59,7 +59,7 @@ These rules are the only thing that must stay stable across versions. Tests lock
 |---|---|
 | A leaf is a `.md` file. **Line 1 is the title.** | `# Keycloak` |
 | An emoji at the start of the title is the leaf's icon. | `# 🔐 Keycloak` |
-| Optional **line 2** is a metadata comment: cover, image icon, colours. It is invisible when GitHub renders the file. Colours are **named** (`green`, `amber`, `blue`, `violet`…), so they adapt to every theme (§13). | `<!-- yeraz {"cover":"https://…","color":{"heading":"amber"}} -->` |
+| Optional **line 2** is a metadata comment: cover and the part of it that shows (`coverPosition`, percent from the top, centred when absent), image icon, colours. It is invisible when GitHub renders the file. Colours are **named** (`green`, `amber`, `blue`, `violet`…), so they adapt to every theme (§13). | `<!-- yeraz {"cover":"https://…","coverPosition":30,"color":{"heading":"amber"}} -->` |
 | A leaf's sub-leaves and sub-branches live in a **sibling folder with the same name**. | `identity/keycloak.md` + `identity/keycloak/realms.md` |
 | A branch is a folder with no sibling `.md` file of the same name. Its name is the folder name, kept as typed. Git stores no empty folders, so a new branch is created with its first leaf. | `AI Agents/` |
 | A thread is a normal Markdown link with a **root-relative** path. GitHub resolves paths starting with `/` from the repository root, so threads also work on github.com. | `[Keycloak](/identity/keycloak.md)` |
@@ -280,9 +280,11 @@ src/
   sync/     pull.ts · push.ts · merge.ts · autosave.ts · assets.ts (images by SHA)
             structure.ts (new leaf, branch, move, delete as file changes) · overlay.ts
   map/      layout.ts (d3) · TreeMap.tsx · HomeMap.tsx · Home.tsx · useZoom.ts
-  editor/   Editor.tsx · EditorPage.tsx · livePreview.ts · IconPicker.tsx
+  editor/   Editor.tsx · EditorPage.tsx · livePreview.ts · IconPicker.tsx · EditableCover.tsx
             insertMenu.ts · mentions.ts · images.ts (scale, encode)
+            emoji.ts (every emoji, names and keywords, for the icon picker; lazy)
   read/     render.ts (markdown-it) · rich.ts (math, code, embeds) · Peek.tsx · print.css
+            LeafLook.tsx (cover, colours) · cover.ts (cover position)
   ui/       App.tsx (routes) · TopBar.tsx · TokenScreen.tsx · TreeView.tsx
             Explorer.tsx · Appearance.tsx
             theme.ts (turns design/themes/themes.json into CSS, applies it)

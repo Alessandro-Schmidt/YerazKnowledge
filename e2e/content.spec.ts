@@ -370,6 +370,102 @@ test.describe('leaf styling', () => {
   })
 })
 
+test.describe('cover position', () => {
+  test.skip(({ isMobile }) => isMobile, 'Desktop engines')
+
+  test('Add icon sits beside Add cover; a dragged cover keeps its position on line 2', async ({
+    page,
+    fake,
+    graph,
+  }) => {
+    const leaf = pair(graph).from.id
+    await page.goto(`./#/edit/${REPO}/${leaf}`)
+    await signInHere(page)
+    const addIcon = page.getByRole('button', { name: 'Add icon' })
+    const addCover = page.getByRole('button', { name: 'Add cover' })
+    await expect(addCover).toBeVisible()
+    const [iconBox, coverBox] = [await addIcon.boundingBox(), await addCover.boundingBox()]
+    expect(iconBox!.y).toBe(coverBox!.y)
+    expect(iconBox!.height).toBe(coverBox!.height)
+    expect(iconBox!.x).toBeLessThan(coverBox!.x)
+
+    // A photo taller than the 3:1 slot, so there is something to move.
+    const png = await page.evaluate(() => {
+      const canvas = document.createElement('canvas')
+      canvas.width = 1500
+      canvas.height = 1000
+      canvas.getContext('2d')!.fillRect(0, 0, 1500, 1000)
+      return canvas.toDataURL('image/png')
+    })
+    const chooser = page.waitForEvent('filechooser')
+    await addCover.click()
+    await (
+      await chooser
+    ).setFiles({
+      name: 'Ararat.png',
+      mimeType: 'image/png',
+      buffer: Buffer.from(png.slice(png.indexOf(',') + 1), 'base64'),
+    })
+    await page.getByRole('button', { name: 'Reposition' }).click()
+    const cover = page.getByRole('slider', { name: 'Cover position' })
+    await expect(cover).toHaveAttribute('aria-valuenow', '50')
+    const box = (await cover.boundingBox())!
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+    await page.mouse.down()
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2 + 2000, { steps: 4 })
+    await page.mouse.up()
+    await expect(cover).toHaveAttribute('aria-valuenow', '0')
+    await cover.press('ArrowUp')
+    await expect(cover).toHaveAttribute('aria-valuenow', '5')
+    await page.getByRole('button', { name: 'Save position' }).click()
+    await expect(page.getByRole('slider')).toHaveCount(0)
+    await expect(page.locator('main img').first()).toHaveCSS('object-position', '50% 5%')
+
+    await page.keyboard.press('ControlOrMeta+s')
+    await expect
+      .poll(() => fake.repo(REPO).read(leaf)?.split('\n')[1])
+      .toMatch(/"coverPosition":5\b/)
+    await page.getByRole('button', { name: 'Done' }).click()
+    const peek = page.getByRole('region', { name: 'Leaf preview' })
+    await expect(peek.locator('img').first()).toHaveCSS('object-position', '50% 5%')
+  })
+})
+
+test.describe('icons', () => {
+  test.skip(({ isMobile }) => isMobile, 'Desktop engines')
+
+  test('every emoji can be found by name or keyword; Enter picks it and line 1 gets it', async ({
+    page,
+    fake,
+    graph,
+  }) => {
+    const leaf = pair(graph).from
+    await page.goto(`./#/edit/${REPO}/${leaf.id}`)
+    await signInHere(page)
+    // No wait for the editor: the button appears with it, so an early pick isn't lost.
+    await page.getByRole('button', { name: /^(Add icon|Change icon)/ }).click()
+    const icons = page.getByRole('group', { name: 'Icons' })
+    const search = icons.getByRole('searchbox', { name: 'Search emoji' })
+    await expect(search).toBeFocused()
+    // With no search, every emoji, by group: far more than fits on screen.
+    await expect(icons.getByRole('region', { name: 'Flags' })).toBeAttached()
+    expect(await icons.getByRole('button').count()).toBeGreaterThan(1800)
+
+    await search.fill('xyzzy')
+    await expect(icons).toContainText('No emoji for “xyzzy”')
+    await search.fill('secure')
+    await expect(icons.getByRole('button', { name: 'locked with key' })).toBeVisible()
+    await search.press('Enter')
+    await expect(icons).toBeHidden()
+    await expect(page.getByRole('button', { name: 'Change icon 🔐' })).toBeVisible()
+
+    await page.keyboard.press('ControlOrMeta+s')
+    await expect
+      .poll(() => fake.repo(REPO).read(leaf.id)?.split('\n')[0])
+      .toBe(`# 🔐 ${leaf.title}`)
+  })
+})
+
 test.describe('other repositories', () => {
   test.beforeEach(async ({ fake }) => {
     await fake.addRepo('you/art', {

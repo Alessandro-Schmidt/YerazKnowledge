@@ -1,7 +1,8 @@
-// A leaf's look from its line-2 metadata (ARCHITECTURE.md §7, §13): the cover, and text and
-// heading colours. Colours are names resolved by the theme; leaf → Tree → accent.
+// A leaf's look from its line-2 metadata (ARCHITECTURE.md §7, §13): the cover and its
+// position, and text and heading colours. Colours are names resolved by the theme;
+// leaf → Tree → accent.
 
-import { useEffect, useState, type CSSProperties } from 'react'
+import { useEffect, useState, type CSSProperties, type ImgHTMLAttributes } from 'react'
 import type { LeafMeta } from '../model/parse'
 import { ownPath } from '../model/parse'
 import { session } from '../store/session'
@@ -26,12 +27,14 @@ export function leafColors(meta: LeafMeta | null | undefined): CSSProperties {
 export function Cover({
   repo,
   src,
-  className,
+  position = 50,
+  ...img
 }: {
   repo: string
   src: unknown
-  className?: string
-}) {
+  /** Percent from the top, as coverPosition() reads it. */
+  position?: number
+} & Omit<ImgHTMLAttributes<HTMLImageElement>, 'src'>) {
   const own = typeof src === 'string' ? ownPath(src) : null
   const web = typeof src === 'string' && /^https:\/\//.test(src) ? src : null
   const [url, setUrl] = useState<{ path: string; url: string | null } | null>(null)
@@ -48,5 +51,14 @@ export function Cover({
   }, [repo, own])
   const shown = web ?? (url?.path === own ? url.url : null)
   if (!shown) return null
-  return <img className={className} src={shown} alt="" loading="lazy" decoding="async" />
+  return (
+    <img
+      alt=""
+      loading="lazy"
+      decoding="async"
+      {...img}
+      src={shown}
+      style={{ objectPosition: `50% ${position}%` }}
+    />
+  )
 }
