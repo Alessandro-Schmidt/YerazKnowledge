@@ -19,6 +19,7 @@ import styles from './EditorPage.module.css'
 import { IconPicker } from './IconPicker'
 import type { InsertHost } from './insertMenu'
 import type { MentionLeaf, MentionSource } from './mentions'
+import { Search } from '../ui/Search'
 
 // CodeMirror is its own chunk: it loads the first time a leaf is edited (ARCHITECTURE.md §11).
 const Editor = lazy(() => import('./Editor'))
@@ -190,6 +191,7 @@ export function EditorPage({ params }: { params: { owner: string; name: string; 
           <Icon name="chevronRight" size={14} />
           <h1 className={styles.title}>{title}</h1>
         </nav>
+        <Search />
         <span className={styles.status}>
           <SyncStatus repo={repo} branch={tree?.branch ?? 'main'} />
         </span>
