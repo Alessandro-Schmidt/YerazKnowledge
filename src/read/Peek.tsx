@@ -14,7 +14,8 @@ import { Icon } from '../ui/icons'
 import { treeHref } from '../ui/paths'
 import styles from './Peek.module.css'
 import { coverPosition } from './cover'
-import { Cover, leafColors } from './LeafLook'
+import { leafColors } from './colors'
+import { Cover } from './LeafLook'
 import { printLeaf } from './print'
 import { renderLeaf } from './render'
 import type { StructureAction } from '../ui/StructureDialogs'
@@ -119,7 +120,7 @@ export function Peek({
             position={coverPosition(node.meta)}
             className={styles.cover}
           />
-          <article className={styles.article} style={leafColors(node.meta)}>
+          <article className={styles.article} style={leafColors(node.meta)} data-leaf="">
             <div className={styles.titleRow}>
               {node.icon ? (
                 <span className={styles.icon} aria-hidden="true">

@@ -1,27 +1,8 @@
-// A leaf's look from its line-2 metadata (ARCHITECTURE.md §7, §13): the cover and its
-// position, and text and heading colours. Colours are names resolved by the theme;
-// leaf → Tree → accent.
+// A leaf's cover from its line-2 metadata (ARCHITECTURE.md §7); colours are in colors.ts.
 
-import { useEffect, useState, type CSSProperties, type ImgHTMLAttributes } from 'react'
-import type { LeafMeta } from '../model/parse'
+import { useEffect, useState, type ImgHTMLAttributes } from 'react'
 import { ownPath } from '../model/parse'
 import { session } from '../store/session'
-import { ACCENT_IDS } from '../ui/theme'
-
-const named = (name: unknown) =>
-  typeof name === 'string' && (ACCENT_IDS as string[]).includes(name)
-    ? `var(--c-${name})`
-    : undefined
-
-/** `--leaf-heading` and `--leaf-text` for the leaf's container, when the leaf sets them. */
-export function leafColors(meta: LeafMeta | null | undefined): CSSProperties {
-  const style: Record<string, string> = {}
-  const heading = named(meta?.color?.heading)
-  const text = named(meta?.color?.text)
-  if (heading) style['--leaf-heading'] = heading
-  if (text) style['--leaf-text'] = text
-  return style as CSSProperties
-}
 
 /** The cover: an image in the Tree (`/assets/…`, through the blob cache) or on the web. */
 export function Cover({

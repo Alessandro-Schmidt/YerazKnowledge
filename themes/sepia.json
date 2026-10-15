@@ -1,0 +1,8 @@
+{
+  "yerazTheme": 1,
+  "name": "Sepia",
+  "base": "paper",
+  "accent": "amber",
+  "font": "serif",
+  "tokens": { "bg": "#F1E7D3", "top": "#EADFC8", "panel": "#F7EFDF", "raised": "#EDE2CC" }
+}

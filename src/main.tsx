@@ -6,9 +6,11 @@ import { createRoot } from 'react-dom/client'
 import { session } from './store/session'
 import { App } from './ui/App'
 import { ErrorBoundary } from './ui/ErrorBoundary'
+import { applyCustom, savedCustom } from './ui/customTheme'
 import { installTheme, savedTheme } from './ui/theme'
 
 installTheme(savedTheme())
+applyCustom(savedCustom())
 
 // `npm run dev:fake` answers every GitHub request from the in-memory fake and signs in
 // with its token. The check is replaced at build time, so production never includes it.

@@ -326,7 +326,7 @@ Any combination works: 3 bases × 4 accents × 2 fonts gives 24 themes from 9 de
 ### Colours in Trees and leaves are names, not values
 
 - A leaf's heading colour or a Tree's colour is stored as a name, for example `"amber"`, and resolved through the current theme. An amber heading is the dark-mode amber on Vanta and the light-mode amber on Paper.
-- A raw hex value is still allowed and goes through the contrast adjustment.
+- A raw hex value is still allowed and goes through the contrast adjustment: `read/colors.ts` keeps one adjusted value per mode on the leaf's container (`data-leaf`), and the theme CSS picks the mode's, so switching still re-renders nothing.
 - **Order of priority:** leaf colour → Tree colour → theme accent.
 
 ### Saving the choice
@@ -342,7 +342,7 @@ Any combination works: 3 bases × 4 accents × 2 fonts gives 24 themes from 9 de
 - **Light bases** use `design/brand/svg/yeraz-mark-light.svg` in the top bar: the same six faces in dark gunmetal instead of bright steel. The app icon never changes with the theme.
 - **Printing** always uses Paper (§8).
 
-### Custom themes (after launch)
+### Custom themes
 
 A custom theme is a small JSON file that starts from a base and overrides tokens:
 
@@ -351,3 +351,8 @@ A custom theme is a small JSON file that starts from a base and overrides tokens
 ```
 
 It can be imported, exported and shared, and the same contrast rules apply to it. Because the app is open source, people can also contribute themes to the repository.
+
+- **Made in Settings › Appearance** (`ui/ThemeEditor.tsx`): from the current theme, from a file, or from `themes/`. Every colour is a picker; a colour that fails a rule is adjusted (`ui/contrast.ts`, `readable`) and the editor names it.
+- **Checked before it reaches a stylesheet** (`ui/customTheme.ts`): known tokens only, values `#RRGGBB` or `rgba(…)` with four numbers. Anything else is refused with a reason.
+- **Applied like the built-in themes:** a fifth attribute, `data-custom`, and one `<style>` whose selector outranks the base and accent blocks, on screen only, so printing keeps Paper. It is saved per device, with its CSS in the record `index.html` reads, so it never flashes either.
+- **`themes/`** holds community themes; `npm test` requires each one to pass every rule as written.

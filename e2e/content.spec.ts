@@ -373,6 +373,50 @@ test.describe('leaf styling', () => {
   })
 })
 
+test.describe('leaf colours', () => {
+  test.skip(({ isMobile }) => isMobile, 'Desktop engines')
+
+  test('a raw hex heading colour is drawn adjusted to stay readable in each mode', async ({
+    page,
+    fake,
+  }) => {
+    await fake.repo(REPO).commit({
+      message: 'A navy heading',
+      additions: [
+        {
+          path: 'navy.md',
+          contents:
+            '# Navy\n<!-- yeraz {"color":{"heading":"#1A2B6D"}} -->\n\n## Inside\n\nText.\n',
+        },
+      ],
+    })
+    const rgb = (hex: string) =>
+      `rgb(${[1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(', ')})`
+    await page.goto(`./#/tree/${REPO}/navy.md`)
+    await signInHere(page)
+    const heading = page.getByRole('region', { name: 'Leaf preview' }).getByRole('heading', {
+      name: 'Inside',
+    })
+    const leaf = page.getByRole('region', { name: 'Leaf preview' }).locator('article[data-leaf]')
+    const value = (mode: string) =>
+      leaf.evaluate((el, m) => el.style.getPropertyValue(`--leaf-heading-${m}`), mode)
+    // The Peek shows structure first, then content: wait for the leaf's own text.
+    await expect(heading).toBeVisible()
+    await expect.poll(() => value('dark')).not.toBe('')
+    const [dark, light] = [await value('dark'), await value('light')]
+    // Navy on near-black is unreadable: lighter on dark bases, and Paper keeps it as it is.
+    expect(dark).toMatch(/^#[0-9A-F]{6}$/)
+    expect(dark).not.toBe('#1A2B6D')
+    expect(light).toBe('#1A2B6D')
+    await expect(heading).toHaveCSS('color', rgb(dark))
+    await page.evaluate(() => {
+      document.documentElement.dataset.base = 'paper'
+      document.documentElement.dataset.mode = 'light'
+    })
+    await expect(heading).toHaveCSS('color', rgb(light))
+  })
+})
+
 test.describe('cover position', () => {
   test.skip(({ isMobile }) => isMobile, 'Desktop engines')
 

@@ -351,9 +351,9 @@ Scope: §4 and §5, plus CI.
 
 Not part of the first release:
 
-- **Custom theme editor:** create a theme from the current one, edit its tokens with live contrast checks, and import or export it as JSON (ARCHITECTURE.md §13).
-- **Theme sync across devices.**
-- **Community themes:** a `themes/` folder in the repository that accepts contributions by pull request.
+- **Custom theme editor:** create a theme from the current one, edit its tokens with live contrast checks, and import or export it as JSON (ARCHITECTURE.md §13). **Built.**
+- **Theme sync across devices.** Not built: the default in §11 is that each device keeps its own.
+- **Community themes:** a `themes/` folder in the repository that accepts contributions by pull request. **Built.**
 
 ## 7. Testing strategy
 
