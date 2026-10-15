@@ -10,6 +10,7 @@ import { CreateTreeDialog } from '../ui/StructureDialogs'
 import { Divider, TopBar } from '../ui/TopBar'
 import styles from './Home.module.css'
 import { HomeMap, type HomeEntry } from './HomeMap'
+import { Search } from '../ui/Search'
 
 export function Home() {
   const trees = useSession((s) => s.trees)
@@ -44,6 +45,7 @@ export function Home() {
       <TopBar>
         <Divider />
         <h1 className={styles.title}>All trees</h1>
+        <Search />
         <button
           type="button"
           className={`${controls.iconButton} ${styles.signOut}`}

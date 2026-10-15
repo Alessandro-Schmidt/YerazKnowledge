@@ -18,6 +18,7 @@ import { colorVar } from './theme'
 import { Divider, TopBar } from './TopBar'
 import styles from './TreeView.module.css'
 import { PHONE, useMedia } from './useMedia'
+import { Search } from './Search'
 
 export function TreeView({ params }: { params: { owner: string; name: string; '*'?: string } }) {
   const repo = `${params.owner}/${params.name}`
@@ -82,6 +83,7 @@ export function TreeView({ params }: { params: { owner: string; name: string; '*
           </span>
           <h1 className={styles.title}>{tree?.title ?? params.name}</h1>
         </nav>
+        <Search />
         <span className={styles.status}>
           <Status data={data} repo={repo} branch={tree?.branch ?? 'main'} />
         </span>
