@@ -4,6 +4,7 @@ import { useHashLocation } from 'wouter/use-hash-location'
 import { EditorPage } from '../editor/EditorPage'
 import { Home } from '../map/Home'
 import { session, useSession } from '../store/session'
+import { Appearance } from './Appearance'
 import { TokenScreen } from './TokenScreen'
 import { TreeView } from './TreeView'
 
@@ -11,6 +12,7 @@ import { TreeView } from './TreeView'
 //   #/                                   Home, every Tree
 //   #/tree/:owner/:name[/path/to/leaf.md] a Tree, optionally with a node selected
 //   #/edit/:owner/:name/path/to/leaf.md   the editor
+//   #/settings/appearance                 Settings › Appearance
 export function App() {
   const phase = useSession((s) => s.phase)
 
@@ -47,6 +49,7 @@ export function App() {
         <Route path="/" component={Home} />
         <Route path="/tree/:owner/:name/*?" component={TreeView} />
         <Route path="/edit/:owner/:name/*" component={EditorPage} />
+        <Route path="/settings/appearance" component={Appearance} />
         <Route>
           <Redirect to="/" replace />
         </Route>

@@ -7,6 +7,15 @@
     <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
     <link rel="icon" href="./favicon.ico" sizes="16x16 32x32 48x48" />
     <title>Yeraz</title>
+    <!-- The saved theme, set before the first paint so the wrong one never flashes (ui/theme.ts). -->
+    <script>
+      try {
+        var t = JSON.parse(localStorage.getItem('yeraz-theme'))
+        if (t)
+          for (var k of ['base', 'mode', 'accent', 'font'])
+            if (t[k]) document.documentElement.dataset[k] = t[k]
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>

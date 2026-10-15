@@ -47,6 +47,15 @@ export function Home() {
         <button
           type="button"
           className={`${controls.iconButton} ${styles.signOut}`}
+          aria-label="Appearance"
+          title="Appearance"
+          onClick={() => navigate('/settings/appearance')}
+        >
+          <Icon name="contrast" size={18} />
+        </button>
+        <button
+          type="button"
+          className={controls.iconButton}
           aria-label="Sign out"
           title="Sign out"
           onClick={() => void session.getState().signOut()}
