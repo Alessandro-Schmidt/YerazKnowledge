@@ -96,6 +96,12 @@
   color: var(--accent);
   font-family: var(--font-ui);
 }
+.editor :global(.cm-mention[data-path]) {
+  cursor: pointer;
+}
+.editor :global(.cm-mention[data-before])::before {
+  content: attr(data-before);
+}
 .editor :global(.cm-list-mark) {
   color: var(--muted);
 }
@@ -166,4 +172,37 @@
 .editor[data-source] :global(.cm-scroller) {
   font-family: var(--font-mono);
   font-size: 13.5px;
+}
+
+/* The @ mention list: CodeMirror's tooltip in the theme's colours. */
+.editor :global(.cm-tooltip.cm-tooltip-autocomplete) {
+  border: 1px solid var(--hair-strong);
+  border-radius: 10px;
+  background: var(--raised);
+  box-shadow: 0 16px 40px var(--shadow);
+  overflow: hidden;
+  font-family: var(--font-ui);
+}
+.editor :global(.cm-tooltip-autocomplete > ul) {
+  max-height: 280px;
+  font-family: var(--font-ui);
+}
+.editor :global(.cm-tooltip-autocomplete > ul > li) {
+  padding: 6px 12px;
+  color: var(--text);
+}
+.editor :global(.cm-tooltip-autocomplete > ul > li[aria-selected]) {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.editor :global(.cm-completionDetail) {
+  margin-left: 10px;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.8em;
+  font-style: normal;
+}
+.editor :global(.cm-completionMatchedText) {
+  text-decoration: none;
+  font-weight: 600;
 }

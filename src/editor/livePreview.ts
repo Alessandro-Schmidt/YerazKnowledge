@@ -13,6 +13,7 @@ import {
   type ViewUpdate,
 } from '@codemirror/view'
 import { leadingIcon, linkTarget, META } from '../model/parse'
+import { mentionSource } from './mentions'
 
 /** The title's icon with the space after it, so both can be hidden. */
 const titleIcon = (rest: string) => {
@@ -139,13 +140,24 @@ function build(view: EditorView): DecorationSet {
             const url = node.node.getChild('URL')
             const dest = url ? state.sliceDoc(url.from, url.to) : ''
             const target = linkTarget(dest)
+            const active = isActive(node.from)
+            const leaf =
+              target && target.repo === null
+                ? state.facet(mentionSource)?.leaf(target.path)
+                : undefined
             decorations.push(
-              mark(target && target.repo === null ? 'cm-mention' : 'cm-link').range(
-                node.from,
-                node.to,
-              ),
+              (leaf && !active
+                ? Decoration.mark({
+                    class: 'cm-mention',
+                    attributes: {
+                      'data-path': leaf.path,
+                      'data-before': `@ ${leaf.icon ? `${leaf.icon} ` : ''}`,
+                    },
+                  })
+                : mark(target && target.repo === null ? 'cm-mention' : 'cm-link')
+              ).range(node.from, node.to),
             )
-            if (!isActive(node.from)) {
+            if (!active) {
               for (const child of [...node.node.getChildren('LinkMark'), ...(url ? [url] : [])]) {
                 decorations.push(hide.range(child.from, child.to))
               }

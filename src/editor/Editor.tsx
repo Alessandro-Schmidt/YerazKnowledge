@@ -12,6 +12,7 @@ import { useEffect, useRef } from 'react'
 import { withIcon } from '../model/parse'
 import styles from './Editor.module.css'
 import { livePreview } from './livePreview'
+import { mentions, type MentionSource } from './mentions'
 
 export interface EditorHandle {
   setIcon(icon: string | null): void
@@ -26,9 +27,18 @@ export interface EditorProps {
   handleRef?: React.RefObject<EditorHandle | null>
   /** Focus with the cursor at the end, as for a leaf that was just created. */
   autoFocus?: boolean
+  /** The Tree's leaves, for @ mentions and their chips. */
+  mentionsFrom?: MentionSource
 }
 
-export default function Editor({ initial, source, onChange, handleRef, autoFocus }: EditorProps) {
+export default function Editor({
+  initial,
+  source,
+  onChange,
+  handleRef,
+  autoFocus,
+  mentionsFrom,
+}: EditorProps) {
   const host = useRef<HTMLDivElement>(null)
   const view = useRef<EditorView | null>(null)
   const preview = useRef(new Compartment())
@@ -50,6 +60,7 @@ export default function Editor({ initial, source, onChange, handleRef, autoFocus
           EditorView.lineWrapping,
           EditorView.contentAttributes.of({ 'aria-label': 'Leaf text', spellcheck: 'true' }),
           placeholder('Start writing…'),
+          mentionsFrom ? mentions(mentionsFrom) : [],
           preview.current.of(source ? [] : livePreview),
           EditorView.updateListener.of((u) => {
             if (u.docChanged) changed.current(u.state.doc.toString())
