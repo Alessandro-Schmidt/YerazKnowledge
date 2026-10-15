@@ -345,6 +345,7 @@ function LeafBody({
           {
             leafHref: (path) => (graph.nodes.get(path)?.kind === 'leaf' ? href(path) : null),
             leafIcon: (path) => graph.nodes.get(path)?.icon ?? null,
+            files: () => session.getState().files(repo),
           },
           // Pending edits have no SHA yet, so they are not cached.
           isLocal(sha) ? undefined : sha,
@@ -360,11 +361,14 @@ function LeafBody({
   // The Tree's own files (images, PDFs, videos) come from the blob cache, with the token.
   const body = useRef<HTMLDivElement>(null)
   useEffect(() => {
-    for (const el of body.current?.querySelectorAll<HTMLElement>('[data-asset]') ?? []) {
+    for (const el of body.current?.querySelectorAll<HTMLElement>(
+      '[data-asset], [data-asset-href]',
+    ) ?? []) {
+      const href = el.dataset.assetHref
       void session
         .getState()
-        .assetUrl(repo, el.dataset.asset!)
-        .then((url) => url && el.setAttribute('src', url))
+        .assetUrl(repo, href ?? el.dataset.asset!)
+        .then((url) => url && el.setAttribute(href ? 'href' : 'src', url))
     }
   }, [html, repo])
 

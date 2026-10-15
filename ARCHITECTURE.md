@@ -65,6 +65,8 @@ These rules are the only thing that must stay stable across versions. Tests lock
 | A thread is a normal Markdown link with a **root-relative** path. GitHub resolves paths starting with `/` from the repository root, so threads also work on github.com. | `[Keycloak](/identity/keycloak.md)` |
 | A thread to another Tree is a full GitHub URL to a file in a connected repository. Any other `github.com/owner/repo` URL renders as a repository card. | `https://github.com/user/art-history/blob/main/baroque.md` |
 | Images and attachments live in `assets/` at the root, at full quality. An image is committed unchanged unless its long edge is over 4096 px (§8). | `assets/2026-10-14-realm-diagram.png` |
+| A paragraph that is only a link to a YouTube video, or to a PDF or video (`.mp4`, `.webm`) in `assets/`, shows as a player; on GitHub it stays a link. A video's subtitles are `name.<lang>.vtt` files beside it. | `[OIDC spec](/assets/oidc.pdf)` · `assets/talk.mp4` + `assets/talk.en.vtt` |
+| Math is `$inline$` and `$$display$$`, as GitHub writes it. | `$e^{i\pi} + 1 = 0$` |
 | `.yeraz.json` at the root marks a repository as a Tree. | `{"name":"Engineering","color":"green"}` |
 | The filename is fixed when the leaf is created (a slug of its first title). Changing the title does not rename the file. | Title "Keycloak (IdP)" stays in `keycloak.md` |
 
@@ -270,7 +272,7 @@ src/
   github/   client.ts (fetch, auth, ETag) · graphql.ts (the 3 operations)
             endpoint.ts (the API base; a local fake only in e2e builds)
   store/    db.ts (IndexedDB via idb-keyval) · session.ts (Zustand store)
-  model/    parse.ts · tree.ts (paths → hierarchy, sibling-folder rule)
+  model/    parse.ts · tree.ts (paths → hierarchy, sibling-folder rule) · embeds.ts
             graph.ts (titles, word totals, threads, backlinks)
             links.ts (find and rewrite) · sha.ts (git blob SHA)
   sync/     pull.ts · push.ts · merge.ts · autosave.ts · assets.ts (images by SHA)
@@ -278,7 +280,7 @@ src/
   map/      layout.ts (d3) · TreeMap.tsx · HomeMap.tsx · Home.tsx · useZoom.ts
   editor/   Editor.tsx · EditorPage.tsx · livePreview.ts · IconPicker.tsx
             insertMenu.ts · mentions.ts · images.ts (scale, encode)
-  read/     render.ts (markdown-it) · Peek.tsx · print.css
+  read/     render.ts (markdown-it) · rich.ts (math, code, embeds) · Peek.tsx · print.css
   ui/       App.tsx (routes) · TopBar.tsx · TokenScreen.tsx · TreeView.tsx
             Explorer.tsx · Appearance.tsx
             theme.ts (turns design/themes/themes.json into CSS, applies it)

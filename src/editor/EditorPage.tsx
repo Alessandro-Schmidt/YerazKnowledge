@@ -81,9 +81,8 @@ export function EditorPage({ params }: { params: { owner: string; name: string; 
         )
       )
         continue
-      const asset = assetPath(file.name, ext, new Date(), (p) =>
-        session.getState().hasFile(repo, p),
-      )
+      const taken = new Set(session.getState().files(repo))
+      const asset = assetPath(file.name, ext, new Date(), (p) => taken.has(p))
       await session.getState().apply(repo, [{ path: asset, text: bytes }])
       const alt = file.name.replace(/\.[^.]*$/, '').replace(/[[\]\\]/g, '') || 'Image'
       handle.current?.insertText(`![${alt}](${destination(asset)})`, true)

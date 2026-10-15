@@ -144,30 +144,6 @@
   border-radius: 8px;
 }
 
-/* Code highlighting: Lezer's token classes, in theme colours. */
-.editor :global(.tok-keyword),
-.editor :global(.tok-operator) {
-  color: var(--c-violet);
-}
-.editor :global(.tok-string),
-.editor :global(.tok-string2) {
-  color: var(--c-green);
-}
-.editor :global(.tok-number),
-.editor :global(.tok-bool),
-.editor :global(.tok-atom) {
-  color: var(--c-amber);
-}
-.editor :global(.tok-comment) {
-  color: var(--faint);
-  font-style: italic;
-}
-.editor :global(.tok-variableName.tok-definition),
-.editor :global(.tok-typeName),
-.editor :global(.tok-className) {
-  color: var(--c-blue);
-}
-
 /* Show Markdown: the text as it is, in the monospace font. */
 .editor[data-source] :global(.cm-scroller) {
   font-family: var(--font-mono);
@@ -245,4 +221,29 @@
   .editor :global(.cm-insert-menu button) {
     min-height: 44px;
   }
+}
+
+/* Math and embeds in live preview (the line with the cursor shows their Markdown). */
+.editor :global(.cm-math-display) {
+  display: block;
+  overflow-x: auto;
+  text-align: center;
+}
+.editor :global(.cm-embed) {
+  display: block;
+  margin: 6px 0;
+}
+.editor :global(.cm-embed iframe),
+.editor :global(.cm-embed video) {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border: 0;
+  border-radius: 9px;
+  background: var(--bg);
+}
+.editor :global(.cm-embed-pdf iframe) {
+  aspect-ratio: auto;
+  height: min(70vh, 800px);
+  border: 1px solid var(--hair);
 }

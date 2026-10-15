@@ -434,3 +434,36 @@
     min-height: 44px;
   }
 }
+
+/* Embeds: YouTube and videos at 16:9, PDFs as a tall page with a download link. */
+.content :global(.embed) {
+  margin: 0 0 14px;
+}
+.content :global(.embed.video) iframe,
+.content :global(.embed.video) video {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border: 0;
+  border-radius: 9px;
+  background: var(--bg);
+}
+.content :global(.embed.pdf) iframe {
+  display: block;
+  width: 100%;
+  height: min(80vh, 900px);
+  border: 1px solid var(--hair);
+  border-radius: 9px;
+  background: var(--bg);
+}
+.content :global(.embed.pdf) a {
+  display: inline-block;
+  margin-top: 6px;
+  color: var(--accent);
+  font-size: 13px;
+}
+.content :global(.katex-display) {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 4px 0;
+}
