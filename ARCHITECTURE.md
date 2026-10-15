@@ -123,9 +123,10 @@ Creating a Tree from the app means:
 
 ## 6. The map
 
-- **Layout: a radial tidy tree from `d3-hierarchy`,** with branches fanning out from a core (the Tree):
-  - `tree().size([2π, R]).separation((a, b) => (a.parent === b.parent ? 1 : 2) / a.depth)`.
-  - Each depth sits on its own ring.
+- **Layout: a radial cluster from `d3-hierarchy`,** with branches fanning out from a core (the Tree):
+  - `cluster()`: every node without children gets an angle of its own, and a parent sits among its children, so nothing on an outer ring shares an angle with a leaf further in.
+  - Each depth sits on its own ring. Neighbours are separated by their dots and labels on every ring between them (inner rings are shorter, so they need more of the angle).
+  - A ring moves out when a label on the ring inside it, running along the radius, wouldn't end before it.
 - **Threads use hierarchical edge bundling:** `d3.lineRadial().curve(d3.curveBundle.beta(0.85))` drawn through `source.path(target)`.
   - d3 already returns the path through the two leaves' common ancestor, so this is about ten lines of code.
   - Bundling is what keeps the map readable as threads multiply. A force-directed layout (Obsidian's approach) turns into a tangle.
@@ -144,7 +145,8 @@ Creating a Tree from the app means:
   - Pan and zoom use `d3-zoom`, which writes a single `transform` attribute on one `<g>`. **React does not re-render during pan or zoom.**
   - Selecting adds `data-focus` on the map, then draws a translucent veil over the map and copies of the selection's neighbours (from a precomputed adjacency map) above it, in a second `<svg>` with its own compositor layer. The work depends on the number of neighbours, not the size of the Tree, and the map itself is never repainted. (Restyling every node to dim it cost about 4× more on a throttled phone.)
   - Semantic zoom works the same way: a `data-zoom` attribute (`far` hides labels below the first ring, `near` shows them).
-- **Labels:** horizontal, as in the design, for Trees of up to 60 leaves. Larger Trees turn leaf labels to follow the radius, so neighbours 15 px apart never overlap.
+- **Labels never overlap each other or a dot** (a unit test checks the example Tree, the design's Trees and generated ones). Labels are horizontal, as in the design, wherever they fit; one that would touch another label or a dot turns to follow the radius. Trees of more than 60 leaves turn every leaf label. Widths are estimated from the characters, since layout runs without a DOM.
+- **Fit** is the bounding box of every dot and label, so a lopsided Tree still fills the screen. A long Tree title wraps onto two lines in the core.
 - **Home** lays out every Tree independently:
   - Each is scaled by √(total words) and placed with `d3.packSiblings`.
   - Only branch labels are drawn at that zoom.
