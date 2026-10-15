@@ -136,7 +136,10 @@ function embedHtml(embed: Embed, env: RichEnv, escape: (s: string) => string): s
     return (
       `<div class="embed video"><iframe src="${src}" title="${title}" loading="lazy" ` +
       `allow="encrypted-media; picture-in-picture; fullscreen" allowfullscreen ` +
-      `referrerpolicy="strict-origin-when-cross-origin"></iframe></div>\n`
+      `referrerpolicy="strict-origin-when-cross-origin"></iframe>` +
+      // Printed as its thumbnail with a link (ARCHITECTURE.md §8).
+      `<a class="print-only" href="https://www.youtube.com/watch?v=${embed.id}">` +
+      `<img src="https://i.ytimg.com/vi/${embed.id}/hqdefault.jpg" alt=""> ${title} · youtube.com/watch?v=${embed.id}</a></div>\n`
     )
   }
   const path = escape(embed.path)
@@ -154,6 +157,6 @@ function embedHtml(embed: Embed, env: RichEnv, escape: (s: string) => string): s
   )
   return (
     `<div class="embed video"><video controls preload="metadata" data-asset="${path}" title="${title}">` +
-    `${tracks.join('')}</video></div>\n`
+    `${tracks.join('')}</video><p class="print-only">Video: ${title} (${path})</p></div>\n`
   )
 }

@@ -72,6 +72,20 @@ export function themeCss(): string {
   }
   for (const id of FONT_IDS)
     blocks.push(`:root[data-font='${id}']{--font-reading:${fontStack(id)};}`)
+  // Printing always uses Paper and the light accents, so a dark theme never prints black
+  // (ARCHITECTURE.md §8). Extra attribute selectors outrank the screen blocks above.
+  const light = Object.fromEntries(ACCENT_IDS.map((id) => [`c-${id}`, themes.accents[id].light]))
+  const print = [
+    `:root[data-base][data-mode]{${declarations({ ...themes.bases.paper.tokens, ...light })}}`,
+    ...ACCENT_IDS.map(
+      (id) =>
+        `:root[data-base][data-mode][data-accent='${id}']{${declarations({
+          accent: themes.accents[id].light,
+          'on-accent': themes.onAccent.light,
+        })}}`,
+    ),
+  ]
+  blocks.push(`@media print{${print.join('')}}`)
   return blocks.join('\n')
 }
 

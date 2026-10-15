@@ -87,9 +87,19 @@ describe('themeCss', () => {
   const css = themeCss()
 
   it('has one block per base, per accent per mode and per font', () => {
-    expect(css.match(/\[data-base=/g)).toHaveLength(3)
-    expect(css.match(/\[data-accent=/g)).toHaveLength(8)
-    expect(css.match(/\[data-font=/g)).toHaveLength(2)
+    const screen = css.split('@media print')[0]!
+    expect(screen.match(/\[data-base=/g)).toHaveLength(3)
+    expect(screen.match(/\[data-accent=/g)).toHaveLength(8)
+    expect(screen.match(/\[data-font=/g)).toHaveLength(2)
+  })
+
+  it('prints on Paper whatever is on screen, with light accents (ARCHITECTURE.md §8)', () => {
+    const print = css.slice(css.indexOf('@media print'))
+    expect(print).toContain(`--bg:${themes.bases.paper.tokens.bg};`)
+    expect(print).toContain(
+      `:root[data-base][data-mode][data-accent='blue']{--accent:${themes.accents.blue.light};`,
+    )
+    expect(print).toContain(`--c-green:${themes.accents.green.light};`)
   })
 
   it('defines every named colour in both modes', () => {
