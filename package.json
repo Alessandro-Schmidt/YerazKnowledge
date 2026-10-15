@@ -22,7 +22,8 @@
     "size": "size-limit",
     "fixture": "tsx scripts/make-fixture.ts",
     "perf": "playwright test -c playwright.perf.config.ts",
-    "visual": "playwright test -c playwright.visual.config.ts"
+    "visual": "playwright test -c playwright.visual.config.ts",
+    "contract": "playwright test -c playwright.contract.config.ts"
   },
   "dependencies": {
     "@codemirror/autocomplete": "6.20.3",

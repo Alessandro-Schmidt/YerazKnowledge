@@ -1,5 +1,6 @@
 dist/
 dist-e2e/
+dist-contract/
 perf-results/
 visual-review/
 node_modules/
