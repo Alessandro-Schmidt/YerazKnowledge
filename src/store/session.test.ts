@@ -208,6 +208,30 @@ describe('session', () => {
     expect(await s.getState().assetUrl('you/engineering', 'assets/none.png')).toBeNull()
   })
 
+  it('keeps showing an image while its commit completes', async () => {
+    // Asks for the image each time pending edits are saved, as the Peek might mid-commit.
+    const base = memoryStore()
+    const seen: Promise<string | null>[] = []
+    const s = createSession({
+      store: {
+        ...base,
+        async set(key, value) {
+          await base.set(key, value)
+          if (key.startsWith('dirty:'))
+            seen.push(s.getState().assetUrl('you/engineering', 'assets/c.png'))
+        },
+      },
+    })
+    await s.getState().signIn('good')
+    await s.getState().open('you/engineering')
+    const png = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10, 4, 5, 6])
+    await s.getState().apply('you/engineering', [{ path: 'assets/c.png', text: png }])
+    await s.getState().flush('you/engineering')
+    const urls = await Promise.all(seen)
+    expect(urls.length).toBeGreaterThan(1)
+    expect(urls.filter((url) => url === null)).toEqual([])
+  })
+
   it('downloads an image committed elsewhere, once', async () => {
     const png = new Uint8Array([137, 80, 78, 71, 9, 9, 9])
     await fake.repo('you/engineering').commit({

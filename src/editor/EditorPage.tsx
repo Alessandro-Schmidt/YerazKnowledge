@@ -2,7 +2,7 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } fro
 import { Link, useLocation } from 'wouter'
 import type { GraphNode } from '../model/graph'
 import type { LeafMeta } from '../model/parse'
-import { Cover, leafColors } from '../read/LeafLook'
+import { leafColors } from '../read/LeafLook'
 import { destination, mentionLink } from '../model/links'
 import { assetPath } from '../sync/assets'
 import { session, useSession } from '../store/session'
@@ -16,6 +16,7 @@ import { ACCENT_IDS, colorVar } from '../ui/theme'
 import { Divider, TopBar } from '../ui/TopBar'
 import type { EditorHandle } from './Editor'
 import styles from './EditorPage.module.css'
+import { EditableCover } from './EditableCover'
 import { IconPicker } from './IconPicker'
 import type { InsertHost } from './insertMenu'
 import type { MentionLeaf, MentionSource } from './mentions'
@@ -108,6 +109,9 @@ export function EditorPage({ params }: { params: { owner: string; name: string; 
     handle.current?.setMeta(() => next)
   }
   const coverPicker = useRef<HTMLInputElement>(null)
+  const [repositioning, setRepositioning] = useState(false)
+  const [picking, setPicking] = useState(false)
+  const closePicker = useCallback(() => setPicking(false), [])
   const assetUrl = useCallback((p: string) => session.getState().assetUrl(repo, p), [repo])
   const mentionCreated = (id: string | undefined) => {
     setAction(null)
@@ -223,32 +227,78 @@ export function EditorPage({ params }: { params: { owner: string; name: string; 
           </p>
         ) : text?.path === path ? (
           <article className={styles.column} style={leafColors(meta)}>
-            <Cover repo={repo} src={meta?.cover} className={styles.cover} />
-            <IconPicker
-              icon={node?.icon ?? null}
-              onPick={(icon) => handle.current?.setIcon(icon)}
-            />
-            <LeafStyle
+            <EditableCover
+              key={`${path} ${repositioning}`}
+              repo={repo}
               meta={meta}
-              onChange={changeLook}
-              onCover={() => coverPicker.current?.click()}
-            />
-            <input
-              ref={coverPicker}
-              type="file"
-              accept="image/*"
-              hidden
-              aria-label="Choose a cover image"
-              onChange={(e) => {
-                const file = e.target.files?.[0]
-                e.target.value = ''
-                if (file)
-                  void saveImage(file).then(
-                    (asset) => asset && changeLook((m) => ({ ...m, cover: `/${asset}` })),
-                  )
+              moving={repositioning}
+              onSave={(coverPosition) => {
+                changeLook((m) => ({ ...m, coverPosition }))
+                setRepositioning(false)
               }}
+              onCancel={() => setRepositioning(false)}
             />
+            {/* The header's controls change the editor's text, so they appear with it. */}
             <Suspense fallback={<div className={styles.loading} aria-busy="true" />}>
+              <div className={styles.header}>
+                {node?.icon && (
+                  <button
+                    type="button"
+                    className={styles.iconButton}
+                    data-icon-trigger=""
+                    aria-haspopup="true"
+                    aria-expanded={picking}
+                    aria-label={`Change icon ${node.icon}`}
+                    onClick={() => setPicking((p) => !p)}
+                  >
+                    <span className={styles.icon}>{node.icon}</span>
+                  </button>
+                )}
+                <LeafStyle
+                  meta={meta}
+                  onChange={changeLook}
+                  onCover={() => coverPicker.current?.click()}
+                  onReposition={() => setRepositioning(true)}
+                  icon={
+                    node?.icon ? null : (
+                      <button
+                        type="button"
+                        className={controls.ghost}
+                        data-icon-trigger=""
+                        aria-haspopup="true"
+                        aria-expanded={picking}
+                        onClick={() => setPicking((p) => !p)}
+                      >
+                        Add icon
+                      </button>
+                    )
+                  }
+                />
+                {picking && (
+                  <IconPicker
+                    icon={node?.icon ?? null}
+                    onPick={(icon) => handle.current?.setIcon(icon)}
+                    onClose={closePicker}
+                  />
+                )}
+              </div>
+              <input
+                ref={coverPicker}
+                type="file"
+                accept="image/*"
+                hidden
+                aria-label="Choose a cover image"
+                onChange={(e) => {
+                  const file = e.target.files?.[0]
+                  e.target.value = ''
+                  if (file)
+                    void saveImage(file).then(
+                      (asset) =>
+                        // A new picture starts centred.
+                        asset && changeLook((m) => ({ ...withoutCover(m), cover: `/${asset}` })),
+                    )
+                }}
+              />
               <Editor
                 key={path}
                 initial={text.text}
@@ -297,15 +347,30 @@ export function EditorPage({ params }: { params: { owner: string; name: string; 
 const COLORS = ['', ...ACCENT_IDS] as const
 const colorName = (id: string) => (id ? id[0]!.toUpperCase() + id.slice(1) : 'Default')
 
-/** Cover and colours: what line 2 holds. Colours are names, so they follow every theme. */
+/** Line 2 without the cover and its position. */
+function withoutCover(meta: LeafMeta): LeafMeta {
+  const rest = { ...meta }
+  delete rest.cover
+  delete rest.coverPosition
+  return rest
+}
+
+/**
+ * Icon, cover and colours: what lines 1 and 2 hold. Colours are names, so they follow
+ * every theme. `icon` is the "Add icon" button, first in the row, when there's no icon yet.
+ */
 function LeafStyle({
   meta,
   onChange,
   onCover,
+  onReposition,
+  icon,
 }: {
   meta: LeafMeta | null
   onChange(update: (meta: LeafMeta) => LeafMeta): void
   onCover(): void
+  onReposition(): void
+  icon: React.ReactNode
 }) {
   const setColor = (part: 'heading' | 'text', value: string) =>
     onChange(({ color, ...rest }) => {
@@ -316,21 +381,17 @@ function LeafStyle({
     })
   return (
     <div className={styles.look}>
+      {icon}
       <button type="button" className={controls.ghost} onClick={onCover}>
         {meta?.cover ? 'Change cover' : 'Add cover'}
       </button>
+      {typeof meta?.cover === 'string' && (
+        <button type="button" className={controls.ghost} onClick={onReposition}>
+          Reposition
+        </button>
+      )}
       {meta?.cover !== undefined && (
-        <button
-          type="button"
-          className={controls.ghost}
-          onClick={() =>
-            onChange((m) => {
-              const rest = { ...m }
-              delete rest.cover
-              return rest
-            })
-          }
-        >
+        <button type="button" className={controls.ghost} onClick={() => onChange(withoutCover)}>
           Remove cover
         </button>
       )}
