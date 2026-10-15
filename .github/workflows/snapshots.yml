@@ -1,0 +1,31 @@
+name: Snapshots
+
+# Re-renders the visual snapshot baselines (e2e/visual.spec.ts) in the image CI compares
+# them in. Run it after a visual change (gh workflow run snapshots.yml), review the images
+# in its artifact against design/screens/, and commit them to e2e/visual.spec.ts-snapshots/.
+on: workflow_dispatch
+
+jobs:
+  render:
+    runs-on: ubuntu-24.04
+    container:
+      image: mcr.microsoft.com/playwright:v1.64.1-noble
+      options: --ipc=host
+    env:
+      YERAZ_SNAPSHOTS: '1'
+      HOME: /root
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: The image matches @playwright/test
+        run: test "$(node -p "require('@playwright/test/package.json').version")" = 1.64.1
+      - run: npx playwright test e2e/visual.spec.ts --update-snapshots=all
+      - uses: actions/upload-artifact@v7
+        with:
+          name: visual-snapshots
+          path: e2e/visual.spec.ts-snapshots
+          retention-days: 14

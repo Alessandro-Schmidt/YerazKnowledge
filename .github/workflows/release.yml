@@ -45,3 +45,30 @@ jobs:
           releaseBody: 'Unsigned builds: see the README for how to open them the first time.'
           releaseDraft: true
           args: ${{ matrix.args }}
+      # Smoke test (development-plan.md §7.1): the app that was just built starts and is
+      # still running 15 s later, so a build that crashes on launch never ships.
+      - name: Launches (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get install -y xvfb
+          set +e
+          timeout 15 xvfb-run -a src-tauri/target/release/yeraz
+          code=$?
+          set -e
+          test $code -eq 124 || { echo "Yeraz exited with $code"; exit 1; }
+      - name: Launches (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          src-tauri/target/universal-apple-darwin/release/yeraz &
+          pid=$!
+          sleep 15
+          kill -0 $pid || { echo "Yeraz exited"; exit 1; }
+          kill $pid
+      - name: Launches (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $app = Start-Process -FilePath src-tauri/target/release/yeraz.exe -PassThru
+          Start-Sleep -Seconds 15
+          if ($app.HasExited) { throw "Yeraz exited with code $($app.ExitCode)" }
+          Stop-Process -Id $app.Id
