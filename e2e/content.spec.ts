@@ -174,6 +174,7 @@ test.describe('images', () => {
     page,
     fake,
     graph,
+    browserName,
   }) => {
     await page.clock.install()
     const leaf = pair(graph).from.id
@@ -196,13 +197,15 @@ test.describe('images', () => {
     const repo = fake.repo(REPO)
     const files = [...repo.head!.files.keys()].filter((p) => p.startsWith('assets/'))
     const png = files.find((p) => p.endsWith('realm-diagram.png'))!
-    const webp = files.find((p) => p.endsWith('ararat.webp'))!
+    // WebKit's canvas can't encode WebP, so there the photo falls back to JPEG (images.ts).
+    const photoFile = files.find((p) => /ararat\.(webp|jpg)$/.test(p))!
+    expect(photoFile).toMatch(browserName === 'webkit' ? /\.jpg$/ : /\.webp$/)
     expect(png).toMatch(/^assets\/\d{4}-\d{2}-\d{2}-realm-diagram\.png$/)
     expect(Buffer.from(repo.blobs.get(repo.head!.files.get(png)!)!)).toEqual(screenshot)
-    const committed = repo.blobs.get(repo.head!.files.get(webp)!)!
+    const committed = repo.blobs.get(repo.head!.files.get(photoFile)!)!
     expect(await size(page, committed)).toEqual({ width: 4096, height: 2731 })
     expect(repo.read(leaf)).toContain(`![Realm diagram](/${png})`)
-    expect(repo.read(leaf)).toContain(`![Ararat](/${webp})`)
+    expect(repo.read(leaf)).toContain(`![Ararat](/${photoFile})`)
   })
 })
 
