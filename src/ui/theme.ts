@@ -25,6 +25,11 @@ const FONT_FACES: Record<string, string> = {
   "'Newsreader'": "'Newsreader Variable', 'Newsreader'",
 }
 
+/** A reading font's CSS stack, pointing at the self-hosted family. */
+export function fontStack(id: FontId): string {
+  return themes.fonts[id].reading.replace(/'[^']+'/, (f) => FONT_FACES[f] ?? f)
+}
+
 export function modeOf(base: BaseId): Mode {
   return themes.bases[base].mode as Mode
 }
@@ -65,10 +70,8 @@ export function themeCss(): string {
     const named = Object.fromEntries(ACCENT_IDS.map((id) => [`c-${id}`, themes.accents[id][mode]]))
     blocks.push(`:root[data-mode='${mode}']{${declarations(named)}}`)
   }
-  for (const id of FONT_IDS) {
-    const stack = themes.fonts[id].reading.replace(/'[^']+'/, (f) => FONT_FACES[f] ?? f)
-    blocks.push(`:root[data-font='${id}']{--font-reading:${stack};}`)
-  }
+  for (const id of FONT_IDS)
+    blocks.push(`:root[data-font='${id}']{--font-reading:${fontStack(id)};}`)
   return blocks.join('\n')
 }
 
@@ -84,6 +87,8 @@ export function applyTheme(choice: ThemeChoice, doc: Document = document): void 
   root.dataset.mode = modeOf(choice.base)
   root.dataset.accent = choice.accent
   root.dataset.font = choice.font
+  // The serif is fetched the first time it is chosen, so first load stays small.
+  if (choice.font === 'serif') void import('@fontsource-variable/newsreader')
 
   let meta = doc.querySelector<HTMLMetaElement>('meta[name="theme-color"]')
   if (!meta) {
@@ -92,6 +97,43 @@ export function applyTheme(choice: ThemeChoice, doc: Document = document): void 
     doc.head.append(meta)
   }
   meta.content = themes.bases[choice.base].tokens.top
+}
+
+/** localStorage key of the device's choice; index.html reads it before the first paint. */
+export const THEME_KEY = 'yeraz-theme'
+
+const storage = (): Storage | undefined => {
+  try {
+    return globalThis.localStorage
+  } catch {
+    return undefined // blocked storage throws on access
+  }
+}
+
+/** The choice saved on this device; unknown or unreadable values fall back to the default. */
+export function savedTheme(store = storage()): ThemeChoice {
+  let saved: Partial<Record<keyof ThemeChoice, string>> = {}
+  try {
+    saved = JSON.parse(store?.getItem(THEME_KEY) ?? '{}') ?? {}
+  } catch {
+    // keep the default
+  }
+  const pick = <T extends string>(ids: T[], value: string | undefined, fallback: T): T =>
+    ids.includes(value as T) ? (value as T) : fallback
+  return {
+    base: pick(BASE_IDS, saved.base, DEFAULT_THEME.base),
+    accent: pick(ACCENT_IDS, saved.accent, DEFAULT_THEME.accent),
+    font: pick(FONT_IDS, saved.font, DEFAULT_THEME.font),
+  }
+}
+
+/** Saves the choice with its mode, so the inline script needs no knowledge of the themes. */
+export function saveTheme(choice: ThemeChoice, store = storage()): void {
+  try {
+    store?.setItem(THEME_KEY, JSON.stringify({ ...choice, mode: modeOf(choice.base) }))
+  } catch {
+    // private windows and full quotas: the theme still applies for this session
+  }
 }
 
 /** Adds the generated theme stylesheet once, then applies the theme. */
