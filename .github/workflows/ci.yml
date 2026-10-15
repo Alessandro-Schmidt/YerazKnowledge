@@ -69,6 +69,40 @@ jobs:
           path: perf-results
           retention-days: 30
 
+  desktop:
+    # The Tauri shell compiles (src-tauri/). Only when it, the packages or the workflows changed.
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - id: changed
+        run: |
+          base="${{ github.event.pull_request.base.sha || github.event.before }}"
+          if ! git cat-file -e "$base" 2>/dev/null ||
+            git diff --name-only "$base" HEAD | grep -qE '^(src-tauri/|package(-lock)?\.json$|\.github/workflows/)'; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.changed.outputs.run
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - if: steps.changed.outputs.run
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libdbus-1-dev
+      - if: steps.changed.outputs.run
+        run: npm ci && npx vite build
+      - if: steps.changed.outputs.run
+        run: cargo check --manifest-path src-tauri/Cargo.toml
+      - if: steps.changed.outputs.run
+        uses: actions/upload-artifact@v7
+        with:
+          name: cargo-lock
+          path: src-tauri/Cargo.lock
+          retention-days: 7
+
   deploy:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: [check, e2e]
