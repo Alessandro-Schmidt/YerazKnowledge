@@ -1,5 +1,6 @@
-import { lazy, Suspense, useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation } from 'wouter'
+import type { GraphNode } from '../model/graph'
 import { session, useSession } from '../store/session'
 import { ConflictBanner } from '../ui/ConflictBanner'
 import controls from '../ui/controls.module.css'
@@ -11,6 +12,7 @@ import { Divider, TopBar } from '../ui/TopBar'
 import type { EditorHandle } from './Editor'
 import styles from './EditorPage.module.css'
 import { IconPicker } from './IconPicker'
+import type { MentionLeaf, MentionSource } from './mentions'
 
 // CodeMirror is its own chunk: it loads the first time a leaf is edited (ARCHITECTURE.md §11).
 const Editor = lazy(() => import('./Editor'))
@@ -30,6 +32,26 @@ export function EditorPage({ params }: { params: { owner: string; name: string; 
   const [text, setText] = useState<{ path: string; text: string } | null>(null)
   const [source, setSource] = useState(false)
   const handle = useRef<EditorHandle | null>(null)
+
+  // @ mentions read the newest graph on use, so the editor is never rebuilt for it.
+  const graphRef = useRef(data?.graph)
+  useEffect(() => {
+    graphRef.current = data?.graph
+  })
+  const mentionsFrom = useMemo<MentionSource>(() => {
+    const asLeaf = (n: GraphNode): MentionLeaf => ({ path: n.id, title: n.title, icon: n.icon })
+    return {
+      leaves: () =>
+        [...(graphRef.current?.nodes.values() ?? [])]
+          .filter((n) => n.kind === 'leaf' && n.id !== path)
+          .map(asLeaf),
+      leaf: (id) => {
+        const n = graphRef.current?.nodes.get(id)
+        return n?.kind === 'leaf' ? asLeaf(n) : null
+      },
+      open: (id) => navigate(treeHref(repo, id)),
+    }
+  }, [repo, path, navigate])
 
   useEffect(() => {
     void session.getState().open(repo)
@@ -62,6 +84,25 @@ export function EditorPage({ params }: { params: { owner: string; name: string; 
     },
     [repo, path],
   )
+
+  // Ctrl/Cmd+S and hiding the app commit everything on screen, including the last
+  // keystrokes not yet written locally. Handled here first; App's listener covers other pages.
+  useEffect(() => {
+    const commitNow = () => void saveRef.current().then(() => session.getState().flush(repo))
+    const onKey = (e: KeyboardEvent) => {
+      if (!((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's')) return
+      e.preventDefault()
+      e.stopPropagation()
+      commitNow()
+    }
+    const onHidden = () => document.visibilityState === 'hidden' && commitNow()
+    document.addEventListener('keydown', onKey, true)
+    document.addEventListener('visibilitychange', onHidden)
+    return () => {
+      document.removeEventListener('keydown', onKey, true)
+      document.removeEventListener('visibilitychange', onHidden)
+    }
+  }, [repo])
 
   const onChange = (next: string) => {
     if (pending.current) window.clearTimeout(pending.current.timer)
@@ -129,6 +170,7 @@ export function EditorPage({ params }: { params: { owner: string; name: string; 
                 source={source}
                 onChange={onChange}
                 handleRef={handle}
+                mentionsFrom={mentionsFrom}
                 // A new leaf holds only its title: start writing below it.
                 autoFocus={text.text.trim().split('\n').length === 1}
               />
