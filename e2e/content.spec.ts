@@ -174,7 +174,6 @@ test.describe('images', () => {
     page,
     fake,
     graph,
-    browserName,
   }) => {
     await page.clock.install()
     const leaf = pair(graph).from.id
@@ -197,9 +196,18 @@ test.describe('images', () => {
     const repo = fake.repo(REPO)
     const files = [...repo.head!.files.keys()].filter((p) => p.startsWith('assets/'))
     const png = files.find((p) => p.endsWith('realm-diagram.png'))!
-    // WebKit's canvas can't encode WebP, so there the photo falls back to JPEG (images.ts).
+    // Where the canvas can't encode WebP (WebKit on macOS, not on Linux), the photo falls
+    // back to JPEG (images.ts): ask the browser, as the app does.
+    const webp = await page.evaluate(
+      () =>
+        new Promise<boolean>((resolve) => {
+          const canvas = document.createElement('canvas')
+          canvas.width = canvas.height = 1
+          canvas.toBlob((b) => resolve(b?.type === 'image/webp'), 'image/webp')
+        }),
+    )
     const photoFile = files.find((p) => /ararat\.(webp|jpg)$/.test(p))!
-    expect(photoFile).toMatch(browserName === 'webkit' ? /\.jpg$/ : /\.webp$/)
+    expect(photoFile).toMatch(webp ? /\.webp$/ : /\.jpg$/)
     expect(png).toMatch(/^assets\/\d{4}-\d{2}-\d{2}-realm-diagram\.png$/)
     expect(Buffer.from(repo.blobs.get(repo.head!.files.get(png)!)!)).toEqual(screenshot)
     const committed = repo.blobs.get(repo.head!.files.get(photoFile)!)!
