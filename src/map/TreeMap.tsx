@@ -93,7 +93,7 @@ export function TreeMap({
   useLayoutEffect(() => {
     if (fitted.current === treeKey) return
     fitted.current = treeKey
-    zoom.fit(layout.extent, padded(area))
+    zoom.fit(layout.bounds, padded(area))
     // On a phone, a Tree opened on a leaf zooms in on it (design screen 07): the whole
     // Tree above the bottom sheet would be too small to read.
     const at = selected !== null ? layout.byId.get(selected) : undefined
@@ -300,7 +300,7 @@ export function TreeMap({
             className={controls.iconButton}
             aria-label="Fit the tree"
             onClick={() =>
-              zoom.fit(layout.extent, { top: 64, bottom: 80, left: 16, right: 16, ...insets }, true)
+              zoom.fit(layout.bounds, { top: 64, bottom: 80, left: 16, right: 16, ...insets }, true)
             }
           >
             <Icon name="fit" />
@@ -425,10 +425,16 @@ const Geometry = memo(function Geometry({ layout, graph }: { layout: MapLayout; 
       ))}
       <g className={styles.core} data-core="" data-id={ROOT}>
         <circle className={styles.coreCircle} r={layout.coreR} />
-        <text className={styles.coreTitle} y={-1}>
-          {root.title}
-        </text>
-        <text className={styles.coreWords} y={14}>
+        {layout.coreLines.map((line, i) => (
+          <text
+            key={i}
+            className={styles.coreTitle}
+            y={-1 + 14 * i - 7 * (layout.coreLines.length - 1)}
+          >
+            {line}
+          </text>
+        ))}
+        <text className={styles.coreWords} y={14 + 7 * (layout.coreLines.length - 1)}>
           {compactWords(root.total)} words
         </text>
       </g>
