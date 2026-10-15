@@ -369,3 +369,39 @@ test.describe('leaf styling', () => {
     await expect(article).toHaveCSS('--leaf-heading', amber)
   })
 })
+
+test.describe('other repositories', () => {
+  test.beforeEach(async ({ fake }) => {
+    await fake.addRepo('you/art', {
+      '.yeraz.json': '{"name":"Art History","color":"amber"}\n',
+      'baroque.md': '# Baroque\n\nOrnament and counterpoint.\n',
+    })
+    await fake.repo(REPO).commit({
+      message: 'links',
+      additions: [
+        {
+          path: 'links.md',
+          contents:
+            '# Links\n\nSee [Baroque](https://github.com/you/art/blob/main/baroque.md).\n\nhttps://github.com/you/art\n',
+        },
+      ],
+    })
+  })
+
+  test('Home draws threads between Trees; chips and cards open the other Tree', async ({
+    page,
+  }) => {
+    await page.goto('./')
+    await signInHere(page)
+    await expect(page.locator('[data-between="you/engineering>you/art"] title')).toHaveText(
+      'Engineering → Art History · 1 thread',
+    )
+
+    await page.goto(`./#/tree/${REPO}/links.md`)
+    const peek = page.getByRole('region', { name: 'Leaf preview' })
+    await expect(peek.locator('.repo-card')).toContainText('Art History')
+    await peek.getByRole('link', { name: 'Baroque' }).click()
+    await expect(page).toHaveURL(/#\/tree\/you\/art\/baroque\.md$/)
+    await expect(page.getByRole('heading', { name: 'Baroque' })).toBeVisible()
+  })
+})

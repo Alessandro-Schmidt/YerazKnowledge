@@ -33,6 +33,21 @@ describe('embedOf: a paragraph that is only a link becomes an embed', () => {
     })
   })
 
+  it('repositories on GitHub, as cards', () => {
+    expect(embedOf('https://github.com/you/art-history')).toEqual({
+      kind: 'repo',
+      repo: 'you/art-history',
+      title: '',
+    })
+    expect(embedOf('[Our notes](https://github.com/you/notes/)')).toEqual({
+      kind: 'repo',
+      repo: 'you/notes',
+      title: 'Our notes',
+    })
+    expect(embedOf('https://github.com/you/notes/blob/main/a.md')).toBeNull()
+    expect(embedOf('https://github.com/you')).toBeNull()
+  })
+
   it('leaves links inside sentences, and other links, as links', () => {
     expect(embedOf('Watch https://youtu.be/dQw4w9WgXcQ now')).toBeNull()
     expect(embedOf('[Keycloak](/identity/keycloak.md)')).toBeNull()

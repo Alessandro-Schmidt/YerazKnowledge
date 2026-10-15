@@ -141,6 +141,35 @@ describe('renderLeaf', () => {
     expect(html).toContain('<a href="https://youtu.be/dQw4w9WgXcQ"')
   })
 
+  it('shows repositories as cards, and links to other Trees as chips that stay in the app', async () => {
+    const tree = (repo: string) =>
+      repo.toLowerCase() === 'you/art' ? { title: 'Art History', href: '#/tree/you/art' } : null
+    const html = await renderLeaf(
+      [
+        '# T',
+        '',
+        'https://github.com/you/art',
+        '',
+        '[Their code](https://github.com/someone/tool)',
+        '',
+        'See [Baroque](https://github.com/you/art/blob/main/periods/baroque.md) and [x](https://github.com/someone/else/blob/main/x.md).',
+      ].join('\n'),
+      { ...context, tree },
+    )
+    expect(html).toContain(
+      '<a class="repo-card" href="#/tree/you/art"><strong>Art History</strong><span>you/art</span><em>Tree</em></a>',
+    )
+    expect(html).toContain(
+      '<a class="repo-card" href="https://github.com/someone/tool" target="_blank" rel="noopener noreferrer"><strong>Their code</strong>',
+    )
+    expect(html).toContain(
+      '<a href="#/tree/you/art/periods/baroque.md" class="mention" data-before="@ ">Baroque</a>',
+    )
+    expect(html).toContain(
+      '<a href="https://github.com/someone/else/blob/main/x.md" target="_blank"',
+    )
+  })
+
   it('caches by blob SHA', async () => {
     const first = await renderLeaf('# T\n\nOne\n', context, 'sha-1')
     expect(await renderLeaf('# T\n\nChanged\n', context, 'sha-1')).toBe(first)

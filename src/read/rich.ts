@@ -13,6 +13,8 @@ export type RichEnv = {
   katex?: typeof import('katex').default
   parsers?: Map<string, Parser>
   files?(): Iterable<string>
+  /** A connected Tree by `owner/name`: its title and in-app href. */
+  tree?(repo: string): { title: string; href: string } | null
 }
 
 const lang = (info: string) => info.trim().split(/\s+/)[0]!.toLowerCase()
@@ -116,6 +118,17 @@ const languageName = (code: string) => {
 }
 
 function embedHtml(embed: Embed, env: RichEnv, escape: (s: string) => string): string {
+  if (embed.kind === 'repo') {
+    // A connected Tree opens in the app; any other repository on GitHub.
+    const known = env.tree?.(embed.repo)
+    const href = known?.href ?? `https://github.com/${embed.repo}`
+    const away = known ? '' : ' target="_blank" rel="noopener noreferrer"'
+    const name = embed.title || known?.title || embed.repo.replace(/^.*\//, '')
+    return (
+      `<p><a class="repo-card" href="${escape(href)}"${away}><strong>${escape(name)}</strong>` +
+      `<span>${escape(embed.repo)}</span><em>${known ? 'Tree' : 'GitHub repository'}</em></a></p>\n`
+    )
+  }
   const name = embed.kind === 'youtube' ? '' : embed.path.replace(/^.*\//, '')
   const title = escape(embed.title || name || 'YouTube video')
   if (embed.kind === 'youtube') {

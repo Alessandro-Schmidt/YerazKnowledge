@@ -11,6 +11,7 @@ import { isLocal } from '../sync/overlay'
 import controls from '../ui/controls.module.css'
 import { Glyph } from '../ui/Glyph'
 import { Icon } from '../ui/icons'
+import { treeHref } from '../ui/paths'
 import styles from './Peek.module.css'
 import { Cover, leafColors } from './LeafLook'
 import { renderLeaf } from './render'
@@ -340,6 +341,12 @@ function LeafBody({
             leafHref: (path) => (graph.nodes.get(path)?.kind === 'leaf' ? href(path) : null),
             leafIcon: (path) => graph.nodes.get(path)?.icon ?? null,
             files: () => session.getState().files(repo),
+            tree: (other) => {
+              const t = session
+                .getState()
+                .trees.find((t) => t.repo.toLowerCase() === other.toLowerCase())
+              return t ? { title: t.title, href: `#${treeHref(t.repo)}` } : null
+            },
           },
           // Pending edits have no SHA yet, so they are not cached.
           isLocal(sha) ? undefined : sha,
