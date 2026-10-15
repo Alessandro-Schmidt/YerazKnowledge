@@ -6,12 +6,14 @@ import type { TreeRef } from '../github/graphql'
 import { compactWords, crumbs, type Graph } from '../model/graph'
 import { ROOT } from '../model/tree'
 import { mark } from '../perf'
-import { readBlob } from '../store/session'
+import { session } from '../store/session'
+import { isLocal } from '../sync/overlay'
 import controls from '../ui/controls.module.css'
 import { Glyph } from '../ui/Glyph'
 import { Icon } from '../ui/icons'
 import styles from './Peek.module.css'
 import { renderLeaf } from './render'
+import type { StructureAction } from '../ui/StructureDialogs'
 
 export interface PeekProps {
   tree: TreeRef
@@ -22,9 +24,24 @@ export interface PeekProps {
   onSelect(id: string): void
   onExpand(expanded: boolean): void
   onClose(): void
+  /** Editing: open the editor, or start a structure action. */
+  onEdit(id: string): void
+  onAction(action: StructureAction): void
 }
 
-export function Peek({ tree, graph, id, expanded, href, onSelect, onExpand, onClose }: PeekProps) {
+export function Peek({
+  tree,
+  graph,
+  id,
+  expanded,
+  href,
+  onSelect,
+  onExpand,
+  onClose,
+  onEdit,
+  onAction,
+}: PeekProps) {
+  const [menu, setMenu] = useState(false)
   useLayoutEffect(() => mark('peek-painted'), [id])
   const node = graph.nodes.get(id)!
   const kind = node.kind === 'root' ? 'Tree' : node.kind === 'branch' ? 'Branch' : 'Leaf'
@@ -119,7 +136,7 @@ export function Peek({ tree, graph, id, expanded, href, onSelect, onExpand, onCl
             </div>
 
             {node.kind === 'leaf' && node.sha && (
-              <LeafBody graph={graph} sha={node.sha} href={href} />
+              <LeafBody repo={tree.repo} graph={graph} id={id} sha={node.sha} href={href} />
             )}
 
             {node.children.length > 0 && (
@@ -183,6 +200,76 @@ export function Peek({ tree, graph, id, expanded, href, onSelect, onExpand, onCl
             <Icon name="arrowRight" />
           </button>
         )}
+        <div className={styles.actions}>
+          {node.kind === 'leaf' ? (
+            <button type="button" className={controls.ghost} onClick={() => onEdit(id)}>
+              <Icon name="pencil" size={15} />
+              Edit leaf
+            </button>
+          ) : (
+            <button
+              type="button"
+              className={controls.ghost}
+              onClick={() => onAction({ kind: 'new-leaf', parent: id })}
+            >
+              <Icon name="plus" size={15} />
+              New leaf here
+            </button>
+          )}
+          {node.kind !== 'root' && (
+            <div className={styles.menuHost}>
+              <button
+                type="button"
+                className={controls.iconButton}
+                aria-label="More actions"
+                aria-haspopup="menu"
+                aria-expanded={menu}
+                onClick={() => setMenu((m) => !m)}
+              >
+                <Icon name="more" />
+              </button>
+              {menu && (
+                <div className={styles.menu} role="menu" onClick={() => setMenu(false)}>
+                  {node.kind === 'leaf' && (
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => onAction({ kind: 'new-leaf', parent: id })}
+                    >
+                      Add sub-leaf
+                    </button>
+                  )}
+                  {node.kind === 'branch' && (
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => onAction({ kind: 'new-branch', parent: id })}
+                    >
+                      New branch here
+                    </button>
+                  )}
+                  {node.kind === 'leaf' && (
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => onAction({ kind: 'move', id })}
+                    >
+                      Move…
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    role="menuitem"
+                    data-danger
+                    onClick={() => onAction({ kind: 'delete', id })}
+                  >
+                    Delete…
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </section>
   )
@@ -232,26 +319,43 @@ function ThreadList({
   )
 }
 
-function LeafBody({ graph, sha, href }: { graph: Graph; sha: string; href(id: string): string }) {
+function LeafBody({
+  repo,
+  graph,
+  id,
+  sha,
+  href,
+}: {
+  repo: string
+  graph: Graph
+  id: string
+  sha: string
+  href(id: string): string
+}) {
   const [html, setHtml] = useState<{ sha: string; html: string } | null>(null)
   useEffect(() => {
     let live = true
-    void readBlob(sha).then(async (text) => {
-      if (text === undefined || !live) return
-      const rendered = await renderLeaf(
-        text,
-        {
-          leafHref: (path) => (graph.nodes.get(path)?.kind === 'leaf' ? href(path) : null),
-          leafIcon: (path) => graph.nodes.get(path)?.icon ?? null,
-        },
-        sha,
-      )
-      if (live) setHtml({ sha, html: rendered })
-    })
+    void session
+      .getState()
+      .textOf(repo, id)
+      .then(async (text) => {
+        if (!live) return
+        const rendered = await renderLeaf(
+          text,
+          {
+            leafHref: (path) => (graph.nodes.get(path)?.kind === 'leaf' ? href(path) : null),
+            leafIcon: (path) => graph.nodes.get(path)?.icon ?? null,
+          },
+          // Pending edits have no SHA yet, so they are not cached.
+          isLocal(sha) ? undefined : sha,
+        )
+        if (live) setHtml({ sha, html: rendered })
+      })
+      .catch(() => undefined)
     return () => {
       live = false
     }
-  }, [sha, graph, href])
+  }, [repo, id, sha, graph, href])
 
   if (html?.sha !== sha) return <div className={styles.loading} aria-busy="true" />
   return (

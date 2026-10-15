@@ -5,6 +5,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { session } from './store/session'
 import { App } from './ui/App'
+import { ErrorBoundary } from './ui/ErrorBoundary'
 import { installTheme } from './ui/theme'
 
 installTheme()
@@ -23,7 +24,9 @@ const ready =
 void ready.then(() => {
   createRoot(document.getElementById('root')!).render(
     <StrictMode>
-      <App />
+      <ErrorBoundary>
+        <App />
+      </ErrorBoundary>
     </StrictMode>,
   )
 })

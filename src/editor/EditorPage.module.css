@@ -1,0 +1,155 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.crumbs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  color: var(--faint);
+}
+
+.home {
+  color: var(--muted);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.home:hover {
+  color: var(--text);
+}
+
+.title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.status {
+  margin-left: auto;
+  min-width: 0;
+  display: flex;
+}
+
+.toggle {
+  height: 36px;
+  font-size: 12.5px;
+}
+
+.main {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 40px 24px 0;
+}
+
+.column {
+  max-width: 760px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.iconRow {
+  position: relative;
+}
+
+.iconButton {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 10px;
+  margin-left: -10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+  cursor: pointer;
+}
+.iconButton:hover {
+  background: var(--hover);
+}
+
+.icon {
+  font-size: 40px;
+  line-height: 1.2;
+}
+
+.picker {
+  position: absolute;
+  z-index: 5;
+  top: calc(100% + 6px);
+  left: 0;
+  width: 336px;
+  max-width: calc(100vw - 32px);
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 2px;
+  padding: 8px;
+  border-radius: 12px;
+  box-shadow: 0 24px 60px var(--shadow);
+}
+
+.emoji {
+  aspect-ratio: 1;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  font-size: 20px;
+  cursor: pointer;
+}
+.emoji:hover {
+  background: var(--hover);
+}
+
+.removeIcon {
+  grid-column: 1 / -1;
+  height: 34px;
+  margin-top: 6px;
+  font-size: 12.5px;
+}
+
+.path {
+  margin: 0 0 24px;
+  font-size: 11px;
+  color: var(--faint);
+}
+
+.loading {
+  max-width: 760px;
+  height: 160px;
+  margin: 0 auto;
+  border-radius: 10px;
+  background: var(--raised);
+  opacity: 0.5;
+}
+
+.missing {
+  max-width: 760px;
+  margin: 0 auto;
+  color: var(--muted);
+}
+.missing a {
+  color: var(--accent);
+}
+
+@media (max-width: 640px) {
+  .crumbs .home,
+  .crumbs svg {
+    display: none;
+  }
+  .toggle {
+    display: none;
+  }
+  .main {
+    padding: 24px 16px 0;
+  }
+}

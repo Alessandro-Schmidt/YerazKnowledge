@@ -10,6 +10,7 @@ import controls from './controls.module.css'
 import styles from './Explorer.module.css'
 import { Glyph } from './Glyph'
 import { Icon } from './icons'
+import { parentFor, type StructureAction } from './StructureDialogs'
 
 interface Row {
   id: string
@@ -26,13 +27,16 @@ export function Explorer({
   selected,
   onSelect,
   onClose,
+  onAction,
 }: {
   tree: TreeRef
   graph: Graph
   selected: string | null
   onSelect(id: string): void
   onClose(): void
+  onAction(action: StructureAction): void
 }) {
+  const parent = parentFor(graph, selected)
   const [open, setOpen] = useState(
     () =>
       new Set(
@@ -208,6 +212,24 @@ export function Explorer({
             )
           })}
         </div>
+      </div>
+      <div className={styles.foot}>
+        <button
+          type="button"
+          className={controls.ghost}
+          onClick={() => onAction({ kind: 'new-branch', parent })}
+        >
+          <span className={controls.glyph} data-kind="branch" aria-hidden="true" />
+          New branch
+        </button>
+        <button
+          type="button"
+          className={controls.ghost}
+          onClick={() => onAction({ kind: 'new-leaf', parent })}
+        >
+          <span className={controls.glyph} data-kind="leaf" aria-hidden="true" />
+          New leaf
+        </button>
       </div>
     </aside>
   )

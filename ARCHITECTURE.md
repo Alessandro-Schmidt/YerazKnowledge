@@ -61,7 +61,7 @@ These rules are the only thing that must stay stable across versions. Tests lock
 | An emoji at the start of the title is the leaf's icon. | `# 🔐 Keycloak` |
 | Optional **line 2** is a metadata comment: cover, image icon, colours. It is invisible when GitHub renders the file. Colours are **named** (`green`, `amber`, `blue`, `violet`…), so they adapt to every theme (§13). | `<!-- yeraz {"cover":"https://…","color":{"heading":"amber"}} -->` |
 | A leaf's sub-leaves and sub-branches live in a **sibling folder with the same name**. | `identity/keycloak.md` + `identity/keycloak/realms.md` |
-| A branch is a folder with no sibling `.md` file of the same name. | `identity/` |
+| A branch is a folder with no sibling `.md` file of the same name. Its name is the folder name, kept as typed. Git stores no empty folders, so a new branch is created with its first leaf. | `AI Agents/` |
 | A thread is a normal Markdown link with a **root-relative** path. GitHub resolves paths starting with `/` from the repository root, so threads also work on github.com. | `[Keycloak](/identity/keycloak.md)` |
 | A thread to another Tree is a full GitHub URL to a file in a connected repository. Any other `github.com/owner/repo` URL renders as a repository card. | `https://github.com/user/art-history/blob/main/baroque.md` |
 | Images and attachments live in `assets/` at the root, at full quality. An image is committed unchanged unless its long edge is over 4096 px (§8). | `assets/2026-10-14-realm-diagram.png` |
@@ -78,10 +78,12 @@ Why these rules:
 
 ### 5.1 Opening a Tree (read path)
 
-1. **Tree listing, one request:** `GET /repos/{owner}/{repo}/git/trees/{branch}?recursive=1` with `If-None-Match: <stored ETag>`.
+1. **Head commit, one request:** `GET /repos/{owner}/{repo}/commits/{branch}` with `Accept: application/vnd.github.sha` (the answer is just the commit SHA) and `If-None-Match: <stored ETag>`.
    - A `304 Not Modified` means nothing changed, and it does not count against the rate limit. Done: render from IndexedDB.
+   - A SHA equal to the one we have (after our own commit) also means nothing to fetch.
    - Keep the ETag ourselves and call `fetch` with `cache: 'no-store'`. GitHub marks API responses as cacheable for up to 60 s, and the browser's cache would otherwise hide fresh changes.
-   - Limit: 100,000 entries / 7 MB per recursive listing. That is far beyond a personal knowledge base. If the response is `truncated`, fall back to listing subtrees one at a time.
+   - Why not list the tree by branch name: a commit needs the exact commit our edits started from (`expectedHeadOid`, §5.2), and a tree listing doesn't say which commit it belongs to.
+   - **Tree listing:** `GET /repos/{owner}/{repo}/git/trees/{commit SHA}?recursive=1`. Limit: 100,000 entries / 7 MB per recursive listing, far beyond a personal knowledge base. If the response is `truncated`, fall back to listing subtrees one at a time.
 2. **Diff:** compare each `.md` entry's blob SHA with IndexedDB. Only unknown SHAs are fetched.
 3. **Fetch missing blobs by SHA** with GraphQL, many per request (`b0: object(oid:"…"){... on Blob{text}}`, `b1: …`). Group them so each response stays around 1 MB.
 4. **Parse** each new blob into `{ title, icon, meta, words, links }`. This is one pure function, stored under the blob SHA.
@@ -239,7 +241,7 @@ Every image a user sees should be sharp on any screen, including 2× and 3× dis
 | `createCommitOnBranch` | The blob → tree → commit → ref sequence in the REST Git API | Three of four requests, plus built-in conflict detection |
 | Sibling folders, fixed filenames, root-relative links | README promotion, title-based names, relative links | Multi-file rewrites on everyday edits |
 | d3 for layout, bundling, zoom and packing | Custom geometry | Hundreds of lines |
-| Plain `fetch` | Octokit | Bundle size; the app uses 2 REST endpoints and 3 GraphQL operations |
+| Plain `fetch` | Octokit | Bundle size; the app uses 3 REST endpoints and 3 GraphQL operations |
 | Discovery by marker file | A settings store that syncs across devices | A settings service |
 | Themes are CSS variables generated from one JSON file | A theming library or CSS-in-JS | A runtime dependency, and a re-render on every theme switch |
 
@@ -270,8 +272,10 @@ src/
             graph.ts (titles, word totals, threads, backlinks)
             links.ts (find and rewrite) · sha.ts (git blob SHA)
   sync/     pull.ts · push.ts · merge.ts · autosave.ts
+            structure.ts (new leaf, branch, move, delete as file changes) · overlay.ts
   map/      layout.ts (d3) · TreeMap.tsx · HomeMap.tsx · Home.tsx · useZoom.ts
-  editor/   Editor.tsx · livePreview.ts · insertMenu.ts · mentions.ts
+  editor/   Editor.tsx · EditorPage.tsx · livePreview.ts · IconPicker.tsx
+            insertMenu.ts · mentions.ts (M3)
   read/     render.ts (markdown-it) · Peek.tsx · print.css
   ui/       App.tsx (routes) · TopBar.tsx · TokenScreen.tsx · TreeView.tsx
             Explorer.tsx · Appearance.tsx

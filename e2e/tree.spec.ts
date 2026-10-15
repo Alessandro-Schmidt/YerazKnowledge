@@ -169,12 +169,12 @@ test('second open: exactly one request (a 304) and no content downloads', async 
 }) => {
   await openTree(page)
   await expect(page.locator('[data-node][data-kind="leaf"]')).toHaveCount(300)
-  await expect(page.getByRole('status')).toBeEmpty()
+  await expect(page.getByRole('status')).toHaveText('Synced to main')
   fake.resetLog()
   await page.reload()
   await expect(page.locator('[data-node][data-kind="leaf"]')).toHaveCount(300)
-  await expect(page.getByRole('status')).toBeEmpty()
-  expect(fake.log).toEqual([expect.objectContaining({ kind: 'tree', status: 304, blobs: 0 })])
+  await expect(page.getByRole('status')).toHaveText('Synced to main')
+  expect(fake.log).toEqual([expect.objectContaining({ kind: 'head', status: 304, blobs: 0 })])
 })
 
 test('works offline from the saved copy', async ({ page, fake }) => {

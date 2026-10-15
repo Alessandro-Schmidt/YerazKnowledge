@@ -4,6 +4,7 @@ perf-results/
 visual-review/
 node_modules/
 design/
+knowledge-base-example/
 package-lock.json
 playwright-report/
 test-results/

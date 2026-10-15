@@ -12,3 +12,5 @@ export function decodePath(path: string): string {
 
 export const treeHref = (repo: string, id?: string | null) =>
   id === undefined || id === null ? `/tree/${repo}` : `/tree/${repo}/${encodePath(id)}`
+
+export const editHref = (repo: string, id: string) => `/edit/${repo}/${encodePath(id)}`
