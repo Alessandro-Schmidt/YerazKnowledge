@@ -128,6 +128,53 @@ test('the core opens the Tree itself', async ({ page, graph }) => {
   await expect(peek(page)).toContainText(`${graph.stats.threads.toLocaleString('en-US')} threads`)
 })
 
+test('renames the Tree where its name is shown, and commits it to .yeraz.json', async ({
+  page,
+  fake,
+}) => {
+  await openTree(page)
+  const title = page.getByRole('heading', { level: 1 })
+  await title.getByRole('button', { name: 'Engineering' }).click()
+  const field = page.getByRole('textbox', { name: 'Tree name' })
+  await expect(field).toBeFocused()
+  await field.fill('Field notes')
+  await field.press('Enter')
+  await expect(title).toHaveText('Field notes')
+  await expect(page.getByRole('status')).toContainText('Unsaved edits')
+
+  // The Tree's own Peek says the same, and Ctrl/Cmd+S commits it now.
+  await page.goto('./#/tree/you/engineering/')
+  await expect(peek(page).getByRole('heading', { level: 2 })).toHaveText('Field notes')
+  await page.keyboard.press('ControlOrMeta+s')
+  await expect
+    .poll(() => JSON.parse(fake.repo('you/engineering').read('.yeraz.json')!) as unknown)
+    .toEqual({ name: 'Field notes', color: 'green' })
+
+  await page.goto('./')
+  await expect(page.getByRole('button', { name: /^Field notes you\/engineering/ })).toBeVisible()
+})
+
+test('Escape keeps the old name, and an empty name is refused', async ({ page, fake }) => {
+  await openTree(page)
+  const title = page.getByRole('heading', { level: 1 })
+  await title.getByRole('button', { name: 'Engineering' }).click()
+  const field = page.getByRole('textbox', { name: 'Tree name' })
+  await field.fill('Something else')
+  await field.press('Escape')
+  await expect(title).toHaveText('Engineering')
+
+  await title.getByRole('button', { name: 'Engineering' }).click()
+  await field.fill('   ')
+  await field.press('Enter')
+  await expect(page.getByRole('alert')).toHaveText('A Tree needs a name.')
+  await expect(field).toBeVisible()
+  await field.press('Escape')
+  await expect(title).toHaveText('Engineering')
+  expect(JSON.parse(fake.repo('you/engineering').read('.yeraz.json')!)).toMatchObject({
+    name: 'Engineering',
+  })
+})
+
 test('the Explorer collapses and comes back', async ({ page }) => {
   await openTree(page)
   const explorer = page.getByRole('complementary', { name: 'Explorer' })
@@ -198,7 +245,8 @@ test('connects a repository by name', async ({ page, fake }) => {
   await expect(page.getByRole('alert')).toContainText("doesn't exist")
   await page.getByPlaceholder('owner/name').fill('friend/art')
   await page.getByRole('button', { name: 'Connect', exact: true }).click()
-  await expect(page.getByRole('button', { name: /Art History/ })).toBeVisible()
+  // The rail's row; the Tree's card shows the name too, as a rename button.
+  await expect(page.getByRole('button', { name: /^Art History friend\/art/ })).toBeVisible()
 })
 
 test('Home, the Tree view and the Peek have no accessibility violations', async ({

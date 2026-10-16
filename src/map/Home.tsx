@@ -4,6 +4,7 @@ import { compactWords } from '../model/graph'
 import { session, useSession, type TreeData } from '../store/session'
 import controls from '../ui/controls.module.css'
 import { Icon } from '../ui/icons'
+import { InlineName } from '../ui/InlineName'
 import { treeHref } from '../ui/paths'
 import { colorVar } from '../ui/theme'
 import { CreateTreeDialog } from '../ui/StructureDialogs'
@@ -137,7 +138,14 @@ export function Home() {
                 >
                   <div className={styles.cardHead}>
                     <span className={styles.ring} aria-hidden="true" />
-                    <h2 className={styles.cardName}>{current.tree.title}</h2>
+                    <h2 className={styles.cardName}>
+                      <InlineName
+                        key={current.tree.repo}
+                        value={current.tree.title}
+                        label="Tree name"
+                        onRename={(name) => session.getState().renameTree(current.tree.repo, name)}
+                      />
+                    </h2>
                     <button
                       type="button"
                       className={controls.iconButton}

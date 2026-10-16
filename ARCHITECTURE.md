@@ -121,6 +121,8 @@ Creating a Tree from the app means:
 1. `POST /user/repos` with `private: true`.
 2. A first commit containing `.yeraz.json` and a welcome leaf.
 
+Renaming a Tree changes only `name` in `.yeraz.json`. The edit is committed like any other, and the file keeps its other fields and its layout. Until the commit lands, the name typed on this device wins over what discovery reports, so Home and the map never show the old name again. The repository keeps its name; links and clones are untouched.
+
 ## 6. The map
 
 - **Layout: a radial cluster from `d3-hierarchy`,** with branches fanning out from a core (the Tree):
