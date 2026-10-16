@@ -66,6 +66,8 @@ export interface SessionState {
   files(repo: string): string[]
   /** Records edits (text, or null to delete); they are committed by the autosave. */
   apply(repo: string, changes: readonly FileChange[]): Promise<void>
+  /** Renames a Tree: the name in its `.yeraz.json`, committed by the autosave. Throws a message. */
+  renameTree(repo: string, title: string): Promise<void>
   /** Commits a Tree's pending edits now. */
   flush(repo: string): Promise<void>
   /** Commits every Tree's pending edits now (app hidden, Ctrl/Cmd+S, back online). */
@@ -76,6 +78,20 @@ export interface SessionState {
 
 const KEYS = { trees: 'session:trees', connected: 'session:connected' }
 const dirtyKey = (repo: string) => `dirty:${repo.toLowerCase()}`
+
+/** The file that marks a Tree and holds its name (ARCHITECTURE.md §4). */
+const MARKER = '.yeraz.json'
+
+/** The name a `.yeraz.json` text gives, or null. */
+function nameIn(text: unknown): string | null {
+  if (typeof text !== 'string') return null
+  try {
+    const name = (JSON.parse(text) as { name?: unknown } | null)?.name
+    return typeof name === 'string' && name.trim() ? name.trim() : null
+  } catch {
+    return null
+  }
+}
 
 export function describeError(e: unknown): {
   message: string
@@ -134,9 +150,22 @@ export function createSession(deps: {
       return (client ??= createGitHubClient({ token, api: api() }))
     }
     const connected = async () => (await store.get<string[]>(KEYS.connected)) ?? []
-    const saveTrees = async (trees: TreeRef[]) => {
+    /** A name typed on this device and not committed yet wins over what GitHub last said. */
+    const pendingTitle = (key: string) => nameIn(dirty.get(key)?.[MARKER]?.text)
+    const titled = (ref: TreeRef): TreeRef => {
+      const title = pendingTitle(ref.repo.toLowerCase())
+      return title && title !== ref.title ? { ...ref, title } : ref
+    }
+    const saveTrees = async (list: TreeRef[]) => {
+      const trees = list.map(titled)
       set({ trees })
       await store.set(KEYS.trees, trees)
+    }
+    /** Gives a Tree its new name everywhere it is shown. */
+    const retitle = async (key: string, title: string) => {
+      const base = bases.get(key)
+      if (base) bases.set(key, { ...base, ref: { ...base.ref, title } })
+      await saveTrees(get().trees.map((t) => (t.repo.toLowerCase() === key ? { ...t, title } : t)))
     }
     const setData = (key: string, data: TreeData) =>
       set((s) => ({ data: { ...s.data, [key]: data } }))
@@ -157,7 +186,7 @@ export function createSession(deps: {
       const { entries, leaves } = overlay(base.entries, base.leaves, dirty.get(key) ?? {})
       setData(key, {
         status: 'ready',
-        graph: buildGraph(buildTree(entries), leaves, base.ref.title),
+        graph: buildGraph(buildTree(entries), leaves, pendingTitle(key) ?? base.ref.title),
         offline: base.offline,
       })
     }
@@ -197,6 +226,8 @@ export function createSession(deps: {
           else now.base = sent.text === null ? null : await gitBlobSha(sent.text)
         }
         await saveDirty(key)
+        const committedName = nameIn(snapshot[MARKER]?.text)
+        if (committedName) await retitle(key, committedName)
         show(key)
         setSync(
           key,
@@ -446,6 +477,44 @@ export function createSession(deps: {
         const save = autosaveFor(key)
         save.touch()
         setSync(key, pendingState(key))
+      },
+
+      async renameTree(repo, title) {
+        const key = repo.toLowerCase()
+        const name = title.replace(/\s+/g, ' ').trim()
+        if (!name) throw new Error('A Tree needs a name.')
+        await pulls.get(key)
+        const base = bases.get(key)
+        if (!base) throw new Error("This Tree hasn't opened yet. Try again in a moment.")
+        const pending = (await loadDirty(key))[MARKER]?.text
+        let text = typeof pending === 'string' ? pending : '{}\n'
+        const sha = base.entries.find((e) => e.path === MARKER)?.sha
+        if (pending === undefined && sha && !isLocal(sha)) {
+          try {
+            text = new TextDecoder().decode(
+              await assetBytes(repo, sha, { client: github(), store }),
+            )
+          } catch (e) {
+            throw new Error(describeError(e).message, { cause: e })
+          }
+        }
+        let marker: unknown
+        try {
+          marker = JSON.parse(text)
+        } catch {
+          marker = null
+        }
+        if (!marker || typeof marker !== 'object' || Array.isArray(marker))
+          throw new Error(
+            ".yeraz.json isn't valid JSON, so the name can't be changed here. Fix the file on GitHub first.",
+          )
+        if (nameIn(text) === name) return
+        // Written back the way it was laid out: on one line, or indented as before.
+        const indent = /^\{\s*\n([ \t]+)"/.exec(text)?.[1]
+        await get().apply(repo, [
+          { path: MARKER, text: `${JSON.stringify({ ...marker, name }, null, indent)}\n` },
+        ])
+        await retitle(key, name)
       },
 
       async flush(repo) {
