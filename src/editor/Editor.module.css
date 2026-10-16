@@ -242,6 +242,32 @@
   border-radius: 9px;
   background: var(--bg);
 }
+/* A bookmark, as the read view's card: its title and address. */
+.editor :global(.cm-embed-bookmark) {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: fit-content;
+  min-width: 240px;
+  max-width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--hair-strong);
+  border-radius: 10px;
+  background: var(--raised);
+  line-height: 1.4;
+  cursor: text;
+}
+.editor :global(.cm-embed-bookmark:hover) {
+  border-color: var(--accent);
+}
+.editor :global(.cm-embed-bookmark span) {
+  overflow: hidden;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .editor :global(.cm-embed-pdf iframe) {
   aspect-ratio: auto;
   height: min(70vh, 800px);
