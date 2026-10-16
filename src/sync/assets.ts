@@ -17,7 +17,7 @@ export async function assetBytes(
   return bytes
 }
 
-/** `assets/2026-10-14-realm-diagram.png`: the local date, then the file's name as a slug. */
+/** `assets/2026-10-14-realm-diagram.png`: the local date, then the file's name as a slug. `ext` may be empty. */
 export function assetPath(
   fileName: string,
   ext: string,
@@ -28,8 +28,9 @@ export function assetPath(
     .map((n) => String(n).padStart(2, '0'))
     .join('-')
   const base = `assets/${day}-${slugify(fileName.replace(/\.[^.]*$/, '') || 'image')}`
-  let path = `${base}.${ext}`
-  for (let n = 2; taken(path); n++) path = `${base}-${n}.${ext}`
+  const dot = ext ? `.${ext}` : ''
+  let path = `${base}${dot}`
+  for (let n = 2; taken(path); n++) path = `${base}-${n}${dot}`
   return path
 }
 
