@@ -1,0 +1,78 @@
+/* A name that reads as text until clicked (InlineName.tsx). */
+
+.name {
+  /* The highlight is drawn with a shadow, so the name takes exactly the room of its text. */
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-align: left;
+  white-space: inherit;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: text;
+}
+.name:hover {
+  background: var(--hover);
+  box-shadow: 0 0 0 5px var(--hover);
+}
+.name:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 5px var(--hover),
+    0 0 0 7px var(--accent);
+}
+
+.editing {
+  position: relative;
+  display: inline-flex;
+  max-width: 100%;
+}
+
+.input {
+  min-width: 4ch;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: var(--raised);
+  box-shadow:
+    0 0 0 5px var(--raised),
+    0 0 0 6px var(--hair-strong);
+  color: var(--text);
+  font: inherit;
+  letter-spacing: inherit;
+  field-sizing: content;
+}
+.input:focus {
+  outline: none;
+  box-shadow:
+    0 0 0 5px var(--raised),
+    0 0 0 7px var(--accent);
+}
+
+.error {
+  position: absolute;
+  top: calc(100% + 12px);
+  left: -6px;
+  z-index: 5;
+  width: max-content;
+  max-width: 320px;
+  padding: 6px 10px;
+  border: 1px solid var(--hair-strong);
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: 0 8px 24px var(--shadow);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: 0;
+  line-height: 1.4;
+  white-space: normal;
+}

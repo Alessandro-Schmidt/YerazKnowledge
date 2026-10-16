@@ -11,6 +11,7 @@ import { isLocal } from '../sync/overlay'
 import controls from '../ui/controls.module.css'
 import { Glyph } from '../ui/Glyph'
 import { Icon } from '../ui/icons'
+import { InlineName } from '../ui/InlineName'
 import { treeHref } from '../ui/paths'
 import styles from './Peek.module.css'
 import { coverPosition } from './cover'
@@ -129,7 +130,17 @@ export function Peek({
               ) : (
                 <Glyph node={node} />
               )}
-              <h2 className={styles.title}>{node.title}</h2>
+              <h2 className={styles.title}>
+                {node.kind === 'root' ? (
+                  <InlineName
+                    value={node.title}
+                    label="Tree name"
+                    onRename={(name) => session.getState().renameTree(tree.repo, name)}
+                  />
+                ) : (
+                  node.title
+                )}
+              </h2>
             </div>
             <div className={styles.chips}>
               {chips.map((c) => (
