@@ -31,7 +31,7 @@ Yeraz signs in with a fine-grained personal access token, kept on your device (i
 
 ### Make a repository a Tree
 
-A repository is a Tree when it has a `.yeraz.json` at its root, for example `{"name": "Engineering", "color": "green"}`. Yeraz finds every such repository the token can see. *Create a new repository* on Home makes one for you. This repository's [`knowledge-base-example/`](knowledge-base-example) folder is an example Tree.
+A repository is a Tree when it has a `.yeraz.json` at its root, for example `{"name": "Engineering", "color": "green"}`. Yeraz finds every such repository the token can see. *Create a new repository* on Home makes one for you. To rename a Tree, click its name in the top bar, on its Home card or in its own panel. This repository's [`knowledge-base-example/`](knowledge-base-example) folder is an example Tree.
 
 ## The repository format
 

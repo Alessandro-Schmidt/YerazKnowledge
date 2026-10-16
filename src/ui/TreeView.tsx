@@ -10,6 +10,7 @@ import { session, useSession } from '../store/session'
 import controls from './controls.module.css'
 import { Explorer } from './Explorer'
 import { Icon } from './icons'
+import { InlineName } from './InlineName'
 import { ConflictBanner } from './ConflictBanner'
 import { decodePath, editHref, treeHref } from './paths'
 import { parentFor, StructureDialog, type StructureAction } from './StructureDialogs'
@@ -81,7 +82,17 @@ export function TreeView({ params }: { params: { owner: string; name: string; '*
           <span className={styles.sep}>
             <Icon name="chevronRight" size={14} />
           </span>
-          <h1 className={styles.title}>{tree?.title ?? params.name}</h1>
+          <h1 className={styles.title}>
+            {tree && graph ? (
+              <InlineName
+                value={tree.title}
+                label="Tree name"
+                onRename={(name) => session.getState().renameTree(repo, name)}
+              />
+            ) : (
+              (tree?.title ?? params.name)
+            )}
+          </h1>
         </nav>
         <Search />
         <span className={styles.status}>

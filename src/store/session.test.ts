@@ -248,3 +248,76 @@ describe('session', () => {
     expect(fake.log.map((e) => e.kind)).toEqual(['blob'])
   })
 })
+
+describe('renaming a Tree', () => {
+  const NOTES = '{\n  "name": "Notes",\n  "color": "amber"\n}\n'
+
+  async function openNotes(autosaveDelay = 50) {
+    await fake.addRepo('you/notes', { '.yeraz.json': NOTES, 'a.md': '# A\n' })
+    const s = createSession({ store: memoryStore(), autosaveDelay })
+    await s.getState().signIn('good')
+    await s.getState().open('you/notes')
+    return s
+  }
+  const titleOf = (s: Awaited<ReturnType<typeof openNotes>>) =>
+    s.getState().trees.find((t) => t.repo === 'you/notes')!.title
+  const rootTitle = (s: Awaited<ReturnType<typeof openNotes>>) =>
+    s.getState().data['you/notes']!.graph!.nodes.get('')!.title
+
+  it('shows the new name at once and commits it to .yeraz.json, keeping the other fields', async () => {
+    const s = await openNotes()
+    await s.getState().renameTree('you/notes', '  Field   notes ')
+    expect(titleOf(s)).toBe('Field notes')
+    expect(rootTitle(s)).toBe('Field notes')
+    expect(s.getState().sync['you/notes']).toMatchObject({ status: 'pending', files: 1 })
+    await vi.waitFor(() =>
+      expect(fake.repo('you/notes').read('.yeraz.json')).toBe(
+        '{\n  "name": "Field notes",\n  "color": "amber"\n}\n',
+      ),
+    )
+    await vi.waitFor(() => expect(s.getState().sync['you/notes']).toEqual({ status: 'synced' }))
+    expect(titleOf(s)).toBe('Field notes')
+    expect(rootTitle(s)).toBe('Field notes')
+  })
+
+  it('keeps a one-line .yeraz.json on one line, and adds a name when it has none', async () => {
+    await fake.addRepo('you/bare', { '.yeraz.json': '{"color":"blue"}\n', 'a.md': '# A\n' })
+    const s = createSession({ store: memoryStore() })
+    await s.getState().signIn('good')
+    await s.getState().open('you/bare')
+    await s.getState().renameTree('you/bare', 'Bare')
+    await s.getState().flush('you/bare')
+    expect(fake.repo('you/bare').read('.yeraz.json')).toBe('{"color":"blue","name":"Bare"}\n')
+  })
+
+  it('keeps the new name when discovery answers before the commit', async () => {
+    const s = await openNotes(60_000)
+    await s.getState().renameTree('you/notes', 'Field notes')
+    await s.getState().discover()
+    expect(titleOf(s)).toBe('Field notes')
+    await s.getState().open('you/notes')
+    expect(rootTitle(s)).toBe('Field notes')
+  })
+
+  it('renames twice before a commit in one commit', async () => {
+    const s = await openNotes(60_000)
+    await s.getState().renameTree('you/notes', 'First')
+    await s.getState().renameTree('you/notes', 'Second')
+    fake.resetLog()
+    await s.getState().flush('you/notes')
+    expect(fake.log.filter((e) => e.operation === 'mutation')).toHaveLength(1)
+    expect(JSON.parse(fake.repo('you/notes').read('.yeraz.json')!)).toEqual({
+      name: 'Second',
+      color: 'amber',
+    })
+  })
+
+  it('refuses an empty name, and a .yeraz.json that is not JSON', async () => {
+    const s = await openNotes()
+    await expect(s.getState().renameTree('you/notes', '   ')).rejects.toThrow('needs a name')
+    await fake.addRepo('you/broken', { '.yeraz.json': 'not json', 'b.md': '# B\n' })
+    await s.getState().open('you/broken')
+    await expect(s.getState().renameTree('you/broken', 'Fixed')).rejects.toThrow("isn't valid JSON")
+    expect(titleOf(s)).toBe('Notes')
+  })
+})
