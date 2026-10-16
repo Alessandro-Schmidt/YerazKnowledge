@@ -38,7 +38,7 @@ export function Home() {
     [trees, data],
   )
   const current = entries.find((e) => e.tree.repo === selected) ?? null
-  const open = (repo: string) => navigate(treeHref(repo))
+  const open = (repo: string, id?: string) => navigate(treeHref(repo, id))
 
   return (
     <div className={styles.page}>

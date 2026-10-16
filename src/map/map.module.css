@@ -212,6 +212,10 @@
 [data-focus] .tree:not([data-sel]) {
   opacity: 0.26;
 }
+/* A dimmed Tree comes back while the pointer is on one of its dots. */
+[data-focus] .tree[data-hot] {
+  opacity: 1;
+}
 .treeName {
   font-size: 17px;
   font-weight: 500;

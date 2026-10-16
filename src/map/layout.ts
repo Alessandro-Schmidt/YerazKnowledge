@@ -449,6 +449,26 @@ function placeLabel(node: LaidNode, offset: number, radial: boolean) {
 }
 
 /** The ids a thread passes through: source, ancestors up to the common one, down to target. */
+/**
+ * The node at a point in layout units: the one whose dot edge is nearest, within `reach`.
+ * The core is the Tree itself (ROOT). Null over empty space. Used where dots are too small
+ * to aim at, such as the Trees drawn small on Home.
+ */
+export function nodeAt(layout: MapLayout, x: number, y: number, reach: number): string | null {
+  const fromCore = Math.hypot(x, y) - layout.coreR
+  if (fromCore <= 0) return ROOT
+  let best: string | null = fromCore <= reach ? ROOT : null
+  let gap = Math.min(fromCore, reach)
+  for (const n of layout.nodes) {
+    const d = Math.hypot(n.x - x, n.y - y) - n.r
+    if (d <= gap) {
+      gap = d
+      best = n.id
+    }
+  }
+  return best
+}
+
 export function threadRoute(graph: Graph, from: string, to: string): string[] {
   const up = (id: string) => {
     const chain: string[] = []

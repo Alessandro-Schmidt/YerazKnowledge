@@ -34,6 +34,60 @@ test('Home lists the Tree, shows its numbers, and opens it', async ({ page, grap
   await expect(page.getByRole('heading', { name: 'Engineering', level: 1 })).toBeVisible()
 })
 
+/** The centre of a dot or of the core on the Home map, in page pixels. */
+async function centreOf(page: Page, selector: string) {
+  const box = (await page.locator(`[data-tree="you/engineering"] ${selector}`).boundingBox())!
+  return { x: box.x + box.width / 2, y: box.y + box.height / 2 }
+}
+const homeDot = (id: string) => `[data-id="${id}"] circle:last-child`
+
+test('a dot on Home opens its leaf straight away, without opening the Tree first', async ({
+  page,
+  graph,
+}) => {
+  const leaf = richLeaf(graph)
+  await signIn(page)
+  const at = await centreOf(page, homeDot(leaf.id))
+  await page.mouse.click(at.x, at.y)
+  await expect(page).toHaveURL(
+    new RegExp(`#/tree/you/engineering/${leaf.id.replace(/[.]/g, '\\.')}$`),
+  )
+  await expect(peek(page).getByRole('heading', { level: 2 })).toHaveText(leaf.title)
+})
+
+test('the core on Home opens the Tree itself, and the space around it selects the Tree', async ({
+  page,
+}) => {
+  await signIn(page)
+  await page
+    .locator('[data-tree="you/engineering"] text')
+    .filter({ hasText: /^Engineering$/ })
+    .click()
+  await expect(page.getByRole('link', { name: 'Open tree' })).toBeVisible()
+  await expect(page).not.toHaveURL(/tree/)
+
+  const core = await centreOf(page, '[data-core]')
+  await page.mouse.click(core.x, core.y)
+  await expect(page).toHaveURL(/#\/tree\/you\/engineering\/$/)
+  await expect(peek(page).getByRole('heading', { level: 2 })).toHaveText('Engineering')
+})
+
+test('hovering a dot on Home names it', async ({ page, graph, isMobile }) => {
+  test.skip(isMobile, 'Hover needs a mouse')
+  const leaf = richLeaf(graph)
+  await signIn(page)
+  const at = await centreOf(page, homeDot(leaf.id))
+  await page.mouse.move(at.x, at.y)
+  const tip = page.getByText('Click to open').locator('..')
+  await expect(tip).toBeVisible()
+  await expect(tip.locator('strong')).toHaveText(`${leaf.icon ? `${leaf.icon} ` : ''}${leaf.title}`)
+  await expect(
+    page.locator(`[data-tree="you/engineering"] [data-id="${leaf.id}"]`),
+  ).toHaveAttribute('data-hot', '')
+  await page.mouse.move(5, 300)
+  await expect(tip).toBeHidden()
+})
+
 test('draws one node per leaf and branch', async ({ page, graph }) => {
   await openTree(page)
   await expect(page.locator('[data-node][data-kind="leaf"]')).toHaveCount(300)
