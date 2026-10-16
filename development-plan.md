@@ -90,6 +90,7 @@ Values shown are the default theme: Vanta base, green accent. Every theme define
    - Left list of Trees, with "Connect repository" and "Create a new repository".
    - Canvas showing every Tree as a small radial map, sized by total words, with dashed curves for threads between Trees.
    - Selecting a Tree dims the others and shows a card with leaves, branches, threads, words and "Open tree".
+   - Every dot opens its leaf or branch directly, and the core opens the Tree. Hovering a dot names it.
    - Zoom controls bottom-right.
 2. **Tree view.**
    - **Top bar (56 px):** breadcrumb (All trees › Tree name) and toggles for Explorer and Peek.
