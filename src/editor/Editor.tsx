@@ -12,7 +12,7 @@ import { useEffect, useRef } from 'react'
 import { parseLeaf, withIcon, withMeta, type LeafMeta } from '../model/parse'
 import { markNow } from '../perf'
 import styles from './Editor.module.css'
-import { assetSource, livePreview } from './livePreview'
+import { assetSource, fileSizes, livePreview } from './livePreview'
 import { insertMenu, type InsertHost } from './insertMenu'
 import { mentions, type MentionSource } from './mentions'
 
@@ -37,10 +37,12 @@ export interface EditorProps {
   mentionsFrom?: MentionSource
   /** Insert menu items the page handles: images, new leaves and branches. */
   onInsert?: InsertHost
-  /** Files pasted or dropped into the text (images). */
+  /** Files pasted or dropped into the text. */
   onFiles?(files: File[]): void
   /** URLs for the Tree's own files, such as `assets/…` images. */
   assetUrl?(path: string): Promise<string | null>
+  /** Sizes of the Tree's own files, for attachment cards. */
+  fileSize?(path: string): number | null
 }
 
 export default function Editor({
@@ -53,6 +55,7 @@ export default function Editor({
   onInsert,
   onFiles,
   assetUrl,
+  fileSize,
 }: EditorProps) {
   const host = useRef<HTMLDivElement>(null)
   const view = useRef<EditorView | null>(null)
@@ -61,11 +64,13 @@ export default function Editor({
   const insertRef = useRef(onInsert)
   const filesRef = useRef(onFiles)
   const assetRef = useRef(assetUrl)
+  const sizeRef = useRef(fileSize)
   useEffect(() => {
     changed.current = onChange
     insertRef.current = onInsert
     filesRef.current = onFiles
     assetRef.current = assetUrl
+    sizeRef.current = fileSize
   })
 
   useEffect(() => {
@@ -84,6 +89,7 @@ export default function Editor({
           mentionsFrom ? mentions(mentionsFrom) : [],
           insertMenu((kind, v) => insertRef.current?.(kind, v)),
           assetSource.of(async (path) => (await assetRef.current?.(path)) ?? null),
+          fileSizes.of((path) => sizeRef.current?.(path) ?? null),
           EditorView.domEventHandlers({
             keydown() {
               markNow('keystroke')

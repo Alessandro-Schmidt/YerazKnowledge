@@ -208,6 +208,41 @@ describe('session', () => {
     expect(await s.getState().assetUrl('you/engineering', 'assets/none.png')).toBeNull()
   })
 
+  it('commits an attached file with the leaf that links to it, in one commit, and knows its size', async () => {
+    const s = createSession({ store: memoryStore() })
+    await s.getState().signIn('good')
+    await s.getState().open('you/engineering')
+    const leaf = s
+      .getState()
+      .files('you/engineering')
+      .find((p) => p.endsWith('.md'))!
+    const text = await s.getState().textOf('you/engineering', leaf)
+    const zip = Uint8Array.from({ length: 5000 }, (_, i) => (i * 13) % 256)
+    const path = 'assets/2026-10-17-backup.zip'
+    await s.getState().apply('you/engineering', [{ path, text: zip }])
+    await s
+      .getState()
+      .apply('you/engineering', [{ path: leaf, text: `${text}\n[backup.zip](/${path})\n` }])
+    expect(s.getState().fileSize('you/engineering', path)).toBe(5000)
+
+    fake.resetLog()
+    await s.getState().flush('you/engineering')
+    expect(fake.log.filter((e) => e.operation === 'mutation')).toHaveLength(1)
+    const repo = fake.repo('you/engineering')
+    expect(repo.blobs.get(repo.head!.files.get(path)!)).toEqual(zip)
+    expect(repo.read(leaf)).toContain(`[backup.zip](/${path})`)
+    expect(s.getState().fileSize('you/engineering', path)).toBe(5000)
+
+    // Another device knows the size from the tree listing, without downloading the file.
+    const other = createSession({ store: memoryStore() })
+    await other.getState().signIn('good')
+    await other.getState().open('you/engineering')
+    fake.resetLog()
+    expect(other.getState().fileSize('you/engineering', path)).toBe(5000)
+    expect(other.getState().fileSize('you/engineering', 'assets/none.zip')).toBeNull()
+    expect(fake.log).toEqual([])
+  })
+
   it('keeps showing an image while its commit completes', async () => {
     // Asks for the image each time pending edits are saved, as the Peek might mid-commit.
     const base = memoryStore()

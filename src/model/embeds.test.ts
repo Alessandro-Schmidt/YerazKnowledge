@@ -48,8 +48,28 @@ describe('embedOf: a paragraph that is only a link becomes an embed', () => {
     expect(embedOf('https://github.com/you')).toBeNull()
   })
 
+  it('any other file in assets/, as a file card', () => {
+    expect(embedOf('[Q3 report.xlsx](/assets/2026-10-17-q3-report.xlsx)')).toEqual({
+      kind: 'file',
+      path: 'assets/2026-10-17-q3-report.xlsx',
+      title: 'Q3 report.xlsx',
+    })
+    expect(embedOf('[\\[draft\\] notes](</assets/a b.zip>)')).toEqual({
+      kind: 'file',
+      path: 'assets/a b.zip',
+      title: '[draft] notes',
+    })
+    expect(embedOf('/assets/Makefile')).toEqual({
+      kind: 'file',
+      path: 'assets/Makefile',
+      title: '',
+    })
+    expect(embedOf('[Data](/data/export.csv)')).toBeNull()
+  })
+
   it('leaves links inside sentences, and other links, as links', () => {
     expect(embedOf('Watch https://youtu.be/dQw4w9WgXcQ now')).toBeNull()
+    expect(embedOf('See [the sheet](/assets/sheet.xlsx) here')).toBeNull()
     expect(embedOf('[Keycloak](/identity/keycloak.md)')).toBeNull()
     expect(embedOf('https://example.com/a.pdf')).toBeNull()
     expect(embedOf('https://www.youtube.com/@channel')).toBeNull()

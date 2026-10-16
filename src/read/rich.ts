@@ -5,6 +5,7 @@
 import type MarkdownItClass from 'markdown-it'
 import type { Parser } from '@lezer/common'
 import { embedOf, MATH, subtitleTracks, type Embed } from '../model/embeds'
+import { fileCardHtml } from './files'
 
 type MarkdownIt = InstanceType<typeof MarkdownItClass>
 type Token = ReturnType<MarkdownIt['parse']>[number]
@@ -13,6 +14,8 @@ export type RichEnv = {
   katex?: typeof import('katex').default
   parsers?: Map<string, Parser>
   files?(): Iterable<string>
+  /** A file's size in bytes, when known, for its card. */
+  size?(path: string): number | null
   /** A connected Tree by `owner/name`: its title and in-app href. */
   tree?(repo: string): { title: string; href: string } | null
 }
@@ -129,6 +132,8 @@ function embedHtml(embed: Embed, env: RichEnv, escape: (s: string) => string): s
       `<span>${escape(embed.repo)}</span><em>${known ? 'Tree' : 'GitHub repository'}</em></a></p>\n`
     )
   }
+  if (embed.kind === 'file')
+    return `<p>${fileCardHtml(embed, env.size?.(embed.path) ?? null)}</p>\n`
   const name = embed.kind === 'youtube' ? '' : embed.path.replace(/^.*\//, '')
   const title = escape(embed.title || name || 'YouTube video')
   if (embed.kind === 'youtube') {
