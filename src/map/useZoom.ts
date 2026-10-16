@@ -21,6 +21,8 @@ export interface ZoomControls {
   /** True when layout point (x, y) is inside the free area. */
   isVisible(x: number, y: number, insets?: Partial<Insets>): boolean
   scale(): number
+  /** True while the camera is where the last fit put it: nobody has panned, zoomed or followed since. */
+  untouched(): boolean
 }
 
 export interface Insets {
@@ -54,6 +56,7 @@ export function useZoom(
   const svgRef = hostRef
   const behaviour = useRef<ZoomBehavior<HTMLElement | SVGSVGElement, unknown> | null>(null)
   const fitted = useRef(1)
+  const untouched = useRef(false)
   const optionsRef = useRef(options)
   useEffect(() => {
     optionsRef.current = options
@@ -69,20 +72,25 @@ export function useZoom(
     let far: boolean | null = null
     const z = d3zoom<HTMLElement | SVGSVGElement, unknown>()
       .scaleExtent([optionsRef.current.min, optionsRef.current.max])
-      .on('zoom', (event: { transform: { x: number; y: number; k: number } }) => {
-        const { x, y, k } = event.transform
-        for (const camera of cameras)
-          camera.style.transform = `translate(${x}px, ${y}px) scale(${k})`
-        const isFar = k < Math.max(LABEL_ZOOM * fitted.current, LEGIBLE)
-        if (isFar !== far) {
-          far = isFar
-          svg.dataset.zoom = isFar ? 'far' : 'near'
-        }
-        optionsRef.current.onScale?.({
-          percent: Math.round((k / fitted.current) * 100),
-          far: isFar,
-        })
-      })
+      .on(
+        'zoom',
+        (event: { transform: { x: number; y: number; k: number }; sourceEvent: unknown }) => {
+          // A gesture (wheel, drag, pinch) has a source event; the camera's own moves don't.
+          if (event.sourceEvent) untouched.current = false
+          const { x, y, k } = event.transform
+          for (const camera of cameras)
+            camera.style.transform = `translate(${x}px, ${y}px) scale(${k})`
+          const isFar = k < Math.max(LABEL_ZOOM * fitted.current, LEGIBLE)
+          if (isFar !== far) {
+            far = isFar
+            svg.dataset.zoom = isFar ? 'far' : 'near'
+          }
+          optionsRef.current.onScale?.({
+            percent: Math.round((k / fitted.current) * 100),
+            far: isFar,
+          })
+        },
+      )
     behaviour.current = z
     select(svg).call(z).on('dblclick.zoom', null)
     return () => {
@@ -140,6 +148,7 @@ export function useZoom(
         const { x, y, k } = current()
         const { w, h } = area()
         const next = Math.min(optionsRef.current.max, Math.max(optionsRef.current.min, k * factor))
+        untouched.current = false
         // Zoom around the centre of the view.
         const cx = (w / 2 - x) / k
         const cy = (h / 2 - y) / k
@@ -158,11 +167,13 @@ export function useZoom(
         )
         fitted.current = k
         move(cx - ((x0 + x1) / 2) * k, cy - ((y0 + y1) / 2) * k, k, animate)
+        untouched.current = true
       },
       centre(x, y, insets, scale) {
         const k = scale ?? current().k
         const { cx, cy } = area(insets)
         move(cx - x * k, cy - y * k, k, true)
+        untouched.current = false
       },
       isVisible(x, y, insets) {
         const t = current()
@@ -174,6 +185,7 @@ export function useZoom(
         )
       },
       scale: () => current().k,
+      untouched: () => untouched.current,
     }),
     [area, move, current],
   )

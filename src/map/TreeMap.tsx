@@ -77,8 +77,12 @@ export function TreeMap({
     overlayCameraRef,
   )
 
-  // Fit once per Tree; later layouts (content arriving) keep the camera where it is.
+  // Fit once per Tree. A later layout (the leaves' content arriving, which sizes the dots)
+  // is fitted again only while the camera is untouched: it never moves under someone who
+  // has panned, zoomed or followed a selection. Without this, a Tree opened before its
+  // content arrived stayed fitted to its structure alone.
   const fitted = useRef<string | null>(null)
+  const fittedLayout = useRef<MapLayout | null>(null)
   // Panel insets, as plain values so effects re-run when a panel opens or closes.
   const {
     top: insetTop = 0,
@@ -91,8 +95,14 @@ export function TreeMap({
     [insetTop, insetRight, insetBottom, insetLeft],
   )
   useLayoutEffect(() => {
-    if (fitted.current === treeKey) return
+    if (fitted.current === treeKey) {
+      if (fittedLayout.current !== layout && zoom.untouched())
+        zoom.fit(layout.bounds, padded(area), true)
+      fittedLayout.current = layout
+      return
+    }
     fitted.current = treeKey
+    fittedLayout.current = layout
     zoom.fit(layout.bounds, padded(area))
     // On a phone, a Tree opened on a leaf zooms in on it (design screen 07): the whole
     // Tree above the bottom sheet would be too small to read.
@@ -299,9 +309,8 @@ export function TreeMap({
             type="button"
             className={controls.iconButton}
             aria-label="Fit the tree"
-            onClick={() =>
-              zoom.fit(layout.bounds, { top: 64, bottom: 80, left: 16, right: 16, ...insets }, true)
-            }
+            // The same fit as opening the Tree: the panel insets plus the map's own margins.
+            onClick={() => zoom.fit(layout.bounds, padded(area), true)}
           >
             <Icon name="fit" />
           </button>
