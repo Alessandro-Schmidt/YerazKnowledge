@@ -1,10 +1,11 @@
 // What the read view adds to Markdown (ARCHITECTURE.md §7, §8): KaTeX math, code
-// highlighted by the editor's own Lezer parsers, and embeds (YouTube, and PDFs and videos
-// kept in the Tree). KaTeX and the parsers load only for leaves that use them.
+// highlighted by the editor's own Lezer parsers, and embeds (YouTube, PDFs and videos
+// kept in the Tree, repository cards and bookmarks). KaTeX and the parsers load only for
+// leaves that use them.
 
 import type MarkdownItClass from 'markdown-it'
 import type { Parser } from '@lezer/common'
-import { embedOf, MATH, subtitleTracks, type Embed } from '../model/embeds'
+import { embedOf, MATH, shortUrl, subtitleTracks, type Embed } from '../model/embeds'
 
 type MarkdownIt = InstanceType<typeof MarkdownItClass>
 type Token = ReturnType<MarkdownIt['parse']>[number]
@@ -94,7 +95,7 @@ export function rich(md: MarkdownIt, highlight: typeof import('@lezer/highlight'
     return `<pre><code class="language-${escape(lang(token.info))}">${html}</code></pre>\n`
   }
 
-  // A paragraph that is only a link to a video or a PDF becomes a player.
+  // A paragraph that is only a link becomes a player, a repository card or a bookmark.
   md.core.ruler.push('embeds', (state) => {
     const tokens = state.tokens
     for (let i = tokens.length - 2; i > 0; i--) {
@@ -118,6 +119,12 @@ const languageName = (code: string) => {
 }
 
 function embedHtml(embed: Embed, env: RichEnv, escape: (s: string) => string): string {
+  if (embed.kind === 'bookmark') {
+    return (
+      `<p><a class="repo-card bookmark" href="${escape(embed.url)}" target="_blank" rel="noopener noreferrer">` +
+      `<strong>${escape(embed.title)}</strong><span>${escape(shortUrl(embed.url))}</span></a></p>\n`
+    )
+  }
   if (embed.kind === 'repo') {
     // A connected Tree opens in the app; any other repository on GitHub.
     const known = env.tree?.(embed.repo)
