@@ -364,8 +364,8 @@ Not part of the first release:
 |---|---|---|---|
 | Unit | Vitest (Node) | `model/`, links, metadata, SHA, layout, sync planning, merge, autosave timers | On every save in watch mode, and in CI |
 | Integration | Vitest + MSW + fake GitHub | Pull and push flows, 304 path, truncated tree, retries, conflicts | CI |
-| End-to-end | Playwright: desktop Chromium, WebKit, Pixel and iPhone emulation | The user journeys in `ideas.txt`, visual snapshots, accessibility | CI |
-| Performance | Playwright with CPU throttling | The budgets in ARCHITECTURE.md §11 | A separate CI job on every PR to `main` |
+| End-to-end | Playwright: desktop Chromium, WebKit, Pixel and iPhone emulation | The user journeys in `ideas.txt` and accessibility; visual snapshots on demand (`snapshots.yml`) | CI |
+| Performance | Playwright with CPU throttling | The budgets in ARCHITECTURE.md §11 | On demand (`npm run perf`), before a change that could affect them |
 | Contract | Playwright against real GitHub | That the real API still behaves like the fake | Nightly |
 | Desktop | Tauri build + launch smoke test | Packaging on three OSes | On release tags |
 
@@ -404,7 +404,8 @@ Not part of the first release:
   4. Time from clicking a leaf until the Peek appears.
   5. Keystroke latency in a 10,000-line leaf.
 - **Bundle size:** `size-limit` keeps first-load JavaScript under 200 KB gzipped.
-- **Failure rule:** CI fails when a number exceeds its budget by more than 20 %. Results are stored as a CI artifact so trends are visible.
+- **Failure rule:** a test fails when a number exceeds its budget by more than 20 %. Every number is written to `perf-results/results.json`.
+- **Not in CI** (owner's decision): shared runners have no GPU and are noisy, and a failing budget must never hold back a deploy. Run `npm run perf` before merging a change that could affect a budget.
 
 ### 7.5 Contract test (real GitHub)
 
@@ -424,8 +425,9 @@ Not part of the first release:
 ```
 on pull request and push to main:
   install (cached) → typecheck → lint → unit + integration → build → size-limit
-  → e2e (Chromium, WebKit, mobile emulation) → perf (separate job)
-on push to main:  deploy dist/ to GitHub Pages
+  → e2e (Chromium, WebKit, mobile emulation)
+on push to main:  deploy dist/ to GitHub Pages, once check and e2e pass
+on demand:        visual snapshots (snapshots.yml) · performance budgets (npm run perf)
 nightly:          contract test against real GitHub
 on tag v*:        tauri-action builds Windows/macOS/Linux → GitHub Release
 ```
