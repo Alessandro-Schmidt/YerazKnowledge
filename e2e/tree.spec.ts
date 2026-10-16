@@ -59,10 +59,12 @@ test('the core on Home opens the Tree itself, and the space around it selects th
   page,
 }) => {
   await signIn(page)
-  await page
+  // By position: WebKit hit-tests SVG text by its glyphs, so a locator click can miss it.
+  const name = (await page
     .locator('[data-tree="you/engineering"] text')
     .filter({ hasText: /^Engineering$/ })
-    .click()
+    .boundingBox())!
+  await page.mouse.click(name.x + name.width / 2, name.y + name.height / 2)
   await expect(page.getByRole('link', { name: 'Open tree' })).toBeVisible()
   await expect(page).not.toHaveURL(/tree/)
 
