@@ -151,7 +151,7 @@ test('renames the Tree where its name is shown, and commits it to .yeraz.json', 
     .toEqual({ name: 'Field notes', color: 'green' })
 
   await page.goto('./')
-  await expect(page.getByRole('button', { name: /Field notes/ })).toContainText('you/engineering')
+  await expect(page.getByRole('button', { name: /^Field notes you\/engineering/ })).toBeVisible()
 })
 
 test('Escape keeps the old name, and an empty name is refused', async ({ page, fake }) => {
@@ -245,7 +245,8 @@ test('connects a repository by name', async ({ page, fake }) => {
   await expect(page.getByRole('alert')).toContainText("doesn't exist")
   await page.getByPlaceholder('owner/name').fill('friend/art')
   await page.getByRole('button', { name: 'Connect', exact: true }).click()
-  await expect(page.getByRole('button', { name: /Art History/ })).toBeVisible()
+  // The rail's row; the Tree's card shows the name too, as a rename button.
+  await expect(page.getByRole('button', { name: /^Art History friend\/art/ })).toBeVisible()
 })
 
 test('Home, the Tree view and the Peek have no accessibility violations', async ({
