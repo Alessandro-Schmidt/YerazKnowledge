@@ -12,8 +12,10 @@ Read `ideas.txt` (why), `ARCHITECTURE.md` (how), `development-plan.md` (what, in
 - `npm run fixture -- --leaves 1000 --threads 1500 --seed 7` — write a fixture Tree to `fixtures-out/`
 - `npm run perf` — budget tests on the 1,000-leaf fixture, laptop and 4× throttled phone (§7.4)
 - `npm run visual` — the app in the states of `design/screens/01–07`, with the design's Trees, into `visual-review/`
-- Visual snapshots (`e2e/visual.spec.ts`) are compared in CI's `visual` job, in Playwright's Linux image; after a
-  visual change, `gh workflow run snapshots.yml` re-renders them: review its artifact, commit it to `e2e/visual.spec.ts-snapshots/`
+- Visual snapshots (`e2e/visual.spec.ts`) run on demand in Playwright's Linux image: `gh workflow run snapshots.yml`
+  compares them; after a visual change, `-f update=true` re-renders them: review its artifact, commit it to `e2e/visual.spec.ts-snapshots/`
+- CI (`ci.yml`) is check + e2e (+ the desktop build when `src-tauri/` changes); deploy waits on check and e2e only.
+  Visual snapshots and perf budgets are not in CI (owner's decision): run them before a change that could affect them
 - `npm run tauri dev` / `npm run tauri build` — the desktop app (needs Rust); a `v*` tag builds installers in CI (`release.yml`)
 - `npm run contract` — the build against real GitHub (needs `YERAZ_CONTRACT_TOKEN`, `YERAZ_CONTRACT_REPO`); nightly in CI
 

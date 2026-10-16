@@ -1,9 +1,16 @@
 name: Snapshots
 
-# Re-renders the visual snapshot baselines (e2e/visual.spec.ts) in the image CI compares
-# them in. Run it after a visual change (gh workflow run snapshots.yml), review the images
-# in its artifact against design/screens/, and commit them to e2e/visual.spec.ts-snapshots/.
-on: workflow_dispatch
+# Visual snapshots (e2e/visual.spec.ts), on demand, in the image their baselines are
+# rendered in. Compare: gh workflow run snapshots.yml (differences in the artifact).
+# Re-render after a visual change: gh workflow run snapshots.yml -f update=true, review the
+# images in its artifact against design/screens/, commit them to e2e/visual.spec.ts-snapshots/.
+on:
+  workflow_dispatch:
+    inputs:
+      update:
+        description: Re-render the baselines instead of comparing against them
+        type: boolean
+        default: false
 
 jobs:
   render:
@@ -23,9 +30,10 @@ jobs:
       - run: npm ci
       - name: The image matches @playwright/test
         run: test "$(node -p "require('@playwright/test/package.json').version")" = 1.64.1
-      - run: npx playwright test e2e/visual.spec.ts --update-snapshots=all
+      - run: npx playwright test e2e/visual.spec.ts ${{ inputs.update && '--update-snapshots=all' || '' }}
       - uses: actions/upload-artifact@v7
+        if: always()
         with:
-          name: visual-snapshots
-          path: e2e/visual.spec.ts-snapshots
+          name: ${{ inputs.update && 'visual-snapshots' || 'visual-diffs' }}
+          path: ${{ inputs.update && 'e2e/visual.spec.ts-snapshots' || 'test-results' }}
           retention-days: 14
