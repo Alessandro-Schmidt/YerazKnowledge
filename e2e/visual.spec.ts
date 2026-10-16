@@ -1,8 +1,8 @@
 // Visual snapshots (development-plan.md §7.3): Home, the Tree view in each base, Map only,
 // Phone and Appearance, with the design's own Trees, at pixel density 2. They are rendered
-// and compared in Playwright's Linux image only (CI's visual job), so fonts and anti-aliasing
+// and compared in Playwright's Linux image only (snapshots.yml, on demand), so fonts and anti-aliasing
 // match pixel for pixel. To re-render them after a visual change, run the Snapshots workflow
-// (`gh workflow run snapshots.yml`) and commit its artifact into e2e/visual.spec.ts-snapshots/.
+// (`gh workflow run snapshots.yml -f update=true`) and commit its artifact into e2e/visual.spec.ts-snapshots/.
 // A changed baseline is a design change: compare it with design/screens/ before committing.
 
 import type { Page } from '@playwright/test'
@@ -21,7 +21,7 @@ const test = base.extend({
 
 test.skip(
   process.env.YERAZ_SNAPSHOTS !== '1',
-  'Rendered in the Playwright Linux image, by the visual job in CI',
+  'Rendered in the Playwright Linux image, by snapshots.yml',
 )
 test.skip(
   ({ browserName }) => browserName !== 'chromium',
