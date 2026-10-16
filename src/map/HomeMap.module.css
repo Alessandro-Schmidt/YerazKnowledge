@@ -12,6 +12,19 @@
   stroke: var(--tree, var(--accent));
 }
 
+/* The dot the pointer reaches: it opens on click (HomeMap.tsx). */
+.node[data-hot] circle:last-child {
+  fill: var(--tree, var(--accent));
+  stroke: var(--tree, var(--accent));
+  stroke-opacity: 0.35;
+  stroke-width: 8px;
+  vector-effect: non-scaling-stroke;
+}
+.wrap [data-core][data-hot] {
+  stroke: var(--tree, var(--accent));
+  stroke-opacity: 0.9;
+}
+
 .label {
   font-size: 9.5px;
   stroke-width: 4px;
