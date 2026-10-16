@@ -59,6 +59,13 @@ test('the core on Home opens the Tree itself, and the space around it selects th
   page,
 }) => {
   await signIn(page)
+  const core = await centreOf(page, '[data-core]')
+  await page.mouse.click(core.x, core.y)
+  await expect(page).toHaveURL(/#\/tree\/you\/engineering\/$/)
+  await expect(peek(page).getByRole('heading', { level: 2 })).toHaveText('Engineering')
+
+  // Back on Home, with no card over the map yet (on a short phone it covers the core).
+  await page.goto('./')
   // By position: WebKit hit-tests SVG text by its glyphs, so a locator click can miss it.
   const name = (await page
     .locator('[data-tree="you/engineering"] text')
@@ -67,11 +74,6 @@ test('the core on Home opens the Tree itself, and the space around it selects th
   await page.mouse.click(name.x + name.width / 2, name.y + name.height / 2)
   await expect(page.getByRole('link', { name: 'Open tree' })).toBeVisible()
   await expect(page).not.toHaveURL(/tree/)
-
-  const core = await centreOf(page, '[data-core]')
-  await page.mouse.click(core.x, core.y)
-  await expect(page).toHaveURL(/#\/tree\/you\/engineering\/$/)
-  await expect(peek(page).getByRole('heading', { level: 2 })).toHaveText('Engineering')
 })
 
 test('hovering a dot on Home names it', async ({ page, graph, isMobile }) => {
