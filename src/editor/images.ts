@@ -3,8 +3,6 @@
 // quality 92; screenshots, diagrams and transparency stay lossless. Never upscaled.
 
 export const MAX_EDGE = 4096
-/** Files above this get a warning before they are committed (ARCHITECTURE.md §11). */
-export const WARN_BYTES = 10 * 1024 * 1024
 
 const KEPT = ['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'image/svg+xml']
 

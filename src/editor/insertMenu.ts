@@ -17,7 +17,7 @@ export const HOLD_MS = 2000
 const LONG_PRESS_MS = 600
 
 export type ListKind = 'todo' | 'ordered' | 'bullet'
-export type InsertKind = ListKind | 'mention' | 'image' | 'leaf' | 'branch'
+export type InsertKind = ListKind | 'mention' | 'image' | 'file' | 'leaf' | 'branch'
 
 const ITEMS: { kind: InsertKind; label: string }[] = [
   { kind: 'todo', label: 'To-do list' },
@@ -25,6 +25,7 @@ const ITEMS: { kind: InsertKind; label: string }[] = [
   { kind: 'bullet', label: 'Bullet list' },
   { kind: 'mention', label: 'Mention a leaf' },
   { kind: 'image', label: 'Image from files' },
+  { kind: 'file', label: 'Attach a file' },
   { kind: 'leaf', label: 'New leaf' },
   { kind: 'branch', label: 'New branch' },
 ]
@@ -99,8 +100,8 @@ const menuState = StateField.define<Open | null>({
     ),
 })
 
-/** What the host does for items the editor can't do alone: images, new leaves and branches. */
-export type InsertHost = (kind: 'image' | 'leaf' | 'branch', view: EditorView) => void
+/** What the host does for items the editor can't do alone: files, new leaves and branches. */
+export type InsertHost = (kind: 'image' | 'file' | 'leaf' | 'branch', view: EditorView) => void
 
 const insertHost = Facet.define<InsertHost, InsertHost>({
   combine: (values) => values[0] ?? (() => undefined),
