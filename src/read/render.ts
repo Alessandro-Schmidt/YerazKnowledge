@@ -14,6 +14,8 @@ export interface RenderContext {
   leafIcon(path: string): string | null
   /** Every file path in the Tree, for a video's subtitle tracks. */
   files?(): Iterable<string>
+  /** A file's size in bytes, when known (attachments show it). */
+  size?(path: string): number | null
   /** Another connected Tree by `owner/name`: its title and in-app href (`#/tree/…`). */
   tree?(repo: string): { title: string; href: string } | null
 }
@@ -130,6 +132,7 @@ export async function renderLeaf(
   const md = await load()
   const env: RichEnv & { context: RenderContext } = { context }
   if (context.files) env.files = context.files
+  if (context.size) env.size = context.size
   if (context.tree) env.tree = context.tree
   const tokens = md.parse(bodyOf(text), env)
   await prepare(tokens, env)
