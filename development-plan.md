@@ -400,7 +400,7 @@ Not part of the first release:
 - **Scenarios,** each run on the 1,000 and 5,000-leaf fixtures:
   1. Reopening a cached Tree: time until the map is painted.
   2. First open: time until structure appears, and until all content is in.
-  3. Scripted wheel zoom for 3 s: the 95th-percentile frame time, sampled with `requestAnimationFrame`.
+  3. Scripted wheel zoom for 3 s: the 95th-percentile frame time, sampled with `requestAnimationFrame`. The budget holds the main thread's work per frame (from the frame's start until style, layout and paint are done). The time between delivered frames is reported only: CI's runners have no GPU, so there it is mostly software rasterisation, not the app.
   4. Time from clicking a leaf until the Peek appears.
   5. Keystroke latency in a 10,000-line leaf.
 - **Bundle size:** `size-limit` keeps first-load JavaScript under 200 KB gzipped.
