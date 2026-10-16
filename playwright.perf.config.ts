@@ -9,6 +9,9 @@ export default defineConfig({
   fullyParallel: false,
   workers: 1,
   retries: 0,
+  // No tracing: it snapshots the whole DOM around every action, on the main thread, and
+  // was most of what these tests measured (thousands of map elements per snapshot).
+  use: { ...base.use, trace: 'off' },
   reporter: [['list'], ['json', { outputFile: 'perf-results/results.json' }]],
   projects: [
     { name: 'laptop', use: { ...devices['Desktop Chrome'] } },

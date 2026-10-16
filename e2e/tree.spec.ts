@@ -1,7 +1,7 @@
 import AxeBuilder from '@axe-core/playwright'
 import type { Page } from '@playwright/test'
 import type { Graph } from '../src/model/graph'
-import { expect, isPhone, signIn, test } from './fixtures'
+import { expect, isPhone, signIn, signInHere, test } from './fixtures'
 
 /** A leaf with sub-leaves and threads both ways: it exercises every part of the Peek. */
 function richLeaf(graph: Graph) {
@@ -177,6 +177,39 @@ test('clicking the empty map clears the selection', async ({ page, graph }) => {
   await expect(peek(page)).toHaveCount(0)
   await expect(page).toHaveURL(/#\/tree\/you\/engineering$/)
   await expect(page.locator('[data-map]')).not.toHaveAttribute('data-focus')
+})
+
+/** The map's camera transform, as written by the zoom behaviour. */
+const camera = (page: Page) =>
+  page
+    .locator('[data-map] > svg > g')
+    .first()
+    .evaluate((g) => (g as SVGGElement).style.transform)
+
+test('a Tree opened before its content arrives is fitted to its full shape when it does', async ({
+  page,
+  fake,
+}) => {
+  // Opened by its URL, so the map first shows the structure, with every dot at its smallest.
+  fake.faults.latencyMs = 150
+  await page.goto('./#/tree/you/engineering')
+  await signInHere(page)
+  await expect(page.getByRole('status')).toContainText('Loading')
+  await expect(page.getByRole('status')).toHaveText('Synced to main', { timeout: 30_000 })
+  const opened = await camera(page)
+  await page.getByRole('button', { name: 'Fit the tree' }).click()
+  expect(await camera(page)).toBe(opened)
+})
+
+test("content arriving doesn't move a camera someone has moved", async ({ page, fake }) => {
+  fake.faults.latencyMs = 300
+  await page.goto('./#/tree/you/engineering')
+  await signInHere(page)
+  await expect(page.getByRole('status')).toContainText('Loading')
+  await page.getByRole('button', { name: 'Zoom in' }).click()
+  const moved = await camera(page)
+  await expect(page.getByRole('status')).toHaveText('Synced to main', { timeout: 30_000 })
+  expect(await camera(page)).toBe(moved)
 })
 
 test('the core opens the Tree itself', async ({ page, graph }) => {
