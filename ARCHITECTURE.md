@@ -153,6 +153,7 @@ Renaming a Tree changes only `name` in `.yeraz.json`. The edit is committed like
   - Each is scaled by √(total words) and placed with `d3.packSiblings`.
   - Only branch labels are drawn at that zoom.
   - Threads between Trees are drawn as dashed curves between their cores.
+  - **Every dot opens straight into its Tree.** A click reaches the dot whose edge is nearest the pointer, within 10 px (18 px for touch), so even the smallest dots are easy to hit. Clicking the core opens the Tree itself; clicking anywhere else on a Tree selects it. `nodeAt` in `layout.ts` does the search in layout units, through the Tree's screen transform, so no hit area is added per dot. Hovering lights up the reached dot and names it in a tip, using attributes only and never a React render.
 - **Ceiling:** SVG should hold 60 fps up to about 2,000 nodes on a mid-range phone; the performance tests confirm the real number. Above it, the node and edge layers can be swapped for one `<canvas>` using the same layout data. That swap is planned, not built.
 
 ## 7. Editor

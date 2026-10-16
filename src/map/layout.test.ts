@@ -6,7 +6,7 @@ import { makeFixture } from '../../test/fake-github/fixture'
 import { buildGraph, type Graph } from '../model/graph'
 import { parseLeaf } from '../model/parse'
 import { buildTree, ROOT } from '../model/tree'
-import { dotRadius, layoutTree, overlaps, threadRoute } from './layout'
+import { dotRadius, layoutTree, nodeAt, overlaps, threadRoute } from './layout'
 
 function graphOf(files: Record<string, string>, title: string): Graph {
   const model = buildTree(
@@ -228,4 +228,23 @@ it('lays out a Tree of one leaf', () => {
   expect(layout.nodes).toHaveLength(1)
   expect(layout.segments).toHaveLength(1)
   expect(Number.isFinite(layout.nodes[0]!.x)).toBe(true)
+})
+
+describe('nodeAt', () => {
+  const layout = layoutTree(fixtureGraph(100))
+  const leaf = layout.nodes.find((n) => n.kind === 'leaf')!
+
+  it('finds the node under a point, and the nearest one within reach', () => {
+    expect(nodeAt(layout, leaf.x, leaf.y, 0)).toBe(leaf.id)
+    expect(nodeAt(layout, leaf.x + leaf.r + 2, leaf.y, 3)).toBe(leaf.id)
+    const gap = (n: { x: number; y: number; r: number }) => Math.hypot(n.x - 5, n.y - 300) - n.r
+    const nearest = [...layout.nodes].sort((a, b) => gap(a) - gap(b))[0]!
+    expect(nodeAt(layout, 5, 300, 1000)).toBe(nearest.id)
+  })
+
+  it('answers the Tree itself on the core, and nothing on empty space', () => {
+    expect(nodeAt(layout, 0, 0, 0)).toBe(ROOT)
+    expect(nodeAt(layout, layout.coreR - 1, 0, 0)).toBe(ROOT)
+    expect(nodeAt(layout, layout.R * 3, layout.R * 3, 4)).toBeNull()
+  })
 })
