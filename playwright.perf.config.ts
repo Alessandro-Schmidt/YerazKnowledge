@@ -9,7 +9,12 @@ export default defineConfig({
   fullyParallel: false,
   workers: 1,
   retries: 0,
-  reporter: [['list'], ['json', { outputFile: 'perf-results/results.json' }]],
+  reporter: [
+    ['list'],
+    ['json', { outputFile: 'perf-results/results.json' }],
+    // In CI: failures and every measured number as annotations on the job.
+    ...(process.env.CI ? ([['github'], ['./perf/notices.ts']] as const) : []),
+  ],
   projects: [
     { name: 'laptop', use: { ...devices['Desktop Chrome'] } },
     { name: 'phone', use: { ...devices['Pixel 7'], cpuThrottling: 4 } as never },
