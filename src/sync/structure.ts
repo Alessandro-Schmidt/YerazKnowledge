@@ -51,10 +51,30 @@ function unique(name: string, taken: Set<string>, joiner: string): string {
 const leafText = (title: string) => `# ${title.trim() || 'Untitled'}\n\n`
 
 /** A new leaf at the root, in a branch, or as a sub-leaf (in a leaf's sibling folder). */
-export function planNewLeaf(graph: Graph, parentId: string, title: string): FileChange {
-  const name = unique(slugify(title), takenNames(graph, parentId), '-')
-  return { path: `${folderOf(graph, parentId)}${name}.md`, text: leafText(title) }
+export const planNewLeaf = (graph: Graph, parentId: string, title: string): FileChange =>
+  planNewLeaves(graph, parentId, [title])[0]!
+
+/** New leaves under one parent, for one commit: no two share a name, nor take one in use. */
+export function planNewLeaves(
+  graph: Graph,
+  parentId: string,
+  titles: readonly string[],
+): FileChange[] {
+  const folder = folderOf(graph, parentId)
+  const taken = takenNames(graph, parentId)
+  return titles.map((title) => {
+    const name = unique(slugify(title), taken, '-')
+    taken.add(name.toLowerCase())
+    return { path: `${folder}${name}.md`, text: leafText(title) }
+  })
 }
+
+/** Titles typed one per line; blank lines go, and so do list bullets from a pasted list. */
+export const titlesIn = (text: string): string[] =>
+  text
+    .split(/\r?\n/)
+    .map((line) => line.replace(/^\s*[-*+]\s+/, '').trim())
+    .filter(Boolean)
 
 /** A branch is a folder; git keeps no empty folders, so it starts with one leaf. */
 export function planNewBranch(
