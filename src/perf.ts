@@ -14,7 +14,7 @@ if (import.meta.env.VITE_E2E === '1')
   }
 
 /** Marks the next frame after this one is painted: the end of a measured interaction. */
-export function mark(name: 'map-painted' | 'peek-painted'): void {
+export function mark(name: 'map-painted' | 'peek-painted' | 'editor-painted'): void {
   if (import.meta.env.VITE_E2E === '1') {
     requestAnimationFrame(() => setTimeout(() => performance.mark(`yeraz:${name}`)))
   }
