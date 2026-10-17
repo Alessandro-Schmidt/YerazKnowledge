@@ -40,6 +40,8 @@ test('a leaf on its full page', async ({ page, graph }) => {
 })
 
 test('the icon picker', async ({ page, graph }) => {
+  // axe over the map, the editor and every emoji takes 12–27 s alone; more beside other workers.
+  test.slow()
   await page.goto(`./#/tree/${REPO}/${firstLeaf(graph).id}`)
   await signInHere(page)
   await page.getByRole('button', { name: /^(Add icon|Change icon)/ }).click()

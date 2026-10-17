@@ -1,5 +1,5 @@
 // Files attached to a leaf (issue #15): any file goes into assets/ with the leaf that links
-// to it, in one commit; it shows as a card that downloads it, in the editor and the read view.
+// to it, in one commit; it shows as a card that downloads it wherever the leaf is shown.
 
 import { readFile } from 'node:fs/promises'
 import type { Page } from '@playwright/test'
@@ -23,7 +23,7 @@ test.describe('attaching files', () => {
   })
 
   async function openEditor(page: Page) {
-    await page.goto(`./#/edit/${REPO}/${LEAF}`)
+    await page.goto(`./#/tree/${REPO}/${LEAF}`)
     await signInHere(page)
     await page.locator('.cm-content').click()
     await page.keyboard.press('ControlOrMeta+End')
@@ -71,7 +71,7 @@ test.describe('attaching files', () => {
     )
   })
 
-  test('the read view shows a card that downloads the file', async ({ page, fake }) => {
+  test('the Peek shows a card that downloads the file', async ({ page, fake }) => {
     const zip = bytes(3000)
     await fake.repo(REPO).commit({
       message: 'backup',
