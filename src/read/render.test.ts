@@ -141,6 +141,28 @@ describe('renderLeaf', () => {
     expect(html).toContain('<a href="https://youtu.be/dQw4w9WgXcQ"')
   })
 
+  it('shows any other file in assets/ as a card that downloads it, with its type and size', async () => {
+    const html = await renderLeaf(
+      [
+        '# T',
+        '',
+        '[Q3 <report>.xlsx](/assets/2026-10-17-q3-report.xlsx)',
+        '',
+        '/assets/Makefile',
+      ].join('\n'),
+      { ...context, size: (path) => (path.endsWith('.xlsx') ? 1_258_291 : null) },
+    )
+    expect(html).toContain(
+      '<p><button type="button" class="file-card" data-asset-file="assets/2026-10-17-q3-report.xlsx" ' +
+        'aria-label="Download Q3 &lt;report&gt;.xlsx, XLSX · 1.2 MB">' +
+        '<strong>Q3 &lt;report&gt;.xlsx</strong><span>2026-10-17-q3-report.xlsx</span>' +
+        '<em>XLSX · 1.2 MB</em></button></p>',
+    )
+    expect(html).toContain(
+      'aria-label="Download Makefile, File"><strong>Makefile</strong><em>File</em></button></p>',
+    )
+  })
+
   it('shows repositories as cards, and links to other Trees as chips that stay in the app', async () => {
     const tree = (repo: string) =>
       repo.toLowerCase() === 'you/art' ? { title: 'Art History', href: '#/tree/you/art' } : null
@@ -168,6 +190,27 @@ describe('renderLeaf', () => {
     expect(html).toContain(
       '<a href="https://github.com/someone/else/blob/main/x.md" target="_blank"',
     )
+  })
+
+  it('shows a titled link alone in its paragraph as a bookmark; a bare URL stays a link', async () => {
+    const html = await renderLeaf(
+      [
+        '# T',
+        '',
+        '[Baroque <art>](https://en.wikipedia.org/wiki/Baroque)',
+        '',
+        'https://example.com/post',
+        '',
+        'Read [this](https://example.com/a) first.',
+      ].join('\n'),
+      context,
+    )
+    expect(html).toContain(
+      '<p><a class="repo-card bookmark" href="https://en.wikipedia.org/wiki/Baroque" target="_blank" rel="noopener noreferrer">' +
+        '<strong>Baroque &lt;art&gt;</strong><span>en.wikipedia.org/wiki/Baroque</span></a></p>',
+    )
+    expect(html).toContain('<p><a href="https://example.com/post" target="_blank"')
+    expect(html).toContain('Read <a href="https://example.com/a" target="_blank"')
   })
 
   it('caches by blob SHA', async () => {

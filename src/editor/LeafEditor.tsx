@@ -5,13 +5,13 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } fro
 import type { GraphNode } from '../model/graph'
 import type { LeafMeta } from '../model/parse'
 import { leafColors } from '../read/colors'
-import { destination, mentionLink } from '../model/links'
-import { assetPath } from '../sync/assets'
+import { mentionLink } from '../model/links'
 import { session, useSession } from '../store/session'
 import controls from '../ui/controls.module.css'
 import { treeHref } from '../ui/paths'
 import { parentFor, StructureDialog, type StructureAction } from '../ui/StructureDialogs'
 import { ACCENT_IDS } from '../ui/theme'
+import { attach, attachmentMarkdown } from './attach'
 import type { EditorHandle } from './Editor'
 import styles from './LeafEditor.module.css'
 import { EditableCover } from './EditableCover'
@@ -79,37 +79,27 @@ export function LeafEditor({
   const filePicker = useRef<HTMLInputElement>(null)
   const onInsert: InsertHost = (kind) => {
     const graph = graphRef.current
-    if (kind === 'image') filePicker.current?.click()
-    else if (kind === 'leaf') setAction({ kind: 'new-leaf', parent: path })
+    if ((kind === 'image' || kind === 'file') && filePicker.current) {
+      filePicker.current.accept = kind === 'image' ? 'image/*' : ''
+      filePicker.current.click()
+    } else if (kind === 'leaf') setAction({ kind: 'new-leaf', parent: path })
     else if (kind === 'branch' && graph)
       setAction({ kind: 'new-branch', parent: parentFor(graph, path) })
   }
 
-  // Images, picked, pasted or dropped: saved in assets/ and shown where the cursor is.
-  /** Saves an image in assets/ as a pending edit; null when it isn't an image or was declined. */
-  const saveImage = async (file: File) => {
-    if (!file.type.startsWith('image/')) return null
-    const { prepareImage, WARN_BYTES } = await import('./images')
-    const { bytes, ext } = await prepareImage(file)
-    const megabytes = (bytes.byteLength / 1024 / 1024).toFixed(1)
-    if (
-      bytes.byteLength > WARN_BYTES &&
-      !window.confirm(
-        `${file.name} is ${megabytes} MB. Large files make the repository slow to download. Add it anyway?`,
-      )
-    )
-      return null
-    const taken = new Set(session.getState().files(repo))
-    const asset = assetPath(file.name, ext, new Date(), (p) => taken.has(p))
-    await session.getState().apply(repo, [{ path: asset, text: bytes }])
-    return asset
-  }
-  const addImages = async (files: File[]) => {
+  // Files, picked, pasted or dropped: saved in assets/ and linked where the cursor is.
+  const saveFile = (file: File) =>
+    attach(file, {
+      taken: (p) => session.getState().files(repo).includes(p),
+      save: (p, bytes) => session.getState().apply(repo, [{ path: p, text: bytes }]),
+      ask: (message) => window.confirm(message),
+      tell: (message) => window.alert(message),
+    })
+  const addFiles = async (files: File[]) => {
     for (const file of files) {
-      const asset = await saveImage(file)
-      if (!asset) continue
-      const alt = file.name.replace(/\.[^.]*$/, '').replace(/[[\]\\]/g, '') || 'Image'
-      handle.current?.insertText(`![${alt}](${destination(asset)})`, true)
+      const added = await saveFile(file)
+      if (added)
+        handle.current?.insertText(attachmentMarkdown(file.name, added.path, added.image), true)
     }
   }
 
@@ -260,10 +250,11 @@ export function LeafEditor({
             const file = e.target.files?.[0]
             e.target.value = ''
             if (file)
-              void saveImage(file).then(
-                (asset) =>
+              void saveFile(file).then(
+                (added) =>
                   // A new picture starts centred.
-                  asset && changeLook((m) => ({ ...withoutCover(m), cover: `/${asset}` })),
+                  added?.image &&
+                  changeLook((m) => ({ ...withoutCover(m), cover: `/${added.path}` })),
               )
           }}
         />
@@ -274,22 +265,23 @@ export function LeafEditor({
           handleRef={handle}
           mentionsFrom={mentionsFrom}
           onInsert={onInsert}
-          onFiles={(files) => void addImages(files)}
+          onFiles={(files) => void addFiles(files)}
           assetUrl={assetUrl}
           files={() => session.getState().files(repo)}
+          fileSize={(p) => session.getState().fileSize(repo, p)}
           // A new leaf holds only its title: start writing below it.
           autoFocus={text.text.trim().split('\n').length === 1}
         />
       </Suspense>
+      {/* Images or any file: onInsert sets what it accepts. */}
       <input
         ref={filePicker}
         type="file"
-        accept="image/*"
         multiple
         hidden
-        aria-label="Add images"
+        aria-label="Add files"
         onChange={(e) => {
-          void addImages([...(e.target.files ?? [])])
+          void addFiles([...(e.target.files ?? [])])
           e.target.value = ''
         }}
       />

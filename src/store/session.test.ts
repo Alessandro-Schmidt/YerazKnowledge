@@ -5,6 +5,7 @@ import { createFakeGitHub, type FakeGitHub } from '../../test/fake-github/fakeGi
 import { makeFixture } from '../../test/fake-github/fixture'
 import { fakeGitHubHandlers } from '../../test/fake-github/msw'
 import { memoryStore } from './db'
+import { planNewLeaves } from '../sync/structure'
 import { createSession } from './session'
 
 let fake: FakeGitHub
@@ -131,6 +132,26 @@ describe('session', () => {
     expect(s.getState().data['you/engineering']!.graph!.nodes.get(leaf)).toBeDefined()
   })
 
+  it('creates many sub-leaves of a leaf in one commit', async () => {
+    const s = createSession({ store: memoryStore() })
+    await s.getState().signIn('good')
+    await s.getState().open('you/engineering')
+    const graph = () => s.getState().data['you/engineering']!.graph!
+    const leaf = [...graph().nodes.values()].find((n) => n.kind === 'leaf' && !n.children.length)!
+    const changes = planNewLeaves(graph(), leaf.id, ['🧪 Tests', 'Tests', 'Notes'])
+    fake.resetLog()
+    await s.getState().apply('you/engineering', changes)
+    expect(
+      graph()
+        .nodes.get(leaf.id)!
+        .children.map((id) => graph().nodes.get(id)!.title),
+    ).toEqual(expect.arrayContaining(['Tests', 'Tests', 'Notes']))
+    expect(graph().nodes.get(changes[0]!.path)!.icon).toBe('🧪')
+    await s.getState().flush('you/engineering')
+    expect(fake.log.filter((e) => e.operation === 'mutation')).toHaveLength(1)
+    for (const { path, text } of changes) expect(fake.repo('you/engineering').read(path)).toBe(text)
+  })
+
   it('keeps edits on the device while offline, and commits them when the Tree opens again', async () => {
     const store = memoryStore()
     const first = createSession({ store })
@@ -206,6 +227,41 @@ describe('session', () => {
     expect(await s.getState().assetUrl('you/engineering', 'assets/a.png')).toMatch(/^blob:/)
     expect(fake.log).toEqual([])
     expect(await s.getState().assetUrl('you/engineering', 'assets/none.png')).toBeNull()
+  })
+
+  it('commits an attached file with the leaf that links to it, in one commit, and knows its size', async () => {
+    const s = createSession({ store: memoryStore() })
+    await s.getState().signIn('good')
+    await s.getState().open('you/engineering')
+    const leaf = s
+      .getState()
+      .files('you/engineering')
+      .find((p) => p.endsWith('.md'))!
+    const text = await s.getState().textOf('you/engineering', leaf)
+    const zip = Uint8Array.from({ length: 5000 }, (_, i) => (i * 13) % 256)
+    const path = 'assets/2026-10-17-backup.zip'
+    await s.getState().apply('you/engineering', [{ path, text: zip }])
+    await s
+      .getState()
+      .apply('you/engineering', [{ path: leaf, text: `${text}\n[backup.zip](/${path})\n` }])
+    expect(s.getState().fileSize('you/engineering', path)).toBe(5000)
+
+    fake.resetLog()
+    await s.getState().flush('you/engineering')
+    expect(fake.log.filter((e) => e.operation === 'mutation')).toHaveLength(1)
+    const repo = fake.repo('you/engineering')
+    expect(repo.blobs.get(repo.head!.files.get(path)!)).toEqual(zip)
+    expect(repo.read(leaf)).toContain(`[backup.zip](/${path})`)
+    expect(s.getState().fileSize('you/engineering', path)).toBe(5000)
+
+    // Another device knows the size from the tree listing, without downloading the file.
+    const other = createSession({ store: memoryStore() })
+    await other.getState().signIn('good')
+    await other.getState().open('you/engineering')
+    fake.resetLog()
+    expect(other.getState().fileSize('you/engineering', path)).toBe(5000)
+    expect(other.getState().fileSize('you/engineering', 'assets/none.zip')).toBeNull()
+    expect(fake.log).toEqual([])
   })
 
   it('keeps showing an image while its commit completes', async () => {

@@ -2,7 +2,15 @@ import { describe, expect, it } from 'vitest'
 import { buildGraph } from '../model/graph'
 import { parseLeaf } from '../model/parse'
 import { buildTree } from '../model/tree'
-import { planDelete, planMove, planNewBranch, planNewLeaf, StructureError } from './structure'
+import {
+  planDelete,
+  planMove,
+  planNewBranch,
+  planNewLeaf,
+  planNewLeaves,
+  StructureError,
+  titlesIn,
+} from './structure'
 
 const files: Record<string, string> = {
   'identity/keycloak.md': '# Keycloak\n\nUses [OAuth](/identity/oauth.md).\n',
@@ -38,6 +46,40 @@ describe('planNewLeaf', () => {
     expect(planNewLeaf(graph, '', 'Welcome').path).toBe('welcome-2.md')
     expect(planNewLeaf(graph, 'identity', 'Keycloak').path).toBe('identity/keycloak-2.md')
     expect(planNewLeaf(graph, '', 'Assets').path).toBe('assets-2.md')
+  })
+})
+
+describe('planNewLeaves', () => {
+  it('creates every leaf under one parent, named like a single new leaf', () => {
+    expect(planNewLeaves(graph, 'identity/keycloak.md', ['🔐 Tokens', 'Clients'])).toEqual([
+      { path: 'identity/keycloak/tokens.md', text: '# 🔐 Tokens\n\n' },
+      { path: 'identity/keycloak/clients.md', text: '# Clients\n\n' },
+    ])
+    expect(planNewLeaves(graph, 'AI Agents', ['Evals']).map((c) => c.path)).toEqual([
+      'AI Agents/evals.md',
+    ])
+  })
+
+  it('never reuses a name, whether taken in the folder or earlier in the batch', () => {
+    expect(
+      planNewLeaves(graph, 'identity', ['OAuth', 'Notes', 'notes', 'NOTES!', '🔐']).map(
+        (c) => c.path,
+      ),
+    ).toEqual([
+      'identity/oauth-2.md',
+      'identity/notes.md',
+      'identity/notes-2.md',
+      'identity/notes-3.md',
+      'identity/untitled.md',
+    ])
+  })
+})
+
+describe('titlesIn', () => {
+  it('reads one title per line, skipping blank lines and list bullets', () => {
+    expect(
+      titlesIn('  Tokens \n\n- 🔐 Realms\r\n* Clients\n+ Scopes\n-1 below zero\n   \n'),
+    ).toEqual(['Tokens', '🔐 Realms', 'Clients', 'Scopes', '-1 below zero'])
   })
 })
 

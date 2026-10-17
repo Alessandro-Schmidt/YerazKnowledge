@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { embedOf, mathSpans, subtitleTracks } from './embeds'
+import { bookmarkTitle, embedOf, mathSpans, shortUrl, subtitleTracks } from './embeds'
 
 describe('embedOf: a paragraph that is only a link becomes an embed', () => {
   it('YouTube, as a bare URL, an autolink or a Markdown link, with a start time', () => {
@@ -48,11 +48,69 @@ describe('embedOf: a paragraph that is only a link becomes an embed', () => {
     expect(embedOf('https://github.com/you')).toBeNull()
   })
 
+  it('any other file in assets/, as a file card', () => {
+    expect(embedOf('[Q3 report.xlsx](/assets/2026-10-17-q3-report.xlsx)')).toEqual({
+      kind: 'file',
+      path: 'assets/2026-10-17-q3-report.xlsx',
+      title: 'Q3 report.xlsx',
+    })
+    expect(embedOf('[\\[draft\\] notes](</assets/a b.zip>)')).toEqual({
+      kind: 'file',
+      path: 'assets/a b.zip',
+      title: '[draft] notes',
+    })
+    expect(embedOf('/assets/Makefile')).toEqual({
+      kind: 'file',
+      path: 'assets/Makefile',
+      title: '',
+    })
+    expect(embedOf('[Data](/data/export.csv)')).toBeNull()
+  })
+
+  it('any other page, as a titled link alone in its paragraph, as a bookmark', () => {
+    expect(embedOf('[Baroque](https://en.wikipedia.org/wiki/Baroque)')).toEqual({
+      kind: 'bookmark',
+      url: 'https://en.wikipedia.org/wiki/Baroque',
+      title: 'Baroque',
+    })
+    expect(embedOf('[A \\[draft\\]](<https://example.com/a(b>)')).toEqual({
+      kind: 'bookmark',
+      url: 'https://example.com/a(b',
+      title: 'A [draft]',
+    })
+    // A bare URL is a link the writer kept as it is; threads stay threads.
+    expect(embedOf('https://example.com/post')).toBeNull()
+    expect(embedOf('<https://example.com/post>')).toBeNull()
+    expect(embedOf('[](https://example.com/post)')).toBeNull()
+    expect(embedOf('[Baroque](https://github.com/you/art/blob/main/baroque.md)')).toBeNull()
+    expect(embedOf('[Mail](mailto:me@example.com)')).toBeNull()
+  })
+
   it('leaves links inside sentences, and other links, as links', () => {
     expect(embedOf('Watch https://youtu.be/dQw4w9WgXcQ now')).toBeNull()
+    expect(embedOf('See [the sheet](/assets/sheet.xlsx) here')).toBeNull()
     expect(embedOf('[Keycloak](/identity/keycloak.md)')).toBeNull()
     expect(embedOf('https://example.com/a.pdf')).toBeNull()
     expect(embedOf('https://www.youtube.com/@channel')).toBeNull()
+  })
+})
+
+describe('bookmarks: a title and a short address from the URL alone', () => {
+  it('names a bookmark after the last part of its path, or its site', () => {
+    expect(bookmarkTitle('https://en.wikipedia.org/wiki/Baroque')).toBe('Baroque')
+    expect(bookmarkTitle('https://example.com/blog/my-great_post.html?ref=x#top')).toBe(
+      'My great post',
+    )
+    expect(bookmarkTitle('https://de.wikipedia.org/wiki/K%C3%B6ln')).toBe('Köln')
+    expect(bookmarkTitle('https://example.com/docs/iPhone/')).toBe('iPhone')
+    expect(bookmarkTitle('https://www.keycloak.org/')).toBe('keycloak.org')
+    expect(bookmarkTitle('https://example.com/2024/01/')).toBe('example.com')
+  })
+
+  it('shows the address without the scheme, www or a trailing slash', () => {
+    expect(shortUrl('https://www.example.com/a/b/?x=1#y')).toBe('example.com/a/b')
+    expect(shortUrl('https://de.wikipedia.org/wiki/K%C3%B6ln')).toBe('de.wikipedia.org/wiki/Köln')
+    expect(shortUrl('http://example.com')).toBe('example.com')
   })
 })
 
