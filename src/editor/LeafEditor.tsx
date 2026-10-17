@@ -1,14 +1,16 @@
 // A leaf, editable wherever it is shown: the Peek over the map, its full page, the phone's
 // sheet (ARCHITECTURE.md §7). Cover, icon and colours above the text; the text is the file.
+// A branch's text (its folder's README.md) is written here too, without a look of its own.
 
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { GraphNode } from '../model/graph'
+import { threadEnd, type GraphNode } from '../model/graph'
 import type { LeafMeta } from '../model/parse'
 import { leafColors } from '../read/colors'
 import { mentionLink } from '../model/links'
 import { session, useSession } from '../store/session'
 import controls from '../ui/controls.module.css'
 import { treeHref } from '../ui/paths'
+import { planBranchText } from '../sync/structure'
 import { parentFor, StructureDialog, type StructureAction } from '../ui/StructureDialogs'
 import { ACCENT_IDS } from '../ui/theme'
 import { attach, attachmentMarkdown } from './attach'
@@ -48,6 +50,9 @@ export function LeafEditor({
   const tree = useSession((s) => s.trees.find((t) => t.repo.toLowerCase() === key))
   const data = useSession((s) => s.data[key])
   const node = data?.graph?.nodes.get(path)
+  // The branch whose text this is, if it is a README.md rather than a leaf.
+  const owner = data?.graph ? threadEnd(data.graph, path) : null
+  const branch = owner !== null && owner !== path ? data!.graph!.nodes.get(owner)! : null
   const [text, setText] = useState<{ path: string; text: string } | null>(null)
   const handle = useRef<EditorHandle | null>(null)
 
@@ -65,9 +70,12 @@ export function LeafEditor({
         [...(graphRef.current?.nodes.values() ?? [])]
           .filter((n) => n.kind === 'leaf' && n.id !== path)
           .map(asLeaf),
+      // A link to a branch's README.md is a mention of the branch, and opens it.
       leaf: (id) => {
-        const n = graphRef.current?.nodes.get(id)
-        return n?.kind === 'leaf' ? asLeaf(n) : null
+        const graph = graphRef.current
+        const end = graph ? threadEnd(graph, id) : null
+        const n = end === null ? undefined : graph!.nodes.get(end)
+        return n ? asLeaf(n) : null
       },
       open: (id) => openRef.current(id),
       tree: (other) => {
@@ -85,9 +93,9 @@ export function LeafEditor({
     if ((kind === 'image' || kind === 'file') && filePicker.current) {
       filePicker.current.accept = kind === 'image' ? 'image/*' : ''
       filePicker.current.click()
-    } else if (kind === 'leaf') setAction({ kind: 'new-leaf', parent: path })
+    } else if (kind === 'leaf') setAction({ kind: 'new-leaf', parent: branch?.id ?? path })
     else if (kind === 'branch' && graph)
-      setAction({ kind: 'new-branch', parent: parentFor(graph, path) })
+      setAction({ kind: 'new-branch', parent: parentFor(graph, branch?.id ?? path) })
   }
 
   // Files, picked, pasted or dropped: saved in assets/ and linked where the cursor is.
@@ -128,15 +136,19 @@ export function LeafEditor({
 
   useEffect(() => {
     let live = true
-    void session
-      .getState()
-      .textOf(repo, path)
+    // A branch's text that doesn't exist yet starts from its heading; the first save creates it.
+    const graph = session.getState().data[key]?.graph
+    const end = graph ? threadEnd(graph, path) : null
+    const unwritten = graph && end !== null && end !== path && !graph.nodes.get(end)?.sha
+    void Promise.resolve(
+      unwritten ? planBranchText(graph, end).text : session.getState().textOf(repo, path),
+    )
       .then((t) => live && setText({ path, text: t }))
       .catch(() => undefined)
     return () => {
       live = false
     }
-  }, [repo, path])
+  }, [repo, key, path])
 
   // Typing: the text goes to this device after a short pause; leaving the leaf commits it.
   const pending = useRef<{ text: string; timer: number } | null>(null)
@@ -201,7 +213,8 @@ export function LeafEditor({
       />
       {/* The header's controls change the editor's text, so they appear with it. */}
       <Suspense fallback={<div className={styles.loading} aria-busy="true" />}>
-        <div className={styles.header}>
+        {/* A branch's text has no icon, cover or colours of its own. */}
+        <div className={styles.header} hidden={branch !== null}>
           {node?.icon && (
             <button
               type="button"

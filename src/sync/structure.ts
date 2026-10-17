@@ -1,10 +1,10 @@
 // Structure edits as file changes (development-plan.md M2 step 2), planned against the
 // graph and the repository format (ARCHITECTURE.md §4). Pure: the caller commits them.
 
-import type { Graph } from '../model/graph'
+import { textFile, type Graph } from '../model/graph'
 import { rewriteLinks } from '../model/links'
 import { slugify } from '../model/slug'
-import { ROOT } from '../model/tree'
+import { BRANCH_TEXT, ROOT } from '../model/tree'
 
 /** A file to write, or to delete when `text` is null. */
 /** A file's contents: a leaf's text, or the bytes of an image or other attachment. */
@@ -35,10 +35,14 @@ export function folderOf(graph: Graph, id: string): string {
 
 const baseName = (id: string) => id.slice(id.lastIndexOf('/') + 1).replace(/\.md$/, '')
 
-/** Names taken in a folder: leaf file names (without .md) and folder names, compared without case. */
+/**
+ * Names taken in a folder: leaf file names (without .md) and folder names, compared without
+ * case. A branch's folder keeps README for its text.
+ */
 function takenNames(graph: Graph, parentId: string): Set<string> {
   const taken = new Set(graph.nodes.get(parentId)!.children.map((id) => baseName(id).toLowerCase()))
   if (parentId === ROOT) taken.add('assets')
+  if (graph.nodes.get(parentId)!.kind === 'branch') taken.add(baseName(BRANCH_TEXT).toLowerCase())
   return taken
 }
 
@@ -67,6 +71,13 @@ export function planNewLeaves(
     taken.add(name.toLowerCase())
     return { path: `${folder}${name}.md`, text: leafText(title) }
   })
+}
+
+/** A branch's text (README.md), before it exists: the branch's name as its heading. */
+export function planBranchText(graph: Graph, branchId: string): { path: string; text: string } {
+  const node = graph.nodes.get(branchId)
+  if (node?.kind !== 'branch') throw new StructureError('Only branches have a README.md as text')
+  return { path: textFile(graph, branchId)!, text: leafText(node.title) }
 }
 
 /** Titles typed one per line; blank lines go, and so do list bullets from a pasted list. */
@@ -107,9 +118,37 @@ export function leavesUnder(graph: Graph, id: string): string[] {
   return out
 }
 
+/** The nodes in a node's subtree, itself first. */
+function nodesUnder(graph: Graph, id: string): string[] {
+  const out = [id]
+  for (let i = 0; i < out.length; i++) out.push(...graph.nodes.get(out[i]!)!.children)
+  return out
+}
+
+/** The files in a node's subtree: its leaves and the texts (README.md) of its branches. */
+function filesUnder(graph: Graph, id: string): string[] {
+  return nodesUnder(graph, id)
+    .filter((n) => graph.nodes.get(n)!.sha !== null)
+    .map((n) => textFile(graph, n)!)
+}
+
+/** The files a node's subtree links to from outside it, as files to read and rewrite. */
+function linkingFiles(graph: Graph, id: string): string[] {
+  const inside = new Set(nodesUnder(graph, id))
+  const from = [...inside].flatMap((n) => graph.in.get(n) ?? []).filter((n) => !inside.has(n))
+  return [...new Set(from)].map((n) => textFile(graph, n)!)
+}
+
+/** Every file `planMove` reads: the moved files and the ones linking to them. */
+export const moveReads = (graph: Graph, id: string) => [
+  ...filesUnder(graph, id),
+  ...linkingFiles(graph, id),
+]
+
 /**
- * Moves a leaf, with its sub-leaves, under another node. Every link to a moved leaf is
- * rewritten in the same commit; the leaves' own root-relative links don't change.
+ * Moves a leaf, with its sub-leaves and its sub-branches' texts, under another node. Every
+ * link to a moved file is rewritten in the same commit; the files' own root-relative links
+ * don't change.
  */
 export function planMove(
   graph: Graph,
@@ -132,15 +171,17 @@ export function planMove(
   const oldPrefix = id.slice(0, -'.md'.length)
   const newPrefix = `${folderOf(graph, newParentId)}${unique(baseName(id), takenNames(graph, newParentId), '-')}`
   const moves = new Map(
-    moved.map((p) => [p, p === id ? `${newPrefix}.md` : newPrefix + p.slice(oldPrefix.length)]),
+    filesUnder(graph, id).map((p) => [
+      p,
+      p === id ? `${newPrefix}.md` : newPrefix + p.slice(oldPrefix.length),
+    ]),
   )
 
   const changes: FileChange[] = []
   for (const [from, to] of moves) {
     changes.push({ path: from, text: null }, { path: to, text: rewriteLinks(textOf(from), moves) })
   }
-  const linking = new Set(moved.flatMap((p) => graph.in.get(p) ?? []).filter((p) => !moves.has(p)))
-  for (const path of linking) {
+  for (const path of linkingFiles(graph, id)) {
     const before = textOf(path)
     const after = rewriteLinks(before, moves)
     if (after !== before) changes.push({ path, text: after })
@@ -148,15 +189,18 @@ export function planMove(
   return { changes, moves }
 }
 
-/** Deletes a leaf (with its sub-leaves) or a branch, and says which other leaves link to them. */
+/**
+ * Deletes a leaf (with its sub-leaves) or a branch, texts included, and says which other
+ * leaves and branches link to them.
+ */
 export function planDelete(
   graph: Graph,
   id: string,
 ): { changes: FileChange[]; linkedFrom: string[] } {
   if (id === ROOT || !graph.nodes.has(id)) throw new StructureError('Nothing to delete')
-  const gone = new Set(leavesUnder(graph, id))
-  const linkedFrom = [...new Set([...gone].flatMap((p) => graph.in.get(p) ?? []))].filter(
-    (p) => !gone.has(p),
+  const inside = new Set(nodesUnder(graph, id))
+  const linkedFrom = [...new Set([...inside].flatMap((n) => graph.in.get(n) ?? []))].filter(
+    (n) => !inside.has(n),
   )
-  return { changes: [...gone].map((path) => ({ path, text: null })), linkedFrom }
+  return { changes: filesUnder(graph, id).map((path) => ({ path, text: null })), linkedFrom }
 }

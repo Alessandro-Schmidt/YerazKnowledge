@@ -1,13 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import { buildGraph } from '../model/graph'
 import { parseLeaf } from '../model/parse'
-import { buildTree } from '../model/tree'
+import { buildTree, ROOT } from '../model/tree'
 import {
   planDelete,
   planMove,
   planNewBranch,
   planNewLeaf,
   planNewLeaves,
+  moveReads,
+  planBranchText,
   StructureError,
   titlesIn,
 } from './structure'
@@ -151,5 +153,70 @@ describe('planDelete', () => {
   it('deletes a whole branch', () => {
     expect(planDelete(graph, 'identity').changes).toHaveLength(3)
     expect(planDelete(graph, 'identity').linkedFrom).toEqual(['AI Agents/prompting.md'])
+  })
+})
+
+describe("a branch's text (README.md) in structure edits", () => {
+  const texts: Record<string, string> = {
+    'identity/keycloak.md': '# Keycloak\n',
+    'identity/keycloak/clients/README.md':
+      '# Clients\n\nKinds of [Keycloak](/identity/keycloak.md).\n',
+    'identity/keycloak/clients/public.md':
+      '# Public\n\nUp to [clients](/identity/keycloak/clients/README.md).\n',
+    'AI Agents/README.md': '# AI Agents\n\nStart with [Keycloak](/identity/keycloak.md).\n',
+    'AI Agents/prompting.md': '# Prompting\n',
+  }
+  const g = (() => {
+    const model = buildTree(
+      Object.keys(texts).map((path) => ({ path, type: 'blob' as const, sha: path, size: 1 })),
+    )
+    return buildGraph(model, new Map(Object.entries(texts).map(([p, t]) => [p, parseLeaf(t)])), 'T')
+  })()
+
+  it('moves the texts of branches inside a moved leaf, and rewrites links in and to them', () => {
+    expect(moveReads(g, 'identity/keycloak.md').sort()).toEqual([
+      'AI Agents/README.md',
+      'identity/keycloak.md',
+      'identity/keycloak/clients/README.md',
+      'identity/keycloak/clients/public.md',
+    ])
+    const { changes, moves } = planMove(g, (p) => texts[p]!, 'identity/keycloak.md', 'AI Agents')
+    expect(moves.get('identity/keycloak/clients/README.md')).toBe(
+      'AI Agents/keycloak/clients/README.md',
+    )
+    const byPath = Object.fromEntries(changes.map((c) => [c.path, c.text]))
+    expect(byPath['identity/keycloak/clients/README.md']).toBeNull()
+    expect(byPath['AI Agents/keycloak/clients/README.md']).toContain('(</AI Agents/keycloak.md>)')
+    expect(byPath['AI Agents/keycloak/clients/public.md']).toContain(
+      '(</AI Agents/keycloak/clients/README.md>)',
+    )
+    // A branch's text linking to the moved leaf is rewritten in the same commit.
+    expect(byPath['AI Agents/README.md']).toBe(
+      '# AI Agents\n\nStart with [Keycloak](</AI Agents/keycloak.md>).\n',
+    )
+  })
+
+  it("deletes a branch's text with the branch, and names branches that link in", () => {
+    expect(planDelete(g, 'AI Agents').changes).toEqual([
+      { path: 'AI Agents/README.md', text: null },
+      { path: 'AI Agents/prompting.md', text: null },
+    ])
+    const { changes, linkedFrom } = planDelete(g, 'identity/keycloak.md')
+    expect(changes.map((c) => c.path)).toContain('identity/keycloak/clients/README.md')
+    expect(linkedFrom).toEqual(['AI Agents'])
+  })
+
+  it("starts a branch's text with the branch's name as its heading", () => {
+    expect(planBranchText(g, 'AI Agents')).toEqual({
+      path: 'AI Agents/README.md',
+      text: '# AI Agents\n\n',
+    })
+    expect(() => planBranchText(g, 'identity/keycloak.md')).toThrow(StructureError)
+  })
+
+  it('never names a new leaf or branch README in a branch', () => {
+    expect(planNewLeaf(g, 'AI Agents', 'README').path).toBe('AI Agents/readme-2.md')
+    expect(planNewBranch(g, 'AI Agents', 'readme').branch).toBe('AI Agents/readme 2')
+    expect(planNewLeaf(g, ROOT, 'README').path).toBe('readme.md')
   })
 })

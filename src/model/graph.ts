@@ -3,7 +3,7 @@
 // tree model and the parsed leaves; never saved.
 
 import type { LeafMeta, ParsedLeaf } from './parse'
-import { ROOT, type TreeModel } from './tree'
+import { branchText, ROOT, type TreeModel } from './tree'
 
 export interface GraphNode {
   id: string
@@ -20,6 +20,7 @@ export interface GraphNode {
   total: number
   /** False while a leaf's content hasn't been fetched yet. */
   loaded: boolean
+  /** The blob of the node's text: a leaf's file, a branch's README.md; null when it has none. */
   sha: string | null
 }
 
@@ -79,7 +80,8 @@ export function buildGraph(
       words,
       total: words,
       loaded: node.kind !== 'leaf' || parsed !== undefined,
-      sha: node.kind === 'leaf' ? node.sha : null,
+      sha:
+        node.kind === 'leaf' ? node.sha : node.kind === 'branch' ? (node.text?.sha ?? null) : null,
     })
   }
 
@@ -95,16 +97,23 @@ export function buildGraph(
   const out = new Map<string, string[]>()
   const into = new Map<string, string[]>()
   const external: ExternalLink[] = []
-  for (const id of model.leaves) {
-    for (const link of leaves.get(id)?.links ?? []) {
+  // Threads start in a leaf or a branch's text, and end at a leaf or a branch (its text).
+  const sources = [
+    ...model.leaves.map((id) => [id, id] as const),
+    ...[...model.texts].map(([path, branch]) => [branch, path] as const),
+  ]
+  for (const [id, file] of sources) {
+    for (const link of leaves.get(file)?.links ?? []) {
       if (link.repo !== null) {
         external.push({ from: id, repo: link.repo, path: link.path })
         continue
       }
-      if (link.path === id || nodes.get(link.path)?.kind !== 'leaf') continue
-      threads.push({ from: id, to: link.path })
-      out.set(id, [...(out.get(id) ?? []), link.path])
-      into.set(link.path, [...(into.get(link.path) ?? []), id])
+      const to =
+        model.texts.get(link.path) ?? (nodes.get(link.path)?.kind === 'leaf' ? link.path : null)
+      if (to === null || to === id) continue
+      threads.push({ from: id, to })
+      out.set(id, [...(out.get(id) ?? []), to])
+      into.set(to, [...(into.get(to) ?? []), id])
     }
   }
 
@@ -122,6 +131,19 @@ export function buildGraph(
       words: nodes.get(ROOT)!.total,
     },
   }
+}
+
+/** The node a link to `path` reaches: a leaf, or the branch whose text it is; null for neither. */
+export function threadEnd(graph: Graph, path: string): string | null {
+  if (graph.nodes.get(path)?.kind === 'leaf') return path
+  const folder = path.slice(0, path.lastIndexOf('/'))
+  return path === branchText(folder) && graph.nodes.get(folder)?.kind === 'branch' ? folder : null
+}
+
+/** The file that holds a node's text: a leaf's own, a branch's README.md (even before it exists). */
+export function textFile(graph: Graph, id: string): string | null {
+  const kind = graph.nodes.get(id)?.kind
+  return kind === 'leaf' ? id : kind === 'branch' ? branchText(id) : null
 }
 
 /** The ids a selection keeps bright: itself, its parent, its children and its thread ends. */
