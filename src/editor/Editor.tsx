@@ -10,7 +10,7 @@ import { EditorView, keymap, placeholder } from '@codemirror/view'
 import { classHighlighter } from '@lezer/highlight'
 import { useEffect, useRef } from 'react'
 import { parseLeaf, withIcon, withMeta, type LeafMeta } from '../model/parse'
-import { markNow } from '../perf'
+import { mark, markNow } from '../perf'
 import styles from './Editor.module.css'
 import { assetSource, fileSizes, livePreview, treeFiles } from './livePreview'
 import { insertMenu, type InsertHost } from './insertMenu'
@@ -130,6 +130,7 @@ export default function Editor({
       }),
     })
     view.current = editor
+    mark('editor-painted')
     if (autoFocus) {
       editor.focus()
       editor.dispatch({ selection: { anchor: editor.state.doc.length } })
