@@ -4,7 +4,7 @@
 
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { threadEnd, type GraphNode } from '../model/graph'
-import type { LeafMeta } from '../model/parse'
+import { parseLeaf, repairHeader, type LeafMeta } from '../model/parse'
 import { leafColors } from '../read/colors'
 import { mentionLink } from '../model/links'
 import { session, useSession } from '../store/session'
@@ -143,7 +143,13 @@ export function LeafEditor({
     void Promise.resolve(
       unwritten ? planBranchText(graph, end).text : session.getState().textOf(repo, path),
     )
-      .then((t) => live && setText({ path, text: t }))
+      .then((t) => {
+        if (!live) return
+        // A header damaged before shows repaired, and the next save writes the repair.
+        const repaired = repairHeader(t)
+        if (repaired !== t) setLook(parseLeaf(repaired).meta)
+        setText({ path, text: repaired })
+      })
       .catch(() => undefined)
     return () => {
       live = false

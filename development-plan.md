@@ -85,15 +85,9 @@ Values shown are the default theme: Vanta base, green accent. Every theme define
 
 ### 3.2 Screens
 
-1. **Home — all Trees.**
-   - Top bar: logo, search, sync state, "New leaf".
-   - Left list of Trees, with "Connect repository" and "Create a new repository".
-   - Canvas showing every Tree as a small radial map, sized by total words, with dashed curves for threads between Trees.
-   - Selecting a Tree dims the others and shows a card with leaves, branches, threads, words and "Open tree".
-   - Every dot opens its leaf or branch directly, and the core opens the Tree. Hovering a dot names it.
-   - Zoom controls bottom-right.
-2. **Tree view.**
-   - **Top bar (56 px):** breadcrumb (All trees › Tree name) and toggles for Explorer and Peek.
+1. **Home — all Trees.** *Replaced (owner's request, after M4): the app opens straight into the Family view below, with every Tree of the repository on one map (ARCHITECTURE.md §5.3, §6). The design's screen 01 is out of date.*
+2. **Family view** (was the Tree view).
+   - **Top bar (56 px):** the Family's name (rename in place) with the Family menu (other Families, "Connect repository", "Create a new repository", Appearance, sign out), search, sync state, toggles for Explorer and Peek, "New leaf".
    - **Explorer (272 px, collapsible):**
      - Rows show a glyph (dot = leaf, ring = branch, dot with ring = leaf with sub-leaves), the name and the word count.
      - "New branch" and "New leaf" buttons at the bottom.
@@ -306,7 +300,7 @@ Scope: §4 and §5, plus CI.
 5. **Leaf styling:** text and heading colours, chosen from the named colours, and a cover image (uploaded, or from Unsplash).
 6. **Other repositories:**
    - links to other GitHub repositories render as repository cards;
-   - threads between Trees appear on Home.
+   - threads between Trees appear on the Family map.
 7. **Themes:**
    - the Appearance screen (§3.2, screen 5);
    - all three bases, four accents and two reading fonts;

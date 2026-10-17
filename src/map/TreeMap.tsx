@@ -1,3 +1,7 @@
+// The map of a Family (ARCHITECTURE.md §6): every Tree of the repository at once, each
+// drawn by Geometry around its own core, placed by family.ts. React draws the geometry
+// once per layout; pan, zoom, hover and selection never re-render it.
+
 import {
   memo,
   useId,
@@ -12,16 +16,19 @@ import { ROOT } from '../model/tree'
 import { mark, markNow } from '../perf'
 import controls from '../ui/controls.module.css'
 import { Icon } from '../ui/icons'
-import type { MapLayout } from './layout'
+import { familyNodeAt, positionOf, type FamilyLayout, type PlacedTree } from './family'
+import fam from './family.module.css'
+import { ICON_SIZE, type Box, type MapLayout } from './layout'
 import styles from './map.module.css'
 import ui from './TreeMap.module.css'
 import { useZoom, type Insets } from './useZoom'
 
 export interface TreeMapProps {
-  /** Changes when another Tree is shown; the map fits itself once per Tree. */
+  /** Changes when another Family is shown; the map fits itself once per Family. */
   treeKey: string
+  /** The Family's graph: the whole repository. */
   graph: Graph
-  layout: MapLayout
+  family: FamilyLayout
   title: string
   color: string
   selected: string | null
@@ -33,6 +40,10 @@ export interface TreeMapProps {
 
 const SVG_NS = 'http://www.w3.org/2000/svg'
 const PHONE_WIDTH = 640
+/** How far from a dot, in screen pixels, a click still reaches it. */
+const REACH = { mouse: 10, touch: 18 }
+/** A Tree is fitted as if it were at least this wide, so a small one isn't blown up. */
+const SMALLEST = 330
 
 /** Room for the floating controls around the map, plus whatever the panels cover. */
 const padded = (area: Insets): Insets => ({
@@ -42,10 +53,25 @@ const padded = (area: Insets): Insets => ({
   left: 16 + area.left,
 })
 
+/** What the camera fits: one Tree, as it is, or (null) the whole Family. */
+function boxOf(family: FamilyLayout, tree: string | null): Box {
+  const t = tree === null ? undefined : family.treeOf.get(tree)
+  if (!t) return family.bounds
+  const b = t.layout.bounds
+  return {
+    x0: t.x + Math.min(b.x0, -SMALLEST),
+    y0: t.y + Math.min(b.y0, -SMALLEST),
+    x1: t.x + Math.max(b.x1, SMALLEST),
+    y1: t.y + Math.max(b.y1, SMALLEST),
+  }
+}
+
+const treeTransform = (t: PlacedTree) => `translate(${t.x} ${t.y})`
+
 export function TreeMap({
   treeKey,
   graph,
-  layout,
+  family,
   title,
   color,
   selected,
@@ -77,12 +103,14 @@ export function TreeMap({
     overlayCameraRef,
   )
 
-  // Fit once per Tree. A later layout (the leaves' content arriving, which sizes the dots)
-  // is fitted again only while the camera is untouched: it never moves under someone who
-  // has panned, zoomed or followed a selection. Without this, a Tree opened before its
-  // content arrived stayed fitted to its structure alone.
+  // Fit once per Family: the Tree of the node it opens on, as it is, or every Tree. A later
+  // layout (the leaves' content arriving, which sizes the dots) is fitted again only while
+  // the camera is untouched: it never moves under someone who has panned, zoomed or
+  // followed a selection.
   const fitted = useRef<string | null>(null)
-  const fittedLayout = useRef<MapLayout | null>(null)
+  const fittedLayout = useRef<FamilyLayout | null>(null)
+  /** The Tree the camera was last fitted to; null for the whole Family. */
+  const target = useRef<string | null>(null)
   // Panel insets, as plain values so effects re-run when a panel opens or closes.
   const {
     top: insetTop = 0,
@@ -96,28 +124,29 @@ export function TreeMap({
   )
   useLayoutEffect(() => {
     if (fitted.current === treeKey) {
-      if (fittedLayout.current !== layout && zoom.untouched())
-        zoom.fit(layout.bounds, padded(area), true)
-      fittedLayout.current = layout
+      if (fittedLayout.current !== family && zoom.untouched())
+        zoom.fit(boxOf(family, target.current), padded(area), true)
+      fittedLayout.current = family
       return
     }
     fitted.current = treeKey
-    fittedLayout.current = layout
-    zoom.fit(layout.bounds, padded(area))
-    // On a phone, a Tree opened on a leaf zooms in on it (design screen 07): the whole
+    fittedLayout.current = family
+    target.current = selected === null ? null : (family.treeOf.get(selected)?.id ?? null)
+    zoom.fit(boxOf(family, target.current), padded(area))
+    // On a phone, a Family opened on a leaf zooms in on it (design screen 07): the whole
     // Tree above the bottom sheet would be too small to read.
-    const at = selected !== null ? layout.byId.get(selected) : undefined
+    const at = selected !== null && selected !== target.current && positionOf(family, selected)
     if (at && (stageRef.current?.clientWidth ?? 0) <= PHONE_WIDTH)
       zoom.centre(at.x, at.y, area, Math.max(zoom.scale(), 1))
-  }, [treeKey, layout, zoom, area, selected])
+  }, [treeKey, family, zoom, area, selected])
 
   // Elements by id, collected once per render of the geometry.
   const elements = useRef({
     nodes: new Map<string, Element>(),
     edges: new Map<string, Element>(),
     segments: new Map<string, Element>(),
-    threads: [] as Element[],
-    core: null as Element | null,
+    /** Each Tree's core, by the Tree's id. */
+    cores: new Map<string, Element>(),
   })
   useLayoutEffect(() => {
     const svg = svgRef.current!
@@ -127,46 +156,82 @@ export function TreeMap({
       nodes: byId('[data-node]'),
       edges: byId('[data-edge]'),
       segments: byId('[data-segment]'),
-      threads: [...svg.querySelectorAll('[data-thread]')],
-      core: svg.querySelector('[data-core]'),
+      cores: new Map(
+        [...svg.querySelectorAll('[data-tree]')].map((el) => [
+          el.getAttribute('data-tree')!,
+          el.querySelector('[data-core]')!,
+        ]),
+      ),
     }
     mark('map-painted')
-  }, [layout])
+  }, [family])
 
+  /** Node id → its threads' paths, and the Tree they are drawn in (null: between Trees). */
   const threadsOf = useMemo(() => {
-    const map = new Map<string, number[]>()
-    layout.threads.forEach((t, i) => {
-      map.set(t.from, [...(map.get(t.from) ?? []), i])
-      map.set(t.to, [...(map.get(t.to) ?? []), i])
-    })
+    const map = new Map<string, { d: string; tree: PlacedTree | null }[]>()
+    const add = (id: string, d: string, tree: PlacedTree | null) =>
+      map.set(id, [...(map.get(id) ?? []), { d, tree }])
+    for (const tree of family.trees) {
+      for (const t of tree.layout.threads) {
+        add(t.from === ROOT ? tree.id : t.from, t.d, tree)
+        add(t.to === ROOT ? tree.id : t.to, t.d, tree)
+      }
+    }
+    for (const t of family.between) {
+      add(t.from, t.d, null)
+      add(t.to, t.d, null)
+    }
     return map
-  }, [layout])
+  }, [family])
 
   // Selection: one translucent veil over the map dims everything (the design's 30 %), and
   // copies of the selection's neighbourhood are drawn above it. The work depends on the
-  // number of neighbours, not the size of the Tree (budget: < 50 ms to highlight).
+  // number of neighbours, not the size of the Family (budget: < 50 ms to highlight).
+  // Selecting a Tree (its core) fits the camera to it: the Tree as it is.
   useLayoutEffect(() => {
     const stage = stageRef.current!
     const overlay = overlayRef.current!
     const els = elements.current
     const visible = (x: number, y: number) => zoom.isVisible(x, y, area)
-    els.core?.removeAttribute('data-sel')
+    for (const core of els.cores.values()) core.removeAttribute('data-sel')
     overlay.replaceChildren()
     delete stage.dataset.focus
-    if (selected === null || !graph.nodes.has(selected)) return
+    const tree = selected === null ? undefined : family.treeOf.get(selected)
+    if (selected === null || !tree || !graph.nodes.has(selected)) return
 
-    if (selected === ROOT) {
-      els.core?.setAttribute('data-sel', '')
+    if (selected === tree.id) {
+      els.cores.get(selected)?.setAttribute('data-sel', '')
+      if (target.current !== selected) {
+        target.current = selected
+        // A phone's bottom sheet leaves too little room to fit a Tree above it: the Tree
+        // takes the screen's width, and the sheet covers its lower part until dismissed.
+        const phone = stage.clientWidth <= PHONE_WIDTH
+        zoom.fit(boxOf(family, selected), padded(phone ? { ...area, bottom: 0 } : area), true)
+      }
       return
     }
     stage.dataset.focus = ''
-    const at = layout.byId.get(selected)
-    const follow = at && !visible(at.x, at.y)
-    const add = (el: Element | null | undefined, attribute?: string) => {
+    const at = positionOf(family, selected)!
+    const follow = !visible(at.x, at.y)
+    // Copies keep their Tree's place: each Tree's go in a group moved like the Tree.
+    const groups = new Map<PlacedTree, Element>()
+    const layer = (t: PlacedTree | null | undefined): Element => {
+      if (!t) return overlay
+      let g = groups.get(t)
+      if (!g) {
+        g = document.createElementNS(SVG_NS, 'g')
+        g.setAttribute('transform', treeTransform(t))
+        g.setAttribute('data-tree', t.id)
+        overlay.append(g)
+        groups.set(t, g)
+      }
+      return g
+    }
+    const add = (id: string, el: Element | null | undefined, attribute?: string) => {
       if (!el) return
       const copy = el.cloneNode(true) as Element
       if (attribute) copy.setAttribute(attribute, '')
-      overlay.append(copy)
+      layer(family.treeOf.get(id)).append(copy)
     }
 
     const veil = document.createElementNS(SVG_NS, 'rect')
@@ -178,56 +243,71 @@ export function TreeMap({
     overlay.append(veil)
 
     const node = graph.nodes.get(selected)!
-    for (const id of [selected, ...node.children]) add(els.edges.get(id), 'data-hot')
+    for (const id of [selected, ...node.children]) add(id, els.edges.get(id), 'data-hot')
     let top = node
-    while (top.parent && top.parent !== ROOT) top = graph.nodes.get(top.parent)!
-    add(els.segments.get(top.id), 'data-hot')
-    for (const i of threadsOf.get(selected) ?? []) {
+    while (top.parent !== null && top.parent !== tree.id) top = graph.nodes.get(top.parent)!
+    add(top.id, els.segments.get(top.id), 'data-hot')
+    for (const { d, tree: drawnIn } of threadsOf.get(selected) ?? []) {
       const path = document.createElementNS(SVG_NS, 'path')
-      path.setAttribute('d', layout.threads[i]!.d)
+      path.setAttribute('d', d)
       path.setAttribute('class', styles.hotThread!)
-      overlay.append(path)
+      layer(drawnIn).append(path)
     }
     for (const id of neighbours(graph, selected)) {
-      if (id === ROOT) add(els.core)
-      else if (id !== selected) add(els.nodes.get(id))
+      if (id !== ROOT && id !== selected) add(id, els.nodes.get(id) ?? els.cores.get(id))
     }
-    add(els.nodes.get(selected), 'data-sel')
-    if (at) {
-      const halo = document.createElementNS(SVG_NS, 'circle')
-      halo.setAttribute('cx', String(at.x))
-      halo.setAttribute('cy', String(at.y))
-      halo.setAttribute('r', String(at.r + 10))
-      halo.setAttribute('class', styles.halo!)
-      overlay.append(halo)
-      if (follow) zoom.centre(at.x, at.y, area)
-    }
-  }, [selected, graph, layout, threadsOf, zoom, area])
+    add(selected, els.nodes.get(selected), 'data-sel')
+    const dot = tree.layout.byId.get(selected)!
+    const halo = document.createElementNS(SVG_NS, 'circle')
+    halo.setAttribute('cx', String(dot.x))
+    halo.setAttribute('cy', String(dot.y))
+    halo.setAttribute('r', String(dot.r + 10))
+    halo.setAttribute('class', styles.halo!)
+    layer(tree).append(halo)
+    if (follow) zoom.centre(at.x, at.y, area)
+  }, [selected, graph, family, threadsOf, zoom, area])
 
+  /** The node a pointer event is on: a dot, or a Tree's core (the Tree's id). */
   const idAt = (target: EventTarget): string | undefined => {
-    const el = (target as Element).closest?.('[data-id]')
-    return el?.hasAttribute('data-node') || el?.hasAttribute('data-core')
-      ? (el.getAttribute('data-id') ?? undefined)
-      : undefined
+    const el = (target as Element).closest?.('[data-node], [data-core]')
+    if (!el) return undefined
+    const id = el.hasAttribute('data-core')
+      ? el.closest('[data-tree]')?.getAttribute('data-tree')
+      : el.getAttribute('data-id')
+    return id ?? undefined
+  }
+
+  /** Off every dot: the one nearest the pointer within a few pixels, so small dots are easy to hit. */
+  const nearest = (x: number, y: number, touch: boolean): string | undefined => {
+    const ctm = cameraRef.current?.getScreenCTM()
+    if (!ctm) return undefined
+    const p = new DOMPoint(x, y).matrixTransform(ctm.inverse())
+    const reach = (touch ? REACH.touch : REACH.mouse) / ctm.a
+    return familyNodeAt(family, p.x, p.y, reach) ?? undefined
   }
 
   const showTip = (event: PointerEvent<HTMLDivElement>) => {
     const tip = tipRef.current!
     const id = event.pointerType === 'mouse' ? idAt(event.target) : undefined
-    if (id === undefined || id === ROOT) {
+    const el =
+      id === undefined
+        ? undefined
+        : (elements.current.nodes.get(id) ?? elements.current.cores.get(id))
+    if (id === undefined || !el) {
       tip.hidden = true
       return
     }
     const node = graph.nodes.get(id)!
-    const el = elements.current.nodes.get(id)!.querySelector('circle')!
-    const box = el.getBoundingClientRect()
+    const box = el.querySelector('circle')!.getBoundingClientRect()
     const host = tip.parentElement!.getBoundingClientRect()
     const threadsIn = graph.in.get(id)?.length ?? 0
-    tip.querySelector('strong')!.textContent = node.title
+    tip.querySelector('strong')!.textContent = `${node.icon ? `${node.icon} ` : ''}${node.title}`
     tip.querySelector('span')!.textContent =
-      node.kind === 'leaf'
-        ? `${node.words.toLocaleString('en-US')} words · ${threadsIn} thread${threadsIn === 1 ? '' : 's'} in`
-        : `${compactWords(node.total)} words inside · ${node.children.length} items`
+      node.parent === ROOT
+        ? `Tree · ${compactWords(node.total)} words`
+        : node.kind === 'leaf'
+          ? `${node.words.toLocaleString('en-US')} words · ${threadsIn} thread${threadsIn === 1 ? '' : 's'} in`
+          : `${compactWords(node.total)} words inside · ${node.children.length} items`
     tip.style.left = `${box.right - host.left + 12}px`
     tip.style.top = `${box.bottom - host.top + 12}px`
     tip.hidden = false
@@ -241,7 +321,8 @@ export function TreeMap({
         data-map=""
         onClick={(e) => {
           markNow('select')
-          const id = idAt(e.target)
+          const touch = (e.nativeEvent as Partial<globalThis.PointerEvent>).pointerType === 'touch'
+          const id = idAt(e.target) ?? nearest(e.clientX, e.clientY, touch)
           onSelect(id === undefined ? null : id)
         }}
         onDoubleClick={(e) => {
@@ -267,7 +348,7 @@ export function TreeMap({
           </defs>
           <rect width="100%" height="100%" fill={`url(#${CSS.escape(gridId)})`} />
           <g ref={cameraRef} className={styles.camera}>
-            <Geometry layout={layout} graph={graph} />
+            <Family family={family} />
           </g>
         </svg>
         {/* The selection layer: its own composited layer, so selecting never repaints the map. */}
@@ -308,9 +389,12 @@ export function TreeMap({
           <button
             type="button"
             className={controls.iconButton}
-            aria-label="Fit the tree"
-            // The same fit as opening the Tree: the panel insets plus the map's own margins.
-            onClick={() => zoom.fit(layout.bounds, padded(area), true)}
+            aria-label="Fit all trees"
+            // The same fit as opening the Family: the panel insets plus the map's own margins.
+            onClick={() => {
+              target.current = null
+              zoom.fit(family.bounds, padded(area), true)
+            }}
           >
             <Icon name="fit" />
           </button>
@@ -341,6 +425,27 @@ export function TreeMap({
     </div>
   )
 }
+
+/** Every Tree around its own core, the threads between them, and their names. */
+const Family = memo(function Family({ family }: { family: FamilyLayout }) {
+  return (
+    <>
+      <g className={styles.threads}>
+        {family.between.map((t, i) => (
+          <path key={i} className={styles.thread} d={t.d} data-thread="" data-between="" />
+        ))}
+      </g>
+      {family.trees.map((t) => (
+        <g key={t.id} data-tree={t.id} transform={treeTransform(t)}>
+          <Geometry layout={t.layout} graph={t.graph} />
+          <text className={fam.name} y={t.name.y} fontSize={t.name.size}>
+            {t.graph.nodes.get(ROOT)!.title}
+          </text>
+        </g>
+      ))}
+    </>
+  )
+})
 
 /** Branches / Threads toggles: they flip attributes on the <svg>, so the map doesn't re-render. */
 function LayerChips({ stageRef }: { stageRef: React.RefObject<HTMLDivElement | null> }) {
@@ -379,6 +484,15 @@ function LayerChips({ stageRef }: { stageRef: React.RefObject<HTMLDivElement | n
   )
 }
 
+/** A leaf's emoji, centred on its dot and sized to fill it. */
+export function MapIcon({ x, y, r, icon }: { x: number; y: number; r: number; icon: string }) {
+  return (
+    <text className={styles.icon} x={x} y={y} dy="0.35em" fontSize={Math.round(r * ICON_SIZE)}>
+      {icon}
+    </text>
+  )
+}
+
 /** The map's geometry. Rendered once per layout; memoised so selection never touches it. */
 const Geometry = memo(function Geometry({ layout, graph }: { layout: MapLayout; graph: Graph }) {
   const root = graph.nodes.get(ROOT)!
@@ -387,14 +501,21 @@ const Geometry = memo(function Geometry({ layout, graph }: { layout: MapLayout; 
       {layout.rings.map((r) => (
         <circle key={r} className={styles.orbit} r={r} />
       ))}
-      <g className={styles.edges}>
-        {layout.edges.map((e) => (
-          <path key={e.id} className={styles.edge} d={e.d} data-edge="" data-id={e.id} />
-        ))}
-      </g>
       <g className={styles.threads}>
         {layout.threads.map((t) => (
           <path key={`${t.from}>${t.to}`} className={styles.thread} d={t.d} data-thread="" />
+        ))}
+      </g>
+      <g className={styles.edges}>
+        {layout.edges.map((e) => (
+          <path
+            key={e.id}
+            className={styles.edge}
+            d={e.d}
+            data-edge=""
+            data-id={e.id}
+            data-depth={Math.min(e.depth, 3)}
+          />
         ))}
       </g>
       {layout.segments.map((s) => (
@@ -408,12 +529,14 @@ const Geometry = memo(function Geometry({ layout, graph }: { layout: MapLayout; 
           data-id={n.id}
           data-kind={n.kind}
           data-deep={n.depth >= 2 ? '' : undefined}
+          data-icon={n.icon ? '' : undefined}
         >
           <circle className={styles.hit} cx={n.x} cy={n.y} r={n.r + 8} />
           {n.kind === 'leaf' && n.hasChildren && (
             <circle className={styles.ring} cx={n.x} cy={n.y} r={n.r + 4} />
           )}
           <circle className={styles.dot} cx={n.x} cy={n.y} r={n.r} />
+          {n.icon && <MapIcon x={n.x} y={n.y} r={n.r} icon={n.icon} />}
           <text
             className={
               n.depth === 1 && n.kind === 'branch'

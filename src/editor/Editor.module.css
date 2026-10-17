@@ -43,12 +43,6 @@
   color: var(--text);
   padding-bottom: 6px;
 }
-.editor :global(.cm-line.cm-meta) {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--faint);
-}
-
 .editor :global(.cm-line.cm-h1:not(.cm-title)),
 .editor :global(.cm-line.cm-h2),
 .editor :global(.cm-line.cm-h3),

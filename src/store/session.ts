@@ -1,5 +1,7 @@
-// The app's one store (Zustand): who is signed in, which Trees exist, each Tree's graph,
-// and the edits not committed yet. Persisted per device: the token, the last known Trees,
+// The app's one store (Zustand): who is signed in, which Families exist, each one's graph,
+// and the edits not committed yet. In this file a "Tree" (`TreeRef`, `trees`) is still a
+// repository, which the app shows as a Family (ARCHITECTURE.md §2): its Trees are the
+// entries at its top (map/family.ts). Persisted per device: the token, the last known ones,
 // the repositories connected by hand, and pending edits (`dirty:<owner/name>`), so edits
 // survive reloads, crashes and lost connections (ARCHITECTURE.md §5.2).
 
@@ -330,7 +332,8 @@ export function createSession(deps: {
         } catch (e) {
           throw new Error(describeError(e).message, { cause: e })
         }
-        if (!tree) throw new Error(`${name} isn't a Tree yet: add a .yeraz.json file at its root.`)
+        if (!tree)
+          throw new Error(`${name} isn't a Yeraz Family yet: add a .yeraz.json file at its root.`)
         await store.set(KEYS.connected, [...new Set([...(await connected()), tree.repo])])
         await saveTrees(mergeTrees(get().trees, [tree]))
         return tree
@@ -491,10 +494,10 @@ export function createSession(deps: {
       async renameTree(repo, title) {
         const key = repo.toLowerCase()
         const name = title.replace(/\s+/g, ' ').trim()
-        if (!name) throw new Error('A Tree needs a name.')
+        if (!name) throw new Error('A Family needs a name.')
         await pulls.get(key)
         const base = bases.get(key)
-        if (!base) throw new Error("This Tree hasn't opened yet. Try again in a moment.")
+        if (!base) throw new Error("This Family hasn't opened yet. Try again in a moment.")
         const pending = (await loadDirty(key))[MARKER]?.text
         let text = typeof pending === 'string' ? pending : '{}\n'
         const sha = base.entries.find((e) => e.path === MARKER)?.sha

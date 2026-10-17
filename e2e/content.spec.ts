@@ -535,18 +535,11 @@ test.describe('other repositories', () => {
     })
   })
 
-  test('Home draws threads between Trees; chips and cards open the other Tree', async ({
-    page,
-  }) => {
-    await page.goto('./')
-    await signInHere(page)
-    await expect(page.locator('[data-between="you/engineering>you/art"] title')).toHaveText(
-      'Engineering → Art History · 1 thread',
-    )
-
+  test('links and cards to another Family open it in the app', async ({ page }) => {
     await page.goto(`./#/tree/${REPO}/links.md`)
+    await signInHere(page)
     const peek = page.getByRole('region', { name: 'Leaf preview' })
-    await expect(peek.getByRole('link', { name: /Art History/ })).toContainText('Tree')
+    await expect(peek.getByRole('link', { name: /Art History/ })).toContainText('Family')
     await peek.locator('.cm-mention', { hasText: 'Baroque' }).click()
     await expect(page).toHaveURL(/#\/tree\/you\/art\/baroque\.md$/)
     await expect(page.getByRole('heading', { name: 'Baroque' })).toBeVisible()

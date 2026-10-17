@@ -189,7 +189,7 @@ export async function createTreeRepository(
     name: input.name,
     private: true,
     auto_init: true,
-    description: 'A Yeraz knowledge tree',
+    description: 'A Yeraz knowledge family',
   })
   const ref: TreeRef = {
     owner: repo.owner.login ?? owner,
@@ -219,9 +219,10 @@ export async function createTreeRepository(
 
 const WELCOME = `# 🌱 Welcome
 
-This is the first leaf of your Tree. Every leaf is a Markdown file in this repository: line 1 is its title, and everything below is yours.
+This is the first leaf of your Family. Every leaf is a Markdown file in this repository: line 1 is its title, and everything below is yours.
 
-- Add leaves and branches from the Explorer.
+- Every folder or leaf at the top of the repository is a Tree of its own; this leaf is one.
+- Add Trees, branches and leaves from the Explorer.
 - Mention another leaf with a link, and the map draws a thread between them.
 - Edits are saved on this device as you type, and committed to GitHub two minutes after you stop.
 `

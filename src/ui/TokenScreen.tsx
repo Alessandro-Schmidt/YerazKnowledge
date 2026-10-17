@@ -42,7 +42,7 @@ export function TokenScreen() {
               </a>
             </li>
             <li>
-              Under Repository access, choose the repositories that hold your Trees, or all
+              Under Repository access, choose the repositories that hold your notes, or all
               repositories.
             </li>
             <li>
@@ -75,8 +75,8 @@ export function TokenScreen() {
             {!busy && <Icon name="arrowRight" />}
           </button>
           <p className={styles.fine}>
-            A Tree is any repository with a <code>.yeraz.json</code> file at its root. Every one
-            this token can see shows up on the next screen.
+            A Family is any repository with a <code>.yeraz.json</code> file at its root, and every
+            folder or leaf at its top is a Tree. The app opens on yours next.
           </p>
         </form>
       </main>

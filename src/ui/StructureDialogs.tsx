@@ -1,4 +1,5 @@
-// The dialogs behind New leaf (one or many), New branch, Move, Delete and Create a Tree
+// The dialogs behind New leaf (one or many), New branch (New tree at the top of a Family),
+// Move, Delete and Create a new repository
 // (development-plan.md M2 steps 2 and 5). Plans come from sync/structure.ts.
 
 import { useMemo, useState } from 'react'
@@ -36,7 +37,7 @@ export function parentFor(graph: Graph, selected: string | null): string {
 
 const where = (graph: Graph, id: string) =>
   id === ROOT
-    ? 'At the top of the Tree'
+    ? 'At the top of the Family, as a Tree of its own'
     : [...crumbs(graph, id), graph.nodes.get(id)!.title].join(' / ')
 
 export function StructureDialog({
@@ -157,11 +158,13 @@ export function StructureDialog({
       )
     }
 
-    case 'new-branch':
+    case 'new-branch': {
+      // A folder at the top of the Family is a Tree.
+      const atTop = action.parent === ROOT
       return (
         <Dialog
-          title="New branch"
-          submit="Create branch"
+          title={atTop ? 'New tree' : 'New branch'}
+          submit={atTop ? 'Create tree' : 'Create branch'}
           busy={busy}
           error={error}
           onClose={onClose}
@@ -174,7 +177,7 @@ export function StructureDialog({
           }
         >
           <Field
-            label="Branch name"
+            label={atTop ? 'Tree name' : 'Branch name'}
             hint={`${where(graph, action.parent)}. The folder keeps this name.`}
           >
             <input
@@ -187,7 +190,7 @@ export function StructureDialog({
           </Field>
           <Field
             label="First leaf"
-            hint="A branch starts with one leaf: git stores no empty folders."
+            hint={`A ${atTop ? 'tree' : 'branch'} starts with one leaf: git stores no empty folders.`}
           >
             <input
               className={controls.input}
@@ -198,6 +201,7 @@ export function StructureDialog({
           </Field>
         </Dialog>
       )
+    }
 
     case 'move': {
       const leaf = graph.nodes.get(action.id)!
@@ -312,8 +316,8 @@ export function CreateTreeDialog({
   const repoName = touched ? name : suggested
   return (
     <Dialog
-      title="Create a new Tree"
-      submit="Create Tree"
+      title="Create a new repository"
+      submit="Create repository"
       busy={busy}
       error={error}
       onClose={onClose}
@@ -328,7 +332,7 @@ export function CreateTreeDialog({
         }
       }}
     >
-      <Field label="Name">
+      <Field label="Family name">
         <input
           className={controls.input}
           autoFocus
@@ -337,7 +341,10 @@ export function CreateTreeDialog({
           onChange={(e) => setTitle(e.target.value)}
         />
       </Field>
-      <Field label="Repository" hint="A new private repository on your GitHub account.">
+      <Field
+        label="Repository"
+        hint="A new private repository on your GitHub account: a Family of its own."
+      >
         <input
           className={`${controls.input} ${controls.mono}`}
           required

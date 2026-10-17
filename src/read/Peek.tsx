@@ -8,6 +8,7 @@ import { ROOT } from '../model/tree'
 import { mark } from '../perf'
 import { session } from '../store/session'
 import { LeafEditor } from '../editor/LeafEditor'
+import { FAMILY_TEXT, treesOf } from '../map/family'
 import { ownPath } from '../model/parse'
 import controls from '../ui/controls.module.css'
 import { Glyph } from '../ui/Glyph'
@@ -56,9 +57,20 @@ export function Peek({
   const [writing, setWriting] = useState<string | null>(null)
   useLayoutEffect(() => mark('peek-painted'), [id])
   const node = graph.nodes.get(id)!
-  const kind = node.kind === 'root' ? 'Tree' : node.kind === 'branch' ? 'Branch' : 'Leaf'
+  // The repository is the Family; a folder at its top is one of its Trees.
+  const kind =
+    node.kind === 'root'
+      ? 'Family'
+      : node.kind === 'leaf'
+        ? 'Leaf'
+        : node.parent === ROOT
+          ? 'Tree'
+          : 'Branch'
   const out = graph.out.get(id) ?? []
   const into = graph.in.get(id) ?? []
+  // The Family lists its Trees; its README.md is its text, shown above them.
+  const readme = node.kind === 'root' ? graph.nodes.get(FAMILY_TEXT) : undefined
+  const children = node.kind === 'root' ? treesOf(graph) : node.children
   const crumb =
     node.kind === 'root'
       ? `github.com/${tree.repo}`
@@ -68,6 +80,7 @@ export function Peek({
   const chips =
     node.kind === 'root'
       ? [
+          count(treesOf(graph).length, 'tree'),
           count(graph.stats.leaves, 'leaf', 'leaves'),
           count(graph.stats.branches, 'branch', 'branches'),
           count(graph.stats.threads, 'thread'),
@@ -145,7 +158,7 @@ export function Peek({
                   {node.kind === 'root' ? (
                     <InlineName
                       value={node.title}
-                      label="Tree name"
+                      label="Family name"
                       onRename={(name) => session.getState().renameTree(tree.repo, name)}
                     />
                   ) : (
@@ -201,17 +214,28 @@ export function Peek({
                 </button>
               ))}
 
-            {node.children.length > 0 && (
+            {/* The Family's own text: the repository's README.md, as it reads. */}
+            {node.kind === 'root' && readme?.sha && (
+              <BranchText
+                repo={tree.repo}
+                graph={graph}
+                id={FAMILY_TEXT}
+                sha={readme.sha}
+                href={href}
+              />
+            )}
+
+            {children.length > 0 && (
               <div className={styles.group}>
                 <h3 className={controls.eyebrow}>
                   {node.kind === 'root'
-                    ? 'Branches'
+                    ? 'Trees'
                     : node.kind === 'leaf'
                       ? 'Sub-leaves'
-                      : 'Inside this branch'}
+                      : `Inside this ${kind.toLowerCase()}`}
                 </h3>
                 <div className={styles.kids}>
-                  {node.children.map((child) => (
+                  {children.map((child) => (
                     <button
                       key={child}
                       type="button"
@@ -271,6 +295,16 @@ export function Peek({
             >
               <Icon name="plus" size={15} />
               New leaf here
+            </button>
+          )}
+          {node.kind === 'root' && (
+            <button
+              type="button"
+              className={controls.ghost}
+              onClick={() => onAction({ kind: 'new-branch', parent: ROOT })}
+            >
+              <Icon name="plus" size={15} />
+              New tree
             </button>
           )}
           {node.kind !== 'root' && (

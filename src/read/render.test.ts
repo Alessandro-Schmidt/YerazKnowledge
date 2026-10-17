@@ -12,6 +12,12 @@ describe('bodyOf', () => {
     expect(bodyOf('# Title\r\n\r\nBody')).toBe('\nBody')
     expect(bodyOf('No title\n<!-- yeraz {} -->\n')).toBe('No title\n<!-- yeraz {} -->\n')
   })
+
+  it('drops a repeated header too, so no metadata shows as text', () => {
+    const text =
+      '# 🇦🇲 Armenia\n<!-- yeraz {"color":{"heading":"amber"}} -->\n\n# 🇦🇲 Armenia\n<!-- yeraz {"cover":"/assets/a.png"} -->\n\nYerevan.\n'
+    expect(bodyOf(text)).toBe('\nYerevan.\n')
+  })
 })
 
 describe('renderLeaf', () => {
@@ -179,7 +185,7 @@ describe('renderLeaf', () => {
       { ...context, tree },
     )
     expect(html).toContain(
-      '<a class="repo-card" href="#/tree/you/art"><strong>Art History</strong><span>you/art</span><em>Tree</em></a>',
+      '<a class="repo-card" href="#/tree/you/art"><strong>Art History</strong><span>you/art</span><em>Family</em></a>',
     )
     expect(html).toContain(
       '<a class="repo-card" href="https://github.com/someone/tool" target="_blank" rel="noopener noreferrer"><strong>Their code</strong>',

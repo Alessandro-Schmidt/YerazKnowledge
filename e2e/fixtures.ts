@@ -80,11 +80,17 @@ export const test = base.extend<Fixtures, { fakeServer: FakeServer }>({
   ],
 })
 
-/** Signs in on the token screen and waits for Home. */
+/** Signs in on the token screen and waits for the app to open on the Family. */
 export async function signIn(page: Page) {
   await page.goto('./')
   await signInHere(page)
-  await page.getByRole('heading', { name: 'All trees', level: 1 }).waitFor()
+  await page.locator('[data-map]').waitFor()
+}
+
+/** Opens the Family menu in the top bar: the Families, repositories, Appearance, sign out. */
+export async function familyMenu(page: Page) {
+  await page.getByRole('button', { name: 'Families' }).click()
+  return page.getByRole('menu', { name: 'Families' })
 }
 
 /** Signs in on whatever URL the page is at; the app then shows that route. */

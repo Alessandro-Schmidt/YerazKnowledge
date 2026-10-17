@@ -34,7 +34,7 @@ const FONT_NOTES: Record<string, string> = {
   geist: 'Sans · default',
   serif: 'Serif · for long notes',
 }
-const SAMPLE = 'Each realm keeps its own users, clients and roles.'
+const SAMPLE = 'Women slap thin dough against the hot walls of a tonir.'
 
 const current = (): ThemeChoice => {
   const { base, accent, font } = document.documentElement.dataset
@@ -94,7 +94,7 @@ export function Appearance() {
       <TopBar>
         <Divider />
         <nav className={styles.crumbs} aria-label="Breadcrumb">
-          <Link href="/">All trees</Link>
+          <Link href="/">Family</Link>
           <Icon name="chevronRight" size={14} />
           <span aria-current="page">Settings</span>
         </nav>
@@ -214,16 +214,16 @@ export function Appearance() {
               <div className={styles.leaf}>
                 <p className={styles.kind}>
                   <span>Leaf</span>
-                  <span className={controls.mono}>Engineering / Identity</span>
+                  <span className={controls.mono}>Kitchen / Breads</span>
                 </p>
-                <h2>Keycloak</h2>
+                <h2>🫓 Lavash</h2>
                 <div className="reading">
                   <p>
-                    {SAMPLE.slice(0, -1)}, and our apps sign in through{' '}
-                    <span className="mention">@ OpenID Connect</span>.
+                    {SAMPLE.slice(0, -1)}, a craft UNESCO listed in 2014 as{' '}
+                    <span className="mention">@ Intangible heritage</span>.
                   </p>
-                  <h3>How our services use it</h3>
-                  <p>Every Spring service checks each token against the realm keys.</p>
+                  <h3>How it keeps</h3>
+                  <p>Dried sheets last for months, and a sprinkle of water softens them again.</p>
                 </div>
                 <div className={styles.buttons} aria-hidden="true">
                   <span className={controls.primary}>New leaf</span>

@@ -4,7 +4,7 @@
 // highlighting and embeds are in rich.ts.
 
 import type MarkdownItClass from 'markdown-it'
-import { HEADING, linkTarget, META, ownPath, stripBom } from '../model/parse'
+import { HEADING, linkTarget, META, ownPath, repairHeader, stripBom } from '../model/parse'
 import { encodePath } from '../ui/paths'
 import { prepare, rich, type RichEnv } from './rich'
 
@@ -110,9 +110,9 @@ function taskLists(state: StateCore) {
   }
 }
 
-/** The body without line 1 (the title, shown above it) and line 2 (metadata). */
+/** The body without line 1 (the title, shown above it) and line 2 (metadata), even repeated. */
 export function bodyOf(text: string): string {
-  const lines = stripBom(text).split(/\r\n|\r|\n/)
+  const lines = stripBom(repairHeader(text)).split(/\r\n|\r|\n/)
   if (HEADING.test(lines[0] ?? '')) lines.shift()
   else return lines.join('\n')
   if (META.test(lines[0] ?? '')) lines.shift()

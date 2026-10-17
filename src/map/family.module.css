@@ -1,0 +1,15 @@
+/* The Family map (TreeMap.tsx): each Tree's name under it, sized with the Tree. It is read
+   when the whole Family is in view; up close, the core's own title takes over. */
+.name {
+  font-weight: 500;
+  fill: var(--text);
+  text-anchor: middle;
+  paint-order: stroke;
+  stroke: var(--bg);
+  stroke-width: 0.3em;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+[data-zoom='near'] .name {
+  display: none;
+}

@@ -23,29 +23,32 @@ This document was written with two lenses: **performance** and **least code**. M
 
 | Term | Means | On GitHub |
 |---|---|---|
-| **Tree** | One knowledge base | One repository |
+| **Family** | One knowledge base: every Tree in it, and the threads between them | One repository |
+| **Tree** | One subject of a Family | A folder at the top of the repository, or a leaf there with its sibling folder |
 | **Branch** | A grouping of notes | A folder |
 | **Leaf** | A note | A `.md` file |
 | **Thread** | A link from one leaf to another (`@mention`) | A Markdown link |
-| **Explorer** | Left panel: the file view of a Tree | — |
+| **Explorer** | Left panel: the file view of a Family, each Tree a top-level group | — |
 | **Map** | Centre: the radial knowledge map | — |
 | **Peek** | Right panel: the selected leaf, editable where it is shown | — |
 
-"Branch" here never means a git branch. Each Tree uses its repository's default branch only.
+"Branch" here never means a git branch. Each Family uses its repository's default branch only.
+
+Most people keep everything in one repository, so a Family needs no second one: a new Tree is a new folder (or leaf) at the top. A person can still connect or create more repositories; each is a Family of its own. In code, the session's `TreeRef` and `trees` still name repositories (Families); the Trees inside one are computed by `map/family.ts`.
 
 ## 3. System overview
 
 ```
 ┌──────────────────────── Yeraz (static React build) ────────────────────────┐
-│  UI      Home (all Trees) · Tree view (Explorer | Map | Peek + editor)      │
+│  UI      Family view (Explorer | Map of every Tree | Peek with the editor)  │
 │  Model   in-memory index: leaves, branches, threads (derived, never saved)  │
 │  Store   IndexedDB: blobs by SHA · parsed leaves by SHA · dirty files ·     │
-│          last tree + ETag per Tree                                          │
+│          last tree + ETag per Family                                        │
 │  Sync    GitHub REST (4 endpoints) + GraphQL (3 operations)                 │
 └───────────────────────────────────┬────────────────────────────────────────┘
                                     │ HTTPS, user's token
                                     ▼
-                    api.github.com  — one repository per Tree
+                    api.github.com  — one repository per Family
 
 Shells:  GitHub Pages (PWA, phones + desktop browsers)
          Tauri 2 (Windows .exe/.msi, macOS .dmg, Linux .AppImage/.deb)
@@ -64,12 +67,12 @@ These rules are the only thing that must stay stable across versions. Tests lock
 | A branch is a folder with no sibling `.md` file of the same name. Its name is the folder name, kept as typed. Git stores no empty folders, so a new branch is created with its first leaf. | `AI Agents/` |
 | A branch's **text** is the `README.md` in its folder (that name exactly, case included), which GitHub shows under the folder's files. It is not a leaf: no node, no words in the totals, and its line 1 doesn't rename the branch. A folder holding only its `README.md` is still a branch. The root's `README.md`, and one in a leaf's sibling folder, stay ordinary leaves. Links in a branch's text are threads from the branch; a link to it is a thread to the branch. | `AI Agents/README.md` |
 | A thread is a normal Markdown link with a **root-relative** path. GitHub resolves paths starting with `/` from the repository root, so threads also work on github.com. | `[Keycloak](/identity/keycloak.md)` |
-| A thread to another Tree is a full GitHub URL to a file in a connected repository. Any other `github.com/owner/repo` URL renders as a repository card. | `https://github.com/user/art-history/blob/main/baroque.md` |
+| A thread to another Family is a full GitHub URL to a file in a connected repository. Any other `github.com/owner/repo` URL renders as a repository card. | `https://github.com/user/art-history/blob/main/baroque.md` |
 | Images and attachments live in `assets/` at the root, at full quality. An image is committed unchanged unless its long edge is over 4096 px (§8). | `assets/2026-10-14-realm-diagram.png` |
 | A paragraph that is only a link to a YouTube video, or to a PDF or video (`.mp4`, `.webm`) in `assets/`, shows as a player; one to any other file in `assets/` shows as a card that downloads it. On GitHub it stays a link. A video's subtitles are `name.<lang>.vtt` files beside it. | `[OIDC spec](/assets/oidc.pdf)` · `assets/talk.mp4` + `assets/talk.en.vtt` · `[Q3 report.xlsx](/assets/2026-10-17-q3-report.xlsx)` |
 | A paragraph that is only a titled link to any other web page is a **bookmark**: a card with its title and address. A bare URL stays a plain link. On GitHub both are links. | `[Baroque](https://en.wikipedia.org/wiki/Baroque)` |
 | Math is `$inline$` and `$$display$$`, as GitHub writes it. | `$e^{i\pi} + 1 = 0$` |
-| `.yeraz.json` at the root marks a repository as a Tree. | `{"name":"Engineering","color":"green"}` |
+| `.yeraz.json` at the root marks a repository as a Family. Every other entry at the root is one of its Trees, except `assets/`, hidden files and the root's `README.md`: that stays a leaf, and the Family's Peek shows it as the Family's own text. | `{"name":"Engineering","color":"green"}` |
 | The filename is fixed when the leaf is created (a slug of its first title). Changing the title does not rename the file. | Title "Keycloak (IdP)" stays in `keycloak.md` |
 
 Why these rules:
@@ -81,7 +84,7 @@ Why these rules:
 
 ## 5. Data flow
 
-### 5.1 Opening a Tree (read path)
+### 5.1 Opening a Family (read path)
 
 1. **Head commit, one request:** `GET /repos/{owner}/{repo}/commits/{branch}` with `Accept: application/vnd.github.sha` (the answer is just the commit SHA) and `If-None-Match: <stored ETag>`.
    - A `304 Not Modified` means nothing changed, and it does not count against the rate limit. Done: render from IndexedDB.
@@ -115,24 +118,29 @@ The map is **progressive**: it renders right after step 1 using only paths and b
   4. Text is never lost.
 - **Leaving with unsaved edits:** the edits stay in IndexedDB and are committed the next time the app opens. We do not rely on requests sent during page unload, because browsers cap `keepalive` request bodies at 64 KB.
 
-### 5.3 Finding Trees (Home)
+### 5.3 Finding Families
 
-After sign-in, one GraphQL query lists the user's repositories and checks each for the marker file (`object(expression:"HEAD:.yeraz.json")`). Every repository that has it is a Tree. No device needs to be told which Trees exist.
+After sign-in, one GraphQL query lists the user's repositories and checks each for the marker file (`object(expression:"HEAD:.yeraz.json")`). Every repository that has it is a Family. No device needs to be told which Families exist.
 
-Creating a Tree from the app means:
+- **The app opens straight into a Family** (`#/` goes to the one last shown on this device, kept in `localStorage`, or the first one found): every Tree on the map at once, ready to click, edit and create in. There is no "open" step.
+- The list is refreshed when the Family menu (beside the Family's name) is opened, not on every start, so reopening the app stays one request (§11). The same menu switches Family, and holds the secondary paths: "Connect repository", "Create a new repository", Appearance, sign out.
+- **A new Tree is a new folder or leaf at the top of the Family** (New tree, or New leaf with nothing selected): an ordinary structure edit (`sync/structure.ts`), committed like any other.
+
+Creating a new repository (a new Family) from the app means:
 
 1. `POST /user/repos` with `private: true`.
 2. A first commit containing `.yeraz.json` and a welcome leaf.
 
-Renaming a Tree changes only `name` in `.yeraz.json`. The edit is committed like any other, and the file keeps its other fields and its layout. Until the commit lands, the name typed on this device wins over what discovery reports, so Home and the map never show the old name again. The repository keeps its name; links and clones are untouched.
+Renaming a Family changes only `name` in `.yeraz.json`. The edit is committed like any other, and the file keeps its other fields and its layout. Until the commit lands, the name typed on this device wins over what discovery reports, so the top bar and the menu never show the old name again. The repository keeps its name; links and clones are untouched.
 
 ## 6. The map
 
+- **One map per Family, one radial layout per Tree** (`map/family.ts`): each Tree is laid out on its own, centred on its core, as below; then the Trees are placed side by side.
 - **Layout: a radial cluster from `d3-hierarchy`,** with branches fanning out from a core (the Tree):
   - `cluster()`: every node without children gets an angle of its own, and a parent sits among its children, so nothing on an outer ring shares an angle with a leaf further in.
   - Each depth sits on its own ring. Neighbours are separated by their dots and labels on every ring between them (inner rings are shorter, so they need more of the angle).
   - A ring moves out when a label on the ring inside it, running along the radius, wouldn't end before it.
-- **Threads use hierarchical edge bundling:** `d3.lineRadial().curve(d3.curveBundle.beta(0.85))` drawn through `source.path(target)`.
+- **Threads use hierarchical edge bundling:** `d3.lineRadial().curve(d3.curveBundle.beta(0.7))` drawn through `source.path(target)`.
   - d3 already returns the path through the two leaves' common ancestor, so this is about ten lines of code.
   - Bundling is what keeps the map readable as threads multiply. A force-directed layout (Obsidian's approach) turns into a tangle.
 - **Encodings (from the design):**
@@ -140,11 +148,13 @@ Renaming a Tree changes only `name` in `.yeraz.json`. The edit is committed like
   | What you see | Means |
   |---|---|
   | Node area | Words written: radius = a + √words × k |
+  | Emoji on a dot | The leaf's icon; its dot is never smaller than the emoji |
+  | Grey line, heavier near the core | Parent to child (the hierarchy), drawn above threads |
   | Filled dot | Leaf |
   | Hollow ring | Branch |
   | Filled dot with a ring | Leaf with sub-leaves |
   | Donut around the core | Share of words per top-level branch |
-  | Green curve | Thread |
+  | Accent curve, thinner and fainter | Thread |
 - **Rendering:**
   - React renders the SVG geometry once per data change (memoised).
   - Pan and zoom use `d3-zoom`, which writes a single `transform` attribute on one `<g>`. **React does not re-render during pan or zoom.**
@@ -152,11 +162,12 @@ Renaming a Tree changes only `name` in `.yeraz.json`. The edit is committed like
   - Semantic zoom works the same way: a `data-zoom` attribute (`far` hides labels below the first ring, `near` shows them).
 - **Labels never overlap each other or a dot** (a unit test checks the example Tree, the design's Trees and generated ones). Labels are horizontal, as in the design, wherever they fit; one that would touch another label or a dot turns to follow the radius. Trees of more than 60 leaves turn every leaf label. Widths are estimated from the characters, since layout runs without a DOM.
 - **Fit** is the bounding box of every dot and label, so a lopsided Tree still fills the screen. A long Tree title wraps onto two lines in the core.
-- **Home** lays out every Tree independently:
-  - Each is scaled by √(total words) and placed with `d3.packSiblings`.
-  - Only branch labels are drawn at that zoom.
-  - Threads between Trees are drawn as dashed curves between their cores.
-  - **Every dot opens straight into its Tree.** A click reaches the dot whose edge is nearest the pointer, within 10 px (18 px for touch), so even the smallest dots are easy to hit. Clicking the core opens the Tree itself; clicking anywhere else on a Tree selects it. `nodeAt` in `layout.ts` does the search in layout units, through the Tree's screen transform, so no hit area is added per dot. Hovering lights up the reached dot and names it in a tip, using attributes only and never a React render.
+- **The Family map** (`map/family.ts`, drawn by `TreeMap.tsx`):
+  - Each Tree keeps its own size (layout units are the same for every Tree), and the Trees are placed with `d3.packSiblings`, largest in the middle. Each is drawn by the same geometry as a lone Tree, in a `<g>` moved to its place, so the drawing has one implementation.
+  - A Tree's name is drawn under it, sized with the Tree, while the whole Family is in view; up close (`data-zoom="near"`) the core's title takes over.
+  - **Threads between Trees** run from leaf to leaf through both cores, bowed to one side between the cores so the two directions don't overlap, with the same bundle curve as threads inside a Tree. Many threads between two Trees read as one thick cable: how strongly they relate.
+  - **Opening:** the whole Family is fitted; a link to a node fits that node's Tree instead. **Selecting a Tree** (its core, its Explorer row) fits the camera to it: the Tree as it is. "Fit all trees" zooms back out.
+  - **Every dot is one click from the Peek**, at any zoom: a click on no dot reaches the one whose edge is nearest the pointer, within 10 px (18 px for touch). `familyNodeAt` searches in layout units through the camera's screen transform, so no hit area is added per dot.
 - **Ceiling:** SVG should hold 60 fps up to about 2,000 nodes on a mid-range phone; the performance tests confirm the real number. Above it, the node and edge layers can be swapped for one `<canvas>` using the same layout data. That swap is planned, not built.
 
 ## 7. Editor
@@ -173,11 +184,13 @@ Renaming a Tree changes only `name` in `.yeraz.json`. The edit is committed like
 - **Pasting a URL** (one http(s) address, into a plain paragraph) inserts it as it is and offers *Keep as link* or *Bookmark*. A bookmark rewrites it as `[Title](url)` in a paragraph of its own; the title comes from the URL's last path segment, or its site, since the browser can't fetch other sites' pages. Typing, moving away or Escape keeps the link.
 - **Code blocks** use CodeMirror's nested languages from `@codemirror/language-data`, loaded per language on demand. The read view highlights with the same Lezer parsers (`highlightCode`), so there is one highlighting system, not two.
 - **The header above the text** (cover, icon, colours) is drawn from line 1 and line 2. Colours are applied as CSS variables on the leaf container: `--leaf-text` and `--leaf-heading`, with headings in the theme's accent by default.
+  - In the live preview, line 2 is hidden and kept whole (`metaLine.ts`): typing never enters it, and Enter after the title starts line 3. Only the header's controls (and Undo) change it.
+  - A header damaged before (repeated below itself, or its comment pushed below line 2) shows repaired, and the leaf's next save writes the repair: one title line, one metadata line, a repeated header's metadata winning (`repairHeader`).
 - **A branch's text** (`folder/README.md`) is edited in the same editor, at its path, without that header. Before it exists, the branch's Peek offers *Add text*: the editor starts from `# Branch name` and the first save creates the file, committed like any edit.
 
 ## 8. Read view and PDF
 
-- A leaf is edited wherever it is shown (issue #17): the floating Peek, its full page and the phone's sheet all hold the editor (`editor/LeafEditor.tsx`), live preview on, with no separate Edit step. The Peek adds the leaf's metadata chips, sub-leaves and threads below it, and "Show Markdown" in its More actions menu. Old `#/edit/…` links redirect to the leaf in its Tree.
+- A leaf is edited wherever it is shown (issue #17): the floating Peek, its full page and the phone's sheet all hold the editor (`editor/LeafEditor.tsx`), live preview on, with no separate Edit step. The Peek adds the leaf's metadata chips, sub-leaves and threads below it, and "Show Markdown" in its More actions menu. Old `#/edit/…` links redirect to the leaf in its Family.
 - The read view is the HTML `markdown-it` makes of a leaf (plus task lists and KaTeX). It is what a leaf prints as.
 - **PDF export** uses a print stylesheet and `window.print()` on the read view.
   - Video embeds print as a thumbnail with a link.
@@ -289,14 +302,14 @@ src/
             links.ts (find and rewrite) · sha.ts (git blob SHA)
   sync/     pull.ts · push.ts · merge.ts · autosave.ts · assets.ts (images by SHA)
             structure.ts (new leaf, branch, branch text, move, delete as file changes) · overlay.ts
-  map/      layout.ts (d3) · TreeMap.tsx · HomeMap.tsx · Home.tsx · useZoom.ts
-  editor/   Editor.tsx · LeafEditor.tsx · livePreview.ts · IconPicker.tsx · EditableCover.tsx
+  map/      layout.ts (one Tree, d3) · family.ts (a Family's Trees, placed) · TreeMap.tsx · useZoom.ts
+  editor/   Editor.tsx · LeafEditor.tsx · livePreview.ts · metaLine.ts · IconPicker.tsx · EditableCover.tsx
             insertMenu.ts · mentions.ts · images.ts (scale, encode) · attach.ts (files)
             emoji.ts (every emoji, names and keywords, for the icon picker; lazy)
   read/     render.ts (markdown-it) · rich.ts (math, code, embeds) · Peek.tsx · print.css
             LeafLook.tsx (cover, colours) · cover.ts (cover position) · files.ts (file cards)
-  ui/       App.tsx (routes) · TopBar.tsx · TokenScreen.tsx · TreeView.tsx
-            Explorer.tsx · Appearance.tsx
+  ui/       App.tsx (routes) · Start.tsx (`#/`) · TopBar.tsx · TokenScreen.tsx
+            FamilyView.tsx (Explorer | map | Peek) · FamilyMenu.tsx · Explorer.tsx · Appearance.tsx
             theme.ts (turns design/themes/themes.json into CSS, applies it)
   store/    token.ts (the token: IndexedDB on the web, the OS keychain on desktop)
 src-tauri/  the desktop shell (Tauri 2): tauri.conf.json (window, CSP, bundle) ·

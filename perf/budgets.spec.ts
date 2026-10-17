@@ -4,9 +4,14 @@
 // fails; every number is attached to the report, so trends stay visible in CI artifacts.
 
 import type { Page } from '@playwright/test'
+import type { Graph } from '../src/model/graph'
 import { expect, signInHere, test } from '../e2e/fixtures'
 
 const TOLERANCE = 1.2
+
+/** Leaves drawn as dots: a leaf at the top of the Family is a Tree's core instead. */
+const dots = (graph: Graph) =>
+  [...graph.nodes.values()].filter((n) => n.kind === 'leaf' && n.parent !== '').length
 
 // ARCHITECTURE.md §11. Only reopening has a separate phone budget. On phones, select and
 // frame time are reported but don't fail (owner's decision, development-plan.md §11).
@@ -78,24 +83,24 @@ for (const leaves of [1000, 5000]) {
     const budget = (name: Budget) =>
       leaves === 1000 ? BUDGETS[test.info().project.name as keyof typeof BUDGETS][name] : null
 
-    test(`first open of a ${size} Tree: structure, then all content`, async ({ page }) => {
+    test(`first open of a ${size} Tree: structure, then all content`, async ({ page, graph }) => {
       await throttle(page)
       // Signing in on the Tree's own URL opens it straight away, with an empty cache.
       await page.goto('./#/tree/you/engineering')
       await signInHere(page)
       const start = await markTime(page, 'tree-open')
       const structure = await markTime(page, 'map-painted', 'first')
-      await expect(page.locator('[data-node][data-kind="leaf"]')).toHaveCount(leaves)
+      await expect(page.locator('[data-node][data-kind="leaf"]')).toHaveCount(dots(graph))
       await expect(page.getByRole('status')).toHaveText('Synced to main', { timeout: 120_000 })
       const content = await markTime(page, 'map-painted', 'last')
       report('structure', structure - start, budget('structure'))
       report('content', content - start, budget('content'))
     })
 
-    test(`reopen a cached ${size} Tree: map painted`, async ({ page }) => {
+    test(`reopen a cached ${size} Tree: map painted`, async ({ page, graph }) => {
       await page.goto('./#/tree/you/engineering')
       await signInHere(page)
-      await expect(page.locator('[data-node][data-kind="leaf"]')).toHaveCount(leaves)
+      await expect(page.locator('[data-node][data-kind="leaf"]')).toHaveCount(dots(graph))
       await expect(page.getByRole('status')).toHaveText('Synced to main', { timeout: 120_000 })
       await throttle(page)
       await page.reload()

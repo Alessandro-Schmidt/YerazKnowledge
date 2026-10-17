@@ -1,6 +1,9 @@
+// The workspace: one Family (a repository) with every one of its Trees on the map at once,
+// the Explorer on the left and the Peek on the right. The app opens straight into it.
+
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link, useLocation } from 'wouter'
-import { layoutFor } from '../map/layout'
+import { useLocation } from 'wouter'
+import { familyLayout, treesOf } from '../map/family'
 import { TreeMap } from '../map/TreeMap'
 import { compactWords, type Graph } from '../model/graph'
 import { ROOT } from '../model/tree'
@@ -10,6 +13,7 @@ import { Peek } from '../read/Peek'
 import { session, useSession } from '../store/session'
 import controls from './controls.module.css'
 import { Explorer } from './Explorer'
+import { FamilyMenu, rememberFamily } from './FamilyMenu'
 import { Icon } from './icons'
 import { InlineName } from './InlineName'
 import { ConflictBanner } from './ConflictBanner'
@@ -18,11 +22,11 @@ import { parentFor, StructureDialog, type StructureAction } from './StructureDia
 import { SyncStatus } from './SyncStatus'
 import { colorVar } from './theme'
 import { Divider, TopBar } from './TopBar'
-import styles from './TreeView.module.css'
+import styles from './FamilyView.module.css'
 import { PHONE, useMedia } from './useMedia'
 import { Search } from './Search'
 
-export function TreeView({ params }: { params: { owner: string; name: string; '*'?: string } }) {
+export function FamilyView({ params }: { params: { owner: string; name: string; '*'?: string } }) {
   const repo = `${params.owner}/${params.name}`
   const key = repo.toLowerCase()
   const [, navigate] = useLocation()
@@ -39,13 +43,14 @@ export function TreeView({ params }: { params: { owner: string; name: string; '*
 
   useEffect(() => {
     markNow('tree-open')
+    rememberFamily(repo)
     void session.getState().open(repo)
     preloadEditor()
   }, [repo])
 
   const graph = data?.graph ?? null
-  const layout = useMemo(() => (graph ? layoutFor(graph) : null), [graph])
-  // No path: nothing selected. An empty path (`/tree/o/n/`): the Tree itself.
+  const family = useMemo(() => (graph ? familyLayout(graph) : null), [graph])
+  // No path: nothing selected. An empty path (`/tree/o/n/`): the Family itself.
   const wanted = params['*'] === undefined ? null : decodePath(params['*'])
   const selected = graph && wanted !== null && graph.nodes.has(wanted) ? wanted : null
 
@@ -77,28 +82,20 @@ export function TreeView({ params }: { params: { owner: string; name: string; '*
     <div className={styles.page} style={{ '--tree': color } as React.CSSProperties}>
       <TopBar>
         <Divider />
-        <nav aria-label="Breadcrumb" className={styles.crumbs}>
-          <Link href="/" className={styles.home} aria-label="All trees">
-            <span className={styles.back}>
-              <Icon name="chevronLeft" size={18} />
-            </span>
-            <span className={styles.homeText}>All trees</span>
-          </Link>
-          <span className={styles.sep}>
-            <Icon name="chevronRight" size={14} />
-          </span>
+        <div className={styles.crumbs}>
           <h1 className={styles.title}>
             {tree && graph ? (
               <InlineName
                 value={tree.title}
-                label="Tree name"
+                label="Family name"
                 onRename={(name) => session.getState().renameTree(repo, name)}
               />
             ) : (
               (tree?.title ?? params.name)
             )}
           </h1>
-        </nav>
+          <FamilyMenu current={repo} />
+        </div>
         <Search />
         <span className={styles.status}>
           <Status data={data} repo={repo} branch={tree?.branch ?? 'main'} />
@@ -170,11 +167,11 @@ export function TreeView({ params }: { params: { owner: string; name: string; '*
           />
         )}
         <main className={styles.main}>
-          {graph && layout ? (
+          {graph && family ? (
             <TreeMap
               treeKey={key}
               graph={graph}
-              layout={layout}
+              family={family}
               title={tree?.title ?? repo}
               color={color}
               selected={selected}
@@ -244,7 +241,7 @@ function Placeholder({
   if (data?.status !== 'error') {
     return (
       <p className={styles.placeholder} aria-busy="true">
-        Opening the Tree…
+        Opening the Family…
       </p>
     )
   }
@@ -254,9 +251,6 @@ function Placeholder({
         {data.error}
       </p>
       <div className={styles.actions}>
-        <Link href="/" className={controls.ghost}>
-          All trees
-        </Link>
         {data.kind === 'auth' ? (
           <button
             type="button"
@@ -275,11 +269,10 @@ function Placeholder({
   )
 }
 
-/** Map only: word totals per top-level branch (design screen 06). */
+/** Map only: word totals per Tree (design screen 06). */
 function WhereYouWrite({ graph }: { graph: Graph }) {
-  const tops = graph.nodes
-    .get(ROOT)!
-    .children.map((id) => graph.nodes.get(id)!)
+  const tops = treesOf(graph)
+    .map((id) => graph.nodes.get(id)!)
     .sort((a, b) => b.total - a.total)
     .slice(0, 6)
   const max = Math.max(1, ...tops.map((n) => n.total))

@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import AxeBuilder from '@axe-core/playwright'
 import type { Page } from '@playwright/test'
-import { expect, signIn, test } from './fixtures'
+import { expect, familyMenu, signIn, test } from './fixtures'
 
 declare global {
   interface Window {
@@ -32,7 +32,7 @@ test.beforeEach(async ({ context }) => {
 
 async function openAppearance(page: Page) {
   await signIn(page)
-  await page.getByRole('button', { name: 'Appearance' }).click()
+  await (await familyMenu(page)).getByRole('menuitem', { name: 'Appearance' }).click()
   await expect(page.getByRole('heading', { name: 'Appearance', level: 1 })).toBeVisible()
 }
 
@@ -90,10 +90,10 @@ test('the saved theme is on <html> before the first paint', async ({ page, conte
   })
 })
 
-test('Done returns to all Trees', async ({ page }) => {
+test('Done returns to the Family', async ({ page }) => {
   await openAppearance(page)
   await page.getByRole('button', { name: 'Done' }).click()
-  await expect(page.getByRole('heading', { name: 'All trees', level: 1 })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Engineering', level: 1 })).toBeVisible()
 })
 
 test('the Appearance screen has no accessibility violations', async ({ page }) => {
