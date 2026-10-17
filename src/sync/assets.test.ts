@@ -55,6 +55,12 @@ describe('assetPath', () => {
     expect(next).toMatch(/-a-2\.png$/)
   })
 
+  it('adds no extension to a file that has none', () => {
+    expect(assetPath('Makefile', '', date, () => false)).toMatch(/-makefile$/)
+    const taken = new Set([assetPath('Makefile', '', date, () => false)])
+    expect(assetPath('Makefile', '', date, (p) => taken.has(p))).toMatch(/-makefile-2$/)
+  })
+
   it('names a pasted image without a file name', () => {
     expect(assetPath('', 'png', date, () => false)).toMatch(/-image\.png$/)
   })

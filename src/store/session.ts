@@ -21,7 +21,7 @@ import { assetBytes, mimeOf } from '../sync/assets'
 import { createAutosave, type Autosave } from '../sync/autosave'
 import { isLocal, overlay } from '../sync/overlay'
 import { fillContent, pullTree, type CachedListing } from '../sync/pull'
-import { pushTree, type Dirty } from '../sync/push'
+import { byteLength, pushTree, type Dirty } from '../sync/push'
 import { sameContent, type FileChange } from '../sync/structure'
 import { openStore, type KeyValueStore } from './db'
 import { desktopInvoke, tokenStore, type TokenStore } from './token'
@@ -64,6 +64,8 @@ export interface SessionState {
   assetUrl(repo: string, path: string): Promise<string | null>
   /** Every file path in an open Tree, pending edits included. */
   files(repo: string): string[]
+  /** A file's size in bytes, pending edits included, without downloading it; null when unknown. */
+  fileSize(repo: string, path: string): number | null
   /** Records edits (text, or null to delete); they are committed by the autosave. */
   apply(repo: string, changes: readonly FileChange[]): Promise<void>
   /** Renames a Tree: the name in its `.yeraz.json`, committed by the autosave. Throws a message. */
@@ -459,6 +461,13 @@ export function createSession(deps: {
           .map((e) => e.path)
         const added = Object.entries(pending).filter(([, f]) => f.text !== null)
         return [...committed, ...added.map(([path]) => path)]
+      },
+
+      fileSize(repo, path) {
+        const key = repo.toLowerCase()
+        const pending = dirty.get(key)?.[path]
+        if (pending) return pending.text === null ? null : byteLength(pending.text)
+        return bases.get(key)?.entries.find((e) => e.path === path)?.size ?? null
       },
 
       async apply(repo, changes) {
