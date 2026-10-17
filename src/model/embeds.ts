@@ -7,6 +7,8 @@
 //   a bare URL stays a plain link;
 // - a video's subtitles are `name.<lang>.vtt` files beside it;
 // - math is $inline$ and $$display$$, as GitHub writes it.
+// - an image's width is the end of its title, `"width=50%"`: a percent of the column;
+//   GitHub shows the image at its own size.
 // Shared by the read view and the editor's live preview. Pure.
 
 import { codeRanges, linkTarget, ownPath } from './parse'
@@ -55,6 +57,23 @@ export function embedOf(paragraph: string): Embed | null {
   if (title && /^https?:\/\/[^/\s]/i.test(url) && !linkTarget(url))
     return { kind: 'bookmark', url, title }
   return null
+}
+
+const IMAGE_WIDTH = /(?:^|\s)width=(\d{1,3})%$/
+
+/** An image's width from its title (null: its own size, up to the column) and the rest. */
+export function imageWidth(title: string): { width: number | null; caption: string } {
+  const match = IMAGE_WIDTH.exec(title)
+  const width = match ? Number(match[1]) : 0
+  if (!match || width < 1 || width > 100) return { width: null, caption: title }
+  return { width: width === 100 ? null : width, caption: title.slice(0, match.index).trim() }
+}
+
+/** The title that gives an image this width; full width (100 or null) drops it. */
+export function titleWithWidth(title: string, width: number | null): string {
+  const { caption } = imageWidth(title)
+  if (width === null || width >= 100) return caption
+  return caption ? `${caption} width=${width}%` : `width=${width}%`
 }
 
 const languageNames = new Intl.DisplayNames(['en'], { type: 'language' })

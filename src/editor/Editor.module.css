@@ -131,12 +131,69 @@
 .editor :global(.cm-line.cm-rule) {
   color: var(--faint);
 }
+/* An image keeps its own size up to the column, or the width set by dragging its sides
+   (livePreview.ts); either way it is centred, since both sides move together. */
 .editor :global(.cm-image) {
+  position: relative;
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  margin: 6px auto;
+}
+.editor :global(.cm-image img) {
   display: block;
   max-width: 100%;
   height: auto;
-  margin: 6px 0;
   border-radius: 8px;
+}
+.editor :global(.cm-image[data-width] img) {
+  width: 100%;
+}
+.editor :global(.cm-image-handle) {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 24px;
+  cursor: ew-resize;
+  touch-action: none;
+  user-select: none;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+.editor :global(.cm-image-handle[data-side='start']) {
+  left: 0;
+}
+.editor :global(.cm-image-handle[data-side='end']) {
+  right: 0;
+}
+.editor :global(.cm-image-handle)::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 9px;
+  width: 6px;
+  height: min(48px, 40%);
+  transform: translateY(-50%);
+  border-radius: 3px;
+  background: var(--raised);
+  border: 1px solid var(--hair-strong);
+}
+.editor :global(.cm-image:hover .cm-image-handle),
+.editor :global(.cm-image-handle:focus-visible),
+.editor :global(.cm-image-handle:active) {
+  opacity: 1;
+}
+.editor :global(.cm-image-handle:focus-visible) {
+  outline: none;
+}
+.editor :global(.cm-image-handle:focus-visible)::after {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+@media (hover: none) {
+  .editor :global(.cm-image-handle) {
+    opacity: 1;
+  }
 }
 
 /* Show Markdown: the text as it is, in the monospace font. */

@@ -69,6 +69,7 @@ These rules are the only thing that must stay stable across versions. Tests lock
 | A thread is a normal Markdown link with a **root-relative** path. GitHub resolves paths starting with `/` from the repository root, so threads also work on github.com. | `[Keycloak](/identity/keycloak.md)` |
 | A thread to another Family is a full GitHub URL to a file in a connected repository. Any other `github.com/owner/repo` URL renders as a repository card. | `https://github.com/user/art-history/blob/main/baroque.md` |
 | Images and attachments live in `assets/` at the root, at full quality. An image is committed unchanged unless its long edge is over 4096 px (§8). | `assets/2026-10-14-realm-diagram.png` |
+| An image's **width** is the end of its title, a percent of the column; without one it shows at its own size, up to the column. Images are centred. On GitHub it shows at its own size, with the rest of the title as its tooltip. | `![Realm](/assets/realm.png "width=50%")` · `![Realm](/assets/realm.png "The realm width=50%")` |
 | A paragraph that is only a link to a YouTube video, or to a PDF or video (`.mp4`, `.webm`) in `assets/`, shows as a player; one to any other file in `assets/` shows as a card that downloads it. On GitHub it stays a link. A video's subtitles are `name.<lang>.vtt` files beside it. | `[OIDC spec](/assets/oidc.pdf)` · `assets/talk.mp4` + `assets/talk.en.vtt` · `[Q3 report.xlsx](/assets/2026-10-17-q3-report.xlsx)` |
 | A paragraph that is only a titled link to any other web page is a **bookmark**: a card with its title and address. A bare URL stays a plain link. On GitHub both are links. | `[Baroque](https://en.wikipedia.org/wiki/Baroque)` |
 | Math is `$inline$` and `$$display$$`, as GitHub writes it. | `$e^{i\pi} + 1 = 0$` |
@@ -176,6 +177,7 @@ Renaming a Family changes only `name` in `.yeraz.json`. The edit is committed li
 - **Live preview is one decoration extension.** It:
   - hides Markdown syntax on lines that don't hold the cursor, and styles headings and quotes;
   - replaces the right ranges with widgets: images, `@` chips, checkboxes, math (KaTeX), YouTube embeds, PDFs, video with subtitle tracks, repository cards and bookmarks.
+- **Images resize by their sides** (issue #27): dragging either side inwards makes the image smaller, outwards bigger, both sides moving so it stays centred, from 10% up to the column. The width is written into the image's title once, on release (`imageResize`); the end handle is also a slider (arrows by 5%, Home, End).
 - **"Show the code" turns that extension off.** Same editor, same text, no conversion.
 - **`@` mentions** use `@codemirror/autocomplete` over the in-memory index. Picking a leaf inserts `[Title](/path.md)`, which is displayed as a chip with the target's icon.
 - **Hold Ctrl/Cmd for 2 seconds** to open the insert menu: to-do list, ordered list, bullet list, mention, image from files, attach a file, new leaf, new branch.
