@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildTree, isLeafPath, ROOT, type TreeEntryLike } from './tree'
+import { branchText, buildTree, isLeafPath, ROOT, type TreeEntryLike } from './tree'
 
 const blob = (path: string, size = 60): TreeEntryLike => ({
   path,
@@ -89,6 +89,65 @@ describe('buildTree', () => {
     ).toEqual({
       '(root)': 'root: real.md',
       'real.md': 'leaf: ',
+    })
+  })
+
+  it("makes README.md in a branch's folder the branch's text, not a leaf", () => {
+    const tree = buildTree([blob('AI Agents/README.md', 90), blob('AI Agents/prompting.md')])
+    expect(shape([blob('AI Agents/README.md'), blob('AI Agents/prompting.md')])).toEqual({
+      '(root)': 'root: AI Agents',
+      'AI Agents': 'branch: AI Agents/prompting.md',
+      'AI Agents/prompting.md': 'leaf: ',
+    })
+    expect(tree.leaves).toEqual(['AI Agents/prompting.md'])
+    expect(tree.nodes.get('AI Agents')).toMatchObject({
+      kind: 'branch',
+      name: 'AI Agents',
+      text: { path: 'AI Agents/README.md', sha: 'sha-AI Agents/README.md', size: 90 },
+    })
+    expect(tree.texts).toEqual(new Map([['AI Agents/README.md', 'AI Agents']]))
+    expect(branchText('AI Agents')).toBe('AI Agents/README.md')
+  })
+
+  it('keeps a folder holding only its README.md as a branch with text', () => {
+    const tree = buildTree([blob('a/b/README.md'), blob('x.md')])
+    expect(shape([blob('a/b/README.md'), blob('x.md')])).toEqual({
+      '(root)': 'root: a, x.md',
+      a: 'branch: a/b',
+      'a/b': 'branch: ',
+      'x.md': 'leaf: ',
+    })
+    expect(tree.nodes.get('a')).toMatchObject({ text: null })
+    expect(tree.nodes.get('a/b')).toMatchObject({ text: { path: 'a/b/README.md' } })
+  })
+
+  it('leaves README.md at the root and in a leaf’s sibling folder an ordinary leaf', () => {
+    expect(
+      shape([blob('README.md'), blob('identity/keycloak.md'), blob('identity/keycloak/README.md')]),
+    ).toEqual({
+      '(root)': 'root: identity, README.md',
+      'README.md': 'leaf: ',
+      identity: 'branch: identity/keycloak.md',
+      'identity/keycloak.md': 'leaf: identity/keycloak/README.md',
+      'identity/keycloak/README.md': 'leaf: ',
+    })
+  })
+
+  it('matches the name README.md exactly, case included', () => {
+    expect(shape([blob('notes/readme.md'), blob('notes/Readme.md')])).toEqual({
+      '(root)': 'root: notes',
+      notes: 'branch: notes/readme.md, notes/Readme.md',
+      'notes/Readme.md': 'leaf: ',
+      'notes/readme.md': 'leaf: ',
+    })
+  })
+
+  it('makes a folder named README beside a branch text a branch, not a leaf’s sub-folder', () => {
+    expect(shape([blob('x/README.md'), blob('x/README/y.md')])).toEqual({
+      '(root)': 'root: x',
+      x: 'branch: x/README',
+      'x/README': 'branch: x/README/y.md',
+      'x/README/y.md': 'leaf: ',
     })
   })
 
