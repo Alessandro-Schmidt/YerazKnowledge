@@ -29,7 +29,7 @@ Pin exact versions when installing.
 | Styling | CSS Modules + CSS variables generated from `design/themes/themes.json` | Themes and per-leaf colours are just variables; no CSS framework |
 | Map | `d3-hierarchy`, `d3-shape`, `d3-zoom` (individual modules, not all of d3) | Radial layout, edge bundling, zoom and packing are built in |
 | Editor | CodeMirror 6: `@codemirror/view`, `state`, `lang-markdown`, `language-data`, `autocomplete` | Edits Markdown text directly; fast on long documents |
-| Read view | `markdown-it` + task lists + KaTeX (loaded on first use) | Small and fast; output cached by blob SHA |
+| Read view | `markdown-it` + task lists + KaTeX (loaded on first use) | Small and fast; what a leaf prints as |
 | Local storage | `idb-keyval` | IndexedDB as a key/value store, under 1 KB |
 | Merging | `node-diff3` | Three-way merge for conflicts between devices |
 | GitHub | Plain `fetch` | Only 2 REST endpoints and 3 GraphQL operations are used; Octokit would be bigger than the code it saves |
@@ -104,7 +104,7 @@ Values shown are the default theme: Vanta base, green accent. Every theme define
      - Floats over the map with a 16 px inset.
      - Header: kind, breadcrumb, expand and dismiss.
      - Body: cover, icon, title, metadata chips, content preview, sub-leaves, "Threads out" and "Threads in".
-     - Footer: file path and "Edit leaf".
+     - Footer: file path. A leaf is editable in the Peek itself, with no "Edit leaf" step (issue #17).
      - Expand turns it into a full page with a 760 px content column.
 3. **Map only.** Explorer and Peek dismissed. Hovering a leaf shows a tooltip with words and threads. An optional panel, "Where you write most", shows word totals per branch.
 4. **Phone (390 px wide).** The map fills the screen, zoomed in. The Peek becomes a bottom sheet with a handle, expand, dismiss and "Open leaf". All touch targets are at least 44 px.
