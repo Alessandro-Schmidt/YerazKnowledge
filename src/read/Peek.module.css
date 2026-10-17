@@ -230,8 +230,10 @@
   vertical-align: -2px;
 }
 .content img {
+  display: block;
   max-width: 100%;
   height: auto;
+  margin-inline: auto;
 }
 .content hr {
   border: 0;

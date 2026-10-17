@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { bookmarkTitle, embedOf, mathSpans, shortUrl, subtitleTracks } from './embeds'
+import {
+  bookmarkTitle,
+  embedOf,
+  imageWidth,
+  mathSpans,
+  shortUrl,
+  subtitleTracks,
+  titleWithWidth,
+} from './embeds'
 
 describe('embedOf: a paragraph that is only a link becomes an embed', () => {
   it('YouTube, as a bare URL, an autolink or a Markdown link, with a start time', () => {
@@ -163,5 +171,32 @@ describe('mathSpans: $inline$ and $$display$$, as GitHub writes them', () => {
     expect(mathSpans('Not \\$x\\$ math')).toEqual([])
     expect(mathSpans('Code `$x$` here')).toEqual([])
     expect(mathSpans('$ x $ has spaces inside')).toEqual([])
+  })
+})
+
+describe("image widths: a percent of the column, at the end of the image's title", () => {
+  it('reads the width and leaves the rest of the title', () => {
+    expect(imageWidth('width=50%')).toEqual({ width: 50, caption: '' })
+    expect(imageWidth('The realm width=35%')).toEqual({ width: 35, caption: 'The realm' })
+    expect(imageWidth('The realm')).toEqual({ width: null, caption: 'The realm' })
+    expect(imageWidth('')).toEqual({ width: null, caption: '' })
+  })
+
+  it('takes 100% as full width, and anything outside 1–100 as part of the title', () => {
+    expect(imageWidth('width=100%')).toEqual({ width: null, caption: '' })
+    expect(imageWidth('width=0%')).toEqual({ width: null, caption: 'width=0%' })
+    expect(imageWidth('width=150%')).toEqual({ width: null, caption: 'width=150%' })
+    expect(imageWidth('a width=50% wide image')).toEqual({
+      width: null,
+      caption: 'a width=50% wide image',
+    })
+  })
+
+  it('writes a width after the title, replacing one there; full width drops it', () => {
+    expect(titleWithWidth('', 40)).toBe('width=40%')
+    expect(titleWithWidth('The realm', 40)).toBe('The realm width=40%')
+    expect(titleWithWidth('The realm width=70%', 40)).toBe('The realm width=40%')
+    expect(titleWithWidth('The realm width=70%', 100)).toBe('The realm')
+    expect(titleWithWidth('width=70%', null)).toBe('')
   })
 })
