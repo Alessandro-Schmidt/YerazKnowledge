@@ -84,6 +84,19 @@ describe('renderLeaf', () => {
     )
   })
 
+  it('gives a resized image its width, keeping the rest of its title as the title', async () => {
+    const html = await renderLeaf(
+      '# T\n\n![Realm](/assets/realm.png "width=40%")\n\n![Logo](https://example.com/l.png "Our logo width=25%")\n',
+      context,
+    )
+    expect(html).toContain(
+      '<img alt="Realm" data-asset="assets/realm.png" width="40%" loading="lazy" decoding="async">',
+    )
+    expect(html).toContain(
+      '<img src="https://example.com/l.png" alt="Logo" title="Our logo" width="25%" loading="lazy" decoding="async">',
+    )
+  })
+
   it('renders $inline$ and $$display$$ math with KaTeX, leaving prices alone', async () => {
     const html = await renderLeaf(
       '# T\n\nEuler: $e^{i\\pi} + 1 = 0$, costs $5 and $10.\n\n$$\n\\int_0^1 x\\,dx = \\tfrac12\n$$\n',

@@ -219,6 +219,85 @@ test.describe('images', () => {
   })
 })
 
+test.describe('resizing an image (issue #27)', () => {
+  test.skip(({ isMobile }) => isMobile, 'Dragging runs on desktop engines')
+
+  test('dragging a side inwards shrinks it, outwards grows it; the width is in its title', async ({
+    page,
+    fake,
+    graph,
+  }) => {
+    await page.clock.install()
+    const leaf = pair(graph).from.id
+    const png = await page.evaluate(async () => {
+      const canvas = document.createElement('canvas')
+      canvas.width = 1600
+      canvas.height = 800
+      canvas.getContext('2d')!.fillRect(0, 0, 1600, 800)
+      const blob = await new Promise<Blob>((r) => canvas.toBlob((b) => r(b!), 'image/png'))
+      return [...new Uint8Array(await blob.arrayBuffer())]
+    })
+    const repo = fake.repo(REPO)
+    await repo.commit({
+      message: 'image',
+      additions: [
+        { path: 'assets/realm.png', contents: new Uint8Array(png) },
+        { path: leaf, contents: `${repo.read(leaf)}\n![Realm](/assets/realm.png)\n` },
+      ],
+    })
+    await page.goto(`./#/tree/${REPO}/${leaf}`)
+    await signInHere(page)
+    const image = page.locator('.cm-content .cm-image')
+    await expect(image.getByRole('img', { name: 'Realm' })).toBeVisible()
+    await image.scrollIntoViewIfNeeded()
+    const column = (await image.boundingBox())!.width
+
+    /** Drags one side of the image by `dx` pixels, then waits for the autosave's commit. */
+    async function drag(side: 'start' | 'end', dx: number) {
+      await image.hover()
+      const box = (await image.locator(`[data-side="${side}"]`).boundingBox())!
+      await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+      await page.mouse.down()
+      await page.mouse.move(box.x + box.width / 2 + dx / 2, box.y + box.height / 2)
+      await page.mouse.move(box.x + box.width / 2 + dx, box.y + box.height / 2)
+      await page.mouse.up()
+      await autosave()
+    }
+    async function autosave() {
+      await page.clock.fastForward('00:01')
+      await expect(page.getByRole('status')).toContainText('Unsaved edits')
+      await page.clock.fastForward('02:05')
+      await expect(page.getByRole('status')).toHaveText('Synced to main')
+    }
+
+    // Each side moves the other with it: a quarter of the width inwards halves the image.
+    await drag('end', -column / 4)
+    await expect
+      .poll(() => repo.read(leaf))
+      .toMatch(/!\[Realm\]\(\/assets\/realm\.png "width=5\d%"\)/)
+    const half = (await image.boundingBox())!
+    expect(half.width / column).toBeCloseTo(0.5, 1)
+    // Centred: the space left of it is the space right of it.
+    const line = (await page.locator('.cm-content').boundingBox())!
+    expect(Math.abs(half.x - line.x - (line.x + line.width - half.x - half.width))).toBeLessThan(24)
+
+    // Past the column, outwards from the other side: full width, and the title goes.
+    await drag('start', -column / 2)
+    await expect.poll(() => repo.read(leaf)).toContain('![Realm](/assets/realm.png)\n')
+
+    // From the keyboard, the handle is a slider over the width.
+    const slider = page.getByRole('slider', { name: 'Width of Realm' })
+    await expect(slider).toHaveAttribute('aria-valuenow', '100')
+    await slider.focus()
+    await page.keyboard.press('ArrowLeft')
+    await page.keyboard.press('ArrowLeft')
+    await expect(slider).toHaveAttribute('aria-valuenow', '90')
+    await expect(slider).toBeFocused()
+    await autosave()
+    await expect.poll(() => repo.read(leaf)).toContain('![Realm](/assets/realm.png "width=90%")')
+  })
+})
+
 for (const dpr of [2, 3]) {
   test.describe(`images at pixel density ${dpr}`, () => {
     test.skip(({ isMobile }) => isMobile, 'Desktop engines')
