@@ -344,6 +344,8 @@ test('Home, the Tree view and the Peek have no accessibility violations', async 
   page,
   graph,
 }) => {
+  // axe over the map and the leaf's editor takes 12–16 s alone; more beside other workers.
+  test.slow()
   await signIn(page)
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
   await page.goto(`./#/tree/you/engineering/${richLeaf(graph).id}`)
