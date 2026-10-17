@@ -227,7 +227,7 @@ export function Appearance() {
                 </div>
                 <div className={styles.buttons} aria-hidden="true">
                   <span className={controls.primary}>New leaf</span>
-                  <span className={controls.ghost}>Edit leaf</span>
+                  <span className={controls.ghost}>Add cover</span>
                 </div>
               </div>
             </div>

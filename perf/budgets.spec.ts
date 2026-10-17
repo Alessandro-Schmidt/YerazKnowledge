@@ -186,7 +186,7 @@ test.describe('typing', () => {
       message: 'A long leaf',
       additions: [{ path: 'long.md', contents: `# Long\n\n${lines.join('\n')}\n` }],
     })
-    await page.goto('./#/edit/you/engineering/long.md')
+    await page.goto('./#/tree/you/engineering/long.md')
     await signInHere(page)
     await page.locator('.cm-content').click()
     await page.keyboard.press('ControlOrMeta+End')

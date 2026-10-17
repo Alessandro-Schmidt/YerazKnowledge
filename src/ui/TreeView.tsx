@@ -5,6 +5,7 @@ import { TreeMap } from '../map/TreeMap'
 import { compactWords, type Graph } from '../model/graph'
 import { ROOT } from '../model/tree'
 import { markNow } from '../perf'
+import { preloadEditor } from '../editor/LeafEditor'
 import { Peek } from '../read/Peek'
 import { session, useSession } from '../store/session'
 import controls from './controls.module.css'
@@ -12,7 +13,7 @@ import { Explorer } from './Explorer'
 import { Icon } from './icons'
 import { InlineName } from './InlineName'
 import { ConflictBanner } from './ConflictBanner'
-import { decodePath, editHref, treeHref } from './paths'
+import { decodePath, treeHref } from './paths'
 import { parentFor, StructureDialog, type StructureAction } from './StructureDialogs'
 import { SyncStatus } from './SyncStatus'
 import { colorVar } from './theme'
@@ -37,6 +38,7 @@ export function TreeView({ params }: { params: { owner: string; name: string; '*
   useEffect(() => {
     markNow('tree-open')
     void session.getState().open(repo)
+    preloadEditor()
   }, [repo])
 
   const graph = data?.graph ?? null
@@ -144,8 +146,7 @@ export function TreeView({ params }: { params: { owner: string; name: string; '*
           onClose={() => setAction(null)}
           onDone={(result) => {
             setAction(null)
-            if (result.edit) navigate(editHref(repo, result.edit))
-            else select(result.select ?? null)
+            select(result.edit ?? result.select ?? null)
           }}
         />
       )}
@@ -196,7 +197,6 @@ export function TreeView({ params }: { params: { owner: string; name: string; '*
                 setPeekOpen(false)
                 setExpanded(false)
               }}
-              onEdit={(id) => navigate(editHref(repo, id))}
               onAction={setAction}
             />
           )}

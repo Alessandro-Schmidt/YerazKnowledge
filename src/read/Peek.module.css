@@ -496,3 +496,11 @@
   text-transform: uppercase;
   color: var(--accent);
 }
+
+/* A leaf's editor in the floating Peek: the title at the Peek's size, less room below. */
+.article :global(.cm-editor .cm-content) {
+  padding-bottom: 24px;
+}
+.peek:not([data-expanded]) :global(.cm-line.cm-title) {
+  font-size: 24px;
+}

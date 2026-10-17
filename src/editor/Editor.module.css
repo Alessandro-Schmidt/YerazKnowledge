@@ -96,7 +96,8 @@
   color: var(--accent);
   font-family: var(--font-ui);
 }
-.editor :global(.cm-mention[data-path]) {
+.editor :global(.cm-mention[data-path]),
+.editor :global([data-href]) {
   cursor: pointer;
 }
 .editor :global(.cm-mention[data-before])::before {
@@ -246,4 +247,42 @@
   aspect-ratio: auto;
   height: min(70vh, 800px);
   border: 1px solid var(--hair);
+}
+
+/* A GitHub repository, or another Tree, as a card (as in the read view). */
+.editor :global(.cm-embed-repo) {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 240px;
+  padding: 12px 14px;
+  border: 1px solid var(--hair-strong);
+  border-radius: 10px;
+  background: var(--raised);
+  color: var(--text);
+  font-family: var(--font-ui);
+  line-height: 1.4;
+  text-decoration: none;
+}
+.editor :global(.cm-embed-repo:hover) {
+  border-color: var(--accent);
+}
+.editor :global(.cm-embed-repo span) {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--muted);
+}
+.editor :global(.cm-embed-repo em) {
+  font-style: normal;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.editor :global(.cm-embed-pdf a) {
+  display: inline-block;
+  margin-top: 6px;
+  color: var(--accent);
+  font-family: var(--font-ui);
+  font-size: 13px;
 }
