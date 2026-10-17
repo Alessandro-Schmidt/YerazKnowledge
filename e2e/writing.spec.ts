@@ -25,7 +25,7 @@ const plainLeaf = (graph: Graph) =>
 const mutations = (fake: FakeGitHub) => fake.log.filter((e) => e.operation === 'mutation')
 
 async function openEditor(page: Page, path: string) {
-  await page.goto(`./#/edit/${REPO}/${path}`)
+  await page.goto(`./#/tree/${REPO}/${path}`)
   await signInHere(page).catch(() => undefined)
   await expect(page.locator('.cm-content')).toBeVisible()
 }
@@ -91,7 +91,7 @@ test.describe('autosave', () => {
     await expect.poll(() => mutations(fake).length).toBe(1)
 
     await typeAtEnd(page, ' Saved by leaving.')
-    await page.getByRole('button', { name: 'Done' }).click()
+    await page.getByRole('button', { name: 'Dismiss' }).click()
     await expect.poll(() => mutations(fake).length).toBe(2)
     expect(fake.repo(REPO).read(plainLeaf(graph).id)).toContain('Saved by leaving.')
   })
@@ -143,7 +143,7 @@ test.describe('two devices', () => {
         const laptop = page
         const phone = (await secondDevice(browser, api, baseURL!)).page
         await openEditor(laptop, leaf.id)
-        await phone.goto(`./#/edit/${REPO}/${leaf.id}`)
+        await phone.goto(`./#/tree/${REPO}/${leaf.id}`)
         await phone.getByLabel('Personal access token').fill(TOKEN)
         await phone.getByRole('button', { name: 'Continue' }).click()
         await expect(phone.locator('.cm-content')).toBeVisible()
@@ -218,7 +218,7 @@ test('moving a leaf rewrites every backlink in one commit', async ({ page, fake,
   }
 })
 
-test('creates a leaf from the Explorer and opens it in the editor', async ({ page, fake }) => {
+test('creates a leaf from the Explorer and opens it, ready to write', async ({ page, fake }) => {
   test.skip(isPhone(page), 'The Explorer is a drawer on phones')
   await page.goto(`./#/tree/${REPO}`)
   await signInHere(page)
@@ -228,14 +228,32 @@ test('creates a leaf from the Explorer and opens it in the editor', async ({ pag
     .click()
   await page.getByRole('dialog').getByLabel('Title').fill('Fresh Ideas')
   await page.getByRole('dialog').getByRole('button', { name: 'Create leaf' }).click()
-  await expect(page).toHaveURL(/#\/edit\/you\/engineering\/fresh-ideas\.md$/)
+  await expect(page).toHaveURL(/#\/tree\/you\/engineering\/fresh-ideas\.md$/)
   await expect(page.locator('.cm-title')).toContainText('Fresh Ideas')
   await page.keyboard.type('First line of a new leaf.')
-  await page.getByRole('button', { name: 'Done' }).click()
+  await page.getByRole('button', { name: 'Dismiss' }).click()
   await expect
     .poll(() => fake.repo(REPO).read('fresh-ideas.md'))
     .toContain('First line of a new leaf.')
   await expect(page.locator('[data-node][data-id="fresh-ideas.md"]').first()).toBeAttached()
+})
+
+test('a leaf is edited where it is shown: over the map, and at an old editor link', async ({
+  page,
+  fake,
+  graph,
+}) => {
+  const leaf = plainLeaf(graph)
+  await page.goto(`./#/edit/${REPO}/${leaf.id}`)
+  await signInHere(page)
+  await expect(page).toHaveURL(new RegExp(`#/tree/${REPO}/${leaf.id.replace('.', '\\.')}$`))
+  const panel = page.getByRole('region', { name: 'Leaf preview' })
+  await expect(panel.getByRole('textbox', { name: 'Leaf text' })).toBeVisible()
+  await expect(panel.getByRole('button', { name: 'Edit leaf' })).toHaveCount(0)
+  if (!isPhone(page)) await expect(page.locator('[data-map]')).toBeVisible()
+  await typeAtEnd(page, ' Typed beside the map.')
+  await page.keyboard.press('ControlOrMeta+s')
+  await expect.poll(() => fake.repo(REPO).read(leaf.id)).toContain('Typed beside the map.')
 })
 
 test('creates a new Tree from Home', async ({ page, fake }) => {
@@ -263,7 +281,7 @@ test('creates a branch with its first leaf, keeping the name as typed', async ({
   await dialog.getByLabel('Branch name').fill('Distributed Systems')
   await dialog.getByLabel('First leaf').fill('Consensus')
   await dialog.getByRole('button', { name: 'Create branch' }).click()
-  await expect(page).toHaveURL(/#\/edit\/you\/engineering\/Distributed%20Systems\/consensus\.md$/)
+  await expect(page).toHaveURL(/#\/tree\/you\/engineering\/Distributed%20Systems\/consensus\.md$/)
   await page.keyboard.press('ControlOrMeta+s')
   await expect
     .poll(() => fake.repo(REPO).read('Distributed Systems/consensus.md'))
@@ -315,7 +333,8 @@ test('live preview hides Markdown away from the cursor, toggles tasks, and shows
   await box.click()
   await expect(page.locator('input.cm-task')).toBeChecked()
 
-  await page.getByRole('button', { name: 'Show Markdown' }).click()
+  await page.getByRole('button', { name: 'More actions' }).click()
+  await page.getByRole('menuitemcheckbox', { name: 'Show Markdown' }).click()
   await expect(page.locator('.cm-content')).toContainText('## Section')
   await expect(page.locator('.cm-content')).toContainText('- [x] A task')
   await expect(page.locator('input.cm-task')).toHaveCount(0)

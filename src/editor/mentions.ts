@@ -1,6 +1,7 @@
 // @ mentions (ARCHITECTURE.md §7): typing @ offers the Tree's leaves; picking one inserts a
 // thread, `[Title](/path.md)`, which live preview shows as a chip with the target's icon.
-// Clicking a chip opens its leaf.
+// Clicking a chip opens its leaf; clicking a link opens it (another Tree in the app, the web
+// in a new tab).
 
 import {
   autocompletion,
@@ -23,6 +24,8 @@ export interface MentionSource {
   leaves(): MentionLeaf[]
   leaf(path: string): MentionLeaf | null
   open(path: string): void
+  /** Another connected Tree by `owner/name`: its title and in-app href (`#/tree/…`). */
+  tree?(repo: string): { title: string; href: string } | null
 }
 
 export const mentionSource = Facet.define<MentionSource, MentionSource | null>({
@@ -51,14 +54,21 @@ export function completeMention(context: CompletionContext): CompletionResult | 
   return { from: match.from + 1, options, validFor: /^[^\s@[\]()]*$/ }
 }
 
-/** A click on a chip (outside the line being edited) opens the leaf it names. */
+/**
+ * A click on a chip or a link (outside the line being edited, where they carry their
+ * target) opens it: a leaf of this Tree, another Tree in the app, or the web in a new tab.
+ */
 const openChips = EditorView.domEventHandlers({
   mousedown(event, view) {
-    const chip = (event.target as HTMLElement).closest?.<HTMLElement>('.cm-mention[data-path]')
+    if (event.button !== 0) return false
+    const link = (event.target as HTMLElement).closest?.<HTMLElement>('[data-path], [data-href]')
     const source = view.state.facet(mentionSource)
-    if (!chip || !source) return false
+    if (!link || !source || !view.contentDOM.contains(link)) return false
     event.preventDefault()
-    source.open(chip.dataset.path!)
+    const { path, href } = link.dataset
+    if (path) source.open(path)
+    else if (href?.startsWith('#')) location.assign(href)
+    else if (href) window.open(href, '_blank', 'noopener,noreferrer')
     return true
   },
 })

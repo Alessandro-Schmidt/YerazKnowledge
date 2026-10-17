@@ -4,7 +4,7 @@
 
 import type MarkdownItClass from 'markdown-it'
 import type { Parser } from '@lezer/common'
-import { embedOf, MATH, subtitleTracks, type Embed } from '../model/embeds'
+import { embedOf, languageName, MATH, subtitleTracks, type Embed } from '../model/embeds'
 
 type MarkdownIt = InstanceType<typeof MarkdownItClass>
 type Token = ReturnType<MarkdownIt['parse']>[number]
@@ -106,15 +106,6 @@ export function rich(md: MarkdownIt, highlight: typeof import('@lezer/highlight'
       tokens.splice(i - 1, 3, block)
     }
   })
-}
-
-const languageNames = new Intl.DisplayNames(['en'], { type: 'language' })
-const languageName = (code: string) => {
-  try {
-    return languageNames.of(code) ?? code
-  } catch {
-    return code
-  }
 }
 
 function embedHtml(embed: Embed, env: RichEnv, escape: (s: string) => string): string {

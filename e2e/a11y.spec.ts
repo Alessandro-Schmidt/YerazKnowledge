@@ -9,8 +9,10 @@ import { expect, signIn, signInHere, test } from './fixtures'
 
 const REPO = 'you/engineering'
 
-const violations = async (page: Page) =>
-  (await new AxeBuilder({ page }).analyze()).violations.map((v) => ({
+const violations = async (page: Page, only?: string) =>
+  (
+    await (only ? new AxeBuilder({ page }).include(only) : new AxeBuilder({ page })).analyze()
+  ).violations.map((v) => ({
     id: v.id,
     nodes: v.nodes.map((n) => n.target.join(' ')),
   }))
@@ -38,12 +40,13 @@ test('a leaf on its full page', async ({ page, graph }) => {
 })
 
 test('the icon picker', async ({ page, graph }) => {
-  await page.goto(`./#/edit/${REPO}/${firstLeaf(graph).id}`)
+  await page.goto(`./#/tree/${REPO}/${firstLeaf(graph).id}`)
   await signInHere(page)
   await page.getByRole('button', { name: /^(Add icon|Change icon)/ }).click()
   const icons = page.getByRole('group', { name: 'Icons' })
   await expect(icons.getByRole('region', { name: 'Flags' })).toBeAttached()
-  expect(await violations(page)).toEqual([])
+  // The picker alone: the Tree view around it is scanned in tree.spec.ts.
+  expect(await violations(page, '[role="group"][aria-label="Icons"]')).toEqual([])
 })
 
 test('the new leaf dialog', async ({ page }) => {

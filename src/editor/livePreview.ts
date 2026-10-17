@@ -13,8 +13,9 @@ import {
   type ViewUpdate,
 } from '@codemirror/view'
 import type { SyntaxNode } from '@lezer/common'
-import { embedOf, mathSpans, type Embed } from '../model/embeds'
+import { embedOf, languageName, mathSpans, subtitleTracks, type Embed } from '../model/embeds'
 import { leadingIcon, linkTarget, META, ownPath } from '../model/parse'
+import { encodePath } from '../ui/paths'
 import { mentionSource } from './mentions'
 
 /** The title's icon with the space after it, so both can be hidden. */
@@ -48,6 +49,11 @@ export const assetSource = Facet.define<
   (path: string) => Promise<string | null>,
   ((path: string) => Promise<string | null>) | null
 >({ combine: (values) => values[0] ?? null })
+
+/** Every file path in the Tree, for a video's subtitle tracks. */
+export const treeFiles = Facet.define<() => Iterable<string>, (() => Iterable<string>) | null>({
+  combine: (values) => values[0] ?? null,
+})
 
 class ImageWidget extends WidgetType {
   constructor(
@@ -100,20 +106,42 @@ class EmbedWidget extends WidgetType {
   constructor(
     readonly embed: Embed,
     readonly resolve: ((path: string) => Promise<string | null>) | null,
+    /** A connected Tree, for a repository card. */
+    readonly tree: { title: string; href: string } | null = null,
+    /** A video's subtitle files. */
+    readonly tracks: { path: string; lang: string }[] = [],
   ) {
     super()
   }
   eq(other: EmbedWidget) {
-    return JSON.stringify(other.embed) === JSON.stringify(this.embed)
+    return (
+      JSON.stringify([other.embed, other.tree, other.tracks]) ===
+      JSON.stringify([this.embed, this.tree, this.tracks])
+    )
   }
   toDOM() {
     const { embed } = this
+    if (embed.kind === 'repo') {
+      // As in the read view: a connected Tree opens in the app, any other repository on GitHub.
+      const { tree } = this
+      const card = document.createElement('a')
+      card.className = 'cm-embed cm-embed-repo'
+      card.href = tree?.href ?? `https://github.com/${embed.repo}`
+      if (!tree) {
+        card.target = '_blank'
+        card.rel = 'noopener noreferrer'
+      }
+      const name = document.createElement('strong')
+      name.textContent = embed.title || tree?.title || embed.repo.replace(/^.*\//, '')
+      const repo = document.createElement('span')
+      repo.textContent = embed.repo
+      const kind = document.createElement('em')
+      kind.textContent = tree ? 'Tree' : 'GitHub repository'
+      card.append(name, repo, kind)
+      return card
+    }
     const box = document.createElement('div')
     box.className = `cm-embed cm-embed-${embed.kind}`
-    if (embed.kind === 'repo') {
-      box.textContent = `${embed.title || embed.repo} · GitHub repository`
-      return box
-    }
     const el = document.createElement(embed.kind === 'video' ? 'video' : 'iframe')
     el.title = embed.title || (embed.kind === 'youtube' ? 'YouTube video' : embed.path)
     if (embed.kind === 'youtube') {
@@ -126,8 +154,25 @@ class EmbedWidget extends WidgetType {
         el.preload = 'metadata'
       }
       void this.resolve?.(embed.path).then((url) => url && (el.src = url))
+      this.tracks.forEach((t, n) => {
+        const track = document.createElement('track')
+        track.kind = 'subtitles'
+        if (t.lang) track.srclang = t.lang
+        track.label = t.lang ? languageName(t.lang) : 'Subtitles'
+        track.default = n === 0
+        void this.resolve?.(t.path).then((url) => url && (track.src = url))
+        el.append(track)
+      })
     }
     box.append(el)
+    if (embed.kind === 'pdf') {
+      const download = document.createElement('a')
+      const name = embed.path.replace(/^.*\//, '')
+      download.download = name
+      download.textContent = `Download ${embed.title || name}`
+      void this.resolve?.(embed.path).then((url) => url && (download.href = url))
+      box.append(download)
+    }
     return box
   }
   ignoreEvent() {
@@ -137,6 +182,10 @@ class EmbedWidget extends WidgetType {
 
 const hide = Decoration.replace({})
 const line = (cls: string) => Decoration.line({ class: cls })
+const title = Decoration.line({
+  class: 'cm-title',
+  attributes: { role: 'heading', 'aria-level': '2' },
+})
 const mark = (cls: string) => Decoration.mark({ class: cls })
 
 /** Lines holding the cursor or a selection: they show their Markdown. */
@@ -156,8 +205,8 @@ function build(view: EditorView): DecorationSet {
   const isActive = (pos: number) => active.has(state.doc.lineAt(pos).number)
   const decorations: Range<Decoration>[] = []
 
-  // Line 1 is the title; line 2 may hold the metadata comment (ARCHITECTURE.md §4).
-  decorations.push(line('cm-title').range(0))
+  // Line 1 is the title, the leaf's heading; line 2 may hold the metadata (ARCHITECTURE.md §4).
+  decorations.push(title.range(0))
   if (state.doc.lines >= 2) {
     const second = state.doc.line(2)
     if (META.test(second.text)) decorations.push(line('cm-meta').range(second.from))
@@ -214,20 +263,33 @@ function build(view: EditorView): DecorationSet {
             const dest = url ? state.sliceDoc(url.from, url.to) : ''
             const target = linkTarget(dest)
             const active = isActive(node.from)
-            const leaf =
-              target && target.repo === null
-                ? state.facet(mentionSource)?.leaf(target.path)
-                : undefined
+            const source = state.facet(mentionSource)
+            const leaf = target && target.repo === null ? source?.leaf(target.path) : undefined
+            const other = target?.repo ? source?.tree?.(target.repo) : null
+            // Away from the cursor, chips and links carry their target, and a click opens it.
+            const web = /^<?https?:\/\//.test(dest) ? dest.replace(/^<|>$/g, '') : null
             decorations.push(
-              (leaf && !active
-                ? Decoration.mark({
-                    class: 'cm-mention',
-                    attributes: {
-                      'data-path': leaf.path,
-                      'data-before': `@ ${leaf.icon ? `${leaf.icon} ` : ''}`,
-                    },
-                  })
-                : mark(target && target.repo === null ? 'cm-mention' : 'cm-link')
+              (active
+                ? mark(target && target.repo === null ? 'cm-mention' : 'cm-link')
+                : leaf
+                  ? Decoration.mark({
+                      class: 'cm-mention',
+                      attributes: {
+                        'data-path': leaf.path,
+                        'data-before': `@ ${leaf.icon ? `${leaf.icon} ` : ''}`,
+                      },
+                    })
+                  : other && target
+                    ? Decoration.mark({
+                        class: 'cm-mention',
+                        attributes: {
+                          'data-href': `${other.href}/${encodePath(target.path)}`,
+                          'data-before': '@ ',
+                        },
+                      })
+                    : web
+                      ? Decoration.mark({ class: 'cm-link', attributes: { 'data-href': web } })
+                      : mark(target && target.repo === null ? 'cm-mention' : 'cm-link')
               ).range(node.from, node.to),
             )
             if (!active) {
@@ -338,8 +400,15 @@ function richRanges(view: EditorView, isActive: (pos: number) => boolean): Range
         (l.number === state.doc.lines || state.doc.line(l.number + 1).text.trim() === '')
       const embed = alone ? embedOf(l.text) : null
       if (embed) {
+        const tree =
+          embed.kind === 'repo' ? (state.facet(mentionSource)?.tree?.(embed.repo) ?? null) : null
+        const tracks =
+          embed.kind === 'video' ? subtitleTracks(embed.path, state.facet(treeFiles)?.() ?? []) : []
         out.push(
-          Decoration.replace({ widget: new EmbedWidget(embed, resolve) }).range(l.from, l.to),
+          Decoration.replace({ widget: new EmbedWidget(embed, resolve, tree, tracks) }).range(
+            l.from,
+            l.to,
+          ),
         )
         continue
       }
