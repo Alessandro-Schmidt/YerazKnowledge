@@ -119,8 +119,8 @@ class MathWidget extends WidgetType {
 
 /**
  * A YouTube video, a PDF or video kept in the Tree, a repository, a bookmark or a card for
- * any other file, in place of its link. A click on a bookmark edits its line, as on any
- * other link here; a click on a file card downloads it.
+ * any other file, in place of its link. A click on a bookmark's title edits its line; its
+ * address opens the page, as in the read view. A click on a file card downloads it.
  */
 class EmbedWidget extends WidgetType {
   constructor(
@@ -175,6 +175,7 @@ class EmbedWidget extends WidgetType {
       const url = document.createElement('span')
       title.textContent = embed.title
       url.textContent = shortUrl(embed.url)
+      url.dataset.href = embed.url
       box.title = embed.url
       box.append(title, url)
       return box

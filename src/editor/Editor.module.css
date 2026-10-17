@@ -269,6 +269,9 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.editor :global(.cm-embed-bookmark span:hover) {
+  color: var(--accent);
+}
 .editor :global(.cm-embed-pdf iframe) {
   aspect-ratio: auto;
   height: min(70vh, 800px);
