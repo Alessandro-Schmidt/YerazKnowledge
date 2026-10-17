@@ -8,6 +8,7 @@ import { ROOT } from '../model/tree'
 import { session } from '../store/session'
 import {
   leavesUnder,
+  moveReads,
   planDelete,
   planMove,
   planNewBranch,
@@ -210,9 +211,7 @@ export function StructureDialog({
           onSubmit={() =>
             run(async () => {
               if (dest === null) throw new Error('Choose where to move it.')
-              const moved = leavesUnder(graph, action.id)
-              const linking = moved.flatMap((p) => graph.in.get(p) ?? [])
-              const paths = [...new Set([...moved, ...linking])]
+              const paths = moveReads(graph, action.id)
               const texts = new Map(
                 await Promise.all(
                   paths.map(
@@ -257,10 +256,12 @@ export function StructureDialog({
     case 'delete': {
       const node = graph.nodes.get(action.id)!
       const { changes, linkedFrom } = planDelete(graph, action.id)
+      // A branch's text (README.md) goes with it, but isn't a leaf.
+      const leaves = leavesUnder(graph, action.id).length
       return (
         <Dialog
           title={`Delete ${node.title}`}
-          submit={changes.length > 1 ? `Delete ${changes.length} leaves` : 'Delete leaf'}
+          submit={leaves > 1 ? `Delete ${leaves} leaves` : leaves ? 'Delete leaf' : 'Delete branch'}
           danger
           busy={busy}
           error={error}
@@ -273,8 +274,8 @@ export function StructureDialog({
           }
         >
           <p className={styles.text}>
-            {changes.length > 1
-              ? `This deletes ${changes.length} leaves. GitHub keeps them in the repository's history.`
+            {leaves > 1
+              ? `This deletes ${leaves} leaves. GitHub keeps them in the repository's history.`
               : "GitHub keeps it in the repository's history."}
           </p>
           {linkedFrom.length > 0 && (
