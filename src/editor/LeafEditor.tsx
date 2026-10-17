@@ -32,12 +32,15 @@ export function LeafEditor({
   repo,
   path,
   source,
+  autoFocus,
   onOpen,
 }: {
   repo: string
   path: string
   /** Show the Markdown as it is, instead of the live preview. */
   source: boolean
+  /** Put the cursor below the title, to start writing: the leaf was just created. */
+  autoFocus?: boolean | undefined
   /** Opens another leaf: an @ mention was clicked. */
   onOpen(id: string): void
 }) {
@@ -269,8 +272,7 @@ export function LeafEditor({
           assetUrl={assetUrl}
           files={() => session.getState().files(repo)}
           fileSize={(p) => session.getState().fileSize(repo, p)}
-          // A new leaf holds only its title: start writing below it.
-          autoFocus={text.text.trim().split('\n').length === 1}
+          autoFocus={autoFocus}
         />
       </Suspense>
       {/* Images or any file: onInsert sets what it accepts. */}

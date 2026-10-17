@@ -256,6 +256,37 @@ test('a leaf is edited where it is shown: over the map, and at an old editor lin
   await expect.poll(() => fake.repo(REPO).read(leaf.id)).toContain('Typed beside the map.')
 })
 
+test('selecting another leaf on the map commits the edit; the new leaf waits for a click', async ({
+  page,
+  fake,
+  graph,
+}) => {
+  test.skip(isPhone(page), 'Clicks on the map run on desktop engines')
+  await fake.repo(REPO).commit({
+    message: 'An empty leaf',
+    additions: [{ path: 'empty.md', contents: '# Empty\n' }],
+  })
+  const leaf = plainLeaf(graph)
+  await openEditor(page, leaf.id)
+  await typeAtEnd(page, ' Written before moving on.')
+  fake.resetLog()
+  await page.locator('[data-node][data-id="empty.md"] circle').first().dispatchEvent('click')
+  await expect(page).toHaveURL(/#\/tree\/you\/engineering\/empty\.md$/)
+  await expect.poll(() => mutations(fake).length).toBe(1)
+  expect(fake.repo(REPO).read(leaf.id)).toContain('Written before moving on.')
+
+  // A leaf holding only its title is shown ready to edit, but selecting it doesn't take the
+  // keyboard (or open a phone's): only a leaf just created does.
+  const panel = page.getByRole('region', { name: 'Leaf preview' })
+  await expect(panel.locator('.cm-title')).toHaveText('Empty')
+  await expect(panel.locator('.cm-editor')).not.toHaveClass(/cm-focused/)
+  await panel.locator('.cm-content').click()
+  await page.keyboard.press('ControlOrMeta+End')
+  await page.keyboard.type('Now it has a line.')
+  await page.keyboard.press('ControlOrMeta+s')
+  await expect.poll(() => fake.repo(REPO).read('empty.md')).toBe('# Empty\nNow it has a line.')
+})
+
 test('creates many sub-leaves of a leaf in one commit', async ({ page, fake, graph }) => {
   const leaf = plainLeaf(graph)
   const folder = leaf.id.slice(0, -'.md'.length)
@@ -386,6 +417,8 @@ test('live preview hides Markdown away from the cursor, toggles tasks, and shows
 })
 
 test('the editor and the dialogs have no accessibility violations', async ({ page, graph }) => {
+  // axe over the map and the leaf's editor takes 12–16 s alone; more beside other workers.
+  test.slow()
   const { default: AxeBuilder } = await import('@axe-core/playwright')
   await openEditor(page, plainLeaf(graph).id)
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])

@@ -34,6 +34,8 @@ export function TreeView({ params }: { params: { owner: string; name: string; '*
   const [peekOpen, setPeekOpen] = useState(true)
   const [expanded, setExpanded] = useState(false)
   const [action, setAction] = useState<StructureAction | null>(null)
+  /** A leaf just created here: it opens ready to write. */
+  const [created, setCreated] = useState<string | null>(null)
 
   useEffect(() => {
     markNow('tree-open')
@@ -58,6 +60,7 @@ export function TreeView({ params }: { params: { owner: string; name: string; '*
   const select = useCallback(
     (id: string | null) => {
       navigate(treeHref(repo, id), { replace: true })
+      setCreated(null)
       setPeekOpen(id !== null)
       if (id === null) setExpanded(false)
     },
@@ -147,6 +150,7 @@ export function TreeView({ params }: { params: { owner: string; name: string; '*
           onDone={(result) => {
             setAction(null)
             select(result.edit ?? result.select ?? null)
+            setCreated(result.edit ?? null)
           }}
         />
       )}
@@ -190,6 +194,7 @@ export function TreeView({ params }: { params: { owner: string; name: string; '*
               graph={graph}
               id={selected!}
               expanded={expanded}
+              created={created === selected}
               href={href}
               onSelect={select}
               onExpand={setExpanded}
