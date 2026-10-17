@@ -29,7 +29,7 @@ This document was written with two lenses: **performance** and **least code**. M
 | **Thread** | A link from one leaf to another (`@mention`) | A Markdown link |
 | **Explorer** | Left panel: the file view of a Tree | — |
 | **Map** | Centre: the radial knowledge map | — |
-| **Peek** | Right panel: partial view of the selected leaf | — |
+| **Peek** | Right panel: the selected leaf, editable where it is shown | — |
 
 "Branch" here never means a git branch. Each Tree uses its repository's default branch only.
 
@@ -37,7 +37,7 @@ This document was written with two lenses: **performance** and **least code**. M
 
 ```
 ┌──────────────────────── Yeraz (static React build) ────────────────────────┐
-│  UI      Home (all Trees) · Tree view (Explorer | Map | Peek) · Editor      │
+│  UI      Home (all Trees) · Tree view (Explorer | Map | Peek + editor)      │
 │  Model   in-memory index: leaves, branches, threads (derived, never saved)  │
 │  Store   IndexedDB: blobs by SHA · parsed leaves by SHA · dirty files ·     │
 │          last tree + ETag per Tree                                          │
@@ -174,7 +174,8 @@ Renaming a Tree changes only `name` in `.yeraz.json`. The edit is committed like
 
 ## 8. Read view and PDF
 
-- The Peek panel and read-only pages render HTML with `markdown-it` (plus task lists and KaTeX). Output is cached by blob SHA.
+- A leaf is edited wherever it is shown (issue #17): the floating Peek, its full page and the phone's sheet all hold the editor (`editor/LeafEditor.tsx`), live preview on, with no separate Edit step. The Peek adds the leaf's metadata chips, sub-leaves and threads below it, and "Show Markdown" in its More actions menu. Old `#/edit/…` links redirect to the leaf in its Tree.
+- The read view is the HTML `markdown-it` makes of a leaf (plus task lists and KaTeX). It is what a leaf prints as.
 - **PDF export** uses a print stylesheet and `window.print()` on the read view.
   - Video embeds print as a thumbnail with a link.
   - On desktop, check Tauri's webview printing on all three OSes early in development. The fallback is a small Rust command that calls the webview's native print.
@@ -237,7 +238,7 @@ Every image a user sees should be sharp on any screen, including 2× and 3× dis
 | Reopen a cached Tree (1,000 leaves) | Map painted < 800 ms on a mid laptop, < 1.5 s on a mid phone | App shell from the service worker. Index and layout inputs from IndexedDB. One conditional request, normally a free 304. |
 | Open a Tree for the first time (1,000 leaves) | Structure < 1 s, all content < 5 s | One tree request. About 10 GraphQL blob requests, run three at a time. The map renders from paths before content arrives. |
 | Pan and zoom | 60 fps at 2,000 nodes | One `transform` write per frame. No React renders. Labels hidden by a zoom-level class. |
-| Select a leaf | < 50 ms to highlight and open the Peek | Precomputed adjacency. Class toggles only. Read HTML cached by SHA. |
+| Select a leaf | < 50 ms to highlight and open the Peek | Precomputed adjacency. Class toggles only. The editor's chunk is preloaded when a Tree opens; the leaf's text follows from the blob cache. |
 | Typing | < 16 ms per keystroke in a 10,000-line leaf | CodeMirror renders only visible lines. No conversion. Local writes debounced. |
 | Saving | 1 request per commit | `createCommitOnBranch` with every changed file. |
 | First load JavaScript | < 200 KB gzipped | Editor, KaTeX, `markdown-it` and language parsers are separate chunks loaded on first use. |
@@ -286,7 +287,7 @@ src/
   sync/     pull.ts · push.ts · merge.ts · autosave.ts · assets.ts (images by SHA)
             structure.ts (new leaf, branch, move, delete as file changes) · overlay.ts
   map/      layout.ts (d3) · TreeMap.tsx · HomeMap.tsx · Home.tsx · useZoom.ts
-  editor/   Editor.tsx · EditorPage.tsx · livePreview.ts · IconPicker.tsx · EditableCover.tsx
+  editor/   Editor.tsx · LeafEditor.tsx · livePreview.ts · IconPicker.tsx · EditableCover.tsx
             insertMenu.ts · mentions.ts · images.ts (scale, encode) · attach.ts (files)
             emoji.ts (every emoji, names and keywords, for the icon picker; lazy)
   read/     render.ts (markdown-it) · rich.ts (math, code, embeds) · Peek.tsx · print.css

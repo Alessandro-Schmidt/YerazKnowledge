@@ -212,9 +212,4 @@ describe('renderLeaf', () => {
     expect(html).toContain('<p><a href="https://example.com/post" target="_blank"')
     expect(html).toContain('Read <a href="https://example.com/a" target="_blank"')
   })
-
-  it('caches by blob SHA', async () => {
-    const first = await renderLeaf('# T\n\nOne\n', context, 'sha-1')
-    expect(await renderLeaf('# T\n\nChanged\n', context, 'sha-1')).toBe(first)
-  })
 })

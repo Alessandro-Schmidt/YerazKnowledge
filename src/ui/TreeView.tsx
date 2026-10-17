@@ -5,6 +5,7 @@ import { TreeMap } from '../map/TreeMap'
 import { compactWords, type Graph } from '../model/graph'
 import { ROOT } from '../model/tree'
 import { markNow } from '../perf'
+import { preloadEditor } from '../editor/LeafEditor'
 import { Peek } from '../read/Peek'
 import { session, useSession } from '../store/session'
 import controls from './controls.module.css'
@@ -12,7 +13,7 @@ import { Explorer } from './Explorer'
 import { Icon } from './icons'
 import { InlineName } from './InlineName'
 import { ConflictBanner } from './ConflictBanner'
-import { decodePath, editHref, treeHref } from './paths'
+import { decodePath, treeHref } from './paths'
 import { parentFor, StructureDialog, type StructureAction } from './StructureDialogs'
 import { SyncStatus } from './SyncStatus'
 import { colorVar } from './theme'
@@ -33,10 +34,13 @@ export function TreeView({ params }: { params: { owner: string; name: string; '*
   const [peekOpen, setPeekOpen] = useState(true)
   const [expanded, setExpanded] = useState(false)
   const [action, setAction] = useState<StructureAction | null>(null)
+  /** A leaf just created here: it opens ready to write. */
+  const [created, setCreated] = useState<string | null>(null)
 
   useEffect(() => {
     markNow('tree-open')
     void session.getState().open(repo)
+    preloadEditor()
   }, [repo])
 
   const graph = data?.graph ?? null
@@ -56,6 +60,7 @@ export function TreeView({ params }: { params: { owner: string; name: string; '*
   const select = useCallback(
     (id: string | null) => {
       navigate(treeHref(repo, id), { replace: true })
+      setCreated(null)
       setPeekOpen(id !== null)
       if (id === null) setExpanded(false)
     },
@@ -144,8 +149,8 @@ export function TreeView({ params }: { params: { owner: string; name: string; '*
           onClose={() => setAction(null)}
           onDone={(result) => {
             setAction(null)
-            if (result.edit) navigate(editHref(repo, result.edit))
-            else select(result.select ?? null)
+            select(result.edit ?? result.select ?? null)
+            setCreated(result.edit ?? null)
           }}
         />
       )}
@@ -189,6 +194,7 @@ export function TreeView({ params }: { params: { owner: string; name: string; '*
               graph={graph}
               id={selected!}
               expanded={expanded}
+              created={created === selected}
               href={href}
               onSelect={select}
               onExpand={setExpanded}
@@ -196,7 +202,6 @@ export function TreeView({ params }: { params: { owner: string; name: string; '*
                 setPeekOpen(false)
                 setExpanded(false)
               }}
-              onEdit={(id) => navigate(editHref(repo, id))}
               onAction={setAction}
             />
           )}

@@ -125,7 +125,7 @@ test('clicking a node opens the Peek with its title, sub-leaves and threads', as
     .locator('..')
     .getByRole('button')
   await expect(into).toHaveCount(graph.in.get(leaf.id)!.length)
-  await expect(panel.locator('.mention').first()).toBeVisible()
+  await expect(panel.locator('.cm-mention').first()).toBeVisible()
 
   // The map dims everything but the selection's neighbours.
   await expect(page.locator('[data-map]')).toHaveAttribute('data-focus')
@@ -344,11 +344,13 @@ test('Home, the Tree view and the Peek have no accessibility violations', async 
   page,
   graph,
 }) => {
+  // axe over the map and the leaf's editor takes 12–16 s alone; more beside other workers.
+  test.slow()
   await signIn(page)
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
   await page.goto(`./#/tree/you/engineering/${richLeaf(graph).id}`)
   await expect(peek(page)).toBeVisible()
-  await expect(peek(page).locator('.mention').first()).toBeVisible()
+  await expect(peek(page).locator('.cm-mention').first()).toBeVisible()
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
 })
 

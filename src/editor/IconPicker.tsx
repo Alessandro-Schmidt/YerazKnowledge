@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import controls from '../ui/controls.module.css'
 import { GROUPS, loadEmoji, searchEmoji, type Emoji } from './emoji'
-import styles from './EditorPage.module.css'
+import styles from './LeafEditor.module.css'
 
 // Every emoji, searchable by name and keyword; any emoji typed at the start of the title
 // works too. The page opens it from "Add icon" or the icon itself: buttons marked

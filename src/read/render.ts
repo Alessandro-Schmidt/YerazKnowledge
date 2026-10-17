@@ -1,4 +1,4 @@
-// Leaf text → HTML for the read view (ARCHITECTURE.md §8). markdown-it is loaded on first
+// Leaf text → HTML for the read view, which is what a leaf prints as (ARCHITECTURE.md §8). markdown-it is loaded on first
 // use, so it isn't part of the first-load JavaScript. Raw HTML in a leaf is shown as text,
 // never run. Links to leaves become @ chips that open the leaf in the app. Math, code
 // highlighting and embeds are in rich.ts.
@@ -119,16 +119,8 @@ export function bodyOf(text: string): string {
   return lines.join('\n')
 }
 
-const cache = new Map<string, string>()
-
-/** HTML for a leaf; cached by blob SHA, since a SHA's content never changes. */
-export async function renderLeaf(
-  text: string,
-  context: RenderContext,
-  sha?: string,
-): Promise<string> {
-  const key = sha && `${sha}`
-  if (key && cache.has(key)) return cache.get(key)!
+/** HTML for a leaf, as printed (the screen shows it in the editor). */
+export async function renderLeaf(text: string, context: RenderContext): Promise<string> {
   const md = await load()
   const env: RichEnv & { context: RenderContext } = { context }
   if (context.files) env.files = context.files
@@ -136,7 +128,5 @@ export async function renderLeaf(
   if (context.tree) env.tree = context.tree
   const tokens = md.parse(bodyOf(text), env)
   await prepare(tokens, env)
-  const html = md.renderer.render(tokens, md.options, env)
-  if (key) cache.set(key, html)
-  return html
+  return md.renderer.render(tokens, md.options, env)
 }
