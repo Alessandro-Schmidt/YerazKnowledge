@@ -4,6 +4,7 @@
 // highlighting and embeds are in rich.ts.
 
 import type MarkdownItClass from 'markdown-it'
+import { imageWidth } from '../model/embeds'
 import { HEADING, linkTarget, META, ownPath, repairHeader, stripBom } from '../model/parse'
 import { encodePath } from '../ui/paths'
 import { prepare, rich, type RichEnv } from './rich'
@@ -49,6 +50,13 @@ function load(): Promise<MarkdownIt> {
         if (own !== null) {
           token.attrs = token.attrs?.filter(([name]) => name !== 'src') ?? null
           token.attrSet('data-asset', own)
+        }
+        const title = token.attrGet('title')
+        if (title !== null) {
+          const { width, caption } = imageWidth(String(title))
+          token.attrs = token.attrs?.filter(([name]) => name !== 'title') ?? null
+          if (caption) token.attrSet('title', caption)
+          if (width !== null) token.attrSet('width', `${width}%`)
         }
         token.attrSet('loading', 'lazy')
         token.attrSet('decoding', 'async')

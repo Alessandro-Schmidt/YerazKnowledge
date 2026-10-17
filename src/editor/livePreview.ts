@@ -3,7 +3,13 @@
 // shows its Markdown. "Show Markdown" turns this extension off: same editor, same text.
 
 import { syntaxTree } from '@codemirror/language'
-import { Facet, RangeSetBuilder, type EditorState, type Range } from '@codemirror/state'
+import {
+  Facet,
+  RangeSetBuilder,
+  type ChangeSpec,
+  type EditorState,
+  type Range,
+} from '@codemirror/state'
 import {
   Decoration,
   EditorView,
@@ -15,10 +21,12 @@ import {
 import type { SyntaxNode } from '@lezer/common'
 import {
   embedOf,
+  imageWidth,
   languageName,
   mathSpans,
   shortUrl,
   subtitleTracks,
+  titleWithWidth,
   type Embed,
 } from '../model/embeds'
 import { leadingIcon, linkTarget, ownPath } from '../model/parse'
@@ -72,27 +80,146 @@ export const fileSizes = Facet.define<
   combine: (values) => values[0] ?? (() => null),
 })
 
+/** The smallest width an image is dragged to, in percent of the column. */
+const MIN_IMAGE_WIDTH = 10
+const clampWidth = (width: number) => Math.min(100, Math.max(MIN_IMAGE_WIDTH, Math.round(width)))
+
+/** The change that gives the image starting at `from` this width (§4), or null if none. */
+export function imageResize(
+  state: EditorState,
+  from: number,
+  width: number | null,
+): ChangeSpec | null {
+  let image: SyntaxNode | null = syntaxTree(state).resolveInner(from, 1)
+  while (image && !(image.name === 'Image' && image.from === from)) image = image.parent
+  const url = image?.getChild('URL')
+  if (!image || !url) return null
+  const title = image.getChild('LinkTitle')
+  const before = title ? state.sliceDoc(title.from + 1, title.to - 1).replace(/\\(.)/g, '$1') : ''
+  const after = titleWithWidth(before, width)
+  if (imageWidth(before).width === imageWidth(after).width) return null
+  const insert = after ? ` "${after.replace(/["\\]/g, '\\$&')}"` : ''
+  return { from: url.to, to: title?.to ?? url.to, insert }
+}
+
+/** Shows an image's width on its frame and on the handle that announces it. */
+function showWidth(frame: HTMLElement, width: number | null) {
+  frame.style.width = width === null ? '' : `${width}%`
+  if (width === null) delete frame.dataset.width
+  else frame.dataset.width = String(width)
+  const slider = frame.querySelector('[role="slider"]')
+  slider?.setAttribute('aria-valuenow', String(width ?? 100))
+  slider?.setAttribute('aria-valuetext', `${width ?? 100}% of the column`)
+}
+
+/** The image's width now, in percent of its line. */
+function widthNow(frame: HTMLElement): number {
+  const line = frame.closest<HTMLElement>('.cm-line') ?? frame.parentElement!
+  const style = getComputedStyle(line)
+  const column = line.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight)
+  return (frame.offsetWidth / column) * 100
+}
+
+function commitWidth(view: EditorView, frame: HTMLElement, width: number) {
+  const change = imageResize(view.state, view.posAtDOM(frame), width)
+  if (change) view.dispatch({ changes: change })
+}
+
+/**
+ * Dragging either side resizes the image around its centre: towards the inside it gets
+ * smaller, towards the outside bigger, up to the column. The text changes once, on release.
+ */
+function dragWidth(view: EditorView, frame: HTMLElement, side: -1 | 1, down: PointerEvent) {
+  if (down.button !== 0) return
+  down.preventDefault()
+  const handle = down.currentTarget as HTMLElement
+  handle.setPointerCapture(down.pointerId)
+  const start = widthNow(frame)
+  const perPixel = start / frame.offsetWidth
+  let width: number | null = null
+  const move = (event: PointerEvent) => {
+    // Both sides move, so the image grows by twice the pointer's travel.
+    width = clampWidth(start + side * 2 * (event.clientX - down.clientX) * perPixel)
+    showWidth(frame, width)
+  }
+  const end = () => {
+    handle.removeEventListener('pointermove', move)
+    handle.removeEventListener('pointerup', end)
+    handle.removeEventListener('pointercancel', end)
+    if (width !== null) commitWidth(view, frame, width)
+  }
+  handle.addEventListener('pointermove', move)
+  handle.addEventListener('pointerup', end)
+  handle.addEventListener('pointercancel', end)
+}
+
+/** The same from the keyboard: arrows by 5%, Home and End to the smallest and full width. */
+function keyWidth(view: EditorView, frame: HTMLElement, event: KeyboardEvent) {
+  const now = clampWidth(widthNow(frame))
+  const width =
+    event.key === 'ArrowLeft' || event.key === 'ArrowDown'
+      ? now - 5
+      : event.key === 'ArrowRight' || event.key === 'ArrowUp'
+        ? now + 5
+        : event.key === 'Home'
+          ? MIN_IMAGE_WIDTH
+          : event.key === 'End'
+            ? 100
+            : null
+  if (width === null) return
+  event.preventDefault()
+  commitWidth(view, frame, clampWidth(width))
+}
+
 class ImageWidget extends WidgetType {
   constructor(
     readonly src: string,
     readonly alt: string,
+    readonly width: number | null,
     readonly resolve: ((path: string) => Promise<string | null>) | null,
   ) {
     super()
   }
   eq(other: ImageWidget) {
-    return other.src === this.src && other.alt === this.alt
+    return other.src === this.src && other.alt === this.alt && other.width === this.width
   }
-  toDOM() {
+  toDOM(view: EditorView) {
+    const frame = document.createElement('span')
+    frame.className = 'cm-image'
+    frame.dataset.src = this.src
     const img = document.createElement('img')
     const own = ownPath(this.src)
     if (own === null) img.src = this.src
     else void this.resolve?.(own).then((url) => url && (img.src = url))
     img.alt = this.alt
-    img.className = 'cm-image'
     img.loading = 'lazy'
     img.decoding = 'async'
-    return img
+    frame.append(img)
+    for (const side of [-1, 1] as const) {
+      const handle = document.createElement('span')
+      handle.className = 'cm-image-handle'
+      handle.dataset.side = side < 0 ? 'start' : 'end'
+      handle.addEventListener('pointerdown', (event) => dragWidth(view, frame, side, event))
+      if (side < 0) handle.setAttribute('aria-hidden', 'true')
+      else {
+        // One handle is the keyboard's: a slider over the width.
+        handle.tabIndex = 0
+        handle.setAttribute('role', 'slider')
+        handle.setAttribute('aria-label', `Width of ${this.alt || 'the image'}`)
+        handle.setAttribute('aria-valuemin', String(MIN_IMAGE_WIDTH))
+        handle.setAttribute('aria-valuemax', '100')
+        handle.addEventListener('keydown', (event) => keyWidth(view, frame, event))
+      }
+      frame.append(handle)
+    }
+    showWidth(frame, this.width)
+    return frame
+  }
+  /** A new width for the same image keeps its element: the picture and the focus stay. */
+  updateDOM(dom: HTMLElement) {
+    if (dom.dataset.src !== this.src || dom.querySelector('img')?.alt !== this.alt) return false
+    showWidth(dom, this.width)
+    return true
   }
 }
 
@@ -341,12 +468,15 @@ function build(view: EditorView): DecorationSet {
             const url = node.node.getChild('URL')
             const text = state.sliceDoc(node.from, node.to)
             const alt = /^!\[([^\]]*)\]/.exec(text)?.[1] ?? ''
+            const title = node.node.getChild('LinkTitle')
+            const { width } = imageWidth(title ? state.sliceDoc(title.from + 1, title.to - 1) : '')
             if (url) {
               decorations.push(
                 Decoration.replace({
                   widget: new ImageWidget(
                     state.sliceDoc(url.from, url.to),
                     alt,
+                    width,
                     state.facet(assetSource),
                   ),
                 }).range(node.from, node.to),

@@ -1,6 +1,6 @@
 [package]
 name = "yeraz"
-version = "0.1.0"
+version = "0.2.0"
 description = "Your notes as a map, kept in your own GitHub repositories."
 edition = "2021"
 
