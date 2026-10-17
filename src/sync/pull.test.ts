@@ -88,6 +88,25 @@ describe('pullTree', () => {
     expect([...pulled.leaves.keys()].sort()).toEqual(['a.md', 'b/c.md'])
   })
 
+  it("fetches and parses a branch's text (its README.md) with the leaves, in the same request", async () => {
+    await fake.addRepo('you/texts', {
+      '.yeraz.json': '{}',
+      'README.md': '# The repository\n',
+      'AI Agents/README.md': '# AI Agents\n\nStart at [Prompting](</AI Agents/prompting.md>).\n',
+      'AI Agents/prompting.md': '# Prompting\n',
+    })
+    const texts = (await lookupTree(client, 'you/texts'))!
+    fake.resetLog()
+    const pulled = await pullTree(texts, { client, store: memoryStore() })
+    expect(pulled.model.leaves).toEqual(['AI Agents/prompting.md', 'README.md'])
+    expect(pulled.leaves.get('AI Agents/README.md')!.links).toEqual([
+      { path: 'AI Agents/prompting.md', repo: null },
+    ])
+    const blobs = fake.log.filter((e) => e.kind === 'graphql')
+    expect(blobs).toHaveLength(1)
+    expect(blobs[0]!.blobs).toBe(3)
+  })
+
   it('reports structure first, then content as it arrives', async () => {
     const events: PullProgress[] = []
     await pullTree(ref, { client, store: memoryStore(), onProgress: (p) => events.push(p) })

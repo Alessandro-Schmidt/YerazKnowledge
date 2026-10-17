@@ -1,9 +1,9 @@
 // The Peek: the selected node, floating over the map (420 px), or its full page when
 // expanded (760 px column). On phones it is a bottom sheet. A leaf is editable in all three.
 
-import { useLayoutEffect, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { TreeRef } from '../github/graphql'
-import { compactWords, crumbs, type Graph } from '../model/graph'
+import { compactWords, crumbs, textFile, threadEnd, type Graph } from '../model/graph'
 import { ROOT } from '../model/tree'
 import { mark } from '../perf'
 import { session } from '../store/session'
@@ -17,6 +17,7 @@ import { treeHref } from '../ui/paths'
 import styles from './Peek.module.css'
 import { coverPosition } from './cover'
 import { leafColors } from './colors'
+import { downloadAsset } from './files'
 import { Cover } from './LeafLook'
 import { printLeaf } from './print'
 import { renderLeaf } from './render'
@@ -51,6 +52,8 @@ export function Peek({
 }: PeekProps) {
   const [menu, setMenu] = useState(false)
   const [source, setSource] = useState(false)
+  /** The branch whose text is being written here. */
+  const [writing, setWriting] = useState<string | null>(null)
   useLayoutEffect(() => mark('peek-painted'), [id])
   const node = graph.nodes.get(id)!
   const kind = node.kind === 'root' ? 'Tree' : node.kind === 'branch' ? 'Branch' : 'Leaf'
@@ -158,6 +161,45 @@ export function Peek({
                 </span>
               ))}
             </div>
+
+            {/* A branch's text (its folder's README.md), written here in the leaf editor. */}
+            {node.kind === 'branch' &&
+              (writing === id ? (
+                <>
+                  <LeafEditor
+                    key={`${tree.repo} ${id}`}
+                    repo={tree.repo}
+                    path={textFile(graph, id)!}
+                    source={source}
+                    autoFocus
+                    onOpen={onSelect}
+                  />
+                  <button
+                    type="button"
+                    className={`${controls.primary} ${styles.textDone}`}
+                    onClick={() => setWriting(null)}
+                  >
+                    Done
+                  </button>
+                </>
+              ) : node.sha ? (
+                <BranchText
+                  repo={tree.repo}
+                  graph={graph}
+                  id={textFile(graph, id)!}
+                  sha={node.sha}
+                  href={href}
+                />
+              ) : (
+                <button
+                  type="button"
+                  className={`${controls.ghost} ${styles.addText}`}
+                  onClick={() => setWriting(id)}
+                >
+                  <Icon name="plus" size={15} />
+                  Add text
+                </button>
+              ))}
 
             {node.children.length > 0 && (
               <div className={styles.group}>
@@ -282,6 +324,11 @@ export function Peek({
                   >
                     {node.kind === 'leaf' ? 'Add sub-leaves…' : 'New leaves here…'}
                   </button>
+                  {node.kind === 'branch' && node.sha && writing !== id && (
+                    <button type="button" role="menuitem" onClick={() => setWriting(id)}>
+                      Edit text
+                    </button>
+                  )}
                   {node.kind === 'branch' && (
                     <button
                       type="button"
@@ -362,6 +409,79 @@ function ThreadList({
   )
 }
 
+/** Links in a rendered text: to a leaf, or to a branch's README.md, which opens the branch. */
+const linkTo = (graph: Graph, href: (id: string) => string) => (path: string) => {
+  const end = threadEnd(graph, path)
+  return end === null ? null : href(end)
+}
+
+/** A branch's text, as the read view draws it. Writing it opens the leaf editor instead. */
+function BranchText({
+  repo,
+  graph,
+  id,
+  sha,
+  href,
+}: {
+  repo: string
+  graph: Graph
+  id: string
+  sha: string
+  href(id: string): string
+}) {
+  const [html, setHtml] = useState<{ sha: string; html: string } | null>(null)
+  useEffect(() => {
+    let live = true
+    const { getState } = session
+    void getState()
+      .textOf(repo, id)
+      .then((text) =>
+        renderLeaf(text, {
+          leafHref: linkTo(graph, href),
+          leafIcon: (path) => graph.nodes.get(path)?.icon ?? null,
+          files: () => getState().files(repo),
+          size: (path) => getState().fileSize(repo, path),
+          tree: (other) => {
+            const t = getState().trees.find((t) => t.repo.toLowerCase() === other.toLowerCase())
+            return t ? { title: t.title, href: `#${treeHref(t.repo)}` } : null
+          },
+        }),
+      )
+      .then((rendered) => live && setHtml({ sha, html: rendered }))
+      .catch(() => undefined)
+    return () => {
+      live = false
+    }
+  }, [repo, id, sha, graph, href])
+
+  // The Tree's own files (images, PDFs, videos) come from the blob cache, with the token.
+  const body = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    for (const el of body.current?.querySelectorAll<HTMLElement>(
+      '[data-asset], [data-asset-href]',
+    ) ?? []) {
+      const href = el.dataset.assetHref
+      void session
+        .getState()
+        .assetUrl(repo, href ?? el.dataset.asset!)
+        .then((url) => url && el.setAttribute(href ? 'href' : 'src', url))
+    }
+    // Attachments are downloaded only when their card is used.
+    for (const el of body.current?.querySelectorAll<HTMLElement>('[data-asset-file]') ?? [])
+      el.onclick = () =>
+        void downloadAsset(el.dataset.assetFile!, (p) => session.getState().assetUrl(repo, p))
+  }, [html, repo])
+
+  if (html?.sha !== sha) return <div className={styles.loading} aria-busy="true" />
+  return (
+    <div
+      ref={body}
+      className={`reading ${styles.content}`}
+      dangerouslySetInnerHTML={{ __html: html.html }}
+    />
+  )
+}
+
 /**
  * The leaf as the read view draws it (ARCHITECTURE.md §8), for printing: cover, title and
  * the rendered text, with the Tree's own images loaded.
@@ -375,7 +495,7 @@ async function printable(
   const { getState } = session
   const node = graph.nodes.get(id)!
   const html = await renderLeaf(await getState().textOf(repo, id), {
-    leafHref: (path) => (graph.nodes.get(path)?.kind === 'leaf' ? href(path) : null),
+    leafHref: linkTo(graph, href),
     leafIcon: (path) => graph.nodes.get(path)?.icon ?? null,
     files: () => getState().files(repo),
     size: (path) => getState().fileSize(repo, path),

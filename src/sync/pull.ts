@@ -6,7 +6,7 @@
 import { GitHubError, type GitHubClient, type TreeEntry } from '../github/client'
 import { fetchBlobs, type TreeRef } from '../github/graphql'
 import { parseLeaf, type ParsedLeaf } from '../model/parse'
-import { buildTree, type LeafNode, type TreeModel } from '../model/tree'
+import { buildTree, type BranchNode, type LeafNode, type TreeModel } from '../model/tree'
 import type { KeyValueStore } from '../store/db'
 
 export interface CachedListing {
@@ -26,7 +26,7 @@ export type PullProgress =
 export interface PulledTree {
   ref: TreeRef
   model: TreeModel
-  /** Parsed leaves by leaf path; a leaf whose content isn't here yet is absent. */
+  /** Parsed leaves and branch texts by path; one whose content isn't here yet is absent. */
   leaves: Map<string, ParsedLeaf>
   /** True when GitHub couldn't be reached and the cached copy was used. */
   offline: boolean
@@ -190,14 +190,21 @@ export async function fillContent(
   },
 ): Promise<{ model: TreeModel; leaves: Map<string, ParsedLeaf> }> {
   const model = buildTree(listing.entries)
-  const leafNodes = model.leaves.map((id) => model.nodes.get(id) as LeafNode)
-  const known = await store.getMany<ParsedLeaf>(leafNodes.map((leaf) => `leaf:${leaf.sha}`))
+  // Leaves and branch texts (README.md): both are Markdown, parsed the same way.
+  const docs = [
+    ...model.leaves.map((path) => {
+      const { sha, size } = model.nodes.get(path) as LeafNode
+      return { path, sha, size }
+    }),
+    ...[...model.texts.values()].map((id) => (model.nodes.get(id) as BranchNode).text!),
+  ]
+  const known = await store.getMany<ParsedLeaf>(docs.map((doc) => `leaf:${doc.sha}`))
   const bySha = new Map<string, ParsedLeaf>()
-  leafNodes.forEach((leaf, i) => known[i] && bySha.set(leaf.sha, known[i]))
+  docs.forEach((doc, i) => known[i] && bySha.set(doc.sha, known[i]))
 
   // Unknown SHAs, once each: two paths can hold the same content.
   const missing = [
-    ...new Map(leafNodes.filter((l) => !bySha.has(l.sha)).map((l) => [l.sha, l])).values(),
+    ...new Map(docs.filter((d) => !bySha.has(d.sha)).map((d) => [d.sha, d])).values(),
   ]
   onProgress?.({ stage: 'structure', model, missing: client ? missing.length : 0 })
 
@@ -222,9 +229,9 @@ export async function fillContent(
   }
 
   const leaves = new Map<string, ParsedLeaf>()
-  for (const leaf of leafNodes) {
-    const parsed = bySha.get(leaf.sha)
-    if (parsed) leaves.set(leaf.id, parsed)
+  for (const doc of docs) {
+    const parsed = bySha.get(doc.sha)
+    if (parsed) leaves.set(doc.path, parsed)
   }
   return { model, leaves }
 }
