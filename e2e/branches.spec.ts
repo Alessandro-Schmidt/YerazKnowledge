@@ -1,6 +1,7 @@
 // Text on branches (issue #14): a branch's text is the README.md in its folder. It shows in
 // the branch's Peek above what the branch holds, is written in the leaf editor, and is never
-// a leaf itself.
+// a leaf itself. The folders here are at the top of the Family, so each is a Tree: a Tree's
+// text works the same way.
 
 import type { Page } from '@playwright/test'
 import type { FakeGitHub } from '../test/fake-github/fakeGitHub'
@@ -15,7 +16,7 @@ const FILES = {
   'Cloud/docker.md': '# Docker\n\nSee [the agents](</AI Agents/README.md>).\n',
 }
 
-const peekOf = (page: Page, kind: 'Branch' | 'Leaf') =>
+const peekOf = (page: Page, kind: 'Tree' | 'Leaf') =>
   page.getByRole('region', { name: `${kind} preview` })
 const mutations = (fake: FakeGitHub) => fake.log.filter((e) => e.operation === 'mutation')
 
@@ -28,17 +29,17 @@ test("a branch's README.md is its text, above what is inside, and never a leaf",
 }) => {
   await page.goto(`./#/tree/${REPO}/AI%20Agents`)
   await signInHere(page)
-  const peek = peekOf(page, 'Branch')
+  const peek = peekOf(page, 'Tree')
   // The README's heading doesn't rename the branch: it keeps its folder's name.
   await expect(peek.getByRole('heading', { name: 'AI Agents', level: 2 })).toBeVisible()
   await expect(peek.getByText('Agents handbook')).toHaveCount(0)
   const text = peek.getByText('What this branch is for.')
   await expect(text).toBeVisible()
-  const inside = peek.getByRole('heading', { name: 'Inside this branch' })
+  const inside = peek.getByRole('heading', { name: 'Inside this tree' })
   expect((await text.boundingBox())!.y).toBeLessThan((await inside.boundingBox())!.y)
   await expect(peek.getByRole('button', { name: 'Add text' })).toHaveCount(0)
   // Not a node on the map, nor a row in the Explorer.
-  await expect(page.locator('[data-node][data-id="AI Agents"]').first()).toBeVisible()
+  await expect(page.locator('[data-map] > svg [data-tree="AI Agents"] [data-core]')).toBeVisible()
   await expect(page.locator('[data-id$="README.md"], [data-row$="README.md"]')).toHaveCount(0)
 
   // A mention in the branch's text opens the leaf; a link to the README opens the branch.
@@ -47,7 +48,7 @@ test("a branch's README.md is its text, above what is inside, and never a leaf",
   await page.goto(`./#/tree/${REPO}/Cloud/docker.md`)
   // The leaf is in its editor there, where the link is a chip.
   await peekOf(page, 'Leaf').locator('.cm-mention', { hasText: 'the agents' }).click()
-  await expect(peekOf(page, 'Branch').getByText('What this branch is for.')).toBeVisible()
+  await expect(peekOf(page, 'Tree').getByText('What this branch is for.')).toBeVisible()
 })
 
 test.describe('writing a branch’s text', () => {
@@ -59,7 +60,7 @@ test.describe('writing a branch’s text', () => {
   }) => {
     await page.goto(`./#/tree/${REPO}/Cloud`)
     await signInHere(page)
-    await peekOf(page, 'Branch').getByRole('button', { name: 'Add text' }).click()
+    await peekOf(page, 'Tree').getByRole('button', { name: 'Add text' }).click()
     await expect(page.locator('.cm-content')).toBeVisible()
     // A branch's text has no icon, cover or colours of its own.
     await expect(page.getByRole('button', { name: 'Add cover' })).toBeHidden()
@@ -77,7 +78,7 @@ test.describe('writing a branch’s text', () => {
     )
 
     await page.getByRole('button', { name: 'Done' }).click()
-    const peek = peekOf(page, 'Branch')
+    const peek = peekOf(page, 'Tree')
     await expect(peek.getByText('Containers and where they run.')).toBeVisible()
     await expect(peek.getByRole('button', { name: 'Add text' })).toHaveCount(0)
     await expect(page.locator('[data-id$="README.md"], [data-row$="README.md"]')).toHaveCount(0)

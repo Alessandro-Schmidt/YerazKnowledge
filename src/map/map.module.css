@@ -58,19 +58,31 @@
   vector-effect: non-scaling-stroke;
 }
 
+/* The hierarchy: neutral, solid and clearly visible, heaviest at the core and thinning
+   ring by ring, so each parent visibly feeds its children. Threads are the accent. */
 .edge {
   fill: none;
   stroke: var(--line);
-  stroke-opacity: 0.13;
-  stroke-width: 1px;
+  stroke-opacity: 0.4;
+  stroke-width: 1.2px;
+  stroke-linecap: round;
   transition: stroke-opacity 0.25s;
 }
+.edge[data-depth='1'] {
+  stroke-opacity: 0.6;
+  stroke-width: 2.4px;
+}
+.edge[data-depth='2'] {
+  stroke-opacity: 0.48;
+  stroke-width: 1.6px;
+}
 
+/* Threads: thinner and fainter than the hierarchy, drawn beneath it. */
 .thread {
   fill: none;
   stroke: var(--tree, var(--accent));
-  stroke-width: 1.1px;
-  stroke-opacity: 0.42;
+  stroke-width: 1px;
+  stroke-opacity: 0.28;
   transition: stroke-opacity 0.25s;
 }
 
@@ -106,6 +118,17 @@
 .node[data-kind='branch'] .dot {
   fill: var(--bg);
   stroke: var(--tree, var(--accent));
+}
+/* A leaf with an emoji: the emoji on a disc the size of its dot. */
+.node[data-icon] .dot {
+  fill: var(--core);
+  stroke: var(--node);
+  stroke-opacity: 0.3;
+  stroke-width: 1px;
+}
+.icon {
+  text-anchor: middle;
+  pointer-events: none;
 }
 
 .ring {
@@ -187,7 +210,7 @@
   }
 }
 .overlay .edge[data-hot] {
-  stroke-opacity: 0.42;
+  stroke-opacity: 0.85;
 }
 .overlay .segment[data-hot] {
   stroke-opacity: 1;
@@ -202,34 +225,4 @@
 }
 .core[data-sel] .coreCircle {
   stroke-opacity: 0.5;
-}
-
-/* Home: whole Trees dim when another is selected. */
-.tree {
-  cursor: pointer;
-  transition: opacity 0.25s;
-}
-[data-focus] .tree:not([data-sel]) {
-  opacity: 0.26;
-}
-/* A dimmed Tree comes back while the pointer is on one of its dots. */
-[data-focus] .tree[data-hot] {
-  opacity: 1;
-}
-.treeName {
-  font-size: 17px;
-  font-weight: 500;
-  fill: var(--text);
-  text-anchor: middle;
-}
-.treeMeta {
-  font-family: var(--font-mono);
-  font-size: 10.5px;
-  fill: var(--muted);
-  text-anchor: middle;
-}
-.treeOrbit {
-  fill: none;
-  stroke: var(--grid);
-  stroke-dasharray: 2 6;
 }

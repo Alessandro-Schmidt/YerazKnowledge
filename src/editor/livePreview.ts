@@ -21,10 +21,11 @@ import {
   subtitleTracks,
   type Embed,
 } from '../model/embeds'
-import { leadingIcon, linkTarget, META, ownPath } from '../model/parse'
+import { leadingIcon, linkTarget, ownPath } from '../model/parse'
 import { downloadAsset, fileCardHtml } from '../read/files'
 import { encodePath } from '../ui/paths'
 import { mentionSource } from './mentions'
+import { metaLine } from './metaLine'
 
 /** The title's icon with the space after it, so both can be hidden. */
 const titleIcon = (rest: string) => {
@@ -158,7 +159,7 @@ class EmbedWidget extends WidgetType {
       const repo = document.createElement('span')
       repo.textContent = embed.repo
       const kind = document.createElement('em')
-      kind.textContent = tree ? 'Tree' : 'GitHub repository'
+      kind.textContent = tree ? 'Family' : 'GitHub repository'
       card.append(name, repo, kind)
       return card
     }
@@ -243,12 +244,8 @@ function build(view: EditorView): DecorationSet {
   const isActive = (pos: number) => active.has(state.doc.lineAt(pos).number)
   const decorations: Range<Decoration>[] = []
 
-  // Line 1 is the title, the leaf's heading; line 2 may hold the metadata (ARCHITECTURE.md §4).
+  // Line 1 is the title, the leaf's heading; line 2's metadata is hidden by metaLine.
   decorations.push(title.range(0))
-  if (state.doc.lines >= 2) {
-    const second = state.doc.line(2)
-    if (META.test(second.text)) decorations.push(line('cm-meta').range(second.from))
-  }
 
   for (const { from, to } of view.visibleRanges) {
     syntaxTree(state).iterate({
@@ -504,4 +501,5 @@ export const livePreview = [
     { decorations: (v) => v.decorations },
   ),
   toggleTasks,
+  metaLine,
 ]

@@ -127,7 +127,7 @@ function embedHtml(embed: Embed, env: RichEnv, escape: (s: string) => string): s
     const name = embed.title || known?.title || embed.repo.replace(/^.*\//, '')
     return (
       `<p><a class="repo-card" href="${escape(href)}"${away}><strong>${escape(name)}</strong>` +
-      `<span>${escape(embed.repo)}</span><em>${known ? 'Tree' : 'GitHub repository'}</em></a></p>\n`
+      `<span>${escape(embed.repo)}</span><em>${known ? 'Family' : 'GitHub repository'}</em></a></p>\n`
     )
   }
   if (embed.kind === 'file')

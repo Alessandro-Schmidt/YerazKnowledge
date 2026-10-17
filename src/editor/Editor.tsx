@@ -149,7 +149,10 @@ export default function Editor({
 
   useEffect(() => {
     if (!handleRef) return
-    /** Rewrites the text as one change covering only what differs (lines 1 and 2 here). */
+    /**
+     * Rewrites the text as one change covering only what differs (lines 1 and 2 here),
+     * unfiltered: metaLine keeps typing out of line 2, not the header's own controls.
+     */
     const rewrite = (edit: (text: string) => string) => {
       const v = view.current
       if (!v) return
@@ -166,6 +169,7 @@ export default function Editor({
         end++
       v.dispatch({
         changes: { from, to: text.length - end, insert: next.slice(from, next.length - end) },
+        filter: false,
       })
     }
     handleRef.current = {

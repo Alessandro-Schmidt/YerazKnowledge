@@ -1,14 +1,18 @@
 import AxeBuilder from '@axe-core/playwright'
 import type { Page } from '@playwright/test'
 import type { Graph } from '../src/model/graph'
-import { expect, isPhone, signIn, signInHere, test } from './fixtures'
+import { expect, familyMenu, isPhone, signIn, signInHere, test } from './fixtures'
 
 /** A leaf with sub-leaves and threads both ways: it exercises every part of the Peek. */
 function richLeaf(graph: Graph) {
   return [...graph.nodes.values()]
     .filter(
       (n) =>
-        n.kind === 'leaf' && n.children.length > 0 && graph.out.has(n.id) && graph.in.has(n.id),
+        n.kind === 'leaf' &&
+        n.parent !== '' &&
+        n.children.length > 0 &&
+        graph.out.has(n.id) &&
+        graph.in.has(n.id),
     )
     .sort((a, b) => a.id.localeCompare(b.id))[0]!
 }
@@ -19,84 +23,115 @@ async function openTree(page: Page) {
   await expect(page.locator('[data-node]').first()).toBeAttached()
 }
 
+/** Leaves drawn as dots: a leaf at the top of the Family is a Tree's core instead. */
+const dots = (graph: Graph) =>
+  [...graph.nodes.values()].filter((n) => n.kind === 'leaf' && n.parent !== '').length
+
 const peek = (page: Page) => page.getByRole('region', { name: /preview$/ })
 
-test('Home lists the Tree, shows its numbers, and opens it', async ({ page, graph }) => {
-  await signIn(page)
-  const row = page.getByRole('button', { name: /Engineering/ })
-  await expect(row).toContainText('you/engineering')
-  await expect(row).toContainText('300')
-  await row.click()
-  await expect(page.getByRole('heading', { name: 'Engineering', level: 2 })).toBeVisible()
-  await expect(page.getByText(String(graph.stats.branches), { exact: true })).toBeVisible()
-  await page.getByRole('link', { name: 'Open tree' }).click()
-  await expect(page).toHaveURL(/#\/tree\/you\/engineering$/)
-  await expect(page.getByRole('heading', { name: 'Engineering', level: 1 })).toBeVisible()
-})
-
-/** The centre of a dot or of the core on the Home map, in page pixels. */
+/** The centre of an element on the map, in page pixels. */
 async function centreOf(page: Page, selector: string) {
-  const box = (await page.locator(`[data-tree="you/engineering"] ${selector}`).boundingBox())!
+  const box = (await page.locator(`[data-map] > svg ${selector}`).first().boundingBox())!
   return { x: box.x + box.width / 2, y: box.y + box.height / 2 }
 }
-const homeDot = (id: string) => `[data-id="${id}"] circle:last-child`
+const dot = (id: string) => `[data-node][data-id="${id}"] circle:last-of-type`
 
-test('a dot on Home opens its leaf straight away, without opening the Tree first', async ({
+/** The map's camera transform, as written by the zoom behaviour. */
+const camera = (page: Page) =>
+  page
+    .locator('[data-map] > svg > g')
+    .first()
+    .evaluate((g) => (g as SVGGElement).style.transform)
+
+/** The map's zoom level, from the camera's transform. */
+const scale = async (page: Page) => Number(/scale\(([-\d.e]+)\)/.exec(await camera(page))![1])
+
+test('opens straight into the Family, with every Tree on one map', async ({ page, graph }) => {
+  await signIn(page)
+  await expect(page).toHaveURL(/#\/tree\/you\/engineering$/)
+  await expect(page.getByRole('heading', { name: 'Engineering', level: 1 })).toBeVisible()
+  const trees = graph.nodes.get('')!.children
+  await expect(page.locator('[data-map] > svg [data-tree]')).toHaveCount(trees.length)
+  // Each Tree is named under it, for when the whole Family is in view.
+  const first = graph.nodes.get(trees[0]!)!
+  await expect(page.locator(`[data-tree="${trees[0]}"] > text`)).toHaveText(first.title)
+})
+
+test('one click on a leaf of the Family opens it in the Peek, editable', async ({
   page,
   graph,
 }) => {
   const leaf = richLeaf(graph)
   await signIn(page)
-  const at = await centreOf(page, homeDot(leaf.id))
+  const at = await centreOf(page, dot(leaf.id))
   await page.mouse.click(at.x, at.y)
   await expect(page).toHaveURL(
     new RegExp(`#/tree/you/engineering/${leaf.id.replace(/[.]/g, '\\.')}$`),
   )
   await expect(peek(page).getByRole('heading', { level: 2 })).toHaveText(leaf.title)
+  await expect(peek(page).locator('.cm-content')).toBeVisible()
 })
 
-test('the core on Home opens the Tree itself, and the space around it selects the Tree', async ({
+test("a Tree's core shows that Tree as it is; Fit all trees shows the Family again", async ({
   page,
+  graph,
 }) => {
   await signIn(page)
-  const core = await centreOf(page, '[data-core]')
-  await page.mouse.click(core.x, core.y)
-  await expect(page).toHaveURL(/#\/tree\/you\/engineering\/$/)
-  await expect(peek(page).getByRole('heading', { level: 2 })).toHaveText('Engineering')
-
-  // Back on Home, with no card over the map yet (on a short phone it covers the core).
-  await page.goto('./')
-  // By position: WebKit hit-tests SVG text by its glyphs, so a locator click can miss it.
-  const name = (await page
-    .locator('[data-tree="you/engineering"] text')
-    .filter({ hasText: /^Engineering$/ })
-    .boundingBox())!
-  await page.mouse.click(name.x + name.width / 2, name.y + name.height / 2)
-  await expect(page.getByRole('link', { name: 'Open tree' })).toBeVisible()
-  await expect(page).not.toHaveURL(/tree/)
+  await expect(page.getByRole('status')).toHaveText('Synced to main')
+  const tree = graph.nodes
+    .get('')!
+    .children.map((id) => graph.nodes.get(id)!)
+    .find((n) => n.kind === 'branch')!
+  const family = await scale(page)
+  await page.locator(`[data-tree="${tree.id}"] [data-core] circle`).first().dispatchEvent('click')
+  await expect(page).toHaveURL(new RegExp(`#/tree/you/engineering/${tree.id}$`))
+  const panel = page.getByRole('region', { name: 'Tree preview' })
+  await expect(panel.getByRole('heading', { level: 2 })).toHaveText(tree.title)
+  await expect(panel.getByRole('heading', { name: 'Inside this tree' })).toBeVisible()
+  await expect.poll(() => scale(page)).toBeGreaterThan(family * 1.2)
+  await panel.getByRole('button', { name: 'Dismiss' }).click()
+  await page.getByRole('button', { name: 'Fit all trees' }).click()
+  await expect.poll(() => scale(page)).toBeLessThan(family * 1.2)
 })
 
-test('hovering a dot on Home names it', async ({ page, graph, isMobile }) => {
+test('a leaf link opens on its Tree, as it is', async ({ page, graph }) => {
+  const leaf = richLeaf(graph)
+  await page.goto(`./#/tree/you/engineering/${leaf.id}`)
+  await signInHere(page)
+  await expect(peek(page).getByRole('heading', { level: 2 })).toHaveText(leaf.title)
+  await expect(page.getByRole('status')).toHaveText('Synced to main')
+  const opened = await scale(page)
+  // On a phone the Peek's sheet covers the map's controls.
+  await peek(page).getByRole('button', { name: 'Dismiss' }).click()
+  await page.getByRole('button', { name: 'Fit all trees' }).click()
+  await expect.poll(() => scale(page)).toBeLessThan(opened)
+})
+
+test('hovering a dot names it', async ({ page, graph, isMobile }) => {
   test.skip(isMobile, 'Hover needs a mouse')
   const leaf = richLeaf(graph)
   await signIn(page)
-  const at = await centreOf(page, homeDot(leaf.id))
+  const at = await centreOf(page, dot(leaf.id))
   await page.mouse.move(at.x, at.y)
-  const tip = page.getByText('Click to open').locator('..')
+  const tip = page.getByText('Click to peek').locator('..')
   await expect(tip).toBeVisible()
-  await expect(tip.locator('strong')).toHaveText(`${leaf.icon ? `${leaf.icon} ` : ''}${leaf.title}`)
-  await expect(
-    page.locator(`[data-tree="you/engineering"] [data-id="${leaf.id}"]`),
-  ).toHaveAttribute('data-hot', '')
+  await expect(tip.locator('strong')).toHaveText(leaf.title)
   await page.mouse.move(5, 300)
   await expect(tip).toBeHidden()
 })
 
-test('draws one node per leaf and branch', async ({ page, graph }) => {
+test('draws one dot per leaf and branch, and one core per Tree', async ({ page, graph }) => {
   await openTree(page)
-  await expect(page.locator('[data-node][data-kind="leaf"]')).toHaveCount(300)
-  await expect(page.locator('[data-node][data-kind="branch"]')).toHaveCount(graph.stats.branches)
+  const trees = graph.nodes.get('')!.children.map((id) => graph.nodes.get(id)!)
+  const topLeaves = trees.filter((n) => n.kind === 'leaf').length
+  await expect(page.locator('[data-map] > svg [data-core]')).toHaveCount(trees.length)
+  await expect(page.locator('[data-node][data-kind="leaf"]')).toHaveCount(300 - topLeaves)
+  await expect(page.locator('[data-node][data-kind="branch"]')).toHaveCount(
+    graph.stats.branches - (trees.length - topLeaves),
+  )
+  // Threads inside each Tree and between Trees.
   await expect(page.locator('[data-thread]')).toHaveCount(graph.stats.threads)
+  expect(await page.locator('[data-between]').count()).toBeGreaterThan(0)
 })
 
 test('clicking a node opens the Peek with its title, sub-leaves and threads', async ({
@@ -179,13 +214,6 @@ test('clicking the empty map clears the selection', async ({ page, graph }) => {
   await expect(page.locator('[data-map]')).not.toHaveAttribute('data-focus')
 })
 
-/** The map's camera transform, as written by the zoom behaviour. */
-const camera = (page: Page) =>
-  page
-    .locator('[data-map] > svg > g')
-    .first()
-    .evaluate((g) => (g as SVGGElement).style.transform)
-
 test('a Tree opened before its content arrives is fitted to its full shape when it does', async ({
   page,
   fake,
@@ -197,7 +225,7 @@ test('a Tree opened before its content arrives is fitted to its full shape when 
   await expect(page.getByRole('status')).toContainText('Loading')
   await expect(page.getByRole('status')).toHaveText('Synced to main', { timeout: 30_000 })
   const opened = await camera(page)
-  await page.getByRole('button', { name: 'Fit the tree' }).click()
+  await page.getByRole('button', { name: 'Fit all trees' }).click()
   expect(await camera(page)).toBe(opened)
 })
 
@@ -212,28 +240,30 @@ test("content arriving doesn't move a camera someone has moved", async ({ page, 
   expect(await camera(page)).toBe(moved)
 })
 
-test('the core opens the Tree itself', async ({ page, graph }) => {
+test('the leaf panel, with nothing selected, shows the Family itself', async ({ page, graph }) => {
   await openTree(page)
-  await page.locator('[data-core] circle').dispatchEvent('click')
-  await expect(peek(page).getByRole('heading', { level: 2 })).toHaveText('Engineering')
-  await expect(peek(page)).toContainText(`${graph.stats.threads.toLocaleString('en-US')} threads`)
+  await page.getByRole('button', { name: 'Show leaf panel' }).click()
+  const panel = page.getByRole('region', { name: 'Family preview' })
+  await expect(panel.getByRole('heading', { level: 2 })).toHaveText('Engineering')
+  await expect(panel).toContainText(`${graph.stats.threads.toLocaleString('en-US')} threads`)
+  await expect(panel.getByRole('heading', { name: 'Trees' })).toBeVisible()
 })
 
-test('renames the Tree where its name is shown, and commits it to .yeraz.json', async ({
+test('renames the Family where its name is shown, and commits it to .yeraz.json', async ({
   page,
   fake,
 }) => {
   await openTree(page)
   const title = page.getByRole('heading', { level: 1 })
   await title.getByRole('button', { name: 'Engineering' }).click()
-  const field = page.getByRole('textbox', { name: 'Tree name' })
+  const field = page.getByRole('textbox', { name: 'Family name' })
   await expect(field).toBeFocused()
   await field.fill('Field notes')
   await field.press('Enter')
   await expect(title).toHaveText('Field notes')
   await expect(page.getByRole('status')).toContainText('Unsaved edits')
 
-  // The Tree's own Peek says the same, and Ctrl/Cmd+S commits it now.
+  // The Family's own Peek says the same, and Ctrl/Cmd+S commits it now.
   await page.goto('./#/tree/you/engineering/')
   await expect(peek(page).getByRole('heading', { level: 2 })).toHaveText('Field notes')
   await page.keyboard.press('ControlOrMeta+s')
@@ -242,14 +272,16 @@ test('renames the Tree where its name is shown, and commits it to .yeraz.json', 
     .toEqual({ name: 'Field notes', color: 'green' })
 
   await page.goto('./')
-  await expect(page.getByRole('button', { name: /^Field notes you\/engineering/ })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Field notes', level: 1 })).toBeVisible()
+  const menu = await familyMenu(page)
+  await expect(menu.getByRole('menuitem', { name: /^Field notes you\/engineering/ })).toBeVisible()
 })
 
 test('Escape keeps the old name, and an empty name is refused', async ({ page, fake }) => {
   await openTree(page)
   const title = page.getByRole('heading', { level: 1 })
   await title.getByRole('button', { name: 'Engineering' }).click()
-  const field = page.getByRole('textbox', { name: 'Tree name' })
+  const field = page.getByRole('textbox', { name: 'Family name' })
   await field.fill('Something else')
   await field.press('Escape')
   await expect(title).toHaveText('Engineering')
@@ -257,7 +289,7 @@ test('Escape keeps the old name, and an empty name is refused', async ({ page, f
   await title.getByRole('button', { name: 'Engineering' }).click()
   await field.fill('   ')
   await field.press('Enter')
-  await expect(page.getByRole('alert')).toHaveText('A Tree needs a name.')
+  await expect(page.getByRole('alert')).toHaveText('A Family needs a name.')
   await expect(field).toBeVisible()
   await field.press('Escape')
   await expect(title).toHaveText('Engineering')
@@ -304,24 +336,25 @@ test('the Explorer reaches every leaf from the keyboard', async ({ page, graph }
 test('second open: exactly one request (a 304) and no content downloads', async ({
   page,
   fake,
+  graph,
 }) => {
   await openTree(page)
-  await expect(page.locator('[data-node][data-kind="leaf"]')).toHaveCount(300)
+  await expect(page.locator('[data-node][data-kind="leaf"]')).toHaveCount(dots(graph))
   await expect(page.getByRole('status')).toHaveText('Synced to main')
   fake.resetLog()
   await page.reload()
-  await expect(page.locator('[data-node][data-kind="leaf"]')).toHaveCount(300)
+  await expect(page.locator('[data-node][data-kind="leaf"]')).toHaveCount(dots(graph))
   await expect(page.getByRole('status')).toHaveText('Synced to main')
   expect(fake.log).toEqual([expect.objectContaining({ kind: 'head', status: 304, blobs: 0 })])
 })
 
-test('works offline from the saved copy', async ({ page, fake }) => {
+test('works offline from the saved copy', async ({ page, fake, graph }) => {
   await openTree(page)
-  await expect(page.locator('[data-node][data-kind="leaf"]')).toHaveCount(300)
+  await expect(page.locator('[data-node][data-kind="leaf"]')).toHaveCount(dots(graph))
   fake.faults.offline = true
   await page.reload()
   await expect(page.getByRole('status')).toHaveText('Offline · showing the saved copy')
-  await expect(page.locator('[data-node][data-kind="leaf"]')).toHaveCount(300)
+  await expect(page.locator('[data-node][data-kind="leaf"]')).toHaveCount(dots(graph))
 })
 
 test('connects a repository by name', async ({ page, fake }) => {
@@ -330,17 +363,23 @@ test('connects a repository by name', async ({ page, fake }) => {
     'baroque.md': '# Baroque\n',
   })
   await signIn(page)
-  await page.getByRole('button', { name: 'Connect repository' }).click()
+  await (await familyMenu(page)).getByRole('menuitem', { name: 'Connect repository' }).click()
   await page.getByPlaceholder('owner/name').fill('friend/missing')
   await page.getByRole('button', { name: 'Connect', exact: true }).click()
   await expect(page.getByRole('alert')).toContainText("doesn't exist")
   await page.getByPlaceholder('owner/name').fill('friend/art')
   await page.getByRole('button', { name: 'Connect', exact: true }).click()
-  // The rail's row; the Tree's card shows the name too, as a rename button.
-  await expect(page.getByRole('button', { name: /^Art History friend\/art/ })).toBeVisible()
+  // It opens on the new Family; the menu switches back.
+  await expect(page).toHaveURL(/#\/tree\/friend\/art$/)
+  await expect(page.getByRole('heading', { name: 'Art History', level: 1 })).toBeVisible()
+  await (await familyMenu(page)).getByRole('menuitem', { name: /^Engineering/ }).click()
+  await expect(page).toHaveURL(/#\/tree\/you\/engineering$/)
+  // And the app reopens on the Family last shown.
+  await page.goto('./')
+  await expect(page).toHaveURL(/#\/tree\/you\/engineering$/)
 })
 
-test('Home, the Tree view and the Peek have no accessibility violations', async ({
+test('the Family view, its menu and the Peek have no accessibility violations', async ({
   page,
   graph,
 }) => {
@@ -348,15 +387,18 @@ test('Home, the Tree view and the Peek have no accessibility violations', async 
   test.slow()
   await signIn(page)
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
+  await familyMenu(page)
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
+  await page.keyboard.press('Escape')
   await page.goto(`./#/tree/you/engineering/${richLeaf(graph).id}`)
   await expect(peek(page)).toBeVisible()
   await expect(peek(page).locator('.cm-mention').first()).toBeVisible()
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
 })
 
-test('signs out from Home', async ({ page }) => {
+test('signs out from the Family menu', async ({ page }) => {
   await signIn(page)
-  await page.getByRole('button', { name: 'Sign out' }).click()
+  await (await familyMenu(page)).getByRole('menuitem', { name: 'Sign out' }).click()
   await expect(page.getByRole('heading', { name: 'Connect GitHub' })).toBeVisible()
   await page.reload()
   await expect(page.getByRole('heading', { name: 'Connect GitHub' })).toBeVisible()

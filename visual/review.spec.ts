@@ -31,12 +31,13 @@ async function shot(page: Page, name: string) {
 test.describe('desktop', () => {
   test.skip(({ isMobile }) => isMobile)
 
-  test('01–02 Home', async ({ page }) => {
+  test('01–02 the Family: every Tree, then one Tree as it is', async ({ page }) => {
     await signIn(page)
-    await expect(page.locator('[data-tree]')).toHaveCount(4)
-    await shot(page, '01-home')
-    await page.getByRole('button', { name: /Music Theory/ }).click()
-    await shot(page, '02-home-tree-selected')
+    await page.goto('./#/tree/you/engineering')
+    await expect(page.getByRole('status')).toHaveText('Synced to main')
+    await shot(page, '01-family')
+    await page.goto('./#/tree/you/engineering/Identity')
+    await shot(page, '02-family-tree-selected')
   })
 
   test('03–06 Tree view', async ({ page }) => {
@@ -53,12 +54,12 @@ test.describe('desktop', () => {
     await page.getByRole('button', { name: 'Dismiss' }).click()
     await page.getByRole('button', { name: 'Hide explorer' }).click()
     await page.goto('./#/tree/you/engineering')
-    await page.getByRole('button', { name: 'Fit the tree' }).click()
+    await page.getByRole('button', { name: 'Fit all trees' }).click()
     await page.getByRole('button', { name: 'Zoom out' }).click()
     await page.getByRole('button', { name: 'Zoom out' }).click()
     await shot(page, '05-tree-zoomed-out')
 
-    await page.getByRole('button', { name: 'Fit the tree' }).click()
+    await page.getByRole('button', { name: 'Fit all trees' }).click()
     await page.goto(`./#/tree/you/engineering/${OAUTH}`)
     await page.getByRole('button', { name: 'Dismiss' }).click()
     await settle(page)

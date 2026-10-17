@@ -198,7 +198,10 @@ test('moving a leaf rewrites every backlink in one commit', async ({ page, fake,
   await panel.getByRole('button', { name: 'More actions' }).click()
   await page.getByRole('menuitem', { name: 'Move…' }).click()
   const dialog = page.getByRole('dialog')
-  await dialog.getByRole('radio', { name: 'At the top of the Tree' }).check()
+  // At the top of the Family, it becomes a Tree of its own.
+  await dialog
+    .getByRole('radio', { name: 'At the top of the Family, as a Tree of its own' })
+    .check()
   fake.resetLog()
   await dialog.getByRole('button', { name: 'Move' }).click()
   const moved = leaf.id.replace(/^.*\//, '')
@@ -218,7 +221,10 @@ test('moving a leaf rewrites every backlink in one commit', async ({ page, fake,
   }
 })
 
-test('creates a leaf from the Explorer and opens it, ready to write', async ({ page, fake }) => {
+test('a new leaf at the top of the Family is a Tree of its own, ready to write', async ({
+  page,
+  fake,
+}) => {
   test.skip(isPhone(page), 'The Explorer is a drawer on phones')
   await page.goto(`./#/tree/${REPO}`)
   await signInHere(page)
@@ -235,7 +241,7 @@ test('creates a leaf from the Explorer and opens it, ready to write', async ({ p
   await expect
     .poll(() => fake.repo(REPO).read('fresh-ideas.md'))
     .toContain('First line of a new leaf.')
-  await expect(page.locator('[data-node][data-id="fresh-ideas.md"]').first()).toBeAttached()
+  await expect(page.locator('[data-map] > svg [data-tree="fresh-ideas.md"]')).toBeAttached()
 })
 
 test('a leaf is edited where it is shown: over the map, and at an old editor link', async ({
@@ -270,7 +276,8 @@ test('selecting another leaf on the map commits the edit; the new leaf waits for
   await openEditor(page, leaf.id)
   await typeAtEnd(page, ' Written before moving on.')
   fake.resetLog()
-  await page.locator('[data-node][data-id="empty.md"] circle').first().dispatchEvent('click')
+  // A leaf at the top of the Family is a Tree: its core is the leaf.
+  await page.locator('[data-tree="empty.md"] [data-core] circle').first().dispatchEvent('click')
   await expect(page).toHaveURL(/#\/tree\/you\/engineering\/empty\.md$/)
   await expect.poll(() => mutations(fake).length).toBe(1)
   expect(fake.repo(REPO).read(leaf.id)).toContain('Written before moving on.')
@@ -326,37 +333,42 @@ test('the new-leaf dialog switches to several leaves at once', async ({ page, fa
   await expect(dialog.getByLabel('Titles')).toHaveValue('Reading list')
   await dialog.getByLabel('Titles').fill('Reading list\nWatch list')
   await dialog.getByRole('button', { name: 'Create 2 leaves' }).click()
-  await expect(page.locator('[data-node][data-id="watch-list.md"]').first()).toBeAttached()
+  await expect(page.locator('[data-map] > svg [data-tree="watch-list.md"]')).toBeAttached()
   await page.keyboard.press('ControlOrMeta+s')
   await expect.poll(() => fake.repo(REPO).read('reading-list.md')).toBe('# Reading list\n\n')
   expect(fake.repo(REPO).read('watch-list.md')).toBe('# Watch list\n\n')
 })
 
-test('creates a new Tree from Home', async ({ page, fake }) => {
+test('creates a new repository from the Family menu, and opens on it', async ({ page, fake }) => {
   await page.goto('./')
   await signInHere(page)
-  await page.getByRole('button', { name: 'Create a new repository' }).click()
-  await page.getByRole('dialog').getByLabel('Name', { exact: true }).fill('Reading Notes')
+  await page.getByRole('button', { name: 'Families' }).click()
+  await page.getByRole('menuitem', { name: 'Create a new repository' }).click()
+  await page.getByRole('dialog').getByLabel('Family name').fill('Reading Notes')
   await expect(page.getByRole('dialog').getByLabel('Repository')).toHaveValue('reading-notes')
-  await page.getByRole('dialog').getByRole('button', { name: 'Create Tree' }).click()
+  await page.getByRole('dialog').getByRole('button', { name: 'Create repository' }).click()
   await expect(page).toHaveURL(/#\/tree\/you\/reading-notes$/)
   await expect(page.getByRole('heading', { name: 'Reading Notes', level: 1 })).toBeVisible()
-  await expect(page.locator('[data-node][data-id="welcome.md"]').first()).toBeAttached()
+  // Its welcome leaf is its first Tree.
+  await expect(page.locator('[data-map] > svg [data-tree="welcome.md"]')).toBeAttached()
   expect(fake.repo('you/reading-notes').isPrivate).toBe(true)
 })
 
-test('creates a branch with its first leaf, keeping the name as typed', async ({ page, fake }) => {
+test('creates a Tree (a folder at the top) with its first leaf, keeping the name as typed', async ({
+  page,
+  fake,
+}) => {
   test.skip(isPhone(page), 'The Explorer is a drawer on phones')
   await page.goto(`./#/tree/${REPO}`)
   await signInHere(page)
   await page
     .getByRole('complementary', { name: 'Explorer' })
-    .getByRole('button', { name: 'New branch' })
+    .getByRole('button', { name: 'New tree' })
     .click()
   const dialog = page.getByRole('dialog')
-  await dialog.getByLabel('Branch name').fill('Distributed Systems')
+  await dialog.getByLabel('Tree name').fill('Distributed Systems')
   await dialog.getByLabel('First leaf').fill('Consensus')
-  await dialog.getByRole('button', { name: 'Create branch' }).click()
+  await dialog.getByRole('button', { name: 'Create tree' }).click()
   await expect(page).toHaveURL(/#\/tree\/you\/engineering\/Distributed%20Systems\/consensus\.md$/)
   await page.keyboard.press('ControlOrMeta+s')
   await expect

@@ -7,7 +7,6 @@ import {
   neighbours,
   textFile,
   threadEnd,
-  treeThreads,
 } from './graph'
 import { parseLeaf } from './parse'
 import { buildTree, ROOT } from './tree'
@@ -166,40 +165,5 @@ describe('formatting', () => {
     expect(compactWords(40_512)).toBe('40.5k')
     expect(compactWords(900)).toBe('900')
     expect(compactWords(1000)).toBe('1k')
-  })
-})
-
-describe('treeThreads: threads between Trees, for Home', () => {
-  const tree = (title: string, files: Record<string, string>) => {
-    const model = buildTree(
-      Object.entries(files).map(([path, text]) => ({
-        path,
-        type: 'blob' as const,
-        sha: path,
-        size: text.length,
-      })),
-    )
-    return buildGraph(model, new Map(model.leaves.map((p) => [p, parseLeaf(files[p]!)])), title)
-  }
-  const art = tree('Art', {
-    'baroque.md':
-      '# Baroque\n\n[Bach](https://github.com/You/Music/blob/main/bach.md), [fugue](https://github.com/you/music/blob/main/fugue.md)\n',
-    'self.md': '# Self\n\n[me](https://github.com/you/art/blob/main/baroque.md)\n',
-    'elsewhere.md': '# Elsewhere\n\n[x](https://github.com/someone/else/blob/main/x.md)\n',
-  })
-  const music = tree('Music', {
-    'bach.md': '# Bach\n\n[Baroque](https://github.com/you/art/blob/main/baroque.md)\n',
-  })
-
-  it('counts each direction between connected Trees, ignoring itself and unknown repositories', () => {
-    expect(
-      treeThreads([
-        { repo: 'you/art', graph: art },
-        { repo: 'you/music', graph: music },
-      ]),
-    ).toEqual([
-      { from: 'you/art', to: 'you/music', count: 2 },
-      { from: 'you/music', to: 'you/art', count: 1 },
-    ])
   })
 })

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ownPath, parseLeaf, withIcon, withMeta } from './parse'
+import { ownPath, parseLeaf, repairHeader, withIcon, withMeta } from './parse'
 
 describe('title and icon', () => {
   it('reads the title from line 1', () => {
@@ -231,5 +231,41 @@ describe('withMeta: line 2, the metadata comment', () => {
     expect(parseLeaf(withMeta('# T\n', { cover: 'https://e.com/a-->b' })).meta).toEqual({
       cover: 'https://e.com/a-->b',
     })
+  })
+})
+
+describe('repairHeader: a header repeated, or pushed below line 2', () => {
+  const amber = '<!-- yeraz {"color":{"heading":"amber"}} -->'
+  const cover =
+    '<!-- yeraz {"color":{"heading":"amber"},"cover":"/assets/2026-10-17-orbis-2026-10-02.png","coverPosition":37} -->'
+
+  it('folds a repeated header into line 1 and 2; the repeat’s metadata, the newer, wins', () => {
+    const text = `# 🇦🇲 Armenia\n${amber}\n\n# 🇦🇲 Armenia\n${cover}\n\nYerevan.\n`
+    expect(repairHeader(text)).toBe(`# 🇦🇲 Armenia\n${cover}\n\nYerevan.\n`)
+    const blue = '<!-- yeraz {"color":{"heading":"blue"},"x":1} -->'
+    expect(repairHeader(`# T\n${blue}\n\n# T\n${amber}\nBody`)).toBe(
+      '# T\n<!-- yeraz {"color":{"heading":"amber"},"x":1} -->\n\nBody',
+    )
+  })
+
+  it('puts a comment pushed below the title back on line 2; line 2 wins over it', () => {
+    expect(repairHeader(`# T\n\n${amber}\n\nBody\n`)).toBe(`# T\n${amber}\n\nBody\n`)
+    const blue = '<!-- yeraz {"color":{"heading":"blue"}} -->'
+    expect(repairHeader(`# T\n${blue}\n\n${cover}\n\nBody`)).toBe(
+      '# T\n<!-- yeraz {"color":{"heading":"blue"},"cover":"/assets/2026-10-17-orbis-2026-10-02.png","coverPosition":37} -->\n\nBody',
+    )
+  })
+
+  it('keeps the line endings, and the text as it is when there is nothing to repair', () => {
+    expect(repairHeader(`# T\r\n${amber}\r\n\r\n# T\r\n${cover}\r\n\r\nBody\r\n`)).toBe(
+      `# T\r\n${cover}\r\n\r\nBody\r\n`,
+    )
+    for (const text of [`# T\n${amber}\n\nBody\n`, '# T\n\nBody', '', `No title\n\n${amber}`])
+      expect(repairHeader(text)).toBe(text)
+  })
+
+  it('leaves comments in code alone: there they are text about the format', () => {
+    const text = `# T\n\n\`\`\`markdown\n# T\n${amber}\n\`\`\`\n`
+    expect(repairHeader(text)).toBe(text)
   })
 })

@@ -8,6 +8,7 @@
 //     turns to follow the radius when it wouldn't fit horizontally.
 //   - Threads are bundled through the two leaves' common ancestor (curveBundle).
 //   - A donut around the core shows each top-level branch's share of the words.
+//   - A leaf's emoji is drawn on its dot, so that dot is never smaller than the emoji.
 
 import { cluster, hierarchy, type HierarchyPointNode } from 'd3-hierarchy'
 import { curveBundle, line } from 'd3-shape'
@@ -24,6 +25,8 @@ export interface LaidNode {
   /** Dot radius: area grows with words. */
   r: number
   hasChildren: boolean
+  /** The leaf's emoji, drawn on its dot; null when it has none. */
+  icon: string | null
   label: string
   /** Horizontal label (small Trees, as in the design) or rotated along the radius. */
   labelX: number
@@ -40,7 +43,8 @@ export interface MapLayout {
   rings: number[]
   nodes: LaidNode[]
   byId: Map<string, LaidNode>
-  edges: { id: string; d: string }[]
+  /** Parent to child; `depth` is the child's, so the hierarchy can thin out from the core. */
+  edges: { id: string; depth: number; d: string }[]
   threads: { from: string; to: string; d: string }[]
   segments: { id: string; d: string }[]
   /** The Tree's title in the core, on one line or two. */
@@ -70,8 +74,14 @@ const DESIGN_R = 318
 const DESIGN_CORE = 40
 const round = (v: number) => Math.round(v * 10) / 10
 
-export function dotRadius(node: GraphNode): number {
-  return node.kind === 'leaf' ? 2.4 + Math.sqrt(node.words) / 5.6 : 4 + Math.sqrt(node.total) / 11
+/** The smallest dot that holds an emoji; the emoji's font size is ICON_SIZE × the radius. */
+export const ICON_R = 9
+export const ICON_SIZE = 1.9
+
+export function dotRadius(node: Pick<GraphNode, 'kind' | 'words' | 'total' | 'icon'>): number {
+  if (node.kind !== 'leaf') return 4 + Math.sqrt(node.total) / 11
+  const r = 2.4 + Math.sqrt(node.words) / 5.6
+  return node.icon ? Math.max(ICON_R, r) : r
 }
 
 // Label sizes, as map.module.css draws them: leaves 13 px, top-level branches 10.5 px
@@ -82,7 +92,7 @@ const LEAF_FONT = 13
 const BRANCH_FONT = 10.5
 const CORE_FONT = 12
 
-function textWidth(text: string, size: number, tracking = 0): number {
+export function textWidth(text: string, size: number, tracking = 0): number {
   let em = 0
   for (const ch of text) {
     if (ch === ' ') em += 0.3
@@ -196,7 +206,7 @@ function coreLinesOf(title: string): string[] {
 }
 
 export function layoutTree(graph: Graph, options: LayoutOptions = {}): MapLayout {
-  const { minArc = 15, gap: topGap = 0.16, beta = 0.85, radialLabelsAbove = 60 } = options
+  const { minArc = 15, gap: topGap = 0.16, beta = 0.7, radialLabelsAbove = 60 } = options
   const get = (id: string) => graph.nodes.get(id)!
   const root = hierarchy(get(ROOT), (n) => n.children.map(get))
   // Rings: the design's 0.35R, 0.70R, R for three levels, generalised to any depth. These
@@ -298,6 +308,7 @@ export function layoutTree(graph: Graph, options: LayoutOptions = {}): MapLayout
         y: round(y),
         r: round(dotRadius(g)),
         hasChildren: g.children.length > 0,
+        icon: g.kind === 'leaf' ? g.icon : null,
         label: labelOf(g, d.depth),
         labelX: 0,
         labelY: 0,
@@ -361,7 +372,11 @@ export function layoutTree(graph: Graph, options: LayoutOptions = {}): MapLayout
       const parent = d.parent!
       if (parent.depth === 0) {
         const [sx, sy] = point(angleOf(d), coreR + 13)
-        return { id: d.data.id, d: `M${round(sx)},${round(sy)}L${round(x)},${round(y)}` }
+        return {
+          id: d.data.id,
+          depth: d.depth,
+          d: `M${round(sx)},${round(sy)}L${round(x)},${round(y)}`,
+        }
       }
       const [px, py] = pos.get(parent)!
       const mid = (ringOf(parent.depth) + ringOf(d.depth)) / 2
@@ -369,6 +384,7 @@ export function layoutTree(graph: Graph, options: LayoutOptions = {}): MapLayout
       const [c2x, c2y] = point(angleOf(d), mid)
       return {
         id: d.data.id,
+        depth: d.depth,
         d: `M${round(px)},${round(py)}C${round(c1x)},${round(c1y)} ${round(c2x)},${round(c2y)} ${round(x)},${round(y)}`,
       }
     })

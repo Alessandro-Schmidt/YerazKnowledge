@@ -173,6 +173,46 @@ export function withIcon(text: string, icon: string | null): string {
   return heading ? line + text.slice(end) : `${line}\n\n${text}`
 }
 
+/**
+ * A header damaged by an earlier version or another tool: yeraz comments below line 2, each
+ * maybe after a copy of line 1 (a repeated header). They go, and their metadata joins line
+ * 2's: a repeated header's is the newer and wins; a lone comment only fills in what line 2
+ * lacks. Comments in code are text and stay. Returns `text` itself when nothing is damaged.
+ */
+export function repairHeader(text: string): string {
+  const lines = text.split(/(?<=\n|\r(?!\n))/)
+  const bare = (line: string | undefined) => line?.replace(/\r?\n$|\r$/, '') ?? ''
+  const title = stripBom(bare(lines[0]))
+  if (lines.length < 3 || !HEADING.test(title)) return text
+  let code: [number, number][] | undefined
+  const out = lines.slice(0, 2)
+  let [lone, repeated]: LeafMeta[] = [{}, {}]
+  let found = false
+  for (let n = 2, at = out.join('').length; n < lines.length; at += lines[n++]!.length) {
+    const line = lines[n]!
+    const start = at
+    if (
+      !META.test(bare(line)) ||
+      (code ??= codeRanges(text)).some(([from, to]) => start >= from && start < to)
+    ) {
+      out.push(line)
+      continue
+    }
+    found = true
+    const meta = parseMeta(bare(line)) ?? {}
+    if (out.length > 2 && bare(out.at(-1)) === title) {
+      out.pop()
+      repeated = { ...repeated, ...meta }
+    } else lone = { ...lone, ...meta }
+    // One blank line where the comment was, not two.
+    if (!bare(out.at(-1)).trim() && n + 1 < lines.length && !bare(lines[n + 1]).trim())
+      at += lines[n++]!.length
+  }
+  if (!found) return text
+  const current = parseMeta(bare(lines[1]))
+  return withMeta(out.join(''), { ...lone, ...current, ...repeated })
+}
+
 /** JSON with sorted keys: two metadata objects are equal when these are. */
 const canonical = (value: unknown): string =>
   JSON.stringify(value, (_, v: unknown) =>

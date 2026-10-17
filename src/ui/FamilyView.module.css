@@ -7,26 +7,8 @@
 .crumbs {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 2px;
   min-width: 0;
-  color: var(--faint);
-}
-
-.home {
-  color: var(--muted);
-  text-decoration: none;
-  white-space: nowrap;
-}
-.home:hover {
-  color: var(--text);
-}
-
-.back {
-  display: none;
-}
-
-.sep {
-  display: inline-flex;
 }
 
 .title {
@@ -140,16 +122,6 @@
 }
 
 @media (max-width: 640px) {
-  .back {
-    display: grid;
-    place-items: center;
-    width: 36px;
-    height: 44px;
-  }
-  .homeText,
-  .sep {
-    display: none;
-  }
   .status {
     font-size: 11px;
     max-width: 30vw;
@@ -167,4 +139,17 @@
   .newLeafText {
     display: none;
   }
+}
+
+/* No Family yet (Start.tsx) */
+.emptyTitle {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text);
+}
+.placeholder p {
+  max-width: 440px;
+  margin: 0;
+  line-height: 1.6;
 }

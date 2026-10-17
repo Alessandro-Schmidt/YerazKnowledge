@@ -5,7 +5,7 @@
 import AxeBuilder from '@axe-core/playwright'
 import type { Page } from '@playwright/test'
 import type { Graph } from '../src/model/graph'
-import { expect, signIn, signInHere, test } from './fixtures'
+import { expect, familyMenu, signIn, signInHere, test } from './fixtures'
 
 const REPO = 'you/engineering'
 
@@ -61,11 +61,11 @@ test('the new leaf dialog', async ({ page }) => {
 
 test('connecting and creating a repository', async ({ page }) => {
   await signIn(page)
-  await page.getByRole('button', { name: 'Connect repository' }).click()
+  await (await familyMenu(page)).getByRole('menuitem', { name: 'Connect repository' }).click()
   await expect(page.getByPlaceholder('owner/name')).toBeVisible()
   expect(await violations(page)).toEqual([])
   await page.keyboard.press('Escape')
-  await page.getByRole('button', { name: 'Create a new repository' }).click()
+  await (await familyMenu(page)).getByRole('menuitem', { name: 'Create a new repository' }).click()
   await expect(page.getByRole('dialog')).toBeVisible()
   expect(await violations(page)).toEqual([])
 })

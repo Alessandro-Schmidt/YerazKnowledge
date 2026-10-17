@@ -6,7 +6,7 @@ import { makeFixture } from '../../test/fake-github/fixture'
 import { buildGraph, type Graph } from '../model/graph'
 import { parseLeaf } from '../model/parse'
 import { buildTree, ROOT } from '../model/tree'
-import { dotRadius, layoutTree, nodeAt, overlaps, threadRoute } from './layout'
+import { dotRadius, ICON_R, layoutTree, nodeAt, overlaps, threadRoute } from './layout'
 
 function graphOf(files: Record<string, string>, title: string): Graph {
   const model = buildTree(
@@ -146,7 +146,7 @@ describe('labels', () => {
 
   // Odd shapes: long single-child chains, wide fans, long titles (some one unbroken word),
   // huge leaves, branches and leaves mixed at every depth.
-  function randomTree(seed: number): Record<string, string> {
+  function randomTree(seed: number, icons = false): Record<string, string> {
     let state = seed
     const rand = () => {
       state = (state + 0x6d2b79f5) | 0
@@ -175,7 +175,8 @@ describe('labels', () => {
           continue
         }
         const words = rand() < 0.05 ? int(5000, 30000) : int(0, 800)
-        files[`${name}.md`] = `# ${title()}\n\n${'word '.repeat(words)}\n`
+        const icon = icons && i % 2 === 0 ? `${['🔐', '🇦🇲', '♟️', '📐'][i % 4]} ` : ''
+        files[`${name}.md`] = `# ${icon}${title()}\n\n${'word '.repeat(words)}\n`
         if (deeper) fill(`${name}/`, depth + 1) // a leaf with sub-leaves
       }
     }
@@ -186,6 +187,13 @@ describe('labels', () => {
   it('never overlap each other or a dot, whatever the shape of the Tree', () => {
     for (let seed = 1; seed <= 60; seed++) {
       const layout = layoutTree(graphOf(randomTree(seed), `Random ${seed}`))
+      expect(overlaps(layout), `seed ${seed}`).toEqual([])
+    }
+  })
+
+  it('never overlap an emoji drawn on its dot', () => {
+    for (let seed = 1; seed <= 30; seed++) {
+      const layout = layoutTree(graphOf(randomTree(seed, true), `Icons ${seed}`))
       expect(overlaps(layout), `seed ${seed}`).toEqual([])
     }
   })
@@ -210,6 +218,36 @@ describe('labels', () => {
     const layout = layoutTree(graphs[0]![1])
     const tops = layout.nodes.filter((n) => n.depth === 1 && n.kind === 'branch')
     expect(tops.every((n) => n.label === n.label.toUpperCase())).toBe(true)
+  })
+})
+
+describe('icons', () => {
+  const graph = exampleGraph()
+  const layout = layoutTree(graph)
+
+  it("carries each leaf's emoji to its dot, and only a leaf's", () => {
+    const withIcon = layout.nodes.filter((n) => n.icon !== null)
+    expect(withIcon.map((n) => n.icon)).toContain('🇦🇲')
+    for (const n of layout.nodes) expect(n.icon).toBe(graph.nodes.get(n.id)!.icon)
+  })
+
+  it('gives an emoji a dot big enough to hold it; words still grow it', () => {
+    for (const n of layout.nodes.filter((n) => n.icon !== null))
+      expect(n.r).toBeGreaterThanOrEqual(ICON_R)
+    const leaf = { kind: 'leaf', words: 10, total: 10, icon: null } as Parameters<
+      typeof dotRadius
+    >[0]
+    expect(dotRadius({ ...leaf, icon: '🔐' })).toBe(ICON_R)
+    expect(dotRadius({ ...leaf, words: 9000, icon: '🔐' })).toBe(
+      dotRadius({ ...leaf, words: 9000 }),
+    )
+  })
+})
+
+describe('edges', () => {
+  it('know their depth, so the hierarchy can thin out from the core', () => {
+    const layout = layoutTree(exampleGraph())
+    for (const e of layout.edges) expect(e.depth).toBe(layout.byId.get(e.id)!.depth)
   })
 })
 

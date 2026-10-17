@@ -1,4 +1,4 @@
-// Visual snapshots (development-plan.md §7.3): Home, the Tree view in each base, Map only,
+// Visual snapshots (development-plan.md §7.3): the Family, the leaf view in each base, Map only,
 // Phone and Appearance, with the design's own Trees, at pixel density 2. They are rendered
 // and compared in Playwright's Linux image only (snapshots.yml, on demand), so fonts and anti-aliasing
 // match pixel for pixel. To re-render them after a visual change, run the Snapshots workflow
@@ -43,10 +43,11 @@ const withTheme = (page: Page, theme: object) =>
 test.describe('desktop', () => {
   test.skip(({ isMobile }) => isMobile)
 
-  test('Home', async ({ page }) => {
+  test('the Family', async ({ page }) => {
     await signIn(page)
-    await expect(page.locator('[data-tree]')).toHaveCount(4)
-    await matches(page, 'home')
+    await page.goto('./#/tree/you/engineering')
+    await expect(page.getByRole('status')).toHaveText('Synced to main')
+    await matches(page, 'family')
   })
 
   for (const [name, theme] of [

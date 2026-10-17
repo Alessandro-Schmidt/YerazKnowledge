@@ -176,22 +176,3 @@ export function crumbs(graph: Graph, id: string): string[] {
 export function compactWords(words: number): string {
   return words >= 1000 ? `${Math.round(words / 100) / 10}k` : String(words)
 }
-
-/** Threads between connected Trees (links to their leaves), per direction, for Home. */
-export function treeThreads(
-  trees: readonly { repo: string; graph: Graph }[],
-): { from: string; to: string; count: number }[] {
-  const known = new Map(trees.map((t) => [t.repo.toLowerCase(), t.repo]))
-  const counts = new Map<string, { from: string; to: string; count: number }>()
-  for (const { repo, graph } of trees) {
-    for (const link of graph.external) {
-      const to = known.get(link.repo.toLowerCase())
-      if (!to || to === repo) continue
-      const key = `${repo}>${to}`
-      const entry = counts.get(key) ?? { from: repo, to, count: 0 }
-      entry.count++
-      counts.set(key, entry)
-    }
-  }
-  return [...counts.values()]
-}

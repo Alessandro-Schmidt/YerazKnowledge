@@ -1,6 +1,6 @@
-// The Explorer: the file view of a Tree, and the keyboard route to every leaf
-// (role="tree", arrow keys; development-plan.md §7.3). Branches start collapsed below
-// depth 1; the selection's ancestors open by themselves.
+// The Explorer: the file view of a Family, each of its Trees a top-level group, and the
+// keyboard route to every leaf (role="tree", arrow keys; development-plan.md §7.3).
+// Branches start collapsed below the Trees; the selection's ancestors open by themselves.
 
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import type { TreeRef } from '../github/graphql'
@@ -220,7 +220,7 @@ export function Explorer({
           onClick={() => onAction({ kind: 'new-branch', parent })}
         >
           <span className={controls.glyph} data-kind="branch" aria-hidden="true" />
-          New branch
+          {parent === ROOT ? 'New tree' : 'New branch'}
         </button>
         <button
           type="button"

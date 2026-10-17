@@ -89,7 +89,7 @@ describe('session', () => {
     const s = createSession({ store })
     await s.getState().signIn('good')
     await expect(s.getState().connect('nonsense')).rejects.toThrow('owner/name')
-    await expect(s.getState().connect('you/dotfiles')).rejects.toThrow("isn't a Tree yet")
+    await expect(s.getState().connect('you/dotfiles')).rejects.toThrow("isn't a Yeraz Family yet")
     await expect(s.getState().connect('you/missing')).rejects.toThrow("doesn't exist")
     await fake.addRepo('friend/other', { '.yeraz.json': '{}', 'b.md': '# B\n' }, { private: false })
     // The fake's discovery lists every repository; real GitHub would not list a stranger's.
