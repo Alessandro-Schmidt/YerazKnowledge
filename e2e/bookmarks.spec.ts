@@ -1,5 +1,5 @@
 // Bookmarks for pasted links (issue #12): pasting a URL offers to keep it as a link or make
-// it a bookmark, a paragraph of one titled link shown as a card in the editor and read view.
+// it a bookmark, a paragraph of one titled link shown as a card wherever the leaf is shown.
 
 import type { Page } from '@playwright/test'
 import { expect, signInHere, test } from './fixtures'
@@ -25,13 +25,13 @@ test.describe('bookmarks', () => {
       message: 'links',
       additions: [{ path: 'links.md', contents: '# Links\n\nReading list:\n' }],
     })
-    await page.goto(`./#/edit/${REPO}/links.md`)
+    await page.goto(`./#/tree/${REPO}/links.md`)
     await signInHere(page)
     await page.locator('.cm-content').click()
     await page.keyboard.press('ControlOrMeta+End')
   })
 
-  test('a pasted URL becomes a bookmark: a card in the editor and in the read view', async ({
+  test('a pasted URL becomes a bookmark: a card whose title edits it and address opens it', async ({
     page,
     fake,
   }) => {
@@ -49,15 +49,21 @@ test.describe('bookmarks', () => {
       .poll(() => fake.repo(REPO).read('links.md'))
       .toBe(`# Links\n\nReading list:\n\n[Baroque](${PAGE})\n`)
 
-    // A click on the card shows its Markdown, to edit.
-    await card.click()
-    await expect(editor).toContainText(`[Baroque](${PAGE})`)
+    // Its address opens the page in a new tab, as in the read view.
+    await page.evaluate(() => {
+      const w = window as unknown as { opened: unknown[] }
+      w.opened = []
+      window.open = (...args) => (w.opened.push(args), null)
+    })
+    await card.getByText('en.wikipedia.org/wiki/Baroque').click()
+    expect(await page.evaluate(() => (window as unknown as { opened: unknown[] }).opened)).toEqual([
+      [PAGE, '_blank', 'noopener,noreferrer'],
+    ])
+    await expect(card).toBeVisible()
 
-    await page.goto(`./#/tree/${REPO}/links.md`)
-    const bookmark = page.getByRole('region', { name: 'Leaf preview' }).locator('a.bookmark')
-    await expect(bookmark).toHaveAttribute('href', PAGE)
-    await expect(bookmark).toHaveAttribute('target', '_blank')
-    await expect(bookmark).toContainText('Baroque')
+    // A click on its title shows its Markdown, to edit.
+    await card.getByText('Baroque', { exact: true }).click()
+    await expect(editor).toContainText(`[Baroque](${PAGE})`)
   })
 
   test('Keep as link, Escape or typing leave the URL as pasted; videos get no menu', async ({
