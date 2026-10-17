@@ -5,6 +5,7 @@ import { createFakeGitHub, type FakeGitHub } from '../../test/fake-github/fakeGi
 import { makeFixture } from '../../test/fake-github/fixture'
 import { fakeGitHubHandlers } from '../../test/fake-github/msw'
 import { memoryStore } from './db'
+import { planNewLeaves } from '../sync/structure'
 import { createSession } from './session'
 
 let fake: FakeGitHub
@@ -129,6 +130,26 @@ describe('session', () => {
       expect(s.getState().sync['you/engineering']).toEqual({ status: 'synced' }),
     )
     expect(s.getState().data['you/engineering']!.graph!.nodes.get(leaf)).toBeDefined()
+  })
+
+  it('creates many sub-leaves of a leaf in one commit', async () => {
+    const s = createSession({ store: memoryStore() })
+    await s.getState().signIn('good')
+    await s.getState().open('you/engineering')
+    const graph = () => s.getState().data['you/engineering']!.graph!
+    const leaf = [...graph().nodes.values()].find((n) => n.kind === 'leaf' && !n.children.length)!
+    const changes = planNewLeaves(graph(), leaf.id, ['🧪 Tests', 'Tests', 'Notes'])
+    fake.resetLog()
+    await s.getState().apply('you/engineering', changes)
+    expect(
+      graph()
+        .nodes.get(leaf.id)!
+        .children.map((id) => graph().nodes.get(id)!.title),
+    ).toEqual(expect.arrayContaining(['Tests', 'Tests', 'Notes']))
+    expect(graph().nodes.get(changes[0]!.path)!.icon).toBe('🧪')
+    await s.getState().flush('you/engineering')
+    expect(fake.log.filter((e) => e.operation === 'mutation')).toHaveLength(1)
+    for (const { path, text } of changes) expect(fake.repo('you/engineering').read(path)).toBe(text)
   })
 
   it('keeps edits on the device while offline, and commits them when the Tree opens again', async () => {

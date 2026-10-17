@@ -264,6 +264,13 @@ export function Peek({
                       Add sub-leaf
                     </button>
                   )}
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => onAction({ kind: 'new-leaf', parent: id, many: true })}
+                  >
+                    {node.kind === 'leaf' ? 'Add sub-leaves…' : 'New leaves here…'}
+                  </button>
                   {node.kind === 'branch' && (
                     <button
                       type="button"

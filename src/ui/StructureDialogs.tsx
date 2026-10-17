@@ -1,4 +1,4 @@
-// The dialogs behind New leaf, New branch, Move, Delete and Create a Tree
+// The dialogs behind New leaf (one or many), New branch, Move, Delete and Create a Tree
 // (development-plan.md M2 steps 2 and 5). Plans come from sync/structure.ts.
 
 import { useMemo, useState } from 'react'
@@ -6,13 +6,22 @@ import type { TreeRef } from '../github/graphql'
 import { crumbs, type Graph } from '../model/graph'
 import { ROOT } from '../model/tree'
 import { session } from '../store/session'
-import { leavesUnder, planDelete, planMove, planNewBranch, planNewLeaf } from '../sync/structure'
+import {
+  leavesUnder,
+  planDelete,
+  planMove,
+  planNewBranch,
+  planNewLeaf,
+  planNewLeaves,
+  titlesIn,
+} from '../sync/structure'
 import controls from './controls.module.css'
 import { Dialog, Field } from './Dialog'
 import styles from './Dialog.module.css'
 
 export type StructureAction =
-  | { kind: 'new-leaf'; parent: string }
+  /** `many`: several leaves at once, one title per line. */
+  | { kind: 'new-leaf'; parent: string; many?: boolean }
   | { kind: 'new-branch'; parent: string }
   | { kind: 'move'; id: string }
   | { kind: 'delete'; id: string }
@@ -49,6 +58,7 @@ export function StructureDialog({
   const [name, setName] = useState('')
   const [first, setFirst] = useState('')
   const [dest, setDest] = useState<string | null>(null)
+  const [many, setMany] = useState(action.kind === 'new-leaf' && !!action.many)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -75,33 +85,76 @@ export function StructureDialog({
   }, [action, graph])
 
   switch (action.kind) {
-    case 'new-leaf':
+    case 'new-leaf': {
+      const sub = graph.nodes.get(action.parent)?.kind === 'leaf'
+      const titles = titlesIn(name)
       return (
         <Dialog
-          title={graph.nodes.get(action.parent)?.kind === 'leaf' ? 'New sub-leaf' : 'New leaf'}
-          submit="Create leaf"
+          title={
+            sub ? (many ? 'New sub-leaves' : 'New sub-leaf') : many ? 'New leaves' : 'New leaf'
+          }
+          submit={
+            !many
+              ? 'Create leaf'
+              : titles.length === 1
+                ? 'Create 1 leaf'
+                : `Create ${titles.length} leaves`
+          }
           busy={busy}
           error={error}
           onClose={onClose}
           onSubmit={() =>
             run(async () => {
-              const change = planNewLeaf(graph, action.parent, name)
-              await session.getState().apply(tree.repo, [change])
-              onDone({ edit: change.path })
+              if (!many) {
+                const change = planNewLeaf(graph, action.parent, name)
+                await session.getState().apply(tree.repo, [change])
+                return onDone({ edit: change.path })
+              }
+              if (!titles.length) throw new Error('Write one title per line.')
+              // One apply, so the autosave commits them all together.
+              await session.getState().apply(tree.repo, planNewLeaves(graph, action.parent, titles))
+              onDone({ select: action.parent })
             })
           }
         >
-          <Field label="Title" hint={where(graph, action.parent)}>
-            <input
-              className={controls.input}
-              autoFocus
-              required
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-            />
-          </Field>
+          {many ? (
+            <Field label="Titles" hint={`One per line. ${where(graph, action.parent)}`}>
+              <textarea
+                className={`${controls.input} ${styles.lines}`}
+                autoFocus
+                required
+                rows={6}
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
+            </Field>
+          ) : (
+            <Field label="Title" hint={where(graph, action.parent)}>
+              <input
+                className={controls.input}
+                autoFocus
+                required
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
+            </Field>
+          )}
+          {!action.many && (
+            <button
+              type="button"
+              className={styles.switch}
+              onClick={() => {
+                // Back to one: the first title, as an input holds one line.
+                if (many) setName(titles[0] ?? '')
+                setMany(!many)
+              }}
+            >
+              {many ? 'Just one' : 'Several at once'}
+            </button>
+          )}
         </Dialog>
       )
+    }
 
     case 'new-branch':
       return (
