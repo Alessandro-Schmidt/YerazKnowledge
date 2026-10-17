@@ -27,6 +27,8 @@ export interface PeekProps {
   graph: Graph
   id: string
   expanded: boolean
+  /** The leaf was just created: its editor takes the focus, to write below the title. */
+  created?: boolean
   href(id: string): string
   onSelect(id: string): void
   onExpand(expanded: boolean): void
@@ -40,6 +42,7 @@ export function Peek({
   graph,
   id,
   expanded,
+  created,
   href,
   onSelect,
   onExpand,
@@ -129,6 +132,7 @@ export function Peek({
                 repo={tree.repo}
                 path={id}
                 source={source}
+                autoFocus={created}
                 onOpen={onSelect}
               />
             ) : (
