@@ -62,6 +62,7 @@ These rules are the only thing that must stay stable across versions. Tests lock
 | Optional **line 2** is a metadata comment: cover and the part of it that shows (`coverPosition`, percent from the top, centred when absent), image icon, colours. It is invisible when GitHub renders the file. Colours are **named** (`green`, `amber`, `blue`, `violet`…), so they adapt to every theme (§13). | `<!-- yeraz {"cover":"https://…","coverPosition":30,"color":{"heading":"amber"}} -->` |
 | A leaf's sub-leaves and sub-branches live in a **sibling folder with the same name**. | `identity/keycloak.md` + `identity/keycloak/realms.md` |
 | A branch is a folder with no sibling `.md` file of the same name. Its name is the folder name, kept as typed. Git stores no empty folders, so a new branch is created with its first leaf. | `AI Agents/` |
+| A branch's **text** is the `README.md` in its folder (that name exactly, case included), which GitHub shows under the folder's files. It is not a leaf: no node, no words in the totals, and its line 1 doesn't rename the branch. A folder holding only its `README.md` is still a branch. The root's `README.md`, and one in a leaf's sibling folder, stay ordinary leaves. Links in a branch's text are threads from the branch; a link to it is a thread to the branch. | `AI Agents/README.md` |
 | A thread is a normal Markdown link with a **root-relative** path. GitHub resolves paths starting with `/` from the repository root, so threads also work on github.com. | `[Keycloak](/identity/keycloak.md)` |
 | A thread to another Tree is a full GitHub URL to a file in a connected repository. Any other `github.com/owner/repo` URL renders as a repository card. | `https://github.com/user/art-history/blob/main/baroque.md` |
 | Images and attachments live in `assets/` at the root, at full quality. An image is committed unchanged unless its long edge is over 4096 px (§8). | `assets/2026-10-14-realm-diagram.png` |
@@ -74,6 +75,7 @@ These rules are the only thing that must stay stable across versions. Tests lock
 Why these rules:
 
 - **Sibling folders instead of `folder/README.md`.** Giving a leaf its first sub-leaf only adds a folder; the leaf itself never moves. With the README convention the leaf would move, and every link to it would need rewriting.
+- **A branch's text in `README.md`.** A branch has no file of its own, and GitHub already shows a folder's README under its files. Adding text to a branch adds one file; nothing moves. The root keeps its `README.md` as a leaf, since most repositories already have one that describes the repository.
 - **Fixed filenames.** Renaming a title is the most common structural edit. It touches one file.
 - **Root-relative links.** Moving a leaf does not break that leaf's own outgoing links. Only links pointing *to* it change. The backlink index finds them, and they are rewritten in the same commit as the move.
 
@@ -171,6 +173,7 @@ Renaming a Tree changes only `name` in `.yeraz.json`. The edit is committed like
 - **Pasting a URL** (one http(s) address, into a plain paragraph) inserts it as it is and offers *Keep as link* or *Bookmark*. A bookmark rewrites it as `[Title](url)` in a paragraph of its own; the title comes from the URL's last path segment, or its site, since the browser can't fetch other sites' pages. Typing, moving away or Escape keeps the link.
 - **Code blocks** use CodeMirror's nested languages from `@codemirror/language-data`, loaded per language on demand. The read view highlights with the same Lezer parsers (`highlightCode`), so there is one highlighting system, not two.
 - **The header above the text** (cover, icon, colours) is drawn from line 1 and line 2. Colours are applied as CSS variables on the leaf container: `--leaf-text` and `--leaf-heading`, with headings in the theme's accent by default.
+- **A branch's text** (`folder/README.md`) is edited in the same editor, at its path, without that header. Before it exists, the branch's Peek offers *Add text*: the editor starts from `# Branch name` and the first save creates the file, committed like any edit.
 
 ## 8. Read view and PDF
 
@@ -284,7 +287,7 @@ src/
             graph.ts (titles, word totals, threads, backlinks)
             links.ts (find and rewrite) · sha.ts (git blob SHA)
   sync/     pull.ts · push.ts · merge.ts · autosave.ts · assets.ts (images by SHA)
-            structure.ts (new leaf, branch, move, delete as file changes) · overlay.ts
+            structure.ts (new leaf, branch, branch text, move, delete as file changes) · overlay.ts
   map/      layout.ts (d3) · TreeMap.tsx · HomeMap.tsx · Home.tsx · useZoom.ts
   editor/   Editor.tsx · EditorPage.tsx · livePreview.ts · IconPicker.tsx · EditableCover.tsx
             insertMenu.ts · mentions.ts · images.ts (scale, encode) · attach.ts (files)
