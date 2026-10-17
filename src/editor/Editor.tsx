@@ -12,9 +12,10 @@ import { useEffect, useRef } from 'react'
 import { parseLeaf, withIcon, withMeta, type LeafMeta } from '../model/parse'
 import { markNow } from '../perf'
 import styles from './Editor.module.css'
-import { assetSource, livePreview, treeFiles } from './livePreview'
+import { assetSource, fileSizes, livePreview, treeFiles } from './livePreview'
 import { insertMenu, type InsertHost } from './insertMenu'
 import { mentions, type MentionSource } from './mentions'
+import { pasteLink } from './pasteLink'
 
 export interface EditorHandle {
   setIcon(icon: string | null): void
@@ -37,12 +38,14 @@ export interface EditorProps {
   mentionsFrom?: MentionSource
   /** Insert menu items the page handles: images, new leaves and branches. */
   onInsert?: InsertHost
-  /** Files pasted or dropped into the text (images). */
+  /** Files pasted or dropped into the text. */
   onFiles?(files: File[]): void
   /** URLs for the Tree's own files, such as `assets/…` images. */
   assetUrl?(path: string): Promise<string | null>
   /** Every file path in the Tree, for a video's subtitles. */
   files?(): Iterable<string>
+  /** Sizes of the Tree's own files, for attachment cards. */
+  fileSize?(path: string): number | null
 }
 
 export default function Editor({
@@ -56,6 +59,7 @@ export default function Editor({
   onFiles,
   assetUrl,
   files,
+  fileSize,
 }: EditorProps) {
   const host = useRef<HTMLDivElement>(null)
   const view = useRef<EditorView | null>(null)
@@ -65,12 +69,14 @@ export default function Editor({
   const filesRef = useRef(onFiles)
   const assetRef = useRef(assetUrl)
   const filesListRef = useRef(files)
+  const sizeRef = useRef(fileSize)
   useEffect(() => {
     changed.current = onChange
     insertRef.current = onInsert
     filesRef.current = onFiles
     assetRef.current = assetUrl
     filesListRef.current = files
+    sizeRef.current = fileSize
   })
 
   useEffect(() => {
@@ -88,8 +94,10 @@ export default function Editor({
           placeholder('Start writing…'),
           mentionsFrom ? mentions(mentionsFrom) : [],
           insertMenu((kind, v) => insertRef.current?.(kind, v)),
+          pasteLink,
           assetSource.of(async (path) => (await assetRef.current?.(path)) ?? null),
           treeFiles.of(() => filesListRef.current?.() ?? []),
+          fileSizes.of((path) => sizeRef.current?.(path) ?? null),
           EditorView.domEventHandlers({
             keydown() {
               markNow('keystroke')

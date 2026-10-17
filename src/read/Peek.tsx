@@ -271,6 +271,13 @@ export function Peek({
                       Add sub-leaf
                     </button>
                   )}
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => onAction({ kind: 'new-leaf', parent: id, many: true })}
+                  >
+                    {node.kind === 'leaf' ? 'Add sub-leaves…' : 'New leaves here…'}
+                  </button>
                   {node.kind === 'branch' && (
                     <button
                       type="button"
@@ -367,6 +374,7 @@ async function printable(
     leafHref: (path) => (graph.nodes.get(path)?.kind === 'leaf' ? href(path) : null),
     leafIcon: (path) => graph.nodes.get(path)?.icon ?? null,
     files: () => getState().files(repo),
+    size: (path) => getState().fileSize(repo, path),
     tree: (other) => {
       const t = getState().trees.find((t) => t.repo.toLowerCase() === other.toLowerCase())
       return t ? { title: t.title, href: `#${treeHref(t.repo)}` } : null

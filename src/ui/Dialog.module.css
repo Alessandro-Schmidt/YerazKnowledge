@@ -30,6 +30,24 @@
   gap: 8px;
 }
 
+.lines {
+  height: auto;
+  padding: 10px 12px;
+  line-height: 1.5;
+  font-family: inherit;
+  resize: vertical;
+}
+
+.switch {
+  align-self: flex-start;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
 .hint {
   color: var(--muted);
   font-size: 12px;

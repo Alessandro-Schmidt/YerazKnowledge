@@ -1,16 +1,21 @@
 // Embeds (ARCHITECTURE.md §7, §8), written so a leaf still reads well on github.com:
 // - a paragraph that is only a link to a YouTube video, or to a PDF or video in the Tree,
-//   becomes a player; one to a GitHub repository becomes a card; on GitHub it stays a link;
+//   becomes a player; one to a GitHub repository, or to any other file in `assets/`,
+//   becomes a card; on GitHub it stays a link;
+// - a titled link alone in its paragraph to any other web page is a bookmark, a card with
+//   its title and address (pages can't be fetched from the browser, so nothing more);
+//   a bare URL stays a plain link;
 // - a video's subtitles are `name.<lang>.vtt` files beside it;
 // - math is $inline$ and $$display$$, as GitHub writes it.
 // Shared by the read view and the editor's live preview. Pure.
 
-import { codeRanges, ownPath } from './parse'
+import { codeRanges, linkTarget, ownPath } from './parse'
 
 export type Embed =
   | { kind: 'youtube'; id: string; start: number; title: string }
-  | { kind: 'pdf' | 'video'; path: string; title: string }
+  | { kind: 'pdf' | 'video' | 'file'; path: string; title: string }
   | { kind: 'repo'; repo: string; title: string }
+  | { kind: 'bookmark'; url: string; title: string }
 
 const YOUTUBE =
   /^https?:\/\/(?:www\.|m\.)?(?:youtube\.com\/(?:watch\?(?:[^#]*&)?v=|shorts\/|embed\/)|youtu\.be\/)([\w-]{11})(?=$|[?&#])/
@@ -46,6 +51,9 @@ export function embedOf(paragraph: string): Embed | null {
   const own = ownPath(dest)
   if (own && /\.pdf$/i.test(own)) return { kind: 'pdf', path: own, title }
   if (own && /\.(mp4|webm)$/i.test(own)) return { kind: 'video', path: own, title }
+  if (own?.startsWith('assets/')) return { kind: 'file', path: own, title }
+  if (title && /^https?:\/\/[^/\s]/i.test(url) && !linkTarget(url))
+    return { kind: 'bookmark', url, title }
   return null
 }
 
@@ -57,6 +65,32 @@ export const languageName = (code: string) => {
   } catch {
     return code
   }
+}
+
+const decode = (s: string) => {
+  try {
+    return decodeURIComponent(s)
+  } catch {
+    return s
+  }
+}
+
+/** A bookmark's address as shown: no scheme, `www.`, query or trailing slash. */
+export function shortUrl(url: string): string {
+  const { host, pathname } = new URL(url)
+  return decode(host.replace(/^www\./, '') + pathname.replace(/\/+$/, ''))
+}
+
+/** A title for a pasted URL: its last path segment, readable, or else its site. */
+export function bookmarkTitle(url: string): string {
+  const { host, pathname } = new URL(url)
+  const last = decode(pathname.split('/').filter(Boolean).pop() ?? '')
+  const words = last
+    .replace(/\.[a-z\d]{1,5}$/i, '')
+    .replace(/[-_+]+/g, ' ')
+    .trim()
+  if (!/\p{L}/u.test(words)) return host.replace(/^www\./, '')
+  return words === words.toLowerCase() ? words[0]!.toUpperCase() + words.slice(1) : words
 }
 
 /** Subtitle files for a video: `talk.mp4` → `talk.en.vtt`, `talk.hy.vtt` (or `talk.vtt`). */

@@ -504,3 +504,13 @@
 .peek:not([data-expanded]) :global(.cm-line.cm-title) {
   font-size: 24px;
 }
+
+/* A bookmark: the same card, its address on one line. */
+.content :global(.bookmark) {
+  max-width: 100%;
+}
+.content :global(.bookmark) span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

@@ -13,8 +13,16 @@ import {
   type ViewUpdate,
 } from '@codemirror/view'
 import type { SyntaxNode } from '@lezer/common'
-import { embedOf, languageName, mathSpans, subtitleTracks, type Embed } from '../model/embeds'
+import {
+  embedOf,
+  languageName,
+  mathSpans,
+  shortUrl,
+  subtitleTracks,
+  type Embed,
+} from '../model/embeds'
 import { leadingIcon, linkTarget, META, ownPath } from '../model/parse'
+import { downloadAsset, fileCardHtml } from '../read/files'
 import { encodePath } from '../ui/paths'
 import { mentionSource } from './mentions'
 
@@ -53,6 +61,14 @@ export const assetSource = Facet.define<
 /** Every file path in the Tree, for a video's subtitle tracks. */
 export const treeFiles = Facet.define<() => Iterable<string>, (() => Iterable<string>) | null>({
   combine: (values) => values[0] ?? null,
+})
+
+/** Sizes of the Tree's files, for attachment cards. */
+export const fileSizes = Facet.define<
+  (path: string) => number | null,
+  (path: string) => number | null
+>({
+  combine: (values) => values[0] ?? (() => null),
 })
 
 class ImageWidget extends WidgetType {
@@ -101,11 +117,17 @@ class MathWidget extends WidgetType {
   }
 }
 
-/** A YouTube video, or a PDF or video kept in the Tree, in place of its link. */
+/**
+ * A YouTube video, a PDF or video kept in the Tree, a repository, a bookmark or a card for
+ * any other file, in place of its link. A click on a bookmark edits its line, as on any
+ * other link here; a click on a file card downloads it.
+ */
 class EmbedWidget extends WidgetType {
   constructor(
     readonly embed: Embed,
     readonly resolve: ((path: string) => Promise<string | null>) | null,
+    /** A file's size, for its card. */
+    readonly size: number | null = null,
     /** A connected Tree, for a repository card. */
     readonly tree: { title: string; href: string } | null = null,
     /** A video's subtitle files. */
@@ -115,8 +137,8 @@ class EmbedWidget extends WidgetType {
   }
   eq(other: EmbedWidget) {
     return (
-      JSON.stringify([other.embed, other.tree, other.tracks]) ===
-      JSON.stringify([this.embed, this.tree, this.tracks])
+      JSON.stringify([other.embed, other.size, other.tree, other.tracks]) ===
+      JSON.stringify([this.embed, this.size, this.tree, this.tracks])
     )
   }
   toDOM() {
@@ -142,6 +164,21 @@ class EmbedWidget extends WidgetType {
     }
     const box = document.createElement('div')
     box.className = `cm-embed cm-embed-${embed.kind}`
+    if (embed.kind === 'file') {
+      box.innerHTML = fileCardHtml(embed, this.size)
+      const resolve = this.resolve
+      if (resolve) box.addEventListener('click', () => void downloadAsset(embed.path, resolve))
+      return box
+    }
+    if (embed.kind === 'bookmark') {
+      const title = document.createElement('strong')
+      const url = document.createElement('span')
+      title.textContent = embed.title
+      url.textContent = shortUrl(embed.url)
+      box.title = embed.url
+      box.append(title, url)
+      return box
+    }
     const el = document.createElement(embed.kind === 'video' ? 'video' : 'iframe')
     el.title = embed.title || (embed.kind === 'youtube' ? 'YouTube video' : embed.path)
     if (embed.kind === 'youtube') {
@@ -176,7 +213,7 @@ class EmbedWidget extends WidgetType {
     return box
   }
   ignoreEvent() {
-    return true
+    return this.embed.kind !== 'bookmark'
   }
 }
 
@@ -405,10 +442,15 @@ function richRanges(view: EditorView, isActive: (pos: number) => boolean): Range
         const tracks =
           embed.kind === 'video' ? subtitleTracks(embed.path, state.facet(treeFiles)?.() ?? []) : []
         out.push(
-          Decoration.replace({ widget: new EmbedWidget(embed, resolve, tree, tracks) }).range(
-            l.from,
-            l.to,
-          ),
+          Decoration.replace({
+            widget: new EmbedWidget(
+              embed,
+              resolve,
+              embed.kind === 'file' ? state.facet(fileSizes)(embed.path) : null,
+              tree,
+              tracks,
+            ),
+          }).range(l.from, l.to),
         )
         continue
       }
