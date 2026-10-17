@@ -10,9 +10,9 @@ import { EditorView, keymap, placeholder } from '@codemirror/view'
 import { classHighlighter } from '@lezer/highlight'
 import { useEffect, useRef } from 'react'
 import { parseLeaf, withIcon, withMeta, type LeafMeta } from '../model/parse'
-import { markNow } from '../perf'
+import { mark, markNow } from '../perf'
 import styles from './Editor.module.css'
-import { assetSource, fileSizes, livePreview } from './livePreview'
+import { assetSource, fileSizes, livePreview, treeFiles } from './livePreview'
 import { insertMenu, type InsertHost } from './insertMenu'
 import { mentions, type MentionSource } from './mentions'
 import { pasteLink } from './pasteLink'
@@ -42,6 +42,8 @@ export interface EditorProps {
   onFiles?(files: File[]): void
   /** URLs for the Tree's own files, such as `assets/…` images. */
   assetUrl?(path: string): Promise<string | null>
+  /** Every file path in the Tree, for a video's subtitles. */
+  files?(): Iterable<string>
   /** Sizes of the Tree's own files, for attachment cards. */
   fileSize?(path: string): number | null
 }
@@ -56,6 +58,7 @@ export default function Editor({
   onInsert,
   onFiles,
   assetUrl,
+  files,
   fileSize,
 }: EditorProps) {
   const host = useRef<HTMLDivElement>(null)
@@ -65,12 +68,14 @@ export default function Editor({
   const insertRef = useRef(onInsert)
   const filesRef = useRef(onFiles)
   const assetRef = useRef(assetUrl)
+  const filesListRef = useRef(files)
   const sizeRef = useRef(fileSize)
   useEffect(() => {
     changed.current = onChange
     insertRef.current = onInsert
     filesRef.current = onFiles
     assetRef.current = assetUrl
+    filesListRef.current = files
     sizeRef.current = fileSize
   })
 
@@ -91,6 +96,7 @@ export default function Editor({
           insertMenu((kind, v) => insertRef.current?.(kind, v)),
           pasteLink,
           assetSource.of(async (path) => (await assetRef.current?.(path)) ?? null),
+          treeFiles.of(() => filesListRef.current?.() ?? []),
           fileSizes.of((path) => sizeRef.current?.(path) ?? null),
           EditorView.domEventHandlers({
             keydown() {
@@ -124,6 +130,7 @@ export default function Editor({
       }),
     })
     view.current = editor
+    mark('editor-painted')
     if (autoFocus) {
       editor.focus()
       editor.dispatch({ selection: { anchor: editor.state.doc.length } })

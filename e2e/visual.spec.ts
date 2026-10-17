@@ -59,7 +59,7 @@ test.describe('desktop', () => {
       await signIn(page)
       await page.goto(`./#/tree/you/engineering/${KEYCLOAK}`)
       await expect(page.getByRole('region', { name: 'Leaf preview' })).toBeVisible()
-      await expect(page.locator('.mention').first()).toBeVisible()
+      await expect(page.locator('.cm-mention').first()).toBeVisible()
       await expect(page.getByRole('status')).toHaveText('Synced to main')
       await matches(page, name)
     })

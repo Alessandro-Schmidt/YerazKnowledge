@@ -1,17 +1,17 @@
 import { useEffect } from 'react'
 import { Redirect, Route, Router, Switch } from 'wouter'
 import { useHashLocation } from 'wouter/use-hash-location'
-import { EditorPage } from '../editor/EditorPage'
 import { Home } from '../map/Home'
 import { session, useSession } from '../store/session'
 import { Appearance } from './Appearance'
+import { treeHref, decodePath } from './paths'
 import { TokenScreen } from './TokenScreen'
 import { TreeView } from './TreeView'
 
 // Routes live in the URL hash (GitHub Pages can't rewrite paths):
 //   #/                                   Home, every Tree
 //   #/tree/:owner/:name[/path/to/leaf.md] a Tree, optionally with a node selected
-//   #/edit/:owner/:name/path/to/leaf.md   the editor
+//   #/edit/:owner/:name/path/to/leaf.md   an old link: the leaf, editable in its Tree
 //   #/settings/appearance                 Settings › Appearance
 export function App() {
   const phase = useSession((s) => s.phase)
@@ -54,7 +54,14 @@ export function App() {
       <Switch>
         <Route path="/" component={Home} />
         <Route path="/tree/:owner/:name/*?" component={TreeView} />
-        <Route path="/edit/:owner/:name/*" component={EditorPage} />
+        <Route path="/edit/:owner/:name/*">
+          {(params) => (
+            <Redirect
+              to={treeHref(`${params.owner}/${params.name}`, decodePath(params['*'] ?? ''))}
+              replace
+            />
+          )}
+        </Route>
         <Route path="/settings/appearance" component={Appearance} />
         <Route>
           <Redirect to="/" replace />

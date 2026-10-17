@@ -43,7 +43,7 @@ test.describe('desktop', () => {
     await signIn(page)
     await page.goto(`./#/tree/you/engineering/${KEYCLOAK}`)
     await expect(page.getByRole('region', { name: 'Leaf preview' })).toBeVisible()
-    await expect(page.locator('.mention').first()).toBeVisible()
+    await expect(page.locator('.cm-mention').first()).toBeVisible()
     await shot(page, '03-tree-view')
 
     await page.getByRole('button', { name: 'Open full page' }).click()
@@ -95,7 +95,7 @@ test.describe('themes', () => {
       await withTheme(page, theme)
       await signIn(page)
       await page.goto(`./#/tree/you/engineering/${KEYCLOAK}`)
-      await expect(page.locator('.mention').first()).toBeVisible()
+      await expect(page.locator('.cm-mention').first()).toBeVisible()
       await shot(page, name)
     })
   }
@@ -104,9 +104,10 @@ test.describe('themes', () => {
 test.describe('editor', () => {
   test.skip(({ isMobile }) => isMobile)
 
-  test('08 Editor', async ({ page }) => {
+  test('08 Editor: a leaf on its full page', async ({ page }) => {
     await signIn(page)
-    await page.goto(`./#/edit/you/engineering/${KEYCLOAK}`)
+    await page.goto(`./#/tree/you/engineering/${KEYCLOAK}`)
+    await page.getByRole('button', { name: 'Open full page' }).click()
     await expect(page.locator('.cm-title')).toBeVisible()
     await shot(page, '08-editor')
   })

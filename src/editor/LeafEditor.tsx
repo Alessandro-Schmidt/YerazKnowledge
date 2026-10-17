@@ -1,56 +1,67 @@
+// A leaf, editable wherever it is shown: the Peek over the map, its full page, the phone's
+// sheet (ARCHITECTURE.md §7). Cover, icon and colours above the text; the text is the file.
+// A branch's text (its folder's README.md) is written here too, without a look of its own.
+
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useLocation } from 'wouter'
 import { threadEnd, type GraphNode } from '../model/graph'
 import type { LeafMeta } from '../model/parse'
 import { leafColors } from '../read/colors'
 import { mentionLink } from '../model/links'
 import { session, useSession } from '../store/session'
-import { ConflictBanner } from '../ui/ConflictBanner'
 import controls from '../ui/controls.module.css'
-import { Icon } from '../ui/icons'
-import { decodePath, treeHref } from '../ui/paths'
-import { parentFor, StructureDialog, type StructureAction } from '../ui/StructureDialogs'
-import { SyncStatus } from '../ui/SyncStatus'
+import { treeHref } from '../ui/paths'
 import { planBranchText } from '../sync/structure'
-import { ACCENT_IDS, colorVar } from '../ui/theme'
-import { Divider, TopBar } from '../ui/TopBar'
+import { parentFor, StructureDialog, type StructureAction } from '../ui/StructureDialogs'
+import { ACCENT_IDS } from '../ui/theme'
 import { attach, attachmentMarkdown } from './attach'
 import type { EditorHandle } from './Editor'
-import styles from './EditorPage.module.css'
+import styles from './LeafEditor.module.css'
 import { EditableCover } from './EditableCover'
 import { IconPicker } from './IconPicker'
 import type { InsertHost } from './insertMenu'
 import type { MentionLeaf, MentionSource } from './mentions'
-import { Search } from '../ui/Search'
 
-// CodeMirror is its own chunk: it loads the first time a leaf is edited (ARCHITECTURE.md §11).
-const Editor = lazy(() => import('./Editor'))
+// CodeMirror is its own chunk: it loads the first time a leaf is shown (ARCHITECTURE.md §11).
+const loadEditor = () => import('./Editor')
+const Editor = lazy(loadEditor)
+/** Starts loading the editor before a leaf is shown, so showing one doesn't wait for it. */
+export const preloadEditor = () => void loadEditor()
 
 /** Edits reach this device's storage after this much quiet; commits follow the autosave. */
 const LOCAL_SAVE_MS = 500
 
-export function EditorPage({ params }: { params: { owner: string; name: string; '*'?: string } }) {
-  const repo = `${params.owner}/${params.name}`
+export function LeafEditor({
+  repo,
+  path,
+  source,
+  autoFocus,
+  onOpen,
+}: {
+  repo: string
+  path: string
+  /** Show the Markdown as it is, instead of the live preview. */
+  source: boolean
+  /** Put the cursor below the title, to start writing: the leaf was just created. */
+  autoFocus?: boolean | undefined
+  /** Opens another leaf: an @ mention was clicked. */
+  onOpen(id: string): void
+}) {
   const key = repo.toLowerCase()
-  const path = decodePath(params['*'] ?? '')
-  const [, navigate] = useLocation()
   const tree = useSession((s) => s.trees.find((t) => t.repo.toLowerCase() === key))
   const data = useSession((s) => s.data[key])
   const node = data?.graph?.nodes.get(path)
-  // A branch's text (its folder's README.md) is edited here too; before it exists, it starts
-  // from a heading and is created by the first save.
+  // The branch whose text this is, if it is a README.md rather than a leaf.
   const owner = data?.graph ? threadEnd(data.graph, path) : null
   const branch = owner !== null && owner !== path ? data!.graph!.nodes.get(owner)! : null
-  const initial = branch && !branch.sha ? planBranchText(data!.graph!, branch.id).text : null
-  const exists = node?.kind === 'leaf' || branch !== null
   const [text, setText] = useState<{ path: string; text: string } | null>(null)
-  const [source, setSource] = useState(false)
   const handle = useRef<EditorHandle | null>(null)
 
   // @ mentions read the newest graph on use, so the editor is never rebuilt for it.
   const graphRef = useRef(data?.graph)
+  const openRef = useRef(onOpen)
   useEffect(() => {
     graphRef.current = data?.graph
+    openRef.current = onOpen
   })
   const mentionsFrom = useMemo<MentionSource>(() => {
     const asLeaf = (n: GraphNode): MentionLeaf => ({ path: n.id, title: n.title, icon: n.icon })
@@ -59,15 +70,22 @@ export function EditorPage({ params }: { params: { owner: string; name: string; 
         [...(graphRef.current?.nodes.values() ?? [])]
           .filter((n) => n.kind === 'leaf' && n.id !== path)
           .map(asLeaf),
+      // A link to a branch's README.md is a mention of the branch, and opens it.
       leaf: (id) => {
-        const n = graphRef.current?.nodes.get(id)
-        return n?.kind === 'leaf' ? asLeaf(n) : null
+        const graph = graphRef.current
+        const end = graph ? threadEnd(graph, id) : null
+        const n = end === null ? undefined : graph!.nodes.get(end)
+        return n ? asLeaf(n) : null
       },
-      open: (id) => navigate(treeHref(repo, id)),
+      open: (id) => openRef.current(id),
+      tree: (other) => {
+        const t = session.getState().trees.find((t) => t.repo.toLowerCase() === other.toLowerCase())
+        return t ? { title: t.title, href: `#${treeHref(t.repo)}` } : null
+      },
     }
-  }, [repo, path, navigate])
+  }, [path])
 
-  // Insert menu items the page handles. A new leaf or branch also gets a mention here.
+  // Insert menu items handled here. A new leaf or branch also gets a mention.
   const [action, setAction] = useState<StructureAction | null>(null)
   const filePicker = useRef<HTMLInputElement>(null)
   const onInsert: InsertHost = (kind) => {
@@ -97,11 +115,11 @@ export function EditorPage({ params }: { params: { owner: string; name: string; 
   }
 
   // The leaf's look (line 2): cover and colours. Shown at once, written to the text.
-  const [look, setLook] = useState<{ path: string; meta: LeafMeta } | null>(null)
-  const meta = look?.path === path ? look.meta : (node?.meta ?? null)
+  const [look, setLook] = useState<LeafMeta | null>(null)
+  const meta = look ?? node?.meta ?? null
   const changeLook = (update: (meta: LeafMeta) => LeafMeta) => {
     const next = update(meta ?? {})
-    setLook({ path, meta: next })
+    setLook(next)
     handle.current?.setMeta(() => next)
   }
   const coverPicker = useRef<HTMLInputElement>(null)
@@ -117,15 +135,20 @@ export function EditorPage({ params }: { params: { owner: string; name: string; 
   }
 
   useEffect(() => {
-    void session.getState().open(repo)
-  }, [repo])
-
-  useEffect(() => {
-    if (!exists || text?.path === path) return
-    void Promise.resolve(initial ?? session.getState().textOf(repo, path)).then((t) =>
-      setText({ path, text: t }),
+    let live = true
+    // A branch's text that doesn't exist yet starts from its heading; the first save creates it.
+    const graph = session.getState().data[key]?.graph
+    const end = graph ? threadEnd(graph, path) : null
+    const unwritten = graph && end !== null && end !== path && !graph.nodes.get(end)?.sha
+    void Promise.resolve(
+      unwritten ? planBranchText(graph, end).text : session.getState().textOf(repo, path),
     )
-  }, [repo, path, exists, initial, text?.path])
+      .then((t) => live && setText({ path, text: t }))
+      .catch(() => undefined)
+    return () => {
+      live = false
+    }
+  }, [repo, key, path])
 
   // Typing: the text goes to this device after a short pause; leaving the leaf commits it.
   const pending = useRef<{ text: string; timer: number } | null>(null)
@@ -148,7 +171,7 @@ export function EditorPage({ params }: { params: { owner: string; name: string; 
   )
 
   // Ctrl/Cmd+S and hiding the app commit everything on screen, including the last
-  // keystrokes not yet written locally. Handled here first; App's listener covers other pages.
+  // keystrokes not yet written locally. Handled here first; App's listener covers the rest.
   useEffect(() => {
     const commitNow = () => void saveRef.current().then(() => session.getState().flush(repo))
     const onKey = (e: KeyboardEvent) => {
@@ -174,161 +197,109 @@ export function EditorPage({ params }: { params: { owner: string; name: string; 
     }
   }
 
-  const title = (node ?? branch)?.title ?? decodePath(path).replace(/^.*\//, '')
+  if (text?.path !== path) return <div className={styles.loading} aria-busy="true" />
   return (
-    <div className={styles.page} style={{ '--tree': colorVar(tree?.color) } as React.CSSProperties}>
-      <TopBar>
-        <Divider />
-        <nav aria-label="Breadcrumb" className={styles.crumbs}>
-          <Link href="/" className={styles.home}>
-            All trees
-          </Link>
-          <Icon name="chevronRight" size={14} />
-          <Link href={treeHref(repo)} className={styles.home}>
-            {tree?.title ?? params.name}
-          </Link>
-          <Icon name="chevronRight" size={14} />
-          <h1 className={styles.title}>{title}</h1>
-        </nav>
-        <Search />
-        <span className={styles.status}>
-          <SyncStatus repo={repo} branch={tree?.branch ?? 'main'} />
-        </span>
-        <button
-          type="button"
-          className={`${controls.ghost} ${styles.toggle}`}
-          aria-pressed={source}
-          onClick={() => setSource((s) => !s)}
-        >
-          {source ? 'Show preview' : 'Show Markdown'}
-        </button>
-        <button
-          type="button"
-          className={controls.primary}
-          onClick={() => navigate(treeHref(repo, branch?.id ?? path))}
-        >
-          Done
-        </button>
-      </TopBar>
-      <ConflictBanner repo={repo} />
-      <main className={styles.main}>
-        {data?.status === 'error' && !data.graph ? (
-          <p className={controls.error} role="alert">
-            {data.error}
-          </p>
-        ) : data?.graph && !exists ? (
-          <p className={styles.missing}>
-            This leaf isn't in the Tree any more. <Link href={treeHref(repo)}>Back to the map</Link>
-          </p>
-        ) : text?.path === path ? (
-          <article className={styles.column} style={leafColors(meta)} data-leaf="">
-            <EditableCover
-              key={`${path} ${repositioning}`}
-              repo={repo}
-              meta={meta}
-              moving={repositioning}
-              onSave={(coverPosition) => {
-                changeLook((m) => ({ ...m, coverPosition }))
-                setRepositioning(false)
-              }}
-              onCancel={() => setRepositioning(false)}
+    <div className={styles.leaf} style={leafColors(meta)} data-leaf="">
+      <EditableCover
+        key={`${path} ${repositioning}`}
+        repo={repo}
+        meta={meta}
+        moving={repositioning}
+        onSave={(coverPosition) => {
+          changeLook((m) => ({ ...m, coverPosition }))
+          setRepositioning(false)
+        }}
+        onCancel={() => setRepositioning(false)}
+      />
+      {/* The header's controls change the editor's text, so they appear with it. */}
+      <Suspense fallback={<div className={styles.loading} aria-busy="true" />}>
+        {/* A branch's text has no icon, cover or colours of its own. */}
+        <div className={styles.header} hidden={branch !== null}>
+          {node?.icon && (
+            <button
+              type="button"
+              className={styles.iconButton}
+              data-icon-trigger=""
+              aria-haspopup="true"
+              aria-expanded={picking}
+              aria-label={`Change icon ${node.icon}`}
+              onClick={() => setPicking((p) => !p)}
+            >
+              <span className={styles.icon}>{node.icon}</span>
+            </button>
+          )}
+          <LeafStyle
+            meta={meta}
+            onChange={changeLook}
+            onCover={() => coverPicker.current?.click()}
+            onReposition={() => setRepositioning(true)}
+            icon={
+              node?.icon ? null : (
+                <button
+                  type="button"
+                  className={controls.ghost}
+                  data-icon-trigger=""
+                  aria-haspopup="true"
+                  aria-expanded={picking}
+                  onClick={() => setPicking((p) => !p)}
+                >
+                  Add icon
+                </button>
+              )
+            }
+          />
+          {picking && (
+            <IconPicker
+              icon={node?.icon ?? null}
+              onPick={(icon) => handle.current?.setIcon(icon)}
+              onClose={closePicker}
             />
-            {/* The header's controls change the editor's text, so they appear with it. */}
-            <Suspense fallback={<div className={styles.loading} aria-busy="true" />}>
-              {/* A branch's text has no icon, cover or colours of its own. */}
-              <div className={styles.header} hidden={branch !== null}>
-                {node?.icon && (
-                  <button
-                    type="button"
-                    className={styles.iconButton}
-                    data-icon-trigger=""
-                    aria-haspopup="true"
-                    aria-expanded={picking}
-                    aria-label={`Change icon ${node.icon}`}
-                    onClick={() => setPicking((p) => !p)}
-                  >
-                    <span className={styles.icon}>{node.icon}</span>
-                  </button>
-                )}
-                <LeafStyle
-                  meta={meta}
-                  onChange={changeLook}
-                  onCover={() => coverPicker.current?.click()}
-                  onReposition={() => setRepositioning(true)}
-                  icon={
-                    node?.icon ? null : (
-                      <button
-                        type="button"
-                        className={controls.ghost}
-                        data-icon-trigger=""
-                        aria-haspopup="true"
-                        aria-expanded={picking}
-                        onClick={() => setPicking((p) => !p)}
-                      >
-                        Add icon
-                      </button>
-                    )
-                  }
-                />
-                {picking && (
-                  <IconPicker
-                    icon={node?.icon ?? null}
-                    onPick={(icon) => handle.current?.setIcon(icon)}
-                    onClose={closePicker}
-                  />
-                )}
-              </div>
-              <input
-                ref={coverPicker}
-                type="file"
-                accept="image/*"
-                hidden
-                aria-label="Choose a cover image"
-                onChange={(e) => {
-                  const file = e.target.files?.[0]
-                  e.target.value = ''
-                  if (file)
-                    void saveFile(file).then(
-                      (added) =>
-                        // A new picture starts centred.
-                        added?.image &&
-                        changeLook((m) => ({ ...withoutCover(m), cover: `/${added.path}` })),
-                    )
-                }}
-              />
-              <Editor
-                key={path}
-                initial={text.text}
-                source={source}
-                onChange={onChange}
-                handleRef={handle}
-                mentionsFrom={mentionsFrom}
-                onInsert={onInsert}
-                onFiles={(files) => void addFiles(files)}
-                assetUrl={assetUrl}
-                fileSize={(p) => session.getState().fileSize(repo, p)}
-                // A new leaf holds only its title: start writing below it.
-                autoFocus={text.text.trim().split('\n').length === 1}
-              />
-            </Suspense>
-            <p className={`${controls.mono} ${styles.path}`}>{path}</p>
-            {/* Images or any file: onInsert sets what it accepts. */}
-            <input
-              ref={filePicker}
-              type="file"
-              multiple
-              hidden
-              aria-label="Add files"
-              onChange={(e) => {
-                void addFiles([...(e.target.files ?? [])])
-                e.target.value = ''
-              }}
-            />
-          </article>
-        ) : (
-          <div className={styles.loading} aria-busy="true" />
-        )}
-      </main>
+          )}
+        </div>
+        <input
+          ref={coverPicker}
+          type="file"
+          accept="image/*"
+          hidden
+          aria-label="Choose a cover image"
+          onChange={(e) => {
+            const file = e.target.files?.[0]
+            e.target.value = ''
+            if (file)
+              void saveFile(file).then(
+                (added) =>
+                  // A new picture starts centred.
+                  added?.image &&
+                  changeLook((m) => ({ ...withoutCover(m), cover: `/${added.path}` })),
+              )
+          }}
+        />
+        <Editor
+          initial={text.text}
+          source={source}
+          onChange={onChange}
+          handleRef={handle}
+          mentionsFrom={mentionsFrom}
+          onInsert={onInsert}
+          onFiles={(files) => void addFiles(files)}
+          assetUrl={assetUrl}
+          files={() => session.getState().files(repo)}
+          fileSize={(p) => session.getState().fileSize(repo, p)}
+          autoFocus={autoFocus}
+        />
+      </Suspense>
+      {/* Images or any file: onInsert sets what it accepts. */}
+      <input
+        ref={filePicker}
+        type="file"
+        multiple
+        hidden
+        aria-label="Add files"
+        onChange={(e) => {
+          void addFiles([...(e.target.files ?? [])])
+          e.target.value = ''
+        }}
+      />
       {action && tree && data?.graph && (
         <StructureDialog
           tree={tree}
