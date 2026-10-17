@@ -3,7 +3,7 @@ import type { LeafMeta } from '../model/parse'
 import { coverPosition, dragCover } from '../read/cover'
 import { Cover } from '../read/LeafLook'
 import controls from '../ui/controls.module.css'
-import styles from './EditorPage.module.css'
+import styles from './LeafEditor.module.css'
 
 const STEP: Record<string, number> = { ArrowUp: 5, ArrowRight: 5, ArrowDown: -5, ArrowLeft: -5 }
 

@@ -103,13 +103,14 @@ for (const leaves of [1000, 5000]) {
       report('reopen', painted, budget('reopen'))
     })
 
-    test('select a leaf: highlight and Peek', async ({ page, graph }) => {
+    test('select a leaf: highlight and Peek, then its editor', async ({ page, graph }) => {
       await page.goto('./#/tree/you/engineering')
       await signInHere(page)
       await expect(page.getByRole('status')).toHaveText('Synced to main', { timeout: 120_000 })
       await throttle(page)
       const leaves = [...graph.nodes.values()].filter((n) => n.kind === 'leaf').slice(0, 5)
       const times: number[] = []
+      const editable: number[] = []
       for (const leaf of leaves) {
         await page.evaluate(() => performance.clearMarks())
         await page
@@ -119,9 +120,12 @@ for (const leaves of [1000, 5000]) {
         const painted = await markTime(page, 'peek-painted', 'last')
         const start = await markTime(page, 'select', 'last')
         times.push(painted - start)
+        // The leaf is shown in its editor (#17): the text arrives just after the Peek.
+        editable.push((await markTime(page, 'editor-painted', 'last')) - start)
       }
-      times.sort((a, b) => a - b)
-      report('select (median of 5)', times[2]!, budget('select'))
+      const median = (xs: number[]) => [...xs].sort((a, b) => a - b)[2]!
+      report('select (median of 5)', median(times), budget('select'))
+      report('select to editable leaf (median of 5)', median(editable), null)
     })
 
     test('pan and zoom: frame time over 3 s of wheel zooming', async ({ page }) => {
@@ -186,7 +190,7 @@ test.describe('typing', () => {
       message: 'A long leaf',
       additions: [{ path: 'long.md', contents: `# Long\n\n${lines.join('\n')}\n` }],
     })
-    await page.goto('./#/edit/you/engineering/long.md')
+    await page.goto('./#/tree/you/engineering/long.md')
     await signInHere(page)
     await page.locator('.cm-content').click()
     await page.keyboard.press('ControlOrMeta+End')

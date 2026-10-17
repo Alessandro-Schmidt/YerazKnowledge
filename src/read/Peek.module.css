@@ -100,11 +100,6 @@
   height: 12px;
 }
 
-.icon {
-  font-size: 30px;
-  line-height: 1;
-}
-
 .title {
   margin: 0;
   font-size: 24px;
@@ -141,6 +136,9 @@
 }
 .addText:hover {
   color: var(--text);
+}
+.textDone {
+  align-self: flex-start;
 }
 
 .loading {
@@ -509,6 +507,15 @@
   text-transform: uppercase;
   color: var(--accent);
 }
+
+/* A leaf's editor in the floating Peek: the title at the Peek's size, less room below. */
+.article :global(.cm-editor .cm-content) {
+  padding-bottom: 24px;
+}
+.peek:not([data-expanded]) :global(.cm-line.cm-title) {
+  font-size: 24px;
+}
+
 /* A bookmark: the same card, its address on one line. */
 .content :global(.bookmark) {
   max-width: 100%;

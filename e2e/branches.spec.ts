@@ -45,7 +45,8 @@ test("a branch's README.md is its text, above what is inside, and never a leaf",
   await peek.locator('.mention', { hasText: 'Prompting' }).click()
   await expect(peekOf(page, 'Leaf').getByRole('heading', { name: 'Prompting' })).toBeVisible()
   await page.goto(`./#/tree/${REPO}/Cloud/docker.md`)
-  await peekOf(page, 'Leaf').locator('.mention', { hasText: 'the agents' }).click()
+  // The leaf is in its editor there, where the link is a chip.
+  await peekOf(page, 'Leaf').locator('.cm-mention', { hasText: 'the agents' }).click()
   await expect(peekOf(page, 'Branch').getByText('What this branch is for.')).toBeVisible()
 })
 
