@@ -57,6 +57,16 @@ export function embedOf(paragraph: string): Embed | null {
   return null
 }
 
+const languageNames = new Intl.DisplayNames(['en'], { type: 'language' })
+/** A subtitle track's label: `hy` → "Armenian". */
+export const languageName = (code: string) => {
+  try {
+    return languageNames.of(code) ?? code
+  } catch {
+    return code
+  }
+}
+
 const decode = (s: string) => {
   try {
     return decodeURIComponent(s)

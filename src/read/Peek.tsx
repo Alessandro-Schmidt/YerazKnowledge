@@ -1,13 +1,14 @@
-// The Peek: a partial view of the selected node, floating over the map (420 px), or the
-// full read page when expanded (760 px column). On phones it is a bottom sheet.
+// The Peek: the selected node, floating over the map (420 px), or its full page when
+// expanded (760 px column). On phones it is a bottom sheet. A leaf is editable in all three.
 
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useLayoutEffect, useState } from 'react'
 import type { TreeRef } from '../github/graphql'
 import { compactWords, crumbs, type Graph } from '../model/graph'
 import { ROOT } from '../model/tree'
 import { mark } from '../perf'
 import { session } from '../store/session'
-import { isLocal } from '../sync/overlay'
+import { LeafEditor } from '../editor/LeafEditor'
+import { ownPath } from '../model/parse'
 import controls from '../ui/controls.module.css'
 import { Glyph } from '../ui/Glyph'
 import { Icon } from '../ui/icons'
@@ -16,7 +17,6 @@ import { treeHref } from '../ui/paths'
 import styles from './Peek.module.css'
 import { coverPosition } from './cover'
 import { leafColors } from './colors'
-import { downloadAsset } from './files'
 import { Cover } from './LeafLook'
 import { printLeaf } from './print'
 import { renderLeaf } from './render'
@@ -27,12 +27,13 @@ export interface PeekProps {
   graph: Graph
   id: string
   expanded: boolean
+  /** The leaf was just created: its editor takes the focus, to write below the title. */
+  created?: boolean
   href(id: string): string
   onSelect(id: string): void
   onExpand(expanded: boolean): void
   onClose(): void
-  /** Editing: open the editor, or start a structure action. */
-  onEdit(id: string): void
+  /** A structure action: new leaf or branch, move, delete. */
   onAction(action: StructureAction): void
 }
 
@@ -41,15 +42,15 @@ export function Peek({
   graph,
   id,
   expanded,
+  created,
   href,
   onSelect,
   onExpand,
   onClose,
-  onEdit,
   onAction,
 }: PeekProps) {
   const [menu, setMenu] = useState(false)
-  const column = useRef<HTMLDivElement>(null)
+  const [source, setSource] = useState(false)
   useLayoutEffect(() => mark('peek-painted'), [id])
   const node = graph.nodes.get(id)!
   const kind = node.kind === 'root' ? 'Tree' : node.kind === 'branch' ? 'Branch' : 'Leaf'
@@ -115,34 +116,41 @@ export function Peek({
       </div>
 
       <div className={styles.scroll}>
-        <div ref={column} className={styles.column}>
-          <Cover
-            repo={tree.repo}
-            src={node.meta?.cover}
-            position={coverPosition(node.meta)}
-            className={styles.cover}
-          />
-          <article className={styles.article} style={leafColors(node.meta)} data-leaf="">
-            <div className={styles.titleRow}>
-              {node.icon ? (
-                <span className={styles.icon} aria-hidden="true">
-                  {node.icon}
-                </span>
-              ) : (
+        <div className={styles.column}>
+          {node.kind !== 'leaf' && (
+            <Cover
+              repo={tree.repo}
+              src={node.meta?.cover}
+              position={coverPosition(node.meta)}
+              className={styles.cover}
+            />
+          )}
+          <article className={styles.article}>
+            {node.kind === 'leaf' ? (
+              <LeafEditor
+                key={`${tree.repo} ${id}`}
+                repo={tree.repo}
+                path={id}
+                source={source}
+                autoFocus={created}
+                onOpen={onSelect}
+              />
+            ) : (
+              <div className={styles.titleRow}>
                 <Glyph node={node} />
-              )}
-              <h2 className={styles.title}>
-                {node.kind === 'root' ? (
-                  <InlineName
-                    value={node.title}
-                    label="Tree name"
-                    onRename={(name) => session.getState().renameTree(tree.repo, name)}
-                  />
-                ) : (
-                  node.title
-                )}
-              </h2>
-            </div>
+                <h2 className={styles.title}>
+                  {node.kind === 'root' ? (
+                    <InlineName
+                      value={node.title}
+                      label="Tree name"
+                      onRename={(name) => session.getState().renameTree(tree.repo, name)}
+                    />
+                  ) : (
+                    node.title
+                  )}
+                </h2>
+              </div>
+            )}
             <div className={styles.chips}>
               {chips.map((c) => (
                 <span key={c} className={`${controls.mono} ${styles.meta}`}>
@@ -150,10 +158,6 @@ export function Peek({
                 </span>
               ))}
             </div>
-
-            {node.kind === 'leaf' && node.sha && (
-              <LeafBody repo={tree.repo} graph={graph} id={id} sha={node.sha} href={href} />
-            )}
 
             {node.children.length > 0 && (
               <div className={styles.group}>
@@ -217,12 +221,7 @@ export function Peek({
           </button>
         )}
         <div className={styles.actions}>
-          {node.kind === 'leaf' ? (
-            <button type="button" className={controls.ghost} onClick={() => onEdit(id)}>
-              <Icon name="pencil" size={15} />
-              Edit leaf
-            </button>
-          ) : (
+          {node.kind !== 'leaf' && (
             <button
               type="button"
               className={controls.ghost}
@@ -249,8 +248,20 @@ export function Peek({
                   {node.kind === 'leaf' && (
                     <button
                       type="button"
+                      role="menuitemcheckbox"
+                      aria-checked={source}
+                      onClick={() => setSource((s) => !s)}
+                    >
+                      Show Markdown
+                    </button>
+                  )}
+                  {node.kind === 'leaf' && (
+                    <button
+                      type="button"
                       role="menuitem"
-                      onClick={() => column.current && printLeaf(column.current)}
+                      onClick={() =>
+                        void printable(tree.repo, graph, id, href).then(printLeaf, () => undefined)
+                      }
                     >
                       Export PDF
                     </button>
@@ -351,76 +362,65 @@ function ThreadList({
   )
 }
 
-function LeafBody({
-  repo,
-  graph,
-  id,
-  sha,
-  href,
-}: {
-  repo: string
-  graph: Graph
-  id: string
-  sha: string
-  href(id: string): string
-}) {
-  const [html, setHtml] = useState<{ sha: string; html: string } | null>(null)
-  useEffect(() => {
-    let live = true
-    void session
-      .getState()
-      .textOf(repo, id)
-      .then(async (text) => {
-        if (!live) return
-        const rendered = await renderLeaf(
-          text,
-          {
-            leafHref: (path) => (graph.nodes.get(path)?.kind === 'leaf' ? href(path) : null),
-            leafIcon: (path) => graph.nodes.get(path)?.icon ?? null,
-            files: () => session.getState().files(repo),
-            size: (path) => session.getState().fileSize(repo, path),
-            tree: (other) => {
-              const t = session
-                .getState()
-                .trees.find((t) => t.repo.toLowerCase() === other.toLowerCase())
-              return t ? { title: t.title, href: `#${treeHref(t.repo)}` } : null
-            },
-          },
-          // Pending edits have no SHA yet, so they are not cached.
-          isLocal(sha) ? undefined : sha,
-        )
-        if (live) setHtml({ sha, html: rendered })
-      })
-      .catch(() => undefined)
-    return () => {
-      live = false
-    }
-  }, [repo, id, sha, graph, href])
+/**
+ * The leaf as the read view draws it (ARCHITECTURE.md §8), for printing: cover, title and
+ * the rendered text, with the Tree's own images loaded.
+ */
+async function printable(
+  repo: string,
+  graph: Graph,
+  id: string,
+  href: (id: string) => string,
+): Promise<HTMLElement> {
+  const { getState } = session
+  const node = graph.nodes.get(id)!
+  const html = await renderLeaf(await getState().textOf(repo, id), {
+    leafHref: (path) => (graph.nodes.get(path)?.kind === 'leaf' ? href(path) : null),
+    leafIcon: (path) => graph.nodes.get(path)?.icon ?? null,
+    files: () => getState().files(repo),
+    size: (path) => getState().fileSize(repo, path),
+    tree: (other) => {
+      const t = getState().trees.find((t) => t.repo.toLowerCase() === other.toLowerCase())
+      return t ? { title: t.title, href: `#${treeHref(t.repo)}` } : null
+    },
+  })
+  const article = document.createElement('article')
+  article.className = styles.article ?? ''
+  article.dataset.leaf = ''
+  for (const [name, value] of Object.entries(leafColors(node.meta)))
+    article.style.setProperty(name, String(value))
+  const title = document.createElement('h2')
+  title.className = styles.title ?? ''
+  title.textContent = `${node.icon ? `${node.icon} ` : ''}${node.title}`
+  const body = document.createElement('div')
+  body.className = `reading ${styles.content}`
+  body.innerHTML = html
+  article.append(title, body)
 
-  // The Tree's own files (images, PDFs, videos) come from the blob cache, with the token.
-  const body = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    for (const el of body.current?.querySelectorAll<HTMLElement>(
-      '[data-asset], [data-asset-href]',
-    ) ?? []) {
-      const href = el.dataset.assetHref
-      void session
-        .getState()
-        .assetUrl(repo, href ?? el.dataset.asset!)
-        .then((url) => url && el.setAttribute(href ? 'href' : 'src', url))
-    }
-    // Attachments are downloaded only when their card is used.
-    for (const el of body.current?.querySelectorAll<HTMLElement>('[data-asset-file]') ?? [])
-      el.onclick = () =>
-        void downloadAsset(el.dataset.assetFile!, (p) => session.getState().assetUrl(repo, p))
-  }, [html, repo])
-
-  if (html?.sha !== sha) return <div className={styles.loading} aria-busy="true" />
-  return (
-    <div
-      ref={body}
-      className={`reading ${styles.content}`}
-      dangerouslySetInnerHTML={{ __html: html.html }}
-    />
+  const cover = typeof node.meta?.cover === 'string' ? node.meta.cover : null
+  if (cover) {
+    const img = document.createElement('img')
+    img.className = styles.cover ?? ''
+    const own = ownPath(cover)
+    if (own !== null) img.dataset.asset = own
+    else if (/^https:\/\//.test(cover)) img.src = cover
+    img.style.objectPosition = `50% ${coverPosition(node.meta)}%`
+    article.prepend(img)
+  }
+  await Promise.all(
+    [...article.querySelectorAll<HTMLElement>('[data-asset], [data-asset-href]')].map(
+      async (el) => {
+        const link = el.dataset.assetHref
+        const url = await getState().assetUrl(repo, link ?? el.dataset.asset!)
+        if (url) el.setAttribute(link ? 'href' : 'src', url)
+      },
+    ),
   )
+  await Promise.all(
+    [...article.querySelectorAll('img')].map((img) => {
+      img.loading = 'eager'
+      return img.decode().catch(() => undefined)
+    }),
+  )
+  return article
 }

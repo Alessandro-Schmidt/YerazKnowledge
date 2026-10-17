@@ -39,7 +39,7 @@ test.describe('mentions', () => {
     await expect(page.getByRole('status')).toHaveText('Synced to main', { timeout: 30_000 })
     const threads = await page.locator('[data-map] [data-thread]').count()
 
-    await page.goto(`./#/edit/${REPO}/${from.id}`)
+    await page.goto(`./#/tree/${REPO}/${from.id}`)
     await page.locator('.cm-content').click()
     await page.keyboard.press('ControlOrMeta+End')
     await page.keyboard.type(`\nSee @${to.title.split(' ')[0]}`)
@@ -68,7 +68,7 @@ test.describe('insert menu', () => {
   test.beforeEach(async ({ page, graph }) => {
     await page.clock.install()
     const leaf = pair(graph).from
-    await page.goto(`./#/edit/${REPO}/${leaf.id}`)
+    await page.goto(`./#/tree/${REPO}/${leaf.id}`)
     await signInHere(page)
     await page.locator('.cm-content').click()
     await page.keyboard.press('ControlOrMeta+End')
@@ -76,6 +76,8 @@ test.describe('insert menu', () => {
 
   test('holding Ctrl/Cmd for 1.9 s shows nothing; at 2.0 s the menu opens', async ({ page }) => {
     const menu = page.getByRole('menu', { name: 'Insert' })
+    // Time moves only when the test says so: the map beside the editor makes real time uneven.
+    await page.clock.pauseAt(Date.now() + 1000)
     await page.keyboard.down('Control')
     await page.clock.runFor(1900)
     await expect(menu).toHaveCount(0)
@@ -177,7 +179,7 @@ test.describe('images', () => {
   }) => {
     await page.clock.install()
     const leaf = pair(graph).from.id
-    await page.goto(`./#/edit/${REPO}/${leaf}`)
+    await page.goto(`./#/tree/${REPO}/${leaf}`)
     await signInHere(page)
     await page.locator('.cm-content').click()
     await page.keyboard.press('ControlOrMeta+End')
@@ -265,7 +267,7 @@ for (const dpr of [2, 3]) {
 }
 
 test.describe('embeds', () => {
-  test.skip(({ isMobile }) => isMobile, 'Desktop engines; the read view is the same on phones')
+  test.skip(({ isMobile }) => isMobile, 'Desktop engines; the leaf is the same on phones')
 
   const LEAF = [
     '# Embeds',
@@ -296,7 +298,7 @@ test.describe('embeds', () => {
     })
   })
 
-  test('the read view shows math, highlighted code, a PDF, a subtitled video and YouTube', async ({
+  test('the Peek shows math, highlighted code, a PDF, a subtitled video and YouTube', async ({
     page,
   }) => {
     await page.goto(`./#/tree/${REPO}/embeds.md`)
@@ -304,8 +306,12 @@ test.describe('embeds', () => {
     const body = page.getByRole('region', { name: 'Leaf preview' })
     await expect(body.locator('.katex')).toHaveCount(1)
     await expect(body.getByText('it costs $5 and $10.')).toBeVisible()
-    await expect(body.locator('pre .tok-keyword').first()).toHaveText('const')
-    await expect(body.locator('iframe.pdf')).toHaveAttribute('src', /^blob:/)
+    await expect(body.locator('.cm-code-block .tok-keyword').first()).toHaveText('const')
+    await expect(body.locator('.cm-embed-pdf iframe')).toHaveAttribute('src', /^blob:/)
+    await expect(body.getByRole('link', { name: 'Download OIDC spec' })).toHaveAttribute(
+      'href',
+      /^blob:/,
+    )
     await expect(body.locator('video')).toHaveAttribute('src', /^blob:/)
     await expect(body.locator('video track')).toHaveAttribute('src', /^blob:/)
     await expect(body.locator('video track')).toHaveAttribute('label', 'English')
@@ -316,7 +322,7 @@ test.describe('embeds', () => {
   })
 
   test('live preview shows math and players away from the cursor', async ({ page }) => {
-    await page.goto(`./#/edit/${REPO}/embeds.md`)
+    await page.goto(`./#/tree/${REPO}/embeds.md`)
     await signInHere(page)
     const editor = page.locator('.cm-content')
     await expect(editor.locator('.cm-math .katex')).toHaveCount(1)
@@ -332,13 +338,9 @@ test.describe('embeds', () => {
 test.describe('leaf styling', () => {
   test.skip(({ isMobile }) => isMobile, 'Desktop engines')
 
-  test('colours and a cover go on line 2; the read view shows them in the theme', async ({
-    page,
-    fake,
-    graph,
-  }) => {
+  test('colours and a cover go on line 2, and show in the theme', async ({ page, fake, graph }) => {
     const leaf = pair(graph).from.id
-    await page.goto(`./#/edit/${REPO}/${leaf}`)
+    await page.goto(`./#/tree/${REPO}/${leaf}`)
     await signInHere(page)
     await page.getByLabel('Heading colour').selectOption('amber')
     await page.getByLabel('Text colour').selectOption('blue')
@@ -369,13 +371,11 @@ test.describe('leaf styling', () => {
         /^<!-- yeraz \{"color":\{"heading":"amber","text":"blue"\},"cover":"\/assets\/\d{4}-\d{2}-\d{2}-mount-ararat\.png"\} -->$/,
       )
 
-    await page.getByRole('button', { name: 'Done' }).click()
     const peek = page.getByRole('region', { name: 'Leaf preview' })
-    await expect(peek.locator('img').first()).toHaveAttribute('src', /^blob:/)
     const amber = await page.evaluate(() =>
       getComputedStyle(document.documentElement).getPropertyValue('--c-amber').trim(),
     )
-    const article = peek.locator('article').first()
+    const article = peek.locator('[data-leaf]')
     expect(amber).toMatch(/^#[0-9A-Fa-f]{6}$/)
     await expect(article).toHaveCSS('--leaf-heading', amber)
   })
@@ -402,10 +402,9 @@ test.describe('leaf colours', () => {
       `rgb(${[1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(', ')})`
     await page.goto(`./#/tree/${REPO}/navy.md`)
     await signInHere(page)
-    const heading = page.getByRole('region', { name: 'Leaf preview' }).getByRole('heading', {
-      name: 'Inside',
-    })
-    const leaf = page.getByRole('region', { name: 'Leaf preview' }).locator('article[data-leaf]')
+    const peek = page.getByRole('region', { name: 'Leaf preview' })
+    const heading = peek.locator('.cm-h2', { hasText: 'Inside' })
+    const leaf = peek.locator('[data-leaf]')
     const value = (mode: string) =>
       leaf.evaluate((el, m) => el.style.getPropertyValue(`--leaf-heading-${m}`), mode)
     // The Peek shows structure first, then content: wait for the leaf's own text.
@@ -434,7 +433,7 @@ test.describe('cover position', () => {
     graph,
   }) => {
     const leaf = pair(graph).from.id
-    await page.goto(`./#/edit/${REPO}/${leaf}`)
+    await page.goto(`./#/tree/${REPO}/${leaf}`)
     await signInHere(page)
     const addIcon = page.getByRole('button', { name: 'Add icon' })
     const addCover = page.getByRole('button', { name: 'Add cover' })
@@ -480,9 +479,6 @@ test.describe('cover position', () => {
     await expect
       .poll(() => fake.repo(REPO).read(leaf)?.split('\n')[1])
       .toMatch(/"coverPosition":5\b/)
-    await page.getByRole('button', { name: 'Done' }).click()
-    const peek = page.getByRole('region', { name: 'Leaf preview' })
-    await expect(peek.locator('img').first()).toHaveCSS('object-position', '50% 5%')
   })
 })
 
@@ -495,7 +491,7 @@ test.describe('icons', () => {
     graph,
   }) => {
     const leaf = pair(graph).from
-    await page.goto(`./#/edit/${REPO}/${leaf.id}`)
+    await page.goto(`./#/tree/${REPO}/${leaf.id}`)
     await signInHere(page)
     // No wait for the editor: the button appears with it, so an early pick isn't lost.
     await page.getByRole('button', { name: /^(Add icon|Change icon)/ }).click()
@@ -550,8 +546,8 @@ test.describe('other repositories', () => {
 
     await page.goto(`./#/tree/${REPO}/links.md`)
     const peek = page.getByRole('region', { name: 'Leaf preview' })
-    await expect(peek.locator('.repo-card')).toContainText('Art History')
-    await peek.getByRole('link', { name: 'Baroque' }).click()
+    await expect(peek.getByRole('link', { name: /Art History/ })).toContainText('Tree')
+    await peek.locator('.cm-mention', { hasText: 'Baroque' }).click()
     await expect(page).toHaveURL(/#\/tree\/you\/art\/baroque\.md$/)
     await expect(page.getByRole('heading', { name: 'Baroque' })).toBeVisible()
   })

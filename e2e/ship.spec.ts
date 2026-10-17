@@ -59,9 +59,10 @@ test.describe('PDF export', () => {
     await expect(page.getByText('A paragraph to print.')).toBeVisible()
     await page.getByRole('button', { name: 'More actions' }).click()
     await page.getByRole('menuitem', { name: 'Export PDF' }).click()
-    expect(await page.evaluate(() => (window as unknown as { printed: boolean }).printed)).toBe(
-      true,
-    )
+    // The leaf is drawn for print first (the Peek shows it in the editor), then printed.
+    await expect
+      .poll(() => page.evaluate(() => (window as unknown as { printed: boolean }).printed))
+      .toBe(true)
 
     await page.emulateMedia({ media: 'print' })
     const bg = await page.evaluate(() =>
@@ -70,6 +71,7 @@ test.describe('PDF export', () => {
     expect(bg).toBe(paperBg)
     const root = page.locator('#print-root')
     await expect(root).toBeVisible()
+    await expect(root.getByRole('heading', { name: 'Printable' })).toBeVisible()
     await expect(root.getByText('A paragraph to print.')).toBeVisible()
     await expect(page.getByRole('banner')).toBeHidden()
     await expect(root.locator('iframe')).toBeHidden()
