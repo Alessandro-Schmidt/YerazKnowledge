@@ -496,3 +496,12 @@
   text-transform: uppercase;
   color: var(--accent);
 }
+/* A bookmark: the same card, its address on one line. */
+.content :global(.bookmark) {
+  max-width: 100%;
+}
+.content :global(.bookmark) span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

@@ -13,7 +13,7 @@ import {
   type ViewUpdate,
 } from '@codemirror/view'
 import type { SyntaxNode } from '@lezer/common'
-import { embedOf, mathSpans, type Embed } from '../model/embeds'
+import { embedOf, mathSpans, shortUrl, type Embed } from '../model/embeds'
 import { leadingIcon, linkTarget, META, ownPath } from '../model/parse'
 import { downloadAsset, fileCardHtml } from '../read/files'
 import { mentionSource } from './mentions'
@@ -104,7 +104,11 @@ class MathWidget extends WidgetType {
   }
 }
 
-/** A YouTube video, a PDF or video kept in the Tree, or a card for any other file. */
+/**
+ * A YouTube video, a PDF or video kept in the Tree, a repository, a bookmark or a card for
+ * any other file, in place of its link. A click on a bookmark edits its line, as on any
+ * other link here; a click on a file card downloads it.
+ */
 class EmbedWidget extends WidgetType {
   constructor(
     readonly embed: Embed,
@@ -130,6 +134,15 @@ class EmbedWidget extends WidgetType {
       if (resolve) box.addEventListener('click', () => void downloadAsset(embed.path, resolve))
       return box
     }
+    if (embed.kind === 'bookmark') {
+      const title = document.createElement('strong')
+      const url = document.createElement('span')
+      title.textContent = embed.title
+      url.textContent = shortUrl(embed.url)
+      box.title = embed.url
+      box.append(title, url)
+      return box
+    }
     const el = document.createElement(embed.kind === 'video' ? 'video' : 'iframe')
     el.title = embed.title || (embed.kind === 'youtube' ? 'YouTube video' : embed.path)
     if (embed.kind === 'youtube') {
@@ -147,7 +160,7 @@ class EmbedWidget extends WidgetType {
     return box
   }
   ignoreEvent() {
-    return true
+    return this.embed.kind !== 'bookmark'
   }
 }
 

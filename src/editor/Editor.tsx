@@ -15,6 +15,7 @@ import styles from './Editor.module.css'
 import { assetSource, fileSizes, livePreview } from './livePreview'
 import { insertMenu, type InsertHost } from './insertMenu'
 import { mentions, type MentionSource } from './mentions'
+import { pasteLink } from './pasteLink'
 
 export interface EditorHandle {
   setIcon(icon: string | null): void
@@ -88,6 +89,7 @@ export default function Editor({
           placeholder('Start writing…'),
           mentionsFrom ? mentions(mentionsFrom) : [],
           insertMenu((kind, v) => insertRef.current?.(kind, v)),
+          pasteLink,
           assetSource.of(async (path) => (await assetRef.current?.(path)) ?? null),
           fileSizes.of((path) => sizeRef.current?.(path) ?? null),
           EditorView.domEventHandlers({

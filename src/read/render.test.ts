@@ -192,6 +192,27 @@ describe('renderLeaf', () => {
     )
   })
 
+  it('shows a titled link alone in its paragraph as a bookmark; a bare URL stays a link', async () => {
+    const html = await renderLeaf(
+      [
+        '# T',
+        '',
+        '[Baroque <art>](https://en.wikipedia.org/wiki/Baroque)',
+        '',
+        'https://example.com/post',
+        '',
+        'Read [this](https://example.com/a) first.',
+      ].join('\n'),
+      context,
+    )
+    expect(html).toContain(
+      '<p><a class="repo-card bookmark" href="https://en.wikipedia.org/wiki/Baroque" target="_blank" rel="noopener noreferrer">' +
+        '<strong>Baroque &lt;art&gt;</strong><span>en.wikipedia.org/wiki/Baroque</span></a></p>',
+    )
+    expect(html).toContain('<p><a href="https://example.com/post" target="_blank"')
+    expect(html).toContain('Read <a href="https://example.com/a" target="_blank"')
+  })
+
   it('caches by blob SHA', async () => {
     const first = await renderLeaf('# T\n\nOne\n', context, 'sha-1')
     expect(await renderLeaf('# T\n\nChanged\n', context, 'sha-1')).toBe(first)

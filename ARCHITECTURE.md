@@ -66,6 +66,7 @@ These rules are the only thing that must stay stable across versions. Tests lock
 | A thread to another Tree is a full GitHub URL to a file in a connected repository. Any other `github.com/owner/repo` URL renders as a repository card. | `https://github.com/user/art-history/blob/main/baroque.md` |
 | Images and attachments live in `assets/` at the root, at full quality. An image is committed unchanged unless its long edge is over 4096 px (§8). | `assets/2026-10-14-realm-diagram.png` |
 | A paragraph that is only a link to a YouTube video, or to a PDF or video (`.mp4`, `.webm`) in `assets/`, shows as a player; one to any other file in `assets/` shows as a card that downloads it. On GitHub it stays a link. A video's subtitles are `name.<lang>.vtt` files beside it. | `[OIDC spec](/assets/oidc.pdf)` · `assets/talk.mp4` + `assets/talk.en.vtt` · `[Q3 report.xlsx](/assets/2026-10-17-q3-report.xlsx)` |
+| A paragraph that is only a titled link to any other web page is a **bookmark**: a card with its title and address. A bare URL stays a plain link. On GitHub both are links. | `[Baroque](https://en.wikipedia.org/wiki/Baroque)` |
 | Math is `$inline$` and `$$display$$`, as GitHub writes it. | `$e^{i\pi} + 1 = 0$` |
 | `.yeraz.json` at the root marks a repository as a Tree. | `{"name":"Engineering","color":"green"}` |
 | The filename is fixed when the leaf is created (a slug of its first title). Changing the title does not rename the file. | Title "Keycloak (IdP)" stays in `keycloak.md` |
@@ -161,12 +162,13 @@ Renaming a Tree changes only `name` in `.yeraz.json`. The edit is committed like
 - **CodeMirror 6** with `@codemirror/lang-markdown` (GitHub-flavoured). The document in the editor *is* the file's text.
 - **Live preview is one decoration extension.** It:
   - hides Markdown syntax on lines that don't hold the cursor, and styles headings and quotes;
-  - replaces the right ranges with widgets: images, `@` chips, checkboxes, math (KaTeX), YouTube embeds, PDFs, and video with subtitle tracks.
+  - replaces the right ranges with widgets: images, `@` chips, checkboxes, math (KaTeX), YouTube embeds, PDFs, video with subtitle tracks, repository cards and bookmarks.
 - **"Show the code" turns that extension off.** Same editor, same text, no conversion.
 - **`@` mentions** use `@codemirror/autocomplete` over the in-memory index. Picking a leaf inserts `[Title](/path.md)`, which is displayed as a chip with the target's icon.
 - **Hold Ctrl/Cmd for 2 seconds** to open the insert menu: to-do list, ordered list, bullet list, mention, image from files, attach a file, new leaf, new branch.
   - The timer starts when the modifier is pressed on its own. Any other key, or releasing the modifier, cancels it, so normal shortcuts like Ctrl+C never open the menu.
   - Phones have no Ctrl key: a long-press or typing `/` opens the same menu.
+- **Pasting a URL** (one http(s) address, into a plain paragraph) inserts it as it is and offers *Keep as link* or *Bookmark*. A bookmark rewrites it as `[Title](url)` in a paragraph of its own; the title comes from the URL's last path segment, or its site, since the browser can't fetch other sites' pages. Typing, moving away or Escape keeps the link.
 - **Code blocks** use CodeMirror's nested languages from `@codemirror/language-data`, loaded per language on demand. The read view highlights with the same Lezer parsers (`highlightCode`), so there is one highlighting system, not two.
 - **The header above the text** (cover, icon, colours) is drawn from line 1 and line 2. Colours are applied as CSS variables on the leaf container: `--leaf-text` and `--leaf-heading`, with headings in the theme's accent by default.
 
