@@ -16,6 +16,7 @@ import { treeHref } from '../ui/paths'
 import styles from './Peek.module.css'
 import { coverPosition } from './cover'
 import { leafColors } from './colors'
+import { downloadAsset } from './files'
 import { Cover } from './LeafLook'
 import { printLeaf } from './print'
 import { renderLeaf } from './render'
@@ -377,6 +378,7 @@ function LeafBody({
             leafHref: (path) => (graph.nodes.get(path)?.kind === 'leaf' ? href(path) : null),
             leafIcon: (path) => graph.nodes.get(path)?.icon ?? null,
             files: () => session.getState().files(repo),
+            size: (path) => session.getState().fileSize(repo, path),
             tree: (other) => {
               const t = session
                 .getState()
@@ -407,6 +409,10 @@ function LeafBody({
         .assetUrl(repo, href ?? el.dataset.asset!)
         .then((url) => url && el.setAttribute(href ? 'href' : 'src', url))
     }
+    // Attachments are downloaded only when their card is used.
+    for (const el of body.current?.querySelectorAll<HTMLElement>('[data-asset-file]') ?? [])
+      el.onclick = () =>
+        void downloadAsset(el.dataset.assetFile!, (p) => session.getState().assetUrl(repo, p))
   }, [html, repo])
 
   if (html?.sha !== sha) return <div className={styles.loading} aria-busy="true" />

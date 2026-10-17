@@ -65,7 +65,7 @@ These rules are the only thing that must stay stable across versions. Tests lock
 | A thread is a normal Markdown link with a **root-relative** path. GitHub resolves paths starting with `/` from the repository root, so threads also work on github.com. | `[Keycloak](/identity/keycloak.md)` |
 | A thread to another Tree is a full GitHub URL to a file in a connected repository. Any other `github.com/owner/repo` URL renders as a repository card. | `https://github.com/user/art-history/blob/main/baroque.md` |
 | Images and attachments live in `assets/` at the root, at full quality. An image is committed unchanged unless its long edge is over 4096 px (§8). | `assets/2026-10-14-realm-diagram.png` |
-| A paragraph that is only a link to a YouTube video, or to a PDF or video (`.mp4`, `.webm`) in `assets/`, shows as a player; on GitHub it stays a link. A video's subtitles are `name.<lang>.vtt` files beside it. | `[OIDC spec](/assets/oidc.pdf)` · `assets/talk.mp4` + `assets/talk.en.vtt` |
+| A paragraph that is only a link to a YouTube video, or to a PDF or video (`.mp4`, `.webm`) in `assets/`, shows as a player; one to any other file in `assets/` shows as a card that downloads it. On GitHub it stays a link. A video's subtitles are `name.<lang>.vtt` files beside it. | `[OIDC spec](/assets/oidc.pdf)` · `assets/talk.mp4` + `assets/talk.en.vtt` · `[Q3 report.xlsx](/assets/2026-10-17-q3-report.xlsx)` |
 | A paragraph that is only a titled link to any other web page is a **bookmark**: a card with its title and address. A bare URL stays a plain link. On GitHub both are links. | `[Baroque](https://en.wikipedia.org/wiki/Baroque)` |
 | Math is `$inline$` and `$$display$$`, as GitHub writes it. | `$e^{i\pi} + 1 = 0$` |
 | `.yeraz.json` at the root marks a repository as a Tree. | `{"name":"Engineering","color":"green"}` |
@@ -165,7 +165,7 @@ Renaming a Tree changes only `name` in `.yeraz.json`. The edit is committed like
   - replaces the right ranges with widgets: images, `@` chips, checkboxes, math (KaTeX), YouTube embeds, PDFs, video with subtitle tracks, repository cards and bookmarks.
 - **"Show the code" turns that extension off.** Same editor, same text, no conversion.
 - **`@` mentions** use `@codemirror/autocomplete` over the in-memory index. Picking a leaf inserts `[Title](/path.md)`, which is displayed as a chip with the target's icon.
-- **Hold Ctrl/Cmd for 2 seconds** to open the insert menu: to-do list, ordered list, bullet list, mention, image from files, new leaf, new branch.
+- **Hold Ctrl/Cmd for 2 seconds** to open the insert menu: to-do list, ordered list, bullet list, mention, image from files, attach a file, new leaf, new branch.
   - The timer starts when the modifier is pressed on its own. Any other key, or releasing the modifier, cancels it, so normal shortcuts like Ctrl+C never open the menu.
   - Phones have no Ctrl key: a long-press or typing `/` opens the same menu.
 - **Pasting a URL** (one http(s) address, into a plain paragraph) inserts it as it is and offers *Keep as link* or *Bookmark*. A bookmark rewrites it as `[Title](url)` in a paragraph of its own; the title comes from the URL's last path segment, or its site, since the browser can't fetch other sites' pages. Typing, moving away or Escape keeps the link.
@@ -195,6 +195,7 @@ Every image a user sees should be sharp on any screen, including 2× and 3× dis
   - **Larger images** are scaled down to 4096 px on the long edge, the most a full-width image needs on a 2× display up to 2048 px wide. Photos are saved as WebP at quality 92. Screenshots, diagrams and images with transparency are saved as lossless WebP so text and edges stay crisp.
   - **Never upscaled.** SVG (a vector) and GIF (possibly animated) are always committed as they are.
   - Images go into the same commit as the leaf that shows them; they are never merged, since their names (date and slug) are unique.
+- **Other files people add** (paste, drop or "Attach a file", `editor/attach.ts`) are committed byte for byte under the same names, keeping their extension, in the same commit as the leaf. The leaf gets a paragraph of one plain link, its text the file's name. The card shows the name, type and size (from the tree listing, so nothing is downloaded); the file is fetched only when the card is used.
 - **Display:**
   - The browser shows the original image, scaled by CSS. Browsers resample well, and the full pixel density is kept on high-resolution screens.
   - The Tree's own images are fetched the first time they are shown, with `GET /repos/{owner}/{repo}/git/blobs/{sha}` and the raw media type, and kept in IndexedDB by blob SHA. Private repositories need the token, so they are shown through blob URLs.
@@ -270,7 +271,7 @@ Every image a user sees should be sharp on any screen, including 2× and 3× dis
 - **Linux webviews (WebKitGTK)** render SVG more slowly. The performance tests should run there too.
 - **Browsers can evict IndexedDB** under storage pressure, which matters most on phones. Call `navigator.storage.persist()`, and treat local data as a cache plus a short-lived outbox; committing on app hide keeps that outbox small.
 - **GitHub secondary rate limits** apply to bursts of writes. Batched commits keep the app well below them.
-- **Large binaries bloat a repository.** Images over 4096 px are scaled down on upload, and any file over 10 MB gets a warning before it is committed.
+- **Large binaries bloat a repository.** Images over 4096 px are scaled down on upload, any file over 10 MB gets a warning before it is committed, and one over 100 MB (GitHub's limit for a file) is refused.
 
 ## 12. Module map
 
@@ -286,10 +287,10 @@ src/
             structure.ts (new leaf, branch, move, delete as file changes) · overlay.ts
   map/      layout.ts (d3) · TreeMap.tsx · HomeMap.tsx · Home.tsx · useZoom.ts
   editor/   Editor.tsx · EditorPage.tsx · livePreview.ts · IconPicker.tsx · EditableCover.tsx
-            insertMenu.ts · mentions.ts · images.ts (scale, encode)
+            insertMenu.ts · mentions.ts · images.ts (scale, encode) · attach.ts (files)
             emoji.ts (every emoji, names and keywords, for the icon picker; lazy)
   read/     render.ts (markdown-it) · rich.ts (math, code, embeds) · Peek.tsx · print.css
-            LeafLook.tsx (cover, colours) · cover.ts (cover position)
+            LeafLook.tsx (cover, colours) · cover.ts (cover position) · files.ts (file cards)
   ui/       App.tsx (routes) · TopBar.tsx · TokenScreen.tsx · TreeView.tsx
             Explorer.tsx · Appearance.tsx
             theme.ts (turns design/themes/themes.json into CSS, applies it)

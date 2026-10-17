@@ -15,6 +15,7 @@ import {
 import type { SyntaxNode } from '@lezer/common'
 import { embedOf, mathSpans, shortUrl, type Embed } from '../model/embeds'
 import { leadingIcon, linkTarget, META, ownPath } from '../model/parse'
+import { downloadAsset, fileCardHtml } from '../read/files'
 import { mentionSource } from './mentions'
 
 /** The title's icon with the space after it, so both can be hidden. */
@@ -48,6 +49,14 @@ export const assetSource = Facet.define<
   (path: string) => Promise<string | null>,
   ((path: string) => Promise<string | null>) | null
 >({ combine: (values) => values[0] ?? null })
+
+/** Sizes of the Tree's files, for attachment cards. */
+export const fileSizes = Facet.define<
+  (path: string) => number | null,
+  (path: string) => number | null
+>({
+  combine: (values) => values[0] ?? (() => null),
+})
 
 class ImageWidget extends WidgetType {
   constructor(
@@ -96,18 +105,20 @@ class MathWidget extends WidgetType {
 }
 
 /**
- * A YouTube video, a PDF or video kept in the Tree, a repository or a bookmark, in place of
- * its link. A click on a bookmark edits its line, as on any other link here.
+ * A YouTube video, a PDF or video kept in the Tree, a repository, a bookmark or a card for
+ * any other file, in place of its link. A click on a bookmark edits its line, as on any
+ * other link here; a click on a file card downloads it.
  */
 class EmbedWidget extends WidgetType {
   constructor(
     readonly embed: Embed,
     readonly resolve: ((path: string) => Promise<string | null>) | null,
+    readonly size: number | null = null,
   ) {
     super()
   }
   eq(other: EmbedWidget) {
-    return JSON.stringify(other.embed) === JSON.stringify(this.embed)
+    return JSON.stringify(other.embed) === JSON.stringify(this.embed) && other.size === this.size
   }
   toDOM() {
     const { embed } = this
@@ -115,6 +126,12 @@ class EmbedWidget extends WidgetType {
     box.className = `cm-embed cm-embed-${embed.kind}`
     if (embed.kind === 'repo') {
       box.textContent = `${embed.title || embed.repo} · GitHub repository`
+      return box
+    }
+    if (embed.kind === 'file') {
+      box.innerHTML = fileCardHtml(embed, this.size)
+      const resolve = this.resolve
+      if (resolve) box.addEventListener('click', () => void downloadAsset(embed.path, resolve))
       return box
     }
     if (embed.kind === 'bookmark') {
@@ -351,7 +368,13 @@ function richRanges(view: EditorView, isActive: (pos: number) => boolean): Range
       const embed = alone ? embedOf(l.text) : null
       if (embed) {
         out.push(
-          Decoration.replace({ widget: new EmbedWidget(embed, resolve) }).range(l.from, l.to),
+          Decoration.replace({
+            widget: new EmbedWidget(
+              embed,
+              resolve,
+              embed.kind === 'file' ? state.facet(fileSizes)(embed.path) : null,
+            ),
+          }).range(l.from, l.to),
         )
         continue
       }
