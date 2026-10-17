@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation } from 'wouter'
-import type { GraphNode } from '../model/graph'
+import { threadEnd, type GraphNode } from '../model/graph'
 import type { LeafMeta } from '../model/parse'
 import { leafColors } from '../read/colors'
 import { mentionLink } from '../model/links'
@@ -11,6 +11,7 @@ import { Icon } from '../ui/icons'
 import { decodePath, treeHref } from '../ui/paths'
 import { parentFor, StructureDialog, type StructureAction } from '../ui/StructureDialogs'
 import { SyncStatus } from '../ui/SyncStatus'
+import { planBranchText } from '../sync/structure'
 import { ACCENT_IDS, colorVar } from '../ui/theme'
 import { Divider, TopBar } from '../ui/TopBar'
 import { attach, attachmentMarkdown } from './attach'
@@ -36,7 +37,12 @@ export function EditorPage({ params }: { params: { owner: string; name: string; 
   const tree = useSession((s) => s.trees.find((t) => t.repo.toLowerCase() === key))
   const data = useSession((s) => s.data[key])
   const node = data?.graph?.nodes.get(path)
-  const exists = node?.kind === 'leaf'
+  // A branch's text (its folder's README.md) is edited here too; before it exists, it starts
+  // from a heading and is created by the first save.
+  const owner = data?.graph ? threadEnd(data.graph, path) : null
+  const branch = owner !== null && owner !== path ? data!.graph!.nodes.get(owner)! : null
+  const initial = branch && !branch.sha ? planBranchText(data!.graph!, branch.id).text : null
+  const exists = node?.kind === 'leaf' || branch !== null
   const [text, setText] = useState<{ path: string; text: string } | null>(null)
   const [source, setSource] = useState(false)
   const handle = useRef<EditorHandle | null>(null)
@@ -69,9 +75,9 @@ export function EditorPage({ params }: { params: { owner: string; name: string; 
     if ((kind === 'image' || kind === 'file') && filePicker.current) {
       filePicker.current.accept = kind === 'image' ? 'image/*' : ''
       filePicker.current.click()
-    } else if (kind === 'leaf') setAction({ kind: 'new-leaf', parent: path })
+    } else if (kind === 'leaf') setAction({ kind: 'new-leaf', parent: branch?.id ?? path })
     else if (kind === 'branch' && graph)
-      setAction({ kind: 'new-branch', parent: parentFor(graph, path) })
+      setAction({ kind: 'new-branch', parent: parentFor(graph, branch?.id ?? path) })
   }
 
   // Files, picked, pasted or dropped: saved in assets/ and linked where the cursor is.
@@ -116,11 +122,10 @@ export function EditorPage({ params }: { params: { owner: string; name: string; 
 
   useEffect(() => {
     if (!exists || text?.path === path) return
-    void session
-      .getState()
-      .textOf(repo, path)
-      .then((t) => setText({ path, text: t }))
-  }, [repo, path, exists, text?.path])
+    void Promise.resolve(initial ?? session.getState().textOf(repo, path)).then((t) =>
+      setText({ path, text: t }),
+    )
+  }, [repo, path, exists, initial, text?.path])
 
   // Typing: the text goes to this device after a short pause; leaving the leaf commits it.
   const pending = useRef<{ text: string; timer: number } | null>(null)
@@ -169,7 +174,7 @@ export function EditorPage({ params }: { params: { owner: string; name: string; 
     }
   }
 
-  const title = node?.title ?? decodePath(path).replace(/^.*\//, '')
+  const title = (node ?? branch)?.title ?? decodePath(path).replace(/^.*\//, '')
   return (
     <div className={styles.page} style={{ '--tree': colorVar(tree?.color) } as React.CSSProperties}>
       <TopBar>
@@ -200,7 +205,7 @@ export function EditorPage({ params }: { params: { owner: string; name: string; 
         <button
           type="button"
           className={controls.primary}
-          onClick={() => navigate(treeHref(repo, path))}
+          onClick={() => navigate(treeHref(repo, branch?.id ?? path))}
         >
           Done
         </button>
@@ -230,7 +235,8 @@ export function EditorPage({ params }: { params: { owner: string; name: string; 
             />
             {/* The header's controls change the editor's text, so they appear with it. */}
             <Suspense fallback={<div className={styles.loading} aria-busy="true" />}>
-              <div className={styles.header}>
+              {/* A branch's text has no icon, cover or colours of its own. */}
+              <div className={styles.header} hidden={branch !== null}>
                 {node?.icon && (
                   <button
                     type="button"
