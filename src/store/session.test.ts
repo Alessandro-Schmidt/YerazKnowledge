@@ -5,7 +5,7 @@ import { createFakeGitHub, type FakeGitHub } from '../../test/fake-github/fakeGi
 import { makeFixture } from '../../test/fake-github/fixture'
 import { fakeGitHubHandlers } from '../../test/fake-github/msw'
 import { memoryStore } from './db'
-import { planNewLeaves } from '../sync/structure'
+import { planBranchText, planNewLeaves } from '../sync/structure'
 import { createSession } from './session'
 
 let fake: FakeGitHub
@@ -178,6 +178,40 @@ describe('session', () => {
     await vi.waitFor(() =>
       expect(second.getState().sync['you/engineering']).toEqual({ status: 'synced' }),
     )
+  })
+
+  it('opens a Tree whose branch has text, and adds text to another branch in one commit', async () => {
+    await fake.addRepo('you/notes', {
+      '.yeraz.json': '{"name":"Notes"}',
+      'AI Agents/README.md': '# AI Agents\n\nWhat this branch is for.\n',
+      'AI Agents/prompting.md': '# Prompting\n',
+      'Cloud/docker.md': '# Docker\n',
+    })
+    const s = createSession({ store: memoryStore() })
+    await s.getState().signIn('good')
+    await s.getState().open('you/notes')
+    const graph = () => s.getState().data['you/notes']!.graph!
+    expect(graph().nodes.get('AI Agents')).toMatchObject({ kind: 'branch', title: 'AI Agents' })
+    expect(graph().nodes.get('AI Agents')!.sha).not.toBeNull()
+    expect(graph().nodes.has('AI Agents/README.md')).toBe(false)
+    expect(graph().stats.leaves).toBe(2)
+    expect(await s.getState().textOf('you/notes', 'AI Agents/README.md')).toContain(
+      'What this branch is for.',
+    )
+
+    expect(graph().nodes.get('Cloud')!.sha).toBeNull()
+    const text = planBranchText(graph(), 'Cloud')
+    expect(text).toEqual({ path: 'Cloud/README.md', text: '# Cloud\n\n' })
+    fake.resetLog()
+    await s.getState().apply('you/notes', [{ path: text.path, text: `${text.text}Containers.\n` }])
+    expect(graph().nodes.get('Cloud')!.sha).not.toBeNull()
+    expect(graph().stats.leaves).toBe(2)
+    await s.getState().flush('you/notes')
+    expect(fake.log.filter((e) => e.operation === 'mutation')).toHaveLength(1)
+    expect(fake.repo('you/notes').read('Cloud/README.md')).toBe('# Cloud\n\nContainers.\n')
+    expect(s.getState().sync['you/notes']).toEqual({ status: 'synced' })
+    expect(graph().nodes.has('Cloud/README.md')).toBe(false)
+    expect(await s.getState().textOf('you/notes', 'Cloud/README.md')).toContain('Containers.')
   })
 
   it('reports conflict copies, and forgets a file made and deleted before it was committed', async () => {

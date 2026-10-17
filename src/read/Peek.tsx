@@ -3,7 +3,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { TreeRef } from '../github/graphql'
-import { compactWords, crumbs, type Graph } from '../model/graph'
+import { compactWords, crumbs, textFile, threadEnd, type Graph } from '../model/graph'
 import { ROOT } from '../model/tree'
 import { mark } from '../perf'
 import { session } from '../store/session'
@@ -151,8 +151,25 @@ export function Peek({
               ))}
             </div>
 
-            {node.kind === 'leaf' && node.sha && (
-              <LeafBody repo={tree.repo} graph={graph} id={id} sha={node.sha} href={href} />
+            {/* A leaf's text, or a branch's (its folder's README.md). */}
+            {node.sha && (
+              <LeafBody
+                repo={tree.repo}
+                graph={graph}
+                id={textFile(graph, id)!}
+                sha={node.sha}
+                href={href}
+              />
+            )}
+            {node.kind === 'branch' && !node.sha && (
+              <button
+                type="button"
+                className={`${controls.ghost} ${styles.addText}`}
+                onClick={() => onEdit(textFile(graph, id)!)}
+              >
+                <Icon name="pencil" size={15} />
+                Add text
+              </button>
             )}
 
             {node.children.length > 0 && (
@@ -271,6 +288,15 @@ export function Peek({
                   >
                     {node.kind === 'leaf' ? 'Add sub-leaves…' : 'New leaves here…'}
                   </button>
+                  {node.kind === 'branch' && node.sha && (
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => onEdit(textFile(graph, id)!)}
+                    >
+                      Edit text
+                    </button>
+                  )}
                   {node.kind === 'branch' && (
                     <button
                       type="button"
@@ -375,7 +401,11 @@ function LeafBody({
         const rendered = await renderLeaf(
           text,
           {
-            leafHref: (path) => (graph.nodes.get(path)?.kind === 'leaf' ? href(path) : null),
+            // A link to a branch's README.md opens the branch.
+            leafHref: (path) => {
+              const end = threadEnd(graph, path)
+              return end === null ? null : href(end)
+            },
             leafIcon: (path) => graph.nodes.get(path)?.icon ?? null,
             files: () => session.getState().files(repo),
             size: (path) => session.getState().fileSize(repo, path),

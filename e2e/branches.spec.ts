@@ -1,0 +1,84 @@
+// Text on branches (issue #14): a branch's text is the README.md in its folder. It shows in
+// the branch's Peek above what the branch holds, is written in the leaf editor, and is never
+// a leaf itself.
+
+import type { Page } from '@playwright/test'
+import type { FakeGitHub } from '../test/fake-github/fakeGitHub'
+import { expect, signInHere, test } from './fixtures'
+
+const REPO = 'you/notes'
+const FILES = {
+  '.yeraz.json': '{"name":"Notes"}',
+  'AI Agents/README.md':
+    '# 🤖 Agents handbook\n\nWhat this branch is for. Start with [Prompting](</AI Agents/prompting.md>).\n',
+  'AI Agents/prompting.md': '# Prompting\n\nWrite clearly.\n',
+  'Cloud/docker.md': '# Docker\n\nSee [the agents](</AI Agents/README.md>).\n',
+}
+
+const peekOf = (page: Page, kind: 'Branch' | 'Leaf') =>
+  page.getByRole('region', { name: `${kind} preview` })
+const mutations = (fake: FakeGitHub) => fake.log.filter((e) => e.operation === 'mutation')
+
+test.beforeEach(async ({ fake }) => {
+  await fake.addRepo(REPO, FILES)
+})
+
+test("a branch's README.md is its text, above what is inside, and never a leaf", async ({
+  page,
+}) => {
+  await page.goto(`./#/tree/${REPO}/AI%20Agents`)
+  await signInHere(page)
+  const peek = peekOf(page, 'Branch')
+  // The README's heading doesn't rename the branch: it keeps its folder's name.
+  await expect(peek.getByRole('heading', { name: 'AI Agents', level: 2 })).toBeVisible()
+  await expect(peek.getByText('Agents handbook')).toHaveCount(0)
+  const text = peek.getByText('What this branch is for.')
+  await expect(text).toBeVisible()
+  const inside = peek.getByRole('heading', { name: 'Inside this branch' })
+  expect((await text.boundingBox())!.y).toBeLessThan((await inside.boundingBox())!.y)
+  await expect(peek.getByRole('button', { name: 'Add text' })).toHaveCount(0)
+  // Not a node on the map, nor a row in the Explorer.
+  await expect(page.locator('[data-node][data-id="AI Agents"]').first()).toBeVisible()
+  await expect(page.locator('[data-id$="README.md"], [data-row$="README.md"]')).toHaveCount(0)
+
+  // A mention in the branch's text opens the leaf; a link to the README opens the branch.
+  await peek.locator('.mention', { hasText: 'Prompting' }).click()
+  await expect(peekOf(page, 'Leaf').getByRole('heading', { name: 'Prompting' })).toBeVisible()
+  await page.goto(`./#/tree/${REPO}/Cloud/docker.md`)
+  await peekOf(page, 'Leaf').locator('.mention', { hasText: 'the agents' }).click()
+  await expect(peekOf(page, 'Branch').getByText('What this branch is for.')).toBeVisible()
+})
+
+test.describe('writing a branch’s text', () => {
+  test.skip(({ isMobile }) => isMobile, 'Typing tests run on desktop engines')
+
+  test('Add text opens the editor; the first save commits README.md, in one commit', async ({
+    page,
+    fake,
+  }) => {
+    await page.goto(`./#/tree/${REPO}/Cloud`)
+    await signInHere(page)
+    await peekOf(page, 'Branch').getByRole('button', { name: 'Add text' }).click()
+    await expect(page.locator('.cm-content')).toBeVisible()
+    // A branch's text has no icon, cover or colours of its own.
+    await expect(page.getByRole('button', { name: 'Add cover' })).toBeHidden()
+    expect(fake.repo(REPO).read('Cloud/README.md')).toBeUndefined()
+
+    await page.locator('.cm-content').click()
+    await page.keyboard.press('ControlOrMeta+End')
+    await page.keyboard.type('Containers and where they run.')
+    await expect(page.getByRole('status')).toContainText('Unsaved edits')
+    fake.resetLog()
+    await page.keyboard.press('ControlOrMeta+s')
+    await expect.poll(() => mutations(fake).length).toBe(1)
+    expect(fake.repo(REPO).read('Cloud/README.md')).toBe(
+      '# Cloud\n\nContainers and where they run.',
+    )
+
+    await page.getByRole('button', { name: 'Done' }).click()
+    const peek = peekOf(page, 'Branch')
+    await expect(peek.getByText('Containers and where they run.')).toBeVisible()
+    await expect(peek.getByRole('button', { name: 'Add text' })).toHaveCount(0)
+    await expect(page.locator('[data-id$="README.md"], [data-row$="README.md"]')).toHaveCount(0)
+  })
+})
