@@ -31,6 +31,19 @@ body,
   height: 100%;
 }
 
+/* Only the map zooms (useZoom): a pinch or double tap never scales the whole app. */
+html {
+  touch-action: pan-x pan-y;
+}
+
+/* iOS zooms the page into a field written smaller than 16 px, and the page could not be
+   pinched back out: on phones, fields and the editor are at least that size. */
+@media (max-width: 640px) {
+  :root :is(input, textarea, select, [contenteditable='true']) {
+    font-size: max(1em, 16px);
+  }
+}
+
 body {
   margin: 0;
   background: var(--bg);
