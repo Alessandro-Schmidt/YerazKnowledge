@@ -1,11 +1,13 @@
 // Live preview (ARCHITECTURE.md §7): one decoration extension over the Markdown text.
 // Lines without the cursor hide their syntax and show the result; the line being edited
 // shows its Markdown. "Show Markdown" turns this extension off: same editor, same text.
+// GitHub's alerts, footnote marks and Mermaid diagrams show as github.com draws them.
 
 import { syntaxTree } from '@codemirror/language'
 import {
   Facet,
   RangeSetBuilder,
+  StateField,
   type ChangeSpec,
   type EditorState,
   type Range,
@@ -19,6 +21,7 @@ import {
   type ViewUpdate,
 } from '@codemirror/view'
 import type { SyntaxNode } from '@lezer/common'
+import { calloutOf, calloutTitle, isDiagram, type Callout } from '../model/blocks'
 import {
   embedOf,
   imageWidth,
@@ -346,6 +349,94 @@ class EmbedWidget extends WidgetType {
   }
 }
 
+/** An alert's title in place of its `[!NOTE]` marker. */
+class CalloutWidget extends WidgetType {
+  constructor(readonly kind: Callout) {
+    super()
+  }
+  eq(other: CalloutWidget) {
+    return other.kind === this.kind
+  }
+  toDOM() {
+    const title = document.createElement('span')
+    title.className = 'cm-callout-title'
+    title.textContent = calloutTitle(this.kind)
+    return title
+  }
+}
+
+/** A Mermaid diagram, drawn the first time one is shown; its source if it can't be. */
+class DiagramWidget extends WidgetType {
+  constructor(readonly source: string) {
+    super()
+  }
+  eq(other: DiagramWidget) {
+    return other.source === this.source
+  }
+  toDOM(view: EditorView) {
+    const box = document.createElement('div')
+    box.className = 'cm-diagram'
+    box.textContent = this.source
+    void import('../read/mermaid')
+      .then(({ diagram }) => diagram(this.source))
+      .then(
+        (svg) => {
+          box.classList.add('diagram')
+          box.innerHTML = svg
+          view.requestMeasure()
+        },
+        () => undefined,
+      )
+    return box
+  }
+  /** A click puts the cursor in the source, which then shows. */
+  ignoreEvent() {
+    return false
+  }
+}
+
+/**
+ * Closed ```mermaid blocks at the top level, away from the cursor, as their diagrams. They
+ * span lines, so they come from a state field: a view plugin can't replace line breaks.
+ */
+export function diagramBlocks(state: EditorState): DecorationSet {
+  const blocks: Range<Decoration>[] = []
+  const touched = (from: number, to: number) =>
+    state.selection.ranges.some((r) => r.from <= to && r.to >= from)
+  syntaxTree(state).iterate({
+    enter: (node) => {
+      if (node.name === 'Document') return true
+      if (node.name !== 'FencedCode') return false
+      const info = node.node.getChild('CodeInfo')
+      const code = node.node.getChild('CodeText')
+      const from = state.doc.lineAt(node.from).from
+      const to = state.doc.lineAt(node.to).to
+      if (
+        info &&
+        isDiagram(state.sliceDoc(info.from, info.to)) &&
+        node.node.getChildren('CodeMark').length === 2 &&
+        !touched(from, to)
+      ) {
+        const source = code ? state.sliceDoc(code.from, code.to) : ''
+        blocks.push(
+          Decoration.replace({ widget: new DiagramWidget(source), block: true }).range(from, to),
+        )
+      }
+      return false
+    },
+  })
+  return Decoration.set(blocks)
+}
+
+const diagrams = StateField.define<DecorationSet>({
+  create: diagramBlocks,
+  update: (blocks, tr) =>
+    tr.docChanged || tr.selection || syntaxTree(tr.startState) !== syntaxTree(tr.state)
+      ? diagramBlocks(tr.state)
+      : blocks,
+  provide: (field) => EditorView.decorations.from(field),
+})
+
 const hide = Decoration.replace({})
 const line = (cls: string) => Decoration.line({ class: cls })
 const title = Decoration.line({
@@ -370,6 +461,8 @@ function build(view: EditorView): DecorationSet {
   const active = activeLines(state)
   const isActive = (pos: number) => active.has(state.doc.lineAt(pos).number)
   const decorations: Range<Decoration>[] = []
+  /** Where alerts' `[!NOTE]` markers start: they aren't links. */
+  const markers = new Set<number>()
 
   // Line 1 is the title, the leaf's heading; line 2's metadata is hidden by metaLine.
   decorations.push(title.range(0))
@@ -421,6 +514,17 @@ function build(view: EditorView): DecorationSet {
             return
           }
           case 'Link': {
+            if (markers.has(node.from)) return false
+            // A footnote's mark, `[^1]`, raised like GitHub's (its definition's too).
+            if (/^\[\^[^\]\s]+\]$/.test(state.sliceDoc(node.from, node.to))) {
+              decorations.push(mark('cm-footnote').range(node.from, node.to))
+              if (!isActive(node.from))
+                decorations.push(
+                  hide.range(node.from, node.from + 2),
+                  hide.range(node.to - 1, node.to),
+                )
+              return false
+            }
             const url = node.node.getChild('URL')
             const dest = url ? state.sliceDoc(url.from, url.to) : ''
             const target = linkTarget(dest)
@@ -485,10 +589,23 @@ function build(view: EditorView): DecorationSet {
             return false
           }
           case 'Blockquote': {
+            // An alert: its first line is only `[!NOTE]` (or TIP, IMPORTANT, WARNING, CAUTION).
+            const end = state.doc.lineAt(node.from).to
+            const from =
+              node.from + (/^>[ \t]?/.exec(state.sliceDoc(node.from, end))?.[0].length ?? 0)
+            const kind = calloutOf(state.sliceDoc(from, end))
+            const cls = kind ? `cm-quote cm-callout cm-callout-${kind}` : 'cm-quote'
             for (let pos = node.from; pos <= node.to;) {
               const l = state.doc.lineAt(pos)
-              decorations.push(line('cm-quote').range(l.from))
+              decorations.push(line(cls).range(l.from))
               pos = l.to + 1
+            }
+            if (kind) {
+              markers.add(from + state.sliceDoc(from, end).indexOf('['))
+              if (!isActive(from))
+                decorations.push(
+                  Decoration.replace({ widget: new CalloutWidget(kind) }).range(from, end),
+                )
             }
             return
           }
@@ -630,6 +747,7 @@ export const livePreview = [
     },
     { decorations: (v) => v.decorations },
   ),
+  diagrams,
   toggleTasks,
   metaLine,
 ]

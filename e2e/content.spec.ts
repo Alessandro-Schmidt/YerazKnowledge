@@ -414,6 +414,50 @@ test.describe('embeds', () => {
   })
 })
 
+test.describe('what github.com renders', () => {
+  test.skip(({ isMobile }) => isMobile, 'Desktop engines; the leaf is the same on phones')
+
+  test('live preview shows alerts, footnote marks and Mermaid diagrams', async ({ page, fake }) => {
+    await fake.repo(REPO).commit({
+      message: 'blocks',
+      additions: [
+        {
+          path: 'blocks.md',
+          contents: [
+            '# Blocks',
+            '',
+            '> [!WARNING]',
+            '> Mind the gap.',
+            '',
+            'A claim[^1].',
+            '',
+            '```mermaid',
+            'graph TD',
+            '  Realm --> Client',
+            '```',
+            '',
+            '[^1]: The source.',
+            '',
+          ].join('\n'),
+        },
+      ],
+    })
+    await page.goto(`./#/tree/${REPO}/blocks.md`)
+    await signInHere(page)
+    const editor = page.locator('.cm-content')
+    await expect(editor.locator('.cm-callout-title')).toHaveText('Warning')
+    await expect(editor.locator('.cm-line.cm-callout-warning')).toHaveCount(2)
+    await expect(editor.locator('.cm-footnote').first()).toHaveText('1')
+    const diagram = editor.locator('.cm-diagram svg')
+    await expect(diagram).toBeVisible({ timeout: 15_000 })
+    await expect(diagram).toContainText('Client')
+    // A click on the diagram shows its source, to edit.
+    await diagram.click()
+    await expect(editor.locator('.cm-diagram')).toHaveCount(0)
+    await expect(editor).toContainText('Realm --> Client')
+  })
+})
+
 test.describe('leaf styling', () => {
   test.skip(({ isMobile }) => isMobile, 'Desktop engines')
 

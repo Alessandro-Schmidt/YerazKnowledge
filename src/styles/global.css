@@ -11,6 +11,14 @@
   color-scheme: light;
 }
 
+/* Mermaid diagrams are drawn grey on light (read/mermaid.ts): dark modes invert them on
+   screen, keeping their hues, so a theme switch redraws nothing. Print stays light. */
+@media screen {
+  :root[data-mode='dark'] .diagram svg {
+    filter: invert(1) hue-rotate(180deg);
+  }
+}
+
 *,
 *::before,
 *::after {

@@ -1,8 +1,8 @@
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
 import { ensureSyntaxTree } from '@codemirror/language'
-import { EditorState } from '@codemirror/state'
+import { EditorSelection, EditorState } from '@codemirror/state'
 import { describe, expect, it } from 'vitest'
-import { imageResize } from './livePreview'
+import { diagramBlocks, imageResize } from './livePreview'
 
 /** The text after resizing the image that starts at `at` (the first `![` by default). */
 function resized(doc: string, width: number | null, at = doc.indexOf('![')) {
@@ -51,5 +51,51 @@ describe('imageResize: an image’s new width, written in its title', () => {
     expect(resized(doc, 30, doc.indexOf('![B'))).toBe(
       '![A](/assets/a.png) ![B](/assets/b.png "width=30%")',
     )
+  })
+})
+
+describe('diagramBlocks: Mermaid blocks drawn as diagrams away from the cursor', () => {
+  const doc = [
+    '# T',
+    '',
+    '```mermaid',
+    'graph TD',
+    'A-->B',
+    '```',
+    '',
+    '```js',
+    'x()',
+    '```',
+    '',
+    '- ```mermaid',
+    '  graph LR',
+    '  ```',
+    '',
+    '```mermaid',
+    'unclosed',
+  ].join('\n')
+
+  /** The ranges replaced by diagrams, with the cursor at `cursor`. */
+  function drawn(cursor: number) {
+    const state = EditorState.create({
+      doc,
+      selection: EditorSelection.cursor(cursor),
+      extensions: markdown({ base: markdownLanguage }),
+    })
+    ensureSyntaxTree(state, state.doc.length)
+    const ranges: string[] = []
+    diagramBlocks(state).between(0, doc.length, (from, to) => {
+      ranges.push(doc.slice(from, to))
+    })
+    return ranges
+  }
+
+  it('replaces a closed top-level block, not code, lists or an unclosed fence', () => {
+    expect(drawn(0)).toEqual(['```mermaid\ngraph TD\nA-->B\n```'])
+  })
+
+  it('shows the source while the cursor is in it, or on its fences', () => {
+    expect(drawn(doc.indexOf('A-->B'))).toEqual([])
+    expect(drawn(doc.indexOf('```\n\n```js') + 3)).toEqual([])
   })
 })
