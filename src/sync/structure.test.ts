@@ -8,6 +8,7 @@ import {
   planNewBranch,
   planNewLeaf,
   planNewLeaves,
+  planGhostLeaf,
   moveReads,
   planBranchText,
   StructureError,
@@ -48,6 +49,24 @@ describe('planNewLeaf', () => {
     expect(planNewLeaf(graph, '', 'Welcome').path).toBe('welcome-2.md')
     expect(planNewLeaf(graph, 'identity', 'Keycloak').path).toBe('identity/keycloak-2.md')
     expect(planNewLeaf(graph, '', 'Assets').path).toBe('assets-2.md')
+  })
+})
+
+describe('planGhostLeaf', () => {
+  const ghost = { id: 'identity/oauth/pkce.md', parent: 'identity', title: 'Pkce', from: [] }
+  it('writes the leaf at the linked path, titled as the link reads', () => {
+    const linking =
+      '# K\n\n`[no](/identity/oauth/pkce.md)` [**PKCE** flow](</identity/oauth/pkce.md#x>)\n'
+    expect(planGhostLeaf(ghost, linking)).toEqual({
+      path: 'identity/oauth/pkce.md',
+      text: '# PKCE flow\n\n',
+    })
+    expect(planGhostLeaf(ghost, '# K\n\n[@PKCE](/identity/oauth/pkce.md)').text).toBe('# PKCE\n\n')
+  })
+
+  it('falls back to the file name without a readable label', () => {
+    expect(planGhostLeaf(ghost, null).text).toBe('# Pkce\n\n')
+    expect(planGhostLeaf(ghost, '# K\n\n[](/identity/oauth/pkce.md)').text).toBe('# Pkce\n\n')
   })
 })
 

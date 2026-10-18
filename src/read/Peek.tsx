@@ -3,7 +3,15 @@
 
 import { useEffect, useLayoutEffect, useRef, useState, type MouseEvent } from 'react'
 import type { TreeRef } from '../github/graphql'
-import { compactWords, crumbs, textFile, threadEnd, type Graph } from '../model/graph'
+import {
+  compactWords,
+  crumbs,
+  ghostsFrom,
+  textFile,
+  threadEnd,
+  type Ghost,
+  type Graph,
+} from '../model/graph'
 import { ROOT } from '../model/tree'
 import { mark } from '../perf'
 import { session } from '../store/session'
@@ -22,6 +30,7 @@ import { downloadAsset } from './files'
 import { Cover } from './LeafLook'
 import { printLeaf } from './print'
 import { renderLeaf } from './render'
+import { planGhostLeaf } from '../sync/structure'
 import type { StructureAction } from '../ui/StructureDialogs'
 
 export interface PeekProps {
@@ -37,6 +46,8 @@ export interface PeekProps {
   onClose(): void
   /** A structure action: new leaf or branch, move, delete. */
   onAction(action: StructureAction): void
+  /** A ghost was written: the new leaf, ready to write in. */
+  onWritten(id: string): void
 }
 
 export function Peek({
@@ -50,12 +61,22 @@ export function Peek({
   onExpand,
   onClose,
   onAction,
+  onWritten,
 }: PeekProps) {
   const [menu, setMenu] = useState(false)
   const [source, setSource] = useState(false)
   /** The branch whose text is being written here. */
   const [writing, setWriting] = useState<string | null>(null)
   useLayoutEffect(() => mark('peek-painted'), [id])
+  const ghost = graph.ghosts.get(id)
+  if (ghost) {
+    return (
+      <GhostPeek
+        {...{ tree, graph, ghost, expanded, onSelect, onExpand, onClose }}
+        onWritten={onWritten}
+      />
+    )
+  }
   const node = graph.nodes.get(id)!
   // The repository is the Family; a folder at its top is one of its Trees.
   const kind =
@@ -66,7 +87,7 @@ export function Peek({
         : node.parent === ROOT
           ? 'Tree'
           : 'Branch'
-  const out = graph.out.get(id) ?? []
+  const out = [...(graph.out.get(id) ?? []), ...ghostsFrom(graph, id)]
   const into = graph.in.get(id) ?? []
   // The Family lists its Trees; its README.md is its text, shown above them.
   const readme = node.kind === 'root' ? graph.nodes.get(FAMILY_TEXT) : undefined
@@ -96,12 +117,7 @@ export function Peek({
             count(out.length + into.length, 'thread'),
           ]
 
-  const named = (target: string) => {
-    const n = graph.nodes.get(target)!
-    return `${n.icon ? `${n.icon} ` : ''}${n.title}`
-  }
-  const where = (target: string) =>
-    [graph.nodes.get(ROOT)!.title, ...crumbs(graph, target)].join(' / ')
+  const { named, where } = threadNames(graph)
 
   return (
     <section
@@ -109,27 +125,7 @@ export function Peek({
       data-expanded={expanded || undefined}
       aria-label={`${kind} preview`}
     >
-      <span className={styles.handle} aria-hidden="true" />
-      <div className={styles.head}>
-        <span className={styles.kind}>{kind}</span>
-        <span className={`${controls.mono} ${styles.crumb}`}>{crumb}</span>
-        <button
-          type="button"
-          className={controls.iconButton}
-          aria-label={expanded ? 'Back to the map' : 'Open full page'}
-          onClick={() => onExpand(!expanded)}
-        >
-          <Icon name={expanded ? 'collapse' : 'expand'} />
-        </button>
-        <button
-          type="button"
-          className={controls.iconButton}
-          aria-label="Dismiss"
-          onClick={onClose}
-        >
-          <Icon name="close" />
-        </button>
-      </div>
+      <PeekHead {...{ kind, crumb, expanded, onExpand, onClose }} />
 
       <div className={styles.scroll}>
         <div className={styles.column}>
@@ -401,6 +397,142 @@ export function Peek({
 
 const count = (n: number, one: string, many = `${one}s`) =>
   `${n.toLocaleString('en-US')} ${n === 1 ? one : many}`
+
+function PeekHead({
+  kind,
+  crumb,
+  expanded,
+  onExpand,
+  onClose,
+}: { kind: string; crumb: string } & Pick<PeekProps, 'expanded' | 'onExpand' | 'onClose'>) {
+  return (
+    <>
+      <span className={styles.handle} aria-hidden="true" />
+      <div className={styles.head}>
+        <span className={styles.kind}>{kind}</span>
+        <span className={`${controls.mono} ${styles.crumb}`}>{crumb}</span>
+        <button
+          type="button"
+          className={controls.iconButton}
+          aria-label={expanded ? 'Back to the map' : 'Open full page'}
+          onClick={() => onExpand(!expanded)}
+        >
+          <Icon name={expanded ? 'collapse' : 'expand'} />
+        </button>
+        <button
+          type="button"
+          className={controls.iconButton}
+          aria-label="Dismiss"
+          onClick={onClose}
+        >
+          <Icon name="close" />
+        </button>
+      </div>
+    </>
+  )
+}
+
+/** How a thread list names its ends, and where they are; a ghost is not written yet. */
+const threadNames = (graph: Graph) => ({
+  named(target: string) {
+    const n = graph.nodes.get(target) ?? graph.ghosts.get(target)!
+    return 'icon' in n && n.icon ? `${n.icon} ${n.title}` : n.title
+  },
+  where: (target: string) =>
+    graph.ghosts.has(target)
+      ? 'Not written yet'
+      : [graph.nodes.get(ROOT)!.title, ...crumbs(graph, target)].join(' / '),
+})
+
+/**
+ * A leaf linked to but not written yet: who links to it, and a button that writes it at
+ * the path the links name, so they lead somewhere.
+ */
+function GhostPeek({
+  tree,
+  graph,
+  ghost,
+  expanded,
+  onSelect,
+  onExpand,
+  onClose,
+  onWritten,
+}: { ghost: Ghost } & Pick<
+  PeekProps,
+  'tree' | 'graph' | 'expanded' | 'onSelect' | 'onExpand' | 'onClose' | 'onWritten'
+>) {
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const { named, where } = threadNames(graph)
+  const write = async () => {
+    setBusy(true)
+    setError(null)
+    const { getState } = session
+    try {
+      // The new leaf takes its title from the first link to it.
+      const linking = await getState()
+        .textOf(tree.repo, textFile(graph, ghost.from[0]!)!)
+        .catch(() => null)
+      await getState().apply(tree.repo, [planGhostLeaf(ghost, linking)])
+      onWritten(ghost.id)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+      setBusy(false)
+    }
+  }
+  return (
+    <section
+      className={styles.peek}
+      data-expanded={expanded || undefined}
+      aria-label="Leaf not written yet"
+    >
+      <PeekHead
+        kind="Not written yet"
+        crumb={[graph.nodes.get(ROOT)!.title, ...crumbs(graph, ghost.id)].join(' / ')}
+        {...{ expanded, onExpand, onClose }}
+      />
+      <div className={styles.scroll}>
+        <div className={styles.column}>
+          <article className={styles.article}>
+            <div className={styles.titleRow}>
+              <span className={controls.glyph} data-kind="ghost" aria-hidden="true" />
+              <h2 className={styles.title}>{ghost.title}</h2>
+            </div>
+            <p className={styles.ghostText}>
+              {ghost.from.length === 1 ? 'A leaf links' : `${ghost.from.length} leaves link`} here,
+              but this leaf isn’t written yet. Writing it creates the file the links name.
+            </p>
+            {error && (
+              <p className={controls.error} role="alert">
+                {error}
+              </p>
+            )}
+            <button
+              type="button"
+              className={`${controls.primary} ${styles.ghostWrite}`}
+              disabled={busy}
+              onClick={() => void write()}
+            >
+              <Icon name="plus" size={15} />
+              Write this leaf
+            </button>
+            <ThreadList
+              title="Threads in · mentioned by"
+              ids={ghost.from}
+              incoming
+              named={named}
+              where={where}
+              onSelect={onSelect}
+            />
+          </article>
+        </div>
+      </div>
+      <div className={styles.foot}>
+        <span className={`${controls.mono} ${styles.path}`}>{ghost.id}</span>
+      </div>
+    </section>
+  )
+}
 
 function ThreadList({
   title,

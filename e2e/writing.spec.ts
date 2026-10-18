@@ -397,7 +397,9 @@ test('deleting a leaf warns about the leaves that link to it', async ({ page, fa
     .getByRole('button', { name: count > 1 ? `Delete ${count} leaves` : 'Delete leaf' })
     .click()
   await expect(page).toHaveURL(new RegExp(`#/tree/${REPO}$`))
-  await expect(page.locator(`[data-node][data-id="${leaf.id}"]`)).toHaveCount(0)
+  // The links to it stay: on the map it is a ghost now, a leaf not written yet.
+  await expect(page.locator(`[data-node]:not([data-ghost])[data-id="${leaf.id}"]`)).toHaveCount(0)
+  await expect(page.locator(`[data-node][data-ghost][data-id="${leaf.id}"]`).first()).toBeAttached()
   await page.keyboard.press('ControlOrMeta+s')
   await expect.poll(() => fake.repo(REPO).read(leaf.id)).toBeUndefined()
 })

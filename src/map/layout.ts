@@ -12,7 +12,7 @@
 
 import { cluster, hierarchy, type HierarchyPointNode } from 'd3-hierarchy'
 import { curveBundle, line } from 'd3-shape'
-import type { Graph, GraphNode } from '../model/graph'
+import type { Graph, GraphNode, Thread } from '../model/graph'
 import { ROOT } from '../model/tree'
 
 export interface LaidNode {
@@ -45,7 +45,7 @@ export interface MapLayout {
   byId: Map<string, LaidNode>
   /** Parent to child; `depth` is the child's, so the hierarchy can thin out from the core. */
   edges: { id: string; depth: number; d: string }[]
-  threads: { from: string; to: string; d: string }[]
+  threads: (Thread & { d: string })[]
   segments: { id: string; d: string }[]
   /** The Tree's title in the core, on one line or two. */
   coreLines: string[]
@@ -77,6 +77,8 @@ const round = (v: number) => Math.round(v * 10) / 10
 /** The smallest dot that holds an emoji; the emoji's font size is ICON_SIZE × the radius. */
 export const ICON_R = 9
 export const ICON_SIZE = 1.9
+/** A ghost's dot (a leaf not written yet): hollow, so a little larger than an empty leaf's. */
+const GHOST_R = 4
 
 export function dotRadius(node: Pick<GraphNode, 'kind' | 'words' | 'total' | 'icon'>): number {
   if (node.kind !== 'leaf') return 4 + Math.sqrt(node.total) / 11
@@ -306,7 +308,7 @@ export function layoutTree(graph: Graph, options: LayoutOptions = {}): MapLayout
         angle,
         x: round(x),
         y: round(y),
-        r: round(dotRadius(g)),
+        r: round(graph.ghosts.has(g.id) ? GHOST_R : dotRadius(g)),
         hasChildren: g.children.length > 0,
         icon: g.kind === 'leaf' ? g.icon : null,
         label: labelOf(g, d.depth),
@@ -391,7 +393,7 @@ export function layoutTree(graph: Graph, options: LayoutOptions = {}): MapLayout
 
   const byGraphId = new Map(all.map((d) => [d.data.id, d]))
   const bundle = line().curve(curveBundle.beta(beta))
-  const threads = graph.threads.flatMap(({ from, to }) => {
+  const threads = graph.threads.flatMap(({ from, to, ghost }) => {
     const a = byGraphId.get(from)
     const b = byGraphId.get(to)
     if (!a || !b) return []
@@ -406,7 +408,15 @@ export function layoutTree(graph: Graph, options: LayoutOptions = {}): MapLayout
       points[at] = [(ux + vx) / 4, (uy + vy) / 4]
     }
     const d = bundle(points)
-    return d ? [{ from, to, d: d.replace(/\d+\.\d{2,}/g, (n) => String(round(Number(n)))) }] : []
+    if (!d) return []
+    return [
+      {
+        from,
+        to,
+        d: d.replace(/\d+\.\d{2,}/g, (n) => String(round(Number(n)))),
+        ...(ghost && { ghost }),
+      },
+    ]
   })
 
   const total = graph.stats.words || 1
