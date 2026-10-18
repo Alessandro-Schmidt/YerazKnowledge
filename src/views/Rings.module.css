@@ -1,0 +1,541 @@
+/* Growth rings (design/views/screens/06, 15; design/views/generators/rings.py). The wood takes the
+   Family's colour (--tree at the page), each Tree's sector label its own. */
+
+.waiting {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  color: var(--muted);
+}
+
+.wrap {
+  position: absolute;
+  inset: 0;
+  display: flex;
+}
+.disc {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+/* Wood. */
+.bark {
+  fill: color-mix(in srgb, var(--text) 14%, var(--raised));
+  stroke: var(--hair-strong);
+}
+.fissure {
+  stroke: var(--line);
+  stroke-opacity: 0.22;
+  stroke-linecap: round;
+}
+.band {
+  fill: color-mix(in srgb, var(--tree, var(--accent)) var(--tint), var(--raised));
+}
+.latewood {
+  fill: none;
+  stroke: var(--line);
+  stroke-opacity: 0.09;
+}
+.grain {
+  fill: none;
+  stroke: var(--line);
+  stroke-opacity: 0.05;
+  stroke-width: 0.8px;
+}
+.line {
+  fill: none;
+  stroke: var(--line);
+  stroke-opacity: 0.42;
+  stroke-width: 1px;
+}
+.line[data-outer] {
+  stroke-opacity: 0.6;
+  stroke-width: 1.4px;
+}
+.pith {
+  fill: color-mix(in srgb, var(--line) 22%, var(--raised));
+}
+.pithDot {
+  fill: var(--line);
+  fill-opacity: 0.55;
+}
+.ray {
+  stroke: var(--line);
+  stroke-opacity: 0.07;
+  stroke-width: 0.7px;
+}
+.sectorGap {
+  stroke: var(--bg);
+  stroke-opacity: 0.55;
+  stroke-width: 3px;
+}
+.sectorRay {
+  stroke: var(--line);
+  stroke-opacity: 0.3;
+  stroke-width: 0.8px;
+}
+.borerGap {
+  stroke: var(--bg);
+  stroke-width: 5px;
+  stroke-linecap: round;
+}
+.borer {
+  stroke: var(--line);
+  stroke-opacity: 0.35;
+  stroke-dasharray: 2 3;
+}
+.cambium {
+  fill: none;
+  stroke: var(--tree, var(--accent));
+  stroke-width: 2px;
+  stroke-opacity: 0.85;
+}
+.cambiumPrev {
+  fill: none;
+  stroke: var(--tree, var(--accent));
+  stroke-opacity: 0.35;
+  stroke-dasharray: 1 3;
+}
+.knot {
+  stroke: var(--line);
+  stroke-opacity: 0.4;
+  stroke-width: 1.6px;
+  stroke-linecap: round;
+}
+.thread {
+  fill: none;
+  stroke: var(--line);
+  stroke-opacity: 0.2;
+}
+
+.node {
+  cursor: pointer;
+}
+.hit {
+  fill: transparent;
+}
+.ring {
+  fill: none;
+  stroke: var(--node);
+  stroke-opacity: 0.45;
+}
+.dot {
+  fill: var(--node);
+  stroke: var(--bg);
+  stroke-width: 1.2px;
+}
+[data-sel] .dot {
+  fill: var(--tree, var(--accent));
+}
+.fresh {
+  fill: none;
+  stroke: var(--tree, var(--accent));
+  stroke-dasharray: 2 2;
+}
+.label {
+  fill: var(--text);
+  font-weight: 500;
+  paint-order: stroke;
+  stroke: var(--bg);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+  stroke-opacity: 0.85;
+}
+.label[data-deep] {
+  fill: var(--text-body);
+  font-weight: 400;
+}
+[data-sel] .label {
+  fill: var(--tree, var(--accent));
+  font-weight: 600;
+}
+.tick {
+  stroke: var(--hair-strong);
+}
+.sectorLabel {
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 2.2px;
+  fill: var(--tree, var(--accent));
+}
+.wood[data-phone] .callout,
+.wood[data-phone] .quiet {
+  display: none;
+}
+.callout circle {
+  fill: var(--text);
+}
+.callout path {
+  fill: none;
+  stroke: var(--text);
+  stroke-opacity: 0.55;
+}
+.callout text {
+  font-size: 12px;
+  font-weight: 600;
+  fill: var(--text);
+}
+.callout .calloutSub {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 400;
+  fill: var(--muted);
+}
+.quiet {
+  font-family: var(--font-reading);
+  font-size: 13px;
+  font-style: italic;
+  fill: var(--text-body);
+  paint-order: stroke;
+  stroke: var(--bg);
+  stroke-width: 3px;
+  stroke-opacity: 0.7;
+}
+
+/* Selection layer. */
+.hotThread {
+  fill: none;
+  stroke: var(--tree, var(--accent));
+  stroke-width: 1.5px;
+  stroke-opacity: 0.9;
+  stroke-dasharray: 4 4;
+}
+.halo {
+  fill: none;
+  stroke: var(--tree, var(--accent));
+  stroke-width: 1.2px;
+}
+
+/* The panel. */
+.panel {
+  flex: 0 0 364px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 24px 24px 20px;
+  border-left: 1px solid var(--hair);
+  background: var(--panel);
+  overflow: auto;
+}
+.intro {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.intro h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.intro p {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text-body);
+}
+.accent {
+  color: var(--tree, var(--accent));
+}
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.sectionHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.sectionHead > span {
+  font-size: 10.5px;
+  color: var(--faint);
+}
+
+.core {
+  display: block;
+  width: 100%;
+  max-width: 336px;
+  overflow: visible;
+}
+.segment {
+  cursor: pointer;
+}
+.segBand {
+  fill: color-mix(in srgb, var(--tree, var(--accent)) var(--tint), var(--raised));
+}
+.segment[data-later] {
+  opacity: 0.35;
+}
+.segLate {
+  fill: var(--line);
+  fill-opacity: 0.09;
+}
+.segEdge {
+  stroke: var(--line);
+  stroke-opacity: 0.42;
+}
+.busiest {
+  fill: none;
+  stroke: var(--tree, var(--accent));
+  stroke-width: 1.2px;
+  pointer-events: none;
+}
+.coreFrame {
+  fill: none;
+  stroke: var(--hair-strong);
+}
+.borerMark {
+  fill: var(--panel);
+  stroke: var(--tree, var(--accent));
+  stroke-width: 2px;
+  pointer-events: none;
+}
+.borerDot {
+  fill: var(--tree, var(--accent));
+  pointer-events: none;
+}
+.initial {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  fill: var(--muted);
+  text-anchor: middle;
+}
+.initial[data-hot] {
+  fill: var(--tree, var(--accent));
+  font-weight: 600;
+}
+
+.picker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--text-body);
+}
+.picker label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+.select {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+.select select {
+  appearance: none;
+  height: 30px;
+  padding: 0 26px 0 10px;
+  border: 1px solid var(--hair-strong);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+.select svg {
+  position: absolute;
+  right: 8px;
+  pointer-events: none;
+}
+.play {
+  margin-left: auto;
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 8px;
+  background: var(--raised);
+  color: var(--tree, var(--accent));
+  cursor: pointer;
+}
+.play path {
+  fill: currentColor;
+}
+.play:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+  border: 1px solid var(--hair-strong);
+  border-radius: 12px;
+  background: var(--bg);
+}
+.cardHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 20px;
+  line-height: 1;
+}
+.cardHead strong {
+  font-size: 15px;
+  font-weight: 600;
+}
+.cardHead > span:last-child {
+  margin-left: auto;
+  font-size: 10.5px;
+  color: var(--muted);
+}
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.planted {
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--tree, var(--accent)) 12%, transparent);
+  font-size: 11px;
+  color: var(--tree, var(--accent));
+}
+.chip {
+  padding: 3px 8px;
+  border: 1px solid var(--hair);
+  border-radius: 6px;
+  font-size: 11px;
+  color: var(--text-body);
+}
+.note {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+.threads {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-top: 10px;
+  border-top: 1px solid var(--hair);
+}
+.threads button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 30px;
+  padding: 0 4px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+}
+.threads button:hover {
+  background: var(--hover);
+}
+.threads button > span:last-child {
+  margin-left: auto;
+  font-size: 10.5px;
+  color: var(--muted);
+}
+.open {
+  height: 34px;
+}
+
+.heatRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.heatName {
+  width: 84px;
+  font-size: 12px;
+  color: var(--text-body);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cells {
+  flex: 1;
+  display: flex;
+  gap: 3px;
+}
+.cells span {
+  flex: 1;
+  height: 12px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--tree, var(--accent)) var(--heat), var(--raised));
+}
+.heatRow > span:last-child {
+  width: 34px;
+  text-align: right;
+  font-size: 10.5px;
+  color: var(--muted);
+}
+
+.legend {
+  margin-top: auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  font-size: 11.5px;
+  color: var(--text-body);
+}
+.legend > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.legend path {
+  fill: none;
+  stroke: var(--line);
+  stroke-opacity: 0.6;
+}
+.raySwatch {
+  width: 1px;
+  height: 12px;
+  background: var(--line);
+  opacity: 0.6;
+}
+.threadSwatch {
+  width: 16px;
+  border-top: 1.5px dashed var(--tree, var(--accent));
+}
+
+/* Phone: the disc on top, the core sample under it until a leaf is picked. */
+.wrap[data-phone] {
+  flex-direction: column;
+}
+.wrap[data-phone] .disc {
+  flex: 1 1 auto;
+}
+.sheet {
+  flex: 0 0 auto;
+  max-height: 52%;
+  overflow: auto;
+  border-top: 1px solid var(--hair);
+  border-radius: 18px 18px 0 0;
+  background: var(--panel);
+}
+.wrap[data-phone] .panel {
+  border-left: 0;
+  padding: 18px 16px calc(18px + env(safe-area-inset-bottom));
+  background: transparent;
+  overflow: visible;
+}
+.wrap[data-phone] .select select,
+.wrap[data-phone] .play {
+  min-height: 44px;
+}
+.wrap[data-phone] .play {
+  width: 44px;
+}
+
+@media (max-width: 1100px) {
+  .wrap:not([data-phone]) .panel {
+    flex-basis: 300px;
+  }
+}

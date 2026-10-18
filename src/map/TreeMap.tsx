@@ -31,6 +31,8 @@ export interface TreeMapProps {
   family: FamilyLayout
   title: string
   color: string
+  /** Each Tree's colour, by its id: the `--tree` of its group. */
+  treeColors: Record<string, string>
   selected: string | null
   /** The Matches layer: the nodes a search found here, lit above the veil like a selection. */
   matches: { query: string; ids: readonly string[] } | null
@@ -77,6 +79,7 @@ export function TreeMap({
   family,
   title,
   color,
+  treeColors,
   selected,
   matches,
   onClearMatches,
@@ -234,6 +237,7 @@ export function TreeMap({
         g = document.createElementNS(SVG_NS, 'g')
         g.setAttribute('transform', treeTransform(t))
         g.setAttribute('data-tree', t.id)
+        if (treeColors[t.id]) g.setAttribute('style', `--tree: ${treeColors[t.id]}`)
         overlay.append(g)
         groups.set(t, g)
       }
@@ -285,7 +289,7 @@ export function TreeMap({
     halo.setAttribute('class', styles.halo!)
     layer(tree).append(halo)
     if (follow) zoom.centre(at.x, at.y, area)
-  }, [selected, matches, graph, family, threadsOf, zoom, area])
+  }, [selected, matches, graph, family, threadsOf, zoom, area, treeColors])
 
   /** The node a pointer event is on: a dot, or a Tree's core (the Tree's id). */
   const idAt = (target: EventTarget): string | undefined => {
@@ -374,7 +378,7 @@ export function TreeMap({
           </defs>
           <rect width="100%" height="100%" fill={`url(#${CSS.escape(gridId)})`} />
           <g ref={cameraRef} className={styles.camera}>
-            <Family family={family} />
+            <Family family={family} colors={treeColors} />
           </g>
         </svg>
         {/* The selection layer: its own composited layer, so selecting never repaints the map. */}
@@ -465,7 +469,13 @@ export function TreeMap({
 }
 
 /** Every Tree around its own core, the threads between them, and their names. */
-const Family = memo(function Family({ family }: { family: FamilyLayout }) {
+const Family = memo(function Family({
+  family,
+  colors,
+}: {
+  family: FamilyLayout
+  colors: Record<string, string>
+}) {
   return (
     <>
       <g className={styles.threads}>
@@ -481,7 +491,12 @@ const Family = memo(function Family({ family }: { family: FamilyLayout }) {
         ))}
       </g>
       {family.trees.map((t) => (
-        <g key={t.id} data-tree={t.id} transform={treeTransform(t)}>
+        <g
+          key={t.id}
+          data-tree={t.id}
+          transform={treeTransform(t)}
+          style={colors[t.id] ? ({ '--tree': colors[t.id] } as CSSProperties) : undefined}
+        >
           <Geometry layout={t.layout} graph={t.graph} />
           <text className={fam.name} y={t.name.y} fontSize={t.name.size}>
             {t.graph.nodes.get(ROOT)!.title}

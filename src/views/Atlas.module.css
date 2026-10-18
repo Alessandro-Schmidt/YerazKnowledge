@@ -1,0 +1,348 @@
+/* Atlas (design/views/screens/07, 16; design/views/generators/atlas.py). Each island takes its Tree's
+   colour (--tree); type is the reading serif where the chart is a chart. */
+
+.wrap {
+  position: absolute;
+  inset: 0;
+}
+
+.sea {
+  fill: var(--bg);
+}
+.graticule {
+  stroke: var(--line);
+  stroke-opacity: 0.09;
+  stroke-dasharray: 2 6;
+}
+.water {
+  fill: none;
+  stroke: var(--line);
+  stroke-width: 0.8px;
+}
+.band {
+  fill: color-mix(in srgb, var(--tree, var(--accent)) var(--tint), var(--raised));
+}
+.hachure {
+  fill: none;
+  stroke: var(--line);
+  stroke-width: 0.8px;
+  stroke-linecap: round;
+}
+.contour {
+  fill: none;
+  stroke: var(--line);
+  stroke-opacity: 0.3;
+  stroke-width: 0.7px;
+}
+.contour[data-index] {
+  stroke-opacity: 0.5;
+  stroke-width: 1px;
+}
+.coast {
+  fill: none;
+  stroke: var(--text);
+  stroke-opacity: 0.75;
+  stroke-width: 1.3px;
+}
+.routeSea,
+.routeLand {
+  fill: none;
+  stroke: var(--text);
+  stroke-opacity: 0.4;
+  stroke-width: 1px;
+}
+.routeSea {
+  stroke-dasharray: 6 5;
+}
+.routeLand {
+  stroke-dasharray: 1 3.5;
+  stroke-linecap: round;
+}
+.seaName {
+  font-family: var(--font-reading), Georgia, serif;
+  font-size: 13px;
+  font-style: italic;
+  letter-spacing: 5px;
+  fill: var(--muted);
+  opacity: 0.8;
+  text-anchor: middle;
+}
+.islandName {
+  cursor: pointer;
+}
+.islandName text {
+  font-family: var(--font-reading), Georgia, serif;
+  font-style: italic;
+  fill: var(--text-body);
+  text-anchor: middle;
+}
+.islandName .islandSub {
+  font-family: var(--font-mono);
+  font-style: normal;
+  font-size: 9.5px;
+  letter-spacing: 1px;
+  fill: var(--muted);
+}
+
+.peak {
+  cursor: pointer;
+}
+.hit {
+  fill: transparent;
+}
+.mark {
+  fill: var(--text);
+  stroke: var(--raised);
+}
+.peakName,
+.height {
+  paint-order: stroke;
+  stroke: var(--raised);
+  stroke-width: 3.2px;
+  stroke-linejoin: round;
+  stroke-opacity: 0.9;
+}
+.peakName {
+  font-family: var(--font-reading), Georgia, serif;
+  font-weight: 500;
+  font-style: italic;
+  fill: var(--text);
+}
+.peakName[data-big] {
+  font-weight: 600;
+  font-style: normal;
+}
+.height {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  fill: var(--muted);
+}
+
+.neat {
+  fill: none;
+  stroke: var(--hair-strong);
+}
+.neatInner {
+  fill: none;
+  stroke: var(--hair);
+}
+.degree {
+  font-family: var(--font-mono);
+  font-size: 8.5px;
+  fill: var(--faint);
+}
+
+.roseRing {
+  fill: none;
+  stroke: var(--hair-strong);
+}
+.roseRingInner {
+  fill: none;
+  stroke: var(--hair);
+}
+.roseDark {
+  fill: var(--text);
+  fill-opacity: 0.5;
+}
+.roseDark[data-long] {
+  fill-opacity: 0.85;
+}
+.roseLight {
+  fill: var(--raised);
+  stroke: var(--text);
+  stroke-opacity: 0.5;
+  stroke-width: 0.8px;
+}
+.north {
+  font-family: var(--font-reading), Georgia, serif;
+  font-size: 13px;
+  font-weight: 600;
+  fill: var(--accent);
+  text-anchor: middle;
+}
+.roseDot {
+  fill: var(--accent);
+}
+
+/* Selection layer. */
+.hotSea,
+.hotLand {
+  fill: none;
+  stroke: var(--tree, var(--accent));
+  stroke-opacity: 0.95;
+  stroke-width: 1.6px;
+}
+.hotSea {
+  stroke-dasharray: 6 5;
+}
+.hotLand {
+  stroke-dasharray: 1 3.5;
+  stroke-linecap: round;
+}
+.hotPeak {
+  fill: var(--tree, var(--accent));
+  stroke: var(--raised);
+}
+.hotName {
+  fill: var(--tree, var(--accent));
+  font-weight: 600;
+}
+.halo {
+  fill: none;
+  stroke: var(--tree, var(--accent));
+  stroke-width: 1.3px;
+}
+.hotCoast {
+  fill: none;
+  stroke: var(--tree, var(--accent));
+  stroke-width: 2px;
+}
+
+/* The cartouche, top left. */
+.cartouche {
+  width: 268px;
+  padding: 5px;
+  border: 1px solid var(--hair-strong);
+  background: var(--panel);
+}
+.cartouche > div {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 14px 16px 13px;
+  border: 1px solid var(--hair-strong);
+  text-align: center;
+}
+.cartouche > div > span:first-child {
+  font-size: 9.5px;
+  letter-spacing: 0.3em;
+}
+.cartouche strong {
+  font-family: var(--font-reading), Georgia, serif;
+  font-size: 25px;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+}
+.rule {
+  width: 120px;
+  height: 1px;
+  margin: 3px 0;
+  background: var(--hair-strong);
+}
+.cartouche em {
+  font-family: var(--font-reading), Georgia, serif;
+  font-size: 13px;
+  color: var(--text-body);
+}
+.cartouche > div > span:last-child {
+  font-size: 9.5px;
+  color: var(--muted);
+}
+
+/* Legend pieces. */
+.ramp {
+  display: flex;
+  border: 1px solid var(--hair-strong);
+}
+.ramp span {
+  width: 22px;
+  height: 10px;
+  background: color-mix(in srgb, var(--accent) var(--tint), var(--raised));
+  border-right: 1px solid var(--hair);
+}
+.legendPeak path {
+  fill: var(--text);
+}
+.legendRoute {
+  width: 18px;
+  border-top: 1.5px dashed var(--text);
+  opacity: 0.7;
+}
+
+/* The selected peak's card, bottom right. */
+.card {
+  position: absolute;
+  bottom: 16px;
+  z-index: 2;
+  width: 292px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+  border-color: var(--hair-strong);
+  border-radius: 12px;
+  box-shadow: 0 12px 32px var(--shadow);
+}
+.cardHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 20px;
+  line-height: 1;
+}
+.cardHead strong {
+  font-size: 15px;
+  font-weight: 600;
+}
+.cardHead > span:last-child {
+  margin-left: auto;
+  font-size: 10.5px;
+  color: var(--tree, var(--accent));
+}
+.cardNote {
+  font-family: var(--font-reading), Georgia, serif;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text-body);
+}
+.routes {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-top: 10px;
+  border-top: 1px solid var(--hair);
+}
+.routes > span {
+  font-size: 9.5px;
+  margin-bottom: 4px;
+}
+.routes button {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 28px;
+  padding: 0 4px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+}
+.routes button:hover {
+  background: var(--hover);
+}
+.routes button > span:last-child {
+  margin-left: auto;
+  font-size: 10.5px;
+  color: var(--muted);
+}
+.routeSwatch {
+  width: 16px;
+  border-top: 1.5px dotted var(--tree, var(--accent));
+}
+.routeSwatch[data-sea] {
+  border-top-style: dashed;
+}
+.open {
+  height: 34px;
+}
+
+@media (max-width: 1100px) {
+  .cartouche {
+    display: none;
+  }
+}

@@ -79,3 +79,32 @@ test('read, edit, autosave and verify against real GitHub', async ({ page, reque
     await writeLeaf(request, BASE, 'Reset the contract leaf')
   }
 })
+
+// Growth rings dates leaves with blame (src/github/graphql.ts, fetchPlanted): the shape the
+// fake answers with must be GitHub's, and a missing file must fail only its own field.
+test('blame answers as the fake does', async ({ request }) => {
+  if (!(await readLeaf(request))) await writeLeaf(request, BASE, 'Reset the contract leaf')
+  const [owner, name] = REPO.split('/')
+  const res = await api(request, '/graphql', {
+    method: 'POST',
+    data: {
+      query: `query Planted($owner: String!, $name: String!, $rev: String!) { repository(owner: $owner, name: $name) { object(expression: $rev) { ... on Commit {
+        b0: blame(path: "${LEAF}") { ranges { commit { committedDate } } }
+        b1: blame(path: "no-such-file.md") { ranges { commit { committedDate } } } } } } }`,
+      variables: { owner, name, rev: 'HEAD' },
+    },
+  })
+  const body = (await res.json()) as {
+    data: {
+      repository: {
+        object: Record<string, { ranges: { commit: { committedDate: string } }[] } | null>
+      }
+    }
+    errors?: { path: string[] }[]
+  }
+  const ranges = body.data.repository.object.b0!.ranges
+  expect(ranges.length).toBeGreaterThan(0)
+  expect(Date.parse(ranges[0]!.commit.committedDate)).not.toBeNaN()
+  expect(body.data.repository.object.b1).toBeNull()
+  expect(body.errors?.[0]?.path).toContain('b1')
+})

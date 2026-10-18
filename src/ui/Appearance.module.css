@@ -52,8 +52,15 @@
   height: 40px;
   padding: 0 12px;
   border-radius: 8px;
-  color: var(--text);
+  color: var(--muted);
   text-decoration: none;
+}
+.railItem:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+.railItem[aria-current='page'] {
+  color: var(--text);
   box-shadow: inset 2px 0 0 var(--accent);
   background: var(--raised);
 }
@@ -376,8 +383,26 @@
 }
 
 @media (max-width: 640px) {
+  .body {
+    flex-direction: column;
+  }
+  /* The rail becomes a row of tabs under the top bar. */
   .rail {
+    display: flex;
+    gap: 4px;
+    width: auto;
+    padding: 8px 12px;
+    border-right: 0;
+    border-bottom: 1px solid var(--hair);
+    overflow-x: auto;
+  }
+  .rail > p {
     display: none;
+  }
+  .railItem {
+    flex-shrink: 0;
+    height: 44px;
+    white-space: nowrap;
   }
   .main {
     padding: 24px 16px 48px;

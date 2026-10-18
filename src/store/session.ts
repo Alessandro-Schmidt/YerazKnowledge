@@ -18,7 +18,9 @@ import {
   createTreeRepository,
   discoverTrees,
   fetchHistory,
+  fetchPlanted,
   lookupTree,
+  markerFields,
   type TreeRef,
   type Version,
 } from '../github/graphql'
@@ -86,6 +88,12 @@ export interface SessionState {
     path: string,
     after?: string | null,
   ): Promise<{ versions: Version[]; next: string | null }>
+  /**
+   * When each leaf was planted (its first commit, by blame), ISO dates by path. Kept on
+   * the device: only leaves not dated before are asked for; a leaf not committed yet
+   * is planted now.
+   */
+  planted(repo: string): Promise<Map<string, string>>
   /** A past version's text by blob SHA, from the blob cache or one request. */
   versionText(repo: string, blob: string): Promise<string>
   /** Writes a past version back as a new edit, and commits it now (never rewrites history). */
@@ -94,6 +102,11 @@ export interface SessionState {
   apply(repo: string, changes: readonly FileChange[]): Promise<void>
   /** Renames a Tree: the name in its `.yeraz.json`, committed by the autosave. Throws a message. */
   renameTree(repo: string, title: string): Promise<void>
+  /**
+   * Colours a Family (`color`) or one of its Trees (`tree`), by colour name; null goes back
+   * to the theme accent (the Family's colour, for a Tree). Written to `.yeraz.json`.
+   */
+  setColor(repo: string, color: string | null, tree?: string): Promise<void>
   /** Commits a Tree's pending edits now. */
   flush(repo: string): Promise<void>
   /** Commits every Tree's pending edits now (app hidden, Ctrl/Cmd+S, back online). */
@@ -179,26 +192,98 @@ export function createSession(deps: {
     const connected = async () => (await store.get<string[]>(KEYS.connected)) ?? []
     /** A name typed on this device and not committed yet wins over what GitHub last said. */
     const pendingTitle = (key: string) => nameIn(dirty.get(key)?.[MARKER]?.text)
+    /** So do colours chosen here: the pending `.yeraz.json` gives the whole marker. */
     const titled = (ref: TreeRef): TreeRef => {
-      const title = pendingTitle(ref.repo.toLowerCase())
-      return title && title !== ref.title ? { ...ref, title } : ref
+      const text = dirty.get(ref.repo.toLowerCase())?.[MARKER]?.text
+      if (typeof text !== 'string') return ref
+      const { title, color, trees } = markerFields(text)
+      return { ...ref, title: title ?? ref.title, color: color ?? null, trees: trees ?? {} }
     }
     const saveTrees = async (list: TreeRef[]) => {
       const trees = list.map(titled)
       set({ trees })
       await store.set(KEYS.trees, trees)
     }
-    /** Gives a Tree its new name everywhere it is shown. */
-    const retitle = async (key: string, title: string) => {
+    /** Gives a Tree its new name (or colours) everywhere it is shown. */
+    const retitle = async (key: string, fields: Partial<TreeRef>) => {
       const base = bases.get(key)
-      if (base) bases.set(key, { ...base, ref: { ...base.ref, title } })
-      await saveTrees(get().trees.map((t) => (t.repo.toLowerCase() === key ? { ...t, title } : t)))
+      if (base) bases.set(key, { ...base, ref: { ...base.ref, ...fields } })
+      await saveTrees(
+        get().trees.map((t) => (t.repo.toLowerCase() === key ? { ...t, ...fields } : t)),
+      )
+    }
+    /** Changes to a `.yeraz.json`, one at a time per Family, so none reads a stale marker. */
+    const markers = new Map<string, Promise<unknown>>()
+    const inTurn = <T>(key: string, change: () => Promise<T>): Promise<T> => {
+      const run = (markers.get(key) ?? Promise.resolve()).then(change, change)
+      markers.set(
+        key,
+        run.catch(() => {}),
+      )
+      return run
+    }
+    /** The `.yeraz.json` as it is now (pending edit, or committed), parsed. Throws a message. */
+    const readMarker = async (repo: string) => {
+      const key = repo.toLowerCase()
+      await pulls.get(key)
+      const base = bases.get(key)
+      if (!base) throw new Error("This Family hasn't opened yet. Try again in a moment.")
+      const pending = (await loadDirty(key))[MARKER]?.text
+      let text = typeof pending === 'string' ? pending : '{}\n'
+      const sha = base.entries.find((e) => e.path === MARKER)?.sha
+      if (pending === undefined && sha && !isLocal(sha)) {
+        try {
+          text = new TextDecoder().decode(await assetBytes(repo, sha, { client: github(), store }))
+        } catch (e) {
+          throw new Error(describeError(e).message, { cause: e })
+        }
+      }
+      let marker: unknown
+      try {
+        marker = JSON.parse(text)
+      } catch {
+        marker = null
+      }
+      if (!marker || typeof marker !== 'object' || Array.isArray(marker))
+        throw new Error(
+          ".yeraz.json isn't valid JSON, so it can't be changed here. Fix the file on GitHub first.",
+        )
+      return { text, marker: marker as Record<string, unknown> }
+    }
+    /** Writes the marker back the way it was laid out: on one line, or indented as before. */
+    const writeMarker = (repo: string, text: string, marker: Record<string, unknown>) => {
+      const indent = /^\{\s*\n([ \t]+)"/.exec(text)?.[1]
+      return get().apply(repo, [
+        { path: MARKER, text: `${JSON.stringify(marker, null, indent)}\n` },
+      ])
     }
     const setData = (key: string, data: TreeData) =>
       set((s) => ({ data: { ...s.data, [key]: data } }))
     const setSync = (key: string, state: SyncState) =>
       set((s) => ({ sync: { ...s.sync, [key]: state } }))
     const count = (key: string) => Object.keys(dirty.get(key) ?? {}).length
+    /** Writes a Family's or a Tree's colour into the marker (setColor, in turn). */
+    const colour = async (repo: string, color: string | null, tree?: string) => {
+      const key = repo.toLowerCase()
+      const { text, marker } = await readMarker(repo)
+      const next = { ...marker }
+      if (tree === undefined) {
+        if (color === null) delete next.color
+        else next.color = color
+      } else {
+        const own = marker.trees
+        const trees: Record<string, unknown> =
+          own && typeof own === 'object' && !Array.isArray(own) ? { ...own } : {}
+        if (color === null) delete trees[tree]
+        else trees[tree] = color
+        if (Object.keys(trees).length) next.trees = trees
+        else delete next.trees
+      }
+      if (JSON.stringify(next) === JSON.stringify(marker)) return
+      await writeMarker(repo, text, next)
+      const fields = markerFields(JSON.stringify(next))
+      await retitle(key, { color: fields.color ?? null, trees: fields.trees ?? {} })
+    }
 
     const loadDirty = async (key: string) => {
       if (!dirty.has(key)) dirty.set(key, (await store.get<Dirty>(dirtyKey(key))) ?? {})
@@ -253,8 +338,15 @@ export function createSession(deps: {
           else now.base = sent.text === null ? null : await gitBlobSha(sent.text)
         }
         await saveDirty(key)
-        const committedName = nameIn(snapshot[MARKER]?.text)
-        if (committedName) await retitle(key, committedName)
+        const committedMarker = snapshot[MARKER]?.text
+        if (typeof committedMarker === 'string') {
+          const { title, color, trees } = markerFields(committedMarker)
+          await retitle(key, {
+            ...(title ? { title } : {}),
+            color: color ?? null,
+            trees: trees ?? {},
+          })
+        }
         show(key)
         setSync(
           key,
@@ -529,6 +621,30 @@ export function createSession(deps: {
         })
       },
 
+      async planted(repo) {
+        const key = repo.toLowerCase()
+        await pulls.get(key)
+        const ref = bases.get(key)?.ref
+        const head = ref && (await store.get<CachedListing>(`tree:${ref.repo}`))?.head
+        if (!ref || !head) throw new Error("This Family hasn't opened yet. Try again in a moment.")
+        const graph = get().data[key]?.graph
+        const leaves = graph ? [...graph.nodes.values()].filter((n) => n.kind === 'leaf') : []
+        const saved = (await store.get<Record<string, string>>(`planted:${key}`)) ?? {}
+        const committed = new Set(bases.get(key)!.entries.map((e) => e.path))
+        const missing = leaves.map((n) => n.id).filter((id) => !saved[id] && committed.has(id))
+        if (missing.length) {
+          try {
+            for (const [path, date] of await fetchPlanted(github(), ref.repo, head, missing))
+              saved[path] = date
+          } catch (e) {
+            throw new Error(describeError(e).message, { cause: e })
+          }
+          await store.set(`planted:${key}`, saved)
+        }
+        const now = new Date().toISOString()
+        return new Map(leaves.map((n) => [n.id, saved[n.id] ?? now]))
+      },
+
       async versionText(repo, blob) {
         try {
           return (await blobTexts(github(), store, repo, [blob])).get(blob) ?? ''
@@ -565,38 +681,17 @@ export function createSession(deps: {
         const key = repo.toLowerCase()
         const name = title.replace(/\s+/g, ' ').trim()
         if (!name) throw new Error('A Family needs a name.')
-        await pulls.get(key)
-        const base = bases.get(key)
-        if (!base) throw new Error("This Family hasn't opened yet. Try again in a moment.")
-        const pending = (await loadDirty(key))[MARKER]?.text
-        let text = typeof pending === 'string' ? pending : '{}\n'
-        const sha = base.entries.find((e) => e.path === MARKER)?.sha
-        if (pending === undefined && sha && !isLocal(sha)) {
-          try {
-            text = new TextDecoder().decode(
-              await assetBytes(repo, sha, { client: github(), store }),
-            )
-          } catch (e) {
-            throw new Error(describeError(e).message, { cause: e })
-          }
-        }
-        let marker: unknown
-        try {
-          marker = JSON.parse(text)
-        } catch {
-          marker = null
-        }
-        if (!marker || typeof marker !== 'object' || Array.isArray(marker))
-          throw new Error(
-            ".yeraz.json isn't valid JSON, so the name can't be changed here. Fix the file on GitHub first.",
-          )
-        if (nameIn(text) === name) return
-        // Written back the way it was laid out: on one line, or indented as before.
-        const indent = /^\{\s*\n([ \t]+)"/.exec(text)?.[1]
-        await get().apply(repo, [
-          { path: MARKER, text: `${JSON.stringify({ ...marker, name }, null, indent)}\n` },
-        ])
-        await retitle(key, name)
+        await inTurn(key, async () => {
+          const { text, marker } = await readMarker(repo)
+          if (nameIn(text) === name) return
+          await writeMarker(repo, text, { ...marker, name })
+          await retitle(key, { title: name })
+        })
+      },
+
+      async setColor(repo, color, tree) {
+        const key = repo.toLowerCase()
+        await inTurn(key, () => colour(repo, color, tree))
       },
 
       async flush(repo) {

@@ -1,0 +1,28 @@
+/* The drawn views' stage (Canvas.tsx). Colours are theme tokens; --tree is set per Tree. */
+
+.stage {
+  cursor: grab;
+}
+
+.layer {
+  pointer-events: none;
+}
+.layer [data-id] {
+  pointer-events: all;
+}
+
+.veil {
+  fill: var(--bg);
+  fill-opacity: 0.6;
+  pointer-events: none;
+}
+
+.corner {
+  position: absolute;
+  top: 16px;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: calc(100% - 32px);
+}
