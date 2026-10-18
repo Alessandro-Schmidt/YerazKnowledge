@@ -14,7 +14,14 @@ import {
   type TreeEntry,
 } from '../github/client'
 import { githubApi } from '../github/endpoint'
-import { createTreeRepository, discoverTrees, lookupTree, type TreeRef } from '../github/graphql'
+import {
+  createTreeRepository,
+  discoverTrees,
+  fetchHistory,
+  lookupTree,
+  type TreeRef,
+  type Version,
+} from '../github/graphql'
 import { buildGraph, type Graph } from '../model/graph'
 import type { ParsedLeaf } from '../model/parse'
 import { gitBlobSha } from '../model/sha'
@@ -22,7 +29,7 @@ import { buildTree } from '../model/tree'
 import { assetBytes, mimeOf } from '../sync/assets'
 import { createAutosave, type Autosave } from '../sync/autosave'
 import { isLocal, overlay } from '../sync/overlay'
-import { fillContent, pullTree, type CachedListing } from '../sync/pull'
+import { blobTexts, fillContent, pullTree, type CachedListing } from '../sync/pull'
 import { byteLength, pushTree, type Dirty } from '../sync/push'
 import { sameContent, type FileChange } from '../sync/structure'
 import { openStore, type KeyValueStore } from './db'
@@ -70,6 +77,19 @@ export interface SessionState {
   files(repo: string): string[]
   /** A file's size in bytes, pending edits included, without downloading it; null when unknown. */
   fileSize(repo: string, path: string): number | null
+  /**
+   * A leaf's past versions, newest first, a page at a time from the commit last pulled
+   * (one request per page, kept for the session: a commit's history never changes).
+   */
+  history(
+    repo: string,
+    path: string,
+    after?: string | null,
+  ): Promise<{ versions: Version[]; next: string | null }>
+  /** A past version's text by blob SHA, from the blob cache or one request. */
+  versionText(repo: string, blob: string): Promise<string>
+  /** Writes a past version back as a new edit, and commits it now (never rewrites history). */
+  restore(repo: string, path: string, blob: string): Promise<void>
   /** Records edits (text, or null to delete); they are committed by the autosave. */
   apply(repo: string, changes: readonly FileChange[]): Promise<void>
   /** Renames a Tree: the name in its `.yeraz.json`, committed by the autosave. Throws a message. */
@@ -147,6 +167,7 @@ export function createSession(deps: {
   const autosaves = new Map<string, Autosave>()
   // ponytail: object URLs live as long as the page; revoke them if memory ever matters.
   const urls = new Map<string | Uint8Array, string>()
+  const histories = new Map<string, Promise<{ versions: Version[]; next: string | null }>>()
   let client: GitHubClient | null = null
 
   return createStore<SessionState>()((set, get) => {
@@ -488,6 +509,38 @@ export function createSession(deps: {
         const pending = dirty.get(key)?.[path]
         if (pending) return pending.text === null ? null : byteLength(pending.text)
         return bases.get(key)?.entries.find((e) => e.path === path)?.size ?? null
+      },
+
+      async history(repo, path, after = null) {
+        const key = repo.toLowerCase()
+        await pulls.get(key)
+        const ref = bases.get(key)?.ref
+        const head = ref && (await store.get<CachedListing>(`tree:${ref.repo}`))?.head
+        if (!ref || !head) throw new Error("This Family hasn't opened yet. Try again in a moment.")
+        const id = [ref.repo, head, path, after].join('\n')
+        let page = histories.get(id)
+        if (!page) {
+          page = fetchHistory(github(), ref.repo, head, path, after)
+          histories.set(id, page)
+          page.catch(() => histories.delete(id))
+        }
+        return page.catch((e: unknown) => {
+          throw new Error(describeError(e).message, { cause: e })
+        })
+      },
+
+      async versionText(repo, blob) {
+        try {
+          return (await blobTexts(github(), store, repo, [blob])).get(blob) ?? ''
+        } catch (e) {
+          throw new Error(describeError(e).message, { cause: e })
+        }
+      },
+
+      async restore(repo, path, blob) {
+        const text = await get().versionText(repo, blob)
+        await get().apply(repo, [{ path, text }])
+        await get().flush(repo)
       },
 
       async apply(repo, changes) {

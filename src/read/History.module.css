@@ -1,0 +1,180 @@
+/* A leaf's history, in the Peek where its editor was: versions as rows, like threads. */
+
+.history {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.top h2:focus {
+  outline: none;
+}
+
+.picked {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 17px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.versions {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.version {
+  width: 100%;
+  min-height: 44px;
+  padding: 6px 10px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+button.version:hover {
+  background: var(--hover);
+}
+.version[data-deleted] {
+  cursor: default;
+  color: var(--muted);
+}
+
+.message {
+  font-size: 13.5px;
+  overflow-wrap: anywhere;
+}
+
+.when {
+  font-size: 10.5px;
+  font-weight: 400;
+  color: var(--faint);
+}
+
+.more {
+  align-self: flex-start;
+}
+
+.note {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.loading {
+  height: 72px;
+  border-radius: 8px;
+  background: var(--raised);
+  opacity: 0.6;
+}
+
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.switch {
+  display: inline-flex;
+  padding: 3px;
+  border: 1px solid var(--hair-strong);
+  border-radius: 9px;
+}
+.switch button {
+  height: 32px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12.5px;
+  cursor: pointer;
+}
+.switch button[aria-pressed='true'] {
+  background: var(--raised);
+  color: var(--text);
+}
+
+/* Changes: removed lines struck through, added lines on the accent, a sign before each. */
+.legend {
+  margin: 0;
+  font-size: 11px;
+  color: var(--muted);
+}
+.legend del,
+.legend ins {
+  text-decoration: none;
+}
+.legend ins {
+  color: var(--accent);
+}
+
+.diff {
+  margin: 0;
+  padding: 8px 0;
+  border: 1px solid var(--hair);
+  border-radius: 9px;
+  background: var(--bg);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text-body);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.diff > * {
+  display: block;
+  padding: 0 12px 0 28px;
+  text-indent: -16px;
+  text-decoration: none;
+}
+.diff > *::before {
+  display: inline-block;
+  width: 16px;
+  text-indent: 0;
+}
+.diff > span::before {
+  content: '';
+}
+.diff del {
+  color: var(--muted);
+  text-decoration: line-through;
+  text-decoration-color: var(--faint);
+}
+.diff del::before {
+  content: '−';
+}
+.diff ins {
+  background: var(--accent-soft);
+  color: var(--text);
+}
+.diff ins::before {
+  content: '+';
+  color: var(--accent);
+}
+.diff .skip {
+  margin: 4px 0;
+  color: var(--faint);
+  font-style: italic;
+}

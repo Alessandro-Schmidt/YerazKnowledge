@@ -3,7 +3,7 @@
 //   GET  /repos/{o}/{r}/commits/{ref}                    head SHA (vnd.github.sha), ETags and 304s
 //   GET  /repos/{o}/{r}/git/trees/{ref}[?recursive=1]   ETags and 304s
 //   GET  /repos/{o}/{r}/git/blobs/{sha}                  images: raw bytes (vnd.github.raw+json)
-//   POST /graphql   object(oid:) / object(expression:), defaultBranchRef,
+//   POST /graphql   object(oid:) / object(expression:), defaultBranchRef, Commit.history(path:),
 //                   viewer.repositories (discovery), createCommitOnBranch
 //   POST /user/repos
 // plus a request log and fault switches. Error messages copy GitHub's where known;
@@ -373,8 +373,49 @@ export function createFakeGitHub(options: { login?: string; tokens?: string[] } 
       __typename: 'Commit',
       oid: c.oid,
       message: c.message,
+      messageHeadline: c.message.split('\n')[0],
+      committedDate: c.date.toISOString(),
+      // Every commit is the repository owner's: the fake has one person.
+      author: {
+        __typename: 'GitActor',
+        name: repo.owner,
+        date: c.date.toISOString(),
+        user: { __typename: 'User', login: repo.owner },
+      },
       url: `https://github.com/${repo.nameWithOwner}/commit/${c.oid}`,
       tree: tree(c.root.sha),
+      file: ({ path }: { path: string }) => {
+        const sha = c.files.get(path)
+        return sha ? { __typename: 'TreeEntry', path, oid: sha, object: blob(repo, sha) } : null
+      },
+      // The commits from this one back that changed `path`, newest first. Like GitHub's,
+      // it doesn't follow a file across a move.
+      history: ({ path, first, after }: { path?: string; first?: number; after?: string }) => {
+        if (first == null || first > 100)
+          throw new GraphQLError(
+            'You must provide a `first` value of at most 100 to paginate the `history` connection.',
+          )
+        const upTo = repo.commits.indexOf(c)
+        const all = repo.commits
+          .slice(0, upTo + 1)
+          .filter(
+            (commit, i) => !path || commit.files.get(path) !== repo.commits[i - 1]?.files.get(path),
+          )
+          .reverse()
+        const start = after ? Number(atob(after).split(':')[1]) + 1 : 0
+        const page = all.slice(start, start + first)
+        const end = start + page.length - 1
+        return {
+          __typename: 'CommitHistoryConnection',
+          totalCount: all.length,
+          nodes: page.map((commit) => commitObj(repo, commit)),
+          pageInfo: {
+            __typename: 'PageInfo',
+            hasNextPage: end < all.length - 1,
+            endCursor: page.length ? btoa(`cursor:${end}`) : null,
+          },
+        }
+      },
     })
     const resolveRev = (repo: FakeRepo, rev: string) =>
       rev === 'HEAD' || rev === repo.defaultBranch

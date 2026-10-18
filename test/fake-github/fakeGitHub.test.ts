@@ -310,6 +310,60 @@ describe('GraphQL: discovery', () => {
   })
 })
 
+describe('GraphQL: a file history', () => {
+  const history = `query($rev: String!, $path: String!, $after: String) { repository(owner: "you", name: "engineering") {
+    object(expression: $rev) { ... on Commit { history(path: $path, first: 2, after: $after) {
+      pageInfo { hasNextPage endCursor }
+      nodes { oid committedDate messageHeadline author { name user { login } } file(path: $path) { oid } }
+    } } } } }`
+
+  it('lists the commits that changed a path, newest first, paged, with its blob in each', async () => {
+    const repo = fake.repo('you/engineering')
+    const first = repo.head!
+    await repo.commit({ message: 'Other', additions: [{ path: 'a-b.md', contents: '# B\n' }] })
+    const second = await repo.commit({
+      message: 'Update Keycloak\n\nbody',
+      additions: [{ path: 'identity/keycloak.md', contents: '# Keycloak\n\nv2\n' }],
+    })
+    const third = await repo.commit({
+      message: 'Again',
+      additions: [{ path: 'identity/keycloak.md', contents: '# Keycloak\n\nv3\n' }],
+    })
+    const path = 'identity/keycloak.md'
+    const page1 = (await gql(fake, history, { rev: third.oid, path })).data.repository.object
+      .history
+    expect(page1.nodes.map((n: { oid: string }) => n.oid)).toEqual([third.oid, second.oid])
+    expect(page1.nodes[1]).toEqual({
+      oid: second.oid,
+      committedDate: second.date.toISOString(),
+      messageHeadline: 'Update Keycloak',
+      author: { name: 'you', user: { login: 'you' } },
+      file: { oid: second.files.get(path) },
+    })
+    expect(page1.pageInfo.hasNextPage).toBe(true)
+    const page2 = (
+      await gql(fake, history, { rev: third.oid, path, after: page1.pageInfo.endCursor })
+    ).data.repository.object.history
+    expect(page2.nodes.map((n: { oid: string }) => n.oid)).toEqual([first.oid])
+    expect(page2.pageInfo).toEqual({ hasNextPage: false, endCursor: expect.any(String) })
+    // From an older commit, later ones are not part of the history.
+    const old = (await gql(fake, history, { rev: second.oid, path })).data.repository.object
+    expect(old.history.nodes.map((n: { oid: string }) => n.oid)).toEqual([second.oid, first.oid])
+  })
+
+  it('does not follow a file across a move', async () => {
+    const repo = fake.repo('you/engineering')
+    const moved = await repo.commit({
+      message: 'Move',
+      additions: [{ path: 'keycloak.md', contents: '# Keycloak\n\nRealms and clients.\n' }],
+      deletions: ['identity/keycloak.md'],
+    })
+    const res = (await gql(fake, history, { rev: moved.oid, path: 'keycloak.md' })).data.repository
+      .object.history
+    expect(res.nodes.map((n: { oid: string }) => n.oid)).toEqual([moved.oid])
+  })
+})
+
 describe('GET git/blobs (images and other binary files)', () => {
   const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 255, 128])
 
