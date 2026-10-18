@@ -1,5 +1,6 @@
 // The GraphQL operations Yeraz uses: blobs by SHA, finding Trees (every repository with
-// a `.yeraz.json` at the root, ARCHITECTURE.md §5.3), and createCommitOnBranch (§5.2).
+// a `.yeraz.json` at the root, ARCHITECTURE.md §5.3), a file's history (§5.4), and
+// createCommitOnBranch (§5.2).
 // Creating a repository is the one REST write.
 
 import { GitHubError, type GitHubClient } from './client'
@@ -38,6 +39,69 @@ export async function fetchBlobs(
   )
   if (!data.repository) throw new GitHubError('not-found', `Repository ${repo} not found`)
   return new Map(shas.map((sha, i) => [sha, data.repository![`b${i}`]?.text ?? null]))
+}
+
+/** A past version of a file: the commit that wrote it. */
+export interface Version {
+  commit: string
+  /** ISO date. */
+  date: string
+  message: string
+  author: string
+  /** Its blob SHA; null in the commit that deleted the file. */
+  blob: string | null
+}
+
+export const HISTORY_PAGE = 30
+
+/**
+ * The commits that changed `path`, newest first, from commit `rev` (a SHA, so the answer
+ * never changes and can be kept). One request per page. Like `git log` without
+ * `--follow`, it stops where the file got this path.
+ */
+export async function fetchHistory(
+  client: GitHubClient,
+  repo: string,
+  rev: string,
+  path: string,
+  after: string | null = null,
+): Promise<{ versions: Version[]; next: string | null }> {
+  const [owner, name] = repo.split('/')
+  const { data } = await client.graphql<{
+    repository: {
+      object: {
+        history: {
+          pageInfo: { hasNextPage: boolean; endCursor: string | null }
+          nodes: {
+            oid: string
+            committedDate: string
+            messageHeadline: string
+            author: { name: string | null; user: { login: string } | null } | null
+            file: { oid: string } | null
+          }[]
+        }
+      } | null
+    } | null
+  }>(
+    `query History($owner: String!, $name: String!, $rev: String!, $path: String!, $after: String) {
+      repository(owner: $owner, name: $name) { object(expression: $rev) { ... on Commit {
+        history(path: $path, first: ${HISTORY_PAGE}, after: $after) {
+          pageInfo { hasNextPage endCursor }
+          nodes { oid committedDate messageHeadline author { name user { login } } file(path: $path) { oid } } } } } } }`,
+    { owner, name, rev, path, after },
+  )
+  const history = data.repository?.object?.history
+  if (!history) throw new GitHubError('not-found', `No history for ${path}`)
+  return {
+    versions: history.nodes.map((n) => ({
+      commit: n.oid,
+      date: n.committedDate,
+      message: n.messageHeadline,
+      author: n.author?.user?.login ?? n.author?.name ?? 'Unknown',
+      blob: n.file?.oid ?? null,
+    })),
+    next: history.pageInfo.hasNextPage ? history.pageInfo.endCursor : null,
+  }
 }
 
 const TREE_FIELDS = `

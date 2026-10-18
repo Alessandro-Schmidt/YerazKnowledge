@@ -4,7 +4,7 @@ import { createFakeGitHub, type FakeGitHub } from '../../test/fake-github/fakeGi
 import { fakeGitHubHandlers } from '../../test/fake-github/msw'
 import { gitBlobSha } from '../model/sha'
 import { createGitHubClient, GitHubError } from './client'
-import { discoverTrees, fetchBlobs, lookupTree } from './graphql'
+import { discoverTrees, fetchBlobs, fetchHistory, HISTORY_PAGE, lookupTree } from './graphql'
 
 let fake: FakeGitHub
 const server = setupServer()
@@ -83,6 +83,50 @@ describe('fetchBlobs', () => {
     await expect(fetchBlobs(client, 'you/engineering', ['") { x } #'])).rejects.toThrow(
       'Not a blob SHA',
     )
+  })
+})
+
+describe('fetchHistory', () => {
+  it('lists the versions of a file, newest first, a page per request', async () => {
+    const repo = fake.repo('you/engineering')
+    const first = repo.head!
+    for (let i = 1; i <= HISTORY_PAGE; i++)
+      await repo.commit({
+        message: `Edit ${i}\n\nbody`,
+        additions: [{ path: 'a.md', contents: `# A\n\n${i}\n` }],
+      })
+    fake.resetLog()
+    const page1 = await fetchHistory(client, 'you/engineering', repo.head!.oid, 'a.md')
+    expect(page1.versions).toHaveLength(HISTORY_PAGE)
+    expect(page1.versions[0]).toEqual({
+      commit: repo.head!.oid,
+      date: repo.head!.date.toISOString(),
+      message: `Edit ${HISTORY_PAGE}`,
+      author: 'you',
+      blob: await gitBlobSha(`# A\n\n${HISTORY_PAGE}\n`),
+    })
+    expect(page1.next).not.toBeNull()
+    const page2 = await fetchHistory(client, 'you/engineering', repo.head!.oid, 'a.md', page1.next)
+    expect(page2).toEqual({
+      versions: [expect.objectContaining({ commit: first.oid, blob: await gitBlobSha('# A\n') })],
+      next: null,
+    })
+    expect(fake.log).toHaveLength(2)
+  })
+
+  it('marks the commit that deleted the file, and fails for an unknown commit', async () => {
+    const repo = fake.repo('you/engineering')
+    await repo.commit({ message: 'Delete A', deletions: ['a.md'] })
+    await repo.commit({ message: 'Add A again', additions: [{ path: 'a.md', contents: '# A2\n' }] })
+    const { versions } = await fetchHistory(client, 'you/engineering', repo.head!.oid, 'a.md')
+    expect(versions.map((v) => [v.message, v.blob === null])).toEqual([
+      ['Add A again', false],
+      ['Delete A', true],
+      ['Initial commit', false],
+    ])
+    await expect(
+      fetchHistory(client, 'you/engineering', '0'.repeat(40), 'a.md'),
+    ).rejects.toMatchObject({ kind: 'not-found' })
   })
 })
 

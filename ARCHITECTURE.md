@@ -134,6 +134,12 @@ Creating a new repository (a new Family) from the app means:
 
 Renaming a Family changes only `name` in `.yeraz.json`. The edit is committed like any other, and the file keeps its other fields and its layout. Until the commit lands, the name typed on this device wins over what discovery reports, so the top bar and the menu never show the old name again. The repository keeps its name; links and clones are untouched.
 
+### 5.4 A leaf's history
+
+"History" in a leaf's menu lists its past versions, read straight from git: GraphQL `history(path:)` on the commit last pulled, 30 versions per request, with each version's blob SHA (`file(path:) { oid }`). History asked of a commit SHA never changes, so a page is kept for the session; a version's text is fetched by SHA like any blob and kept in the blob cache. A version is compared with the current text (pending edits included) as a line diff.
+
+"Restore this version" saves the old text as an ordinary edit and commits it at once (§5.2): a new commit on top, never a rewrite of history, so the offline outbox and the three-way merge apply as for any edit. Like `git log` without `--follow`, the history stops where the file got its current path: versions from before a move stay on GitHub under the old path.
+
 ## 6. The map
 
 - **One map per Family, one radial layout per Tree** (`map/family.ts`): each Tree is laid out on its own, centred on its core, as below; then the Trees are placed side by side.
@@ -272,7 +278,7 @@ Every image a user sees should be sharp on any screen, including 2× and 3× dis
 | `createCommitOnBranch` | The blob → tree → commit → ref sequence in the REST Git API | Three of four requests, plus built-in conflict detection |
 | Sibling folders, fixed filenames, root-relative links | README promotion, title-based names, relative links | Multi-file rewrites on everyday edits |
 | d3 for layout, bundling, zoom and packing | Custom geometry | Hundreds of lines |
-| Plain `fetch` | Octokit | Bundle size; the app uses 4 REST endpoints and 3 GraphQL operations |
+| Plain `fetch` | Octokit | Bundle size; the app uses 4 REST endpoints and 4 GraphQL operations |
 | Discovery by marker file | A settings store that syncs across devices | A settings service |
 | Themes are CSS variables generated from one JSON file | A theming library or CSS-in-JS | A runtime dependency, and a re-render on every theme switch |
 
@@ -296,10 +302,10 @@ Every image a user sees should be sharp on any screen, including 2× and 3× dis
 
 ```
 src/
-  github/   client.ts (fetch, auth, ETag) · graphql.ts (the 3 operations)
+  github/   client.ts (fetch, auth, ETag) · graphql.ts (the 4 operations)
             endpoint.ts (the API base; a local fake only in e2e builds)
   store/    db.ts (IndexedDB via idb-keyval) · session.ts (Zustand store)
-  model/    parse.ts · tree.ts (paths → hierarchy, sibling-folder rule) · embeds.ts
+  model/    parse.ts · tree.ts (paths → hierarchy, sibling-folder rule) · embeds.ts · diff.ts (line diff)
             graph.ts (titles, word totals, threads, backlinks)
             links.ts (find and rewrite) · sha.ts (git blob SHA)
   sync/     pull.ts · push.ts · merge.ts · autosave.ts · assets.ts (images by SHA)
@@ -309,6 +315,7 @@ src/
             insertMenu.ts · mentions.ts · images.ts (scale, encode) · attach.ts (files)
             emoji.ts (every emoji, names and keywords, for the icon picker; lazy)
   read/     render.ts (markdown-it) · rich.ts (math, code, embeds) · Peek.tsx · print.css
+            History.tsx (a leaf's past versions, compared and restored)
             LeafLook.tsx (cover, colours) · cover.ts (cover position) · files.ts (file cards)
   ui/       App.tsx (routes) · Start.tsx (`#/`) · TopBar.tsx · TokenScreen.tsx
             FamilyView.tsx (Explorer | map | Peek) · FamilyMenu.tsx · Explorer.tsx · Appearance.tsx

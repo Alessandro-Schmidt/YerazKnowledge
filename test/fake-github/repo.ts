@@ -21,6 +21,8 @@ export interface Commit {
   oid: string
   parent: string | null
   message: string
+  /** When it was committed; also the author's date. */
+  date: Date
   /** path → blob SHA */
   files: Map<string, string>
   root: Dir
@@ -123,7 +125,15 @@ export class FakeRepo {
     const oid = await sha1Hex(
       `commit ${root.sha}\nparent ${parent}\n${this.commits.length}\n${changes.message}`,
     )
-    const commit: Commit = { oid, parent, message: changes.message, files, root, dirsBySha }
+    const commit: Commit = {
+      oid,
+      parent,
+      message: changes.message,
+      date: new Date(),
+      files,
+      root,
+      dirsBySha,
+    }
     this.commits.push(commit)
     this.updatedAt = Date.now()
     return commit
