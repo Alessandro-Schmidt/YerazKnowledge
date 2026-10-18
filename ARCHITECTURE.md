@@ -280,7 +280,7 @@ Every image a user sees should be sharp on any screen, including 2× and 3× dis
 
 - A Web Worker for parsing. Regex parsing 1,000 leaves takes milliseconds.
 - A canvas map renderer.
-- A full-text search engine: title search first, MiniSearch if asked for.
+- A full-text search engine: search scans titles and the leaves' text in the blob cache; MiniSearch if that gets slow.
 - List virtualization in the Explorer: branches start collapsed below depth 1.
 - Real-time collaboration, and any backend.
 
