@@ -361,6 +361,84 @@ describe('session', () => {
   })
 })
 
+describe('leaf history', () => {
+  const REPO = 'you/engineering'
+  const PATH = 'notes.md'
+
+  beforeEach(async () => {
+    const repo = fake.repo(REPO)
+    await repo.commit({
+      message: 'Add Notes',
+      additions: [{ path: PATH, contents: '# Notes\n\nv1\n' }],
+    })
+    await repo.commit({
+      message: 'Update Notes',
+      additions: [{ path: PATH, contents: '# Notes\n\nv2\n' }],
+    })
+  })
+
+  async function opened() {
+    const s = createSession({ store: memoryStore() })
+    await s.getState().signIn('good')
+    await s.getState().open(REPO)
+    fake.resetLog()
+    return s
+  }
+
+  it('lists versions newest first in one request, and asks again only after a commit', async () => {
+    const s = await opened()
+    const { versions, next } = await s.getState().history(REPO, PATH)
+    expect(versions.map((v) => v.message)).toEqual(['Update Notes', 'Add Notes'])
+    expect(next).toBeNull()
+    await s.getState().history(REPO, PATH)
+    expect(fake.log).toHaveLength(1)
+
+    // An old version's text: one request, then the blob cache.
+    expect(await s.getState().versionText(REPO, versions[1]!.blob!)).toBe('# Notes\n\nv1\n')
+    expect(await s.getState().versionText(REPO, versions[1]!.blob!)).toBe('# Notes\n\nv1\n')
+    expect(fake.log).toHaveLength(2)
+  })
+
+  it('restores a version as a new commit, keeping every earlier one', async () => {
+    const s = await opened()
+    const commits = fake.repo(REPO).commits.length
+    const [, first] = (await s.getState().history(REPO, PATH)).versions
+    fake.resetLog()
+    await s.getState().restore(REPO, PATH, first!.blob!)
+    expect(fake.repo(REPO).read(PATH)).toBe('# Notes\n\nv1\n')
+    expect(fake.repo(REPO).commits).toHaveLength(commits + 1)
+    expect(fake.log.filter((e) => e.operation === 'mutation')).toHaveLength(1)
+    expect(s.getState().sync[REPO]).toEqual({ status: 'synced' })
+    expect(s.getState().data[REPO]!.graph!.nodes.get(PATH)!.words).toBeGreaterThan(0)
+    const after = await s.getState().history(REPO, PATH)
+    expect(after.versions.map((v) => v.message)).toEqual([
+      'Update Notes',
+      'Update Notes',
+      'Add Notes',
+    ])
+    expect(after.versions[0]!.blob).toBe(first!.blob)
+  })
+
+  it('keeps a restore on the device while offline, and merges it with a commit made elsewhere', async () => {
+    const s = await opened()
+    const [, first] = (await s.getState().history(REPO, PATH)).versions
+    await s.getState().versionText(REPO, first!.blob!)
+    fake.faults.offline = true
+    await s.getState().restore(REPO, PATH, first!.blob!)
+    expect(s.getState().sync[REPO]).toMatchObject({ status: 'offline', files: 1 })
+    expect(await s.getState().textOf(REPO, PATH)).toBe('# Notes\n\nv1\n')
+
+    fake.faults.offline = false
+    fake.faults.pushBeforeNextCommit = {
+      message: 'Elsewhere',
+      additions: [{ path: 'other.md', contents: '# Other\n' }],
+    }
+    await s.getState().flush(REPO)
+    expect(fake.repo(REPO).read(PATH)).toBe('# Notes\n\nv1\n')
+    expect(fake.repo(REPO).read('other.md')).toBe('# Other\n')
+  })
+})
+
 describe('renaming a Tree', () => {
   const NOTES = '{\n  "name": "Notes",\n  "color": "amber"\n}\n'
 

@@ -21,13 +21,13 @@ Read `ideas.txt` (why), `ARCHITECTURE.md` (how), `development-plan.md` (what, in
 
 ## Where things live (ARCHITECTURE.md §12)
 
-- `src/model/` pure logic, no DOM/network: `parse.ts`, `tree.ts`, `graph.ts` (titles, totals, threads), `sha.ts`
+- `src/model/` pure logic, no DOM/network: `parse.ts`, `tree.ts`, `graph.ts` (titles, totals, threads), `sha.ts`, `diff.ts`
 - `src/github/` `client.ts` (fetch, ETag, errors) · `graphql.ts` (blobs, discover, lookup)
 - `src/store/db.ts` key/value (IndexedDB or memory) · `session.ts` the Zustand store, pending edits, autosave
 - `src/sync/` `pull.ts` read · `push.ts` commit · `merge.ts` three-way · `autosave.ts` · `structure.ts` (new/move/delete plans) · `overlay.ts` · `assets.ts` (images: fetch by SHA, name)
 - `src/editor/` CodeMirror 6 (lazy chunk): `Editor.tsx`, `livePreview.ts` (+ `metaLine.ts`: line 2 hidden, kept whole), `LeafEditor.tsx` (the leaf, edited in the Peek), `mentions.ts`, `insertMenu.ts`, `images.ts`, `emoji.ts`
 - `src/map/` `layout.ts` (pure, d3) · `family.ts` (a Family's Trees, placed) · `TreeMap.tsx` · `useZoom.ts`
-- `src/read/` `render.ts` (markdown-it, lazy) · `Peek.tsx` · `src/ui/` App, FamilyView, FamilyMenu, Start, Explorer, TokenScreen,
+- `src/read/` `render.ts` (markdown-it, lazy) · `Peek.tsx` · `History.tsx` (past versions, diff, restore) · `src/ui/` App, FamilyView, FamilyMenu, Start, Explorer, TokenScreen,
   theme (saved per device in `localStorage`, applied before paint by `index.html`), Appearance (`#/settings/appearance`),
   `customTheme.ts` + `ThemeEditor.tsx` (custom themes), `contrast.ts` (`readable` adjusts a failing colour)
 - `themes/` community themes (each must pass every contrast rule as written) · `src/read/colors.ts` leaf colours

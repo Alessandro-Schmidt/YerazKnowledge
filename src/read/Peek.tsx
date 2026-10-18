@@ -19,6 +19,7 @@ import styles from './Peek.module.css'
 import { coverPosition } from './cover'
 import { leafColors } from './colors'
 import { downloadAsset } from './files'
+import { History } from './History'
 import { Cover } from './LeafLook'
 import { printLeaf } from './print'
 import { renderLeaf } from './render'
@@ -55,6 +56,8 @@ export function Peek({
   const [source, setSource] = useState(false)
   /** The branch whose text is being written here. */
   const [writing, setWriting] = useState<string | null>(null)
+  /** The leaf whose history is shown in place of its editor. */
+  const [historyOf, setHistoryOf] = useState<string | null>(null)
   useLayoutEffect(() => mark('peek-painted'), [id])
   const node = graph.nodes.get(id)!
   // The repository is the Family; a folder at its top is one of its Trees.
@@ -142,7 +145,23 @@ export function Peek({
             />
           )}
           <article className={styles.article}>
-            {node.kind === 'leaf' ? (
+            {node.kind === 'leaf' && historyOf === id ? (
+              <History
+                repo={tree.repo}
+                path={id}
+                onClose={() => setHistoryOf(null)}
+                view={(text, sha) => (
+                  <BranchText
+                    repo={tree.repo}
+                    graph={graph}
+                    id={id}
+                    sha={sha}
+                    text={text}
+                    href={href}
+                  />
+                )}
+              />
+            ) : node.kind === 'leaf' ? (
               <LeafEditor
                 key={`${tree.repo} ${id}`}
                 repo={tree.repo}
@@ -343,6 +362,11 @@ export function Peek({
                     </button>
                   )}
                   {node.kind === 'leaf' && (
+                    <button type="button" role="menuitem" onClick={() => setHistoryOf(id)}>
+                      History
+                    </button>
+                  )}
+                  {node.kind === 'leaf' && (
                     <button
                       type="button"
                       role="menuitem"
@@ -449,26 +473,30 @@ const linkTo = (graph: Graph, href: (id: string) => string) => (path: string) =>
   return end === null ? null : href(end)
 }
 
-/** A branch's text, as the read view draws it. Writing it opens the leaf editor instead. */
+/**
+ * A branch's text, as the read view draws it (writing it opens the leaf editor instead),
+ * or a past version of a leaf when `text` is given.
+ */
 function BranchText({
   repo,
   graph,
   id,
   sha,
+  text: given,
   href,
 }: {
   repo: string
   graph: Graph
   id: string
   sha: string
+  text?: string
   href(id: string): string
 }) {
   const [html, setHtml] = useState<{ sha: string; html: string } | null>(null)
   useEffect(() => {
     let live = true
     const { getState } = session
-    void getState()
-      .textOf(repo, id)
+    void Promise.resolve(given ?? getState().textOf(repo, id))
       .then((text) =>
         renderLeaf(text, {
           leafHref: linkTo(graph, href),
@@ -486,7 +514,7 @@ function BranchText({
     return () => {
       live = false
     }
-  }, [repo, id, sha, graph, href])
+  }, [repo, id, sha, given, graph, href])
 
   // The Tree's own files (images, PDFs, videos) come from the blob cache, with the token.
   const body = useRef<HTMLDivElement>(null)
