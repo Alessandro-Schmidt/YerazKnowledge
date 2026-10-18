@@ -137,8 +137,15 @@
 .addText:hover {
   color: var(--text);
 }
-.textDone {
+.textDone,
+.ghostWrite {
   align-self: flex-start;
+}
+.ghostText {
+  margin: 0;
+  color: var(--text-body);
+  font-size: 13.5px;
+  line-height: 1.5;
 }
 
 .loading {

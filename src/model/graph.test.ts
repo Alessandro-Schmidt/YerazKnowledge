@@ -3,6 +3,7 @@ import {
   buildGraph,
   compactWords,
   crumbs,
+  ghostsFrom,
   humanize,
   neighbours,
   textFile,
@@ -138,6 +139,80 @@ describe("a branch's text (its folder's README.md)", () => {
     expect(textFile(g, 'AI Agents')).toBe('AI Agents/README.md')
     expect(textFile(g, 'keycloak.md')).toBe('keycloak.md')
     expect(textFile(g, ROOT)).toBeNull()
+  })
+})
+
+describe('ghost leaves: links to leaves not written yet', () => {
+  const tree: Record<string, string> = {
+    'identity/keycloak.md':
+      '# Keycloak\n\n[OAuth](/identity/oauth.md), [PKCE](/identity/oauth/pkce.md), [Realms](/identity/keycloak/realms.md).\n',
+    'identity/oidc.md':
+      '# OIDC\n\nBuilt on [OAuth](</identity/oauth.md#flows>), [Keycloak](/identity/Keycloak.md).\n',
+    'identity/README.md': '# Identity\n\n[Glossary](/identity/glossary.md)\n',
+    'notes.md':
+      '# Notes\n\n[new tree](/later/plan.md) [asset](/assets/a.md) [hidden](/.github/x.md) [text](/x/README.md) [self](/notes.md) [other](https://github.com/u/r/blob/main/z.md)\n',
+  }
+  const graphWith = (extra: Record<string, string> = {}) => {
+    const all = { ...tree, ...extra }
+    const model = buildTree(
+      Object.keys(all).map((path) => ({ path, type: 'blob' as const, sha: path, size: 1 })),
+    )
+    return buildGraph(model, new Map(Object.entries(all).map(([p, t]) => [p, parseLeaf(t)])), 'T')
+  }
+
+  it('turns a link to a missing leaf into one ghost, with every leaf that links to it', () => {
+    const g = graphWith()
+    expect(g.ghosts.get('identity/oauth.md')).toEqual({
+      id: 'identity/oauth.md',
+      parent: 'identity',
+      title: 'Oauth',
+      from: ['identity/keycloak.md', 'identity/oidc.md'],
+    })
+    // Ghosts are not nodes, threads or leaves: the counts are of what is written.
+    expect(g.nodes.has('identity/oauth.md')).toBe(false)
+    expect(g.threads).toEqual([])
+    expect(g.stats).toMatchObject({ leaves: 3, threads: 0 })
+  })
+
+  it('places a ghost under the nearest node its path implies', () => {
+    const g = graphWith()
+    // Sub-leaf of an existing leaf: in its sibling folder.
+    expect(g.ghosts.get('identity/keycloak/realms.md')!.parent).toBe('identity/keycloak.md')
+    // Its folder doesn't exist yet (and neither does oauth.md): the nearest branch holds it.
+    expect(g.ghosts.get('identity/oauth/pkce.md')!.parent).toBe('identity')
+    // From a branch's text.
+    expect(g.ghosts.get('identity/glossary.md')!.from).toEqual(['identity'])
+    // In a Tree not planted yet: at the top of the Family.
+    expect(g.ghosts.get('later/plan.md')!.parent).toBe(ROOT)
+  })
+
+  it('ignores assets, hidden paths, branch texts, self-links, other Trees and case twins', () => {
+    expect([...graphWith().ghosts.keys()].sort()).toEqual([
+      'identity/glossary.md',
+      'identity/keycloak/realms.md',
+      'identity/oauth.md',
+      'identity/oauth/pkce.md',
+      'later/plan.md',
+    ])
+  })
+
+  it('becomes a thread once the leaf is written', () => {
+    const g = graphWith({ 'identity/oauth.md': '# OAuth\n' })
+    expect(g.ghosts.has('identity/oauth.md')).toBe(false)
+    expect(g.ghosts.get('identity/oauth/pkce.md')!.parent).toBe('identity/oauth.md')
+    expect(g.in.get('identity/oauth.md')).toEqual(['identity/keycloak.md', 'identity/oidc.md'])
+  })
+
+  it('lights a ghost with its linkers, and a leaf with its ghosts', () => {
+    const g = graphWith()
+    expect(ghostsFrom(g, 'identity/oidc.md')).toEqual(['identity/oauth.md'])
+    expect([...neighbours(g, 'identity/oauth.md')].sort()).toEqual([
+      'identity',
+      'identity/keycloak.md',
+      'identity/oauth.md',
+      'identity/oidc.md',
+    ])
+    expect(neighbours(g, 'identity/oidc.md').has('identity/oauth.md')).toBe(true)
   })
 })
 

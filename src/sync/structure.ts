@@ -1,7 +1,8 @@
 // Structure edits as file changes (development-plan.md M2 step 2), planned against the
 // graph and the repository format (ARCHITECTURE.md §4). Pure: the caller commits them.
 
-import { textFile, type Graph } from '../model/graph'
+import { textFile, type Ghost, type Graph } from '../model/graph'
+import { linkLabel } from '../model/parse'
 import { rewriteLinks } from '../model/links'
 import { slugify } from '../model/slug'
 import { BRANCH_TEXT, ROOT } from '../model/tree'
@@ -72,6 +73,15 @@ export function planNewLeaves(
     return { path: `${folder}${name}.md`, text: leafText(title) }
   })
 }
+
+/**
+ * A ghost written: a new leaf at the path its links name, titled as the first one (in
+ * `linking`, its linker's text) reads, or from the file name.
+ */
+export const planGhostLeaf = (ghost: Ghost, linking: string | null): FileChange => ({
+  path: ghost.id,
+  text: leafText((linking !== null && linkLabel(linking, ghost.id)) || ghost.title),
+})
 
 /** A branch's text (README.md), before it exists: the branch's name as its heading. */
 export function planBranchText(graph: Graph, branchId: string): { path: string; text: string } {

@@ -182,7 +182,25 @@
   pointer-events: none;
 }
 
+/* A ghost: a leaf linked to but not written yet. Hollow and dashed, with a muted italic
+   label and dashed threads and edge, so it reads as unwritten without relying on colour. */
+.node[data-ghost] .dot {
+  fill: var(--bg);
+  stroke: var(--node);
+  stroke-dasharray: 2 1.6;
+}
+.node[data-ghost] .label {
+  fill: var(--muted);
+  font-style: italic;
+}
+.thread[data-ghost],
+.hotThread[data-ghost],
+.edge[data-ghost] {
+  stroke-dasharray: 4 3;
+}
+
 /* Layer toggles */
+[data-hide-ghosts] [data-ghost],
 [data-hide-branches] .edges,
 [data-hide-branches] .overlay .edge,
 [data-hide-threads] .threads,
@@ -218,6 +236,10 @@
 .node[data-sel] .dot {
   fill: var(--tree, var(--accent));
   stroke: none;
+}
+.node[data-ghost][data-sel] .dot {
+  fill: var(--bg);
+  stroke: var(--tree, var(--accent));
 }
 .node[data-sel] .label {
   font-weight: 600;
