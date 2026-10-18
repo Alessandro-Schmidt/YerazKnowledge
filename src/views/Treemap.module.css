@@ -1,0 +1,198 @@
+/* Treemap (design/views/screens/04, 13; design/views/generators/treemap.py). */
+
+.wrap {
+  position: absolute;
+  inset: 0;
+}
+
+.host {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.group {
+  position: absolute;
+  box-sizing: border-box;
+  border: 1px solid var(--hair);
+  border-radius: 12px;
+  background: var(--panel);
+}
+.head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 34px;
+  padding: 0 12px;
+}
+.groupName {
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--tree, var(--accent));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+.groupMeta {
+  margin-left: auto;
+  font-size: 10.5px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.tile {
+  position: absolute;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 8px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--tree, var(--accent)) var(--glow, 3%), var(--raised));
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  transition: box-shadow 0.15s;
+}
+.tile[data-small] {
+  padding: 6px 8px;
+}
+.tile:hover {
+  box-shadow: inset 0 0 0 1px var(--hair-strong);
+}
+.tile[data-on] {
+  box-shadow: inset 0 0 0 1.5px var(--tree, var(--accent));
+}
+.title {
+  font-size: 13.5px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tile[data-small] .title {
+  font-size: 12px;
+}
+.tile[data-on] .title {
+  color: var(--tree, var(--accent));
+  font-weight: 600;
+}
+/* Body text, not muted: muted fails 4.5:1 on the most glowing tiles. */
+.meta {
+  font-size: 10.5px;
+  color: var(--text-body);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.first {
+  display: -webkit-box;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-body);
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.bottom {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.grow {
+  flex: 1;
+}
+.legend {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  height: 42px;
+  padding: 0 14px;
+  font-size: 12px;
+  color: var(--text-body);
+  white-space: nowrap;
+}
+.legend > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.areaBig,
+.areaSmall,
+.swatch {
+  display: inline-block;
+  border-radius: 3px;
+}
+.areaBig {
+  width: 18px;
+  height: 12px;
+  border: 1px solid var(--hair-strong);
+}
+.areaSmall {
+  width: 10px;
+  height: 8px;
+  border: 1px solid var(--hair-strong);
+}
+.swatch {
+  width: 18px;
+  height: 12px;
+  background: color-mix(in srgb, var(--accent) var(--glow), var(--raised));
+}
+
+.pickers {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 42px;
+  padding: 0 6px;
+  font-size: 12.5px;
+}
+.picker {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.picker > span:first-child {
+  padding: 0 6px 0 10px;
+  color: var(--muted);
+}
+.select {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+.select select {
+  appearance: none;
+  height: 30px;
+  padding: 0 26px 0 10px;
+  border: 0;
+  border-radius: 7px;
+  background: var(--raised);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+.select svg {
+  position: absolute;
+  right: 8px;
+  pointer-events: none;
+}
+
+@media (max-width: 900px) {
+  .legend {
+    display: none;
+  }
+}

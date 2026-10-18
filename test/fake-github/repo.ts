@@ -32,6 +32,8 @@ export interface Commit {
 
 export interface FileChanges {
   message: string
+  /** When it was committed; now if not given (fixtures backdate their history). */
+  date?: Date
   additions?: { path: string; contents: Uint8Array | string }[]
   deletions?: string[]
 }
@@ -129,7 +131,7 @@ export class FakeRepo {
       oid,
       parent,
       message: changes.message,
-      date: new Date(),
+      date: changes.date ?? new Date(),
       files,
       root,
       dirsBySha,

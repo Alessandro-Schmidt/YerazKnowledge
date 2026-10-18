@@ -511,3 +511,61 @@ describe('renaming a Tree', () => {
     expect(titleOf(s)).toBe('Notes')
   })
 })
+
+describe('Family and Tree colours', () => {
+  it('colours the Family and a Tree in .yeraz.json, shown at once and kept after the commit', async () => {
+    await fake.addRepo('you/notes', {
+      '.yeraz.json': '{\n  "name": "Notes"\n}\n',
+      'Identity/a.md': '# A\n',
+    })
+    const s = createSession({ store: memoryStore(), autosaveDelay: 60_000 })
+    await s.getState().signIn('good')
+    await s.getState().open('you/notes')
+    const ref = () => s.getState().trees.find((t) => t.repo === 'you/notes')!
+    await s.getState().setColor('you/notes', 'amber')
+    await s.getState().setColor('you/notes', 'violet', 'Identity')
+    expect(ref()).toMatchObject({ color: 'amber', trees: { Identity: 'violet' } })
+    // Discovery answering before the commit doesn't undo them.
+    await s.getState().discover()
+    expect(ref()).toMatchObject({ color: 'amber', trees: { Identity: 'violet' } })
+    fake.resetLog()
+    await s.getState().flush('you/notes')
+    expect(fake.log.filter((e) => e.operation === 'mutation')).toHaveLength(1)
+    expect(fake.repo('you/notes').read('.yeraz.json')).toBe(
+      '{\n  "name": "Notes",\n  "color": "amber",\n  "trees": {\n    "Identity": "violet"\n  }\n}\n',
+    )
+    // Back to the defaults: the keys go.
+    await s.getState().setColor('you/notes', null, 'Identity')
+    await s.getState().setColor('you/notes', null)
+    await s.getState().flush('you/notes')
+    expect(fake.repo('you/notes').read('.yeraz.json')).toBe('{\n  "name": "Notes"\n}\n')
+    expect(ref()).toMatchObject({ color: null, trees: {} })
+  })
+})
+
+describe('planted dates', () => {
+  it('dates each leaf by blame once, then from the device; a new leaf is planted now', async () => {
+    const repo = await fake.addRepo('you/notes', {
+      '.yeraz.json': '{"name":"Notes"}',
+      'a.md': '# A\n',
+    })
+    await repo.commit({
+      message: 'B',
+      date: new Date('2026-03-01T00:00:00Z'),
+      additions: [{ path: 'b.md', contents: '# B\n' }],
+    })
+    const store = memoryStore()
+    const s = createSession({ store, autosaveDelay: 60_000 })
+    await s.getState().signIn('good')
+    await s.getState().open('you/notes')
+    fake.resetLog()
+    const first = await s.getState().planted('you/notes')
+    expect(first.get('b.md')).toBe('2026-03-01T00:00:00.000Z')
+    expect(fake.log.filter((e) => e.kind === 'graphql')).toHaveLength(1)
+    await s.getState().apply('you/notes', [{ path: 'c.md', text: '# C\n' }])
+    fake.resetLog()
+    const again = await s.getState().planted('you/notes')
+    expect(fake.log).toHaveLength(0)
+    expect(Date.now() - Date.parse(again.get('c.md')!)).toBeLessThan(60_000)
+  })
+})

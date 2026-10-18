@@ -1,0 +1,17 @@
+.threadIcon {
+  flex-shrink: 0;
+  color: var(--tree, var(--accent));
+}
+
+.curve {
+  flex-shrink: 0;
+}
+.curve path {
+  fill: none;
+  stroke: var(--tree, var(--accent));
+  stroke-width: 1.6px;
+  stroke-linecap: round;
+}
+.curve path[data-dashed] {
+  stroke-dasharray: 3 3;
+}

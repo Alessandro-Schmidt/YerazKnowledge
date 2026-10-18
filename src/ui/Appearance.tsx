@@ -1,11 +1,9 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
-import { Link, useLocation } from 'wouter'
 import themes from '../../design/themes/themes.json'
 import styles from './Appearance.module.css'
 import controls from './controls.module.css'
 import { CustomThemeEditor } from './ThemeEditor'
 import { applyCustom, savedCustom, saveCustom, type CustomTheme } from './customTheme'
-import { Icon } from './icons'
 import {
   ACCENT_IDS,
   applyTheme,
@@ -18,7 +16,7 @@ import {
   type BaseId,
   type ThemeChoice,
 } from './theme'
-import { Divider, TopBar } from './TopBar'
+import { SettingsShell } from './Settings'
 
 // Settings › Appearance (design/screens/09, 10). The choices are native radio inputs, so
 // switching changes four attributes on <html> and nothing in React re-renders, not even
@@ -55,7 +53,6 @@ const baseStyle = (base: BaseId) => {
 }
 
 export function Appearance() {
-  const [, navigate] = useLocation()
   const status = useRef<HTMLSpanElement>(null)
   const [initial] = useState(current)
   const [custom, setCustom] = useState(savedCustom)
@@ -90,151 +87,127 @@ export function Appearance() {
   }
 
   return (
-    <div className={styles.page}>
-      <TopBar>
-        <Divider />
-        <nav className={styles.crumbs} aria-label="Breadcrumb">
-          <Link href="/">Family</Link>
-          <Icon name="chevronRight" size={14} />
-          <span aria-current="page">Settings</span>
-        </nav>
-        <button
-          type="button"
-          className={`${controls.ghost} ${styles.done}`}
-          onClick={() => navigate('/')}
-        >
-          Done
-        </button>
-      </TopBar>
-      <div className={styles.body}>
-        <aside className={styles.rail}>
-          <p className={controls.eyebrow}>Settings</p>
-          <a className={styles.railItem} aria-current="page" href="#/settings/appearance">
-            <Icon name="contrast" size={18} />
-            Appearance
-          </a>
-        </aside>
-        <main className={styles.main}>
-          <div className={styles.choices}>
-            <h1 className={styles.title}>Appearance</h1>
-            <p className={styles.lede}>Changes apply right away on this device.</p>
+    <SettingsShell page="appearance">
+      <main className={styles.main}>
+        <div className={styles.choices}>
+          <h1 className={styles.title}>Appearance</h1>
+          <p className={styles.lede}>Changes apply right away on this device.</p>
 
-            <fieldset className={styles.group}>
-              <legend className={controls.eyebrow}>Base</legend>
-              <div className={styles.bases}>
-                {BASE_IDS.map((id) => (
-                  <label key={id} className={styles.base}>
-                    <input
-                      type="radio"
-                      name="base"
-                      value={id}
-                      defaultChecked={initial.base === id}
-                      onChange={() => choose('base', id)}
-                    />
-                    <span className={styles.mini} style={baseStyle(id)} aria-hidden="true">
-                      <span className={styles.miniTop} />
-                      <span className={styles.miniSide} />
-                      <MiniMap className={styles.miniMap} />
+          <fieldset className={styles.group}>
+            <legend className={controls.eyebrow}>Base</legend>
+            <div className={styles.bases}>
+              {BASE_IDS.map((id) => (
+                <label key={id} className={styles.base}>
+                  <input
+                    type="radio"
+                    name="base"
+                    value={id}
+                    defaultChecked={initial.base === id}
+                    onChange={() => choose('base', id)}
+                  />
+                  <span className={styles.mini} style={baseStyle(id)} aria-hidden="true">
+                    <span className={styles.miniTop} />
+                    <span className={styles.miniSide} />
+                    <MiniMap className={styles.miniMap} />
+                  </span>
+                  <strong>{themes.bases[id].name}</strong>
+                  <span className={styles.note}>{BASE_NOTES[id]}</span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
+
+          <fieldset className={styles.group}>
+            <legend className={controls.eyebrow}>Accent</legend>
+            <div className={styles.accents}>
+              {ACCENT_IDS.map((id: AccentId) => (
+                <label key={id} className={styles.accent}>
+                  <input
+                    type="radio"
+                    name="accent"
+                    value={id}
+                    defaultChecked={initial.accent === id}
+                    onChange={() => choose('accent', id)}
+                  />
+                  <span className={styles.swatch} style={{ background: `var(--c-${id})` }} />
+                  {themes.accents[id].name}
+                </label>
+              ))}
+            </div>
+            <p className={styles.note}>
+              Tree and leaf colours are named colours, so they follow whichever base you pick.
+            </p>
+          </fieldset>
+
+          <fieldset className={styles.group}>
+            <legend className={controls.eyebrow}>Reading font</legend>
+            <div className={styles.fonts}>
+              {FONT_IDS.map((id) => (
+                <label key={id} className={styles.font}>
+                  <input
+                    type="radio"
+                    name="font"
+                    value={id}
+                    defaultChecked={initial.font === id}
+                    onChange={() => choose('font', id)}
+                  />
+                  <span
+                    className={styles.aa}
+                    style={{ fontFamily: fontStack(id) }}
+                    aria-hidden="true"
+                  >
+                    Aa
+                  </span>
+                  <span className={styles.fontText}>
+                    <strong>{themes.fonts[id].name}</strong>
+                    <span className={styles.note}>{FONT_NOTES[id]}</span>
+                    <span className={styles.sample} style={{ fontFamily: fontStack(id) }}>
+                      {SAMPLE}
                     </span>
-                    <strong>{themes.bases[id].name}</strong>
-                    <span className={styles.note}>{BASE_NOTES[id]}</span>
-                  </label>
-                ))}
-              </div>
-            </fieldset>
+                  </span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
 
-            <fieldset className={styles.group}>
-              <legend className={controls.eyebrow}>Accent</legend>
-              <div className={styles.accents}>
-                {ACCENT_IDS.map((id: AccentId) => (
-                  <label key={id} className={styles.accent}>
-                    <input
-                      type="radio"
-                      name="accent"
-                      value={id}
-                      defaultChecked={initial.accent === id}
-                      onChange={() => choose('accent', id)}
-                    />
-                    <span className={styles.swatch} style={{ background: `var(--c-${id})` }} />
-                    {themes.accents[id].name}
-                  </label>
-                ))}
-              </div>
-              <p className={styles.note}>
-                Tree and leaf colours are named colours, so they follow whichever base you pick.
-              </p>
-            </fieldset>
+          <CustomThemeEditor theme={custom} current={current} onChange={chooseCustom} />
+        </div>
 
-            <fieldset className={styles.group}>
-              <legend className={controls.eyebrow}>Reading font</legend>
-              <div className={styles.fonts}>
-                {FONT_IDS.map((id) => (
-                  <label key={id} className={styles.font}>
-                    <input
-                      type="radio"
-                      name="font"
-                      value={id}
-                      defaultChecked={initial.font === id}
-                      onChange={() => choose('font', id)}
-                    />
-                    <span
-                      className={styles.aa}
-                      style={{ fontFamily: fontStack(id) }}
-                      aria-hidden="true"
-                    >
-                      Aa
-                    </span>
-                    <span className={styles.fontText}>
-                      <strong>{themes.fonts[id].name}</strong>
-                      <span className={styles.note}>{FONT_NOTES[id]}</span>
-                      <span className={styles.sample} style={{ fontFamily: fontStack(id) }}>
-                        {SAMPLE}
-                      </span>
-                    </span>
-                  </label>
-                ))}
-              </div>
-            </fieldset>
-
-            <CustomThemeEditor theme={custom} current={current} onChange={chooseCustom} />
-          </div>
-
-          <section className={styles.preview} aria-label="Preview">
-            <div className={styles.previewHead}>
-              <p className={controls.eyebrow}>Preview</p>
-              <span className={styles.status}>
-                ✓{' '}
-                <span ref={status}>
-                  {custom ? `${custom.name} · custom · contrast AA` : label(initial)}
-                </span>
+        <section className={styles.preview} aria-label="Preview">
+          <div className={styles.previewHead}>
+            <p className={controls.eyebrow}>Preview</p>
+            <span className={styles.status}>
+              ✓{' '}
+              <span ref={status}>
+                {custom ? `${custom.name} · custom · contrast AA` : label(initial)}
               </span>
-            </div>
-            <div className={`${controls.panel} ${styles.previewCard}`}>
-              <MiniMap className={styles.previewMap} />
-              <div className={styles.leaf}>
-                <p className={styles.kind}>
-                  <span>Leaf</span>
-                  <span className={controls.mono}>Kitchen / Breads</span>
+            </span>
+          </div>
+          <div className={`${controls.panel} ${styles.previewCard}`}>
+            <MiniMap className={styles.previewMap} />
+            <div className={styles.leaf}>
+              <p className={styles.kind}>
+                <span>Leaf</span>
+                <span className={controls.mono}>Kitchen / Breads</span>
+              </p>
+              <h2>🫓 Lavash</h2>
+              <div className="reading">
+                <p>
+                  {SAMPLE.slice(0, -1)}, a craft UNESCO listed in 2014 as{' '}
+                  <span className="mention">@ Intangible heritage</span>.
                 </p>
-                <h2>🫓 Lavash</h2>
-                <div className="reading">
-                  <p>
-                    {SAMPLE.slice(0, -1)}, a craft UNESCO listed in 2014 as{' '}
-                    <span className="mention">@ Intangible heritage</span>.
-                  </p>
-                  <h3>How it keeps</h3>
-                  <p>Dried sheets last for months, and a sprinkle of water softens them again.</p>
-                </div>
-                <div className={styles.buttons} aria-hidden="true">
-                  <span className={controls.primary}>New leaf</span>
-                  <span className={controls.ghost}>Add cover</span>
-                </div>
+                <h3>How it keeps</h3>
+                <p>Dried sheets last for months, and a sprinkle of water softens them again.</p>
+              </div>
+              <div className={styles.buttons} aria-hidden="true">
+                <span className={controls.primary}>New leaf</span>
+                <span className={controls.ghost}>Add cover</span>
               </div>
             </div>
-          </section>
-        </main>
-      </div>
-    </div>
+          </div>
+        </section>
+      </main>
+    </SettingsShell>
   )
 }
 

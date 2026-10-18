@@ -349,6 +349,7 @@ Not part of the first release:
 - **Custom theme editor:** create a theme from the current one, edit its tokens with live contrast checks, and import or export it as JSON (ARCHITECTURE.md §13). **Built.**
 - **Theme sync across devices.** Not built: the default in §11 is that each device keeps its own.
 - **Community themes:** a `themes/` folder in the repository that accepts contributions by pull request. **Built.**
+- **Tree views** (`design/views/`, the owner asked for all seven): Mind map, Outline, Columns, Treemap, Graph, Growth rings and Atlas next to the map, chosen per device from the top bar or Settings › Views; Tree colours in `.yeraz.json` (Settings › Tree colours). ARCHITECTURE.md §6.1. **Built.** Owner's decisions: Rings uses each leaf's planted month from git blame, ring width = words planted that month; Tree colours live in the repository; the Atlas contours use `d3-contour`. Not built yet: the Atlas phone overview inset, the Graph phone edge chips for threads leaving the screen.
 
 ## 7. Testing strategy
 

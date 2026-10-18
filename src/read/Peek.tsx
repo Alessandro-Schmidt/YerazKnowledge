@@ -39,6 +39,8 @@ export interface PeekProps {
   graph: Graph
   id: string
   expanded: boolean
+  /** Docked as the last column of a view (Columns) instead of floating over it. */
+  docked?: boolean
   /** The leaf was just created: its editor takes the focus, to write below the title. */
   created?: boolean
   href(id: string): string
@@ -56,6 +58,7 @@ export function Peek({
   graph,
   id,
   expanded,
+  docked,
   created,
   href,
   onSelect,
@@ -124,6 +127,7 @@ export function Peek({
     <section
       className={styles.peek}
       data-expanded={expanded || undefined}
+      data-docked={docked || undefined}
       aria-label={`${kind} preview`}
     >
       <PeekHead {...{ kind, crumb, expanded, onExpand, onClose }} />

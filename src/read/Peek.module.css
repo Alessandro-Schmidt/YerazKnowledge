@@ -14,6 +14,17 @@
   box-shadow: 0 24px 60px var(--shadow);
   overflow: hidden;
 }
+/* Docked beside the Columns: the last column, full height (design/views/screens/03). */
+.peek[data-docked] {
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 640px;
+  max-width: 55%;
+  border-width: 0 0 0 1px;
+  border-radius: 0;
+  box-shadow: none;
+}
 .peek[data-expanded] {
   inset: 0;
   width: auto;
