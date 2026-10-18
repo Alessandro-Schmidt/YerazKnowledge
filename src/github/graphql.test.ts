@@ -4,7 +4,15 @@ import { createFakeGitHub, type FakeGitHub } from '../../test/fake-github/fakeGi
 import { fakeGitHubHandlers } from '../../test/fake-github/msw'
 import { gitBlobSha } from '../model/sha'
 import { createGitHubClient, GitHubError } from './client'
-import { discoverTrees, fetchBlobs, fetchHistory, HISTORY_PAGE, lookupTree } from './graphql'
+import {
+  BLAME_BATCH,
+  discoverTrees,
+  fetchBlobs,
+  fetchHistory,
+  fetchPlanted,
+  HISTORY_PAGE,
+  lookupTree,
+} from './graphql'
 
 let fake: FakeGitHub
 const server = setupServer()
@@ -83,6 +91,32 @@ describe('fetchBlobs', () => {
     await expect(fetchBlobs(client, 'you/engineering', ['") { x } #'])).rejects.toThrow(
       'Not a blob SHA',
     )
+  })
+})
+
+describe('fetchPlanted', () => {
+  it('dates each file by its oldest line, a request per batch, leaving out missing files', async () => {
+    const repo = fake.repo('you/engineering')
+    const paths = Array.from({ length: BLAME_BATCH + 1 }, (_, i) => `n${i}.md`)
+    await repo.commit({
+      message: 'Plant',
+      date: new Date('2026-02-10T09:00:00Z'),
+      additions: paths.map((path) => ({ path, contents: `# ${path}\n` })),
+    })
+    await repo.commit({
+      message: 'Grow',
+      date: new Date('2026-05-01T09:00:00Z'),
+      additions: [{ path: 'n0.md', contents: '# n0.md\n\nMore.\n' }],
+    })
+    fake.resetLog()
+    const planted = await fetchPlanted(client, 'you/engineering', repo.head!.oid, [
+      ...paths,
+      'gone.md',
+    ])
+    expect(planted.get('n0.md')).toBe('2026-02-10T09:00:00.000Z')
+    expect(planted.size).toBe(paths.length)
+    expect(planted.has('gone.md')).toBe(false)
+    expect(fake.log.filter((r) => r.kind === 'graphql')).toHaveLength(2)
   })
 })
 

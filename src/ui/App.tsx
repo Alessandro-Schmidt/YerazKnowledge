@@ -7,13 +7,17 @@ import { treeHref, decodePath } from './paths'
 import { TokenScreen } from './TokenScreen'
 import { FamilyView } from './FamilyView'
 import { Start } from './Start'
+import { TreeColours } from './TreeColours'
+import { ViewsSettings } from './ViewsSettings'
 
 // Routes live in the URL hash (GitHub Pages can't rewrite paths):
 //   #/                                   the last Family shown here (or the first one found)
 //   #/tree/:owner/:name[/path/to/leaf.md] a Family (one repository) with all its Trees,
 //                                         optionally with a node selected
 //   #/edit/:owner/:name/path/to/leaf.md   an old link: the leaf, editable in its Family
-//   #/settings/appearance                 Settings › Appearance
+//   #/settings/appearance                 Settings › Appearance (system colours, fonts)
+//   #/settings/views                      Settings › Views (how a Family is shown)
+//   #/settings/colours                    Settings › Tree colours (in .yeraz.json)
 export function App() {
   const phase = useSession((s) => s.phase)
 
@@ -64,6 +68,8 @@ export function App() {
           )}
         </Route>
         <Route path="/settings/appearance" component={Appearance} />
+        <Route path="/settings/views" component={ViewsSettings} />
+        <Route path="/settings/colours" component={TreeColours} />
         <Route>
           <Redirect to="/" replace />
         </Route>

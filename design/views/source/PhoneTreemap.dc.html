@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Yeraz — Phone · Treemap</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@300..700&amp;family=Geist+Mono:wght@400;500&amp;family=Newsreader:opsz,wght@6..72,400..600&amp;display=swap">
+<style>
+body{margin:0}
+.yz,.yz[data-base="vanta"]{--bg:#030303;--top:#050606;--panel:#0A0B0B;--raised:#121514;--hover:#101211;--hair:#1C1E1D;--hair-strong:#2A2E2B;--text:#E8EAE6;--text-body:#C9CEC9;--muted:#8D918C;--faint:#7D827C;--node:#DCE3DE;--line:#E8EAE6;--core:#0B0D0C;--grid:rgba(255,255,255,0.05);--shadow:rgba(0,0,0,0.6)}
+.yz[data-base="graphite"]{--bg:#15171B;--top:#191B20;--panel:#1E2126;--raised:#272B31;--hover:#24282E;--hair:#2D3138;--hair-strong:#3A3F47;--text:#E7E9EC;--text-body:#C9CDD3;--muted:#9CA2AB;--faint:#9399A2;--node:#D5DAE0;--line:#E7E9EC;--core:#1E2126;--grid:rgba(255,255,255,0.06);--shadow:rgba(0,0,0,0.45)}
+.yz[data-base="paper"]{--bg:#F3F1EB;--top:#EEEBE3;--panel:#FBFAF6;--raised:#E9E6DD;--hover:#EFECE5;--hair:#DDD9CF;--hair-strong:#CBC6BA;--text:#1B1C1A;--text-body:#363834;--muted:#5D605A;--faint:#62655F;--node:#2B2D2A;--line:#1B1C1A;--core:#FBFAF6;--grid:rgba(0,0,0,0.07);--shadow:rgba(40,35,20,0.16)}
+.yz{--accent:#4BE3A0;--accent-soft:rgba(75,227,160,0.12);--on-accent:#06140D}
+.yz[data-mode="dark"][data-accent="green"]{--accent:#4BE3A0;--accent-soft:rgba(75,227,160,0.12);--on-accent:#06140D}
+.yz[data-mode="light"][data-accent="green"]{--accent:#0B7A4B;--accent-soft:rgba(11,122,75,0.1);--on-accent:#FFFFFF}
+.yz[data-mode="dark"][data-accent="amber"]{--accent:#E8B65A;--accent-soft:rgba(232,182,90,0.12);--on-accent:#06140D}
+.yz[data-mode="light"][data-accent="amber"]{--accent:#94590A;--accent-soft:rgba(148,89,10,0.1);--on-accent:#FFFFFF}
+.yz[data-mode="dark"][data-accent="blue"]{--accent:#7FB3F5;--accent-soft:rgba(127,179,245,0.12);--on-accent:#06140D}
+.yz[data-mode="light"][data-accent="blue"]{--accent:#1F5BB5;--accent-soft:rgba(31,91,181,0.1);--on-accent:#FFFFFF}
+.yz[data-mode="dark"][data-accent="violet"]{--accent:#B9A2F5;--accent-soft:rgba(185,162,245,0.12);--on-accent:#06140D}
+.yz[data-mode="light"][data-accent="violet"]{--accent:#6743C4;--accent-soft:rgba(103,67,196,0.1);--on-accent:#FFFFFF}
+.yz .reading{font-family:'Geist',ui-sans-serif,system-ui,sans-serif}
+.yz[data-font="serif"] .reading{font-family:'Newsreader',Georgia,serif;font-size:1.07em}
+.yz a{color:var(--accent)}.yz a:hover{color:var(--text)}
+.yz button{font:inherit;color:inherit}
+.yz :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.yz input::placeholder{color:var(--faint)}
+.ic{fill:none;stroke:currentColor;stroke-width:1.6px;stroke-linecap:round;stroke-linejoin:round}
+.griddot{fill:var(--grid)}
+.bg{fill:transparent}
+.orbit{fill:none;stroke:var(--grid);stroke-dasharray:2 6}
+.edge{fill:none;stroke:var(--line);stroke-opacity:.13;stroke-width:1px;transition:stroke-opacity .25s}
+.edge.hot{stroke-opacity:.42}
+.thr{fill:none;stroke:var(--accent);stroke-width:1.1px;stroke-opacity:.42;transition:stroke-opacity .25s}
+.thr.hot{stroke-opacity:.95;stroke-width:2px}
+.thr.cold{stroke-opacity:.1}
+.seg{fill:none;stroke:var(--accent);stroke-width:5px;stroke-opacity:.38}
+.seg.hot{stroke-opacity:1}
+.n{cursor:pointer;transition:opacity .25s}
+.n.dim{opacity:.3}
+.hit{fill:transparent}
+.dot{stroke-width:1.4px}
+.ring{fill:none;stroke:var(--node);stroke-opacity:.45;stroke-width:1px}
+.halo{fill:none;stroke:var(--accent);stroke-width:1px}
+.lbl{font-size:13px;fill:var(--text);paint-order:stroke;stroke:var(--bg);stroke-width:4px;stroke-linejoin:round}
+.blbl{font-size:10.5px;letter-spacing:.14em;font-weight:500;fill:var(--accent)}
+.lsel{font-weight:600;fill:var(--accent)}
+.a-start{text-anchor:start}.a-end{text-anchor:end}.a-mid{text-anchor:middle}
+.coreg{cursor:pointer}
+.core{fill:var(--core);stroke:var(--line);stroke-opacity:.12}
+.coreg.sel .core{stroke-opacity:.5}
+.coretitle{font-size:12px;font-weight:500;fill:var(--text);text-anchor:middle}
+.corelbl{font-family:'Geist Mono',ui-monospace,monospace;font-size:9.5px;fill:var(--muted);text-anchor:middle}
+.hide{display:none}
+.cam{transition:transform .45s cubic-bezier(.2,.7,.2,1)}
+.xrow{transition:background .15s}
+.xrow:hover{background:var(--hover)}
+.xrow.on{background:var(--raised);box-shadow:inset 2px 0 0 var(--accent)}
+.chev svg{transition:transform .15s}
+.chev.open svg{transform:rotate(90deg)}
+.chev.none{visibility:hidden}
+.gl{flex-shrink:0;width:9px;height:9px;border-radius:50%;box-sizing:border-box}
+.gl-leaf{background:var(--node)}
+.gl-sprout{background:var(--node);box-shadow:0 0 0 2px var(--panel),0 0 0 3px var(--faint)}
+.gl-branch{border:1.5px solid var(--accent)}
+.ibtn:hover{background:var(--hover)}
+.ibtn.on{background:var(--raised);color:var(--text)}
+.ghost:hover{background:var(--hover)}
+.primary:hover{filter:brightness(1.08)}
+.mention{display:inline-flex;align-items:center;gap:4px;padding:0 6px;border:0;border-radius:6px;background:var(--accent-soft);color:var(--accent);cursor:pointer;font-size:14px;line-height:1.55;font-family:'Geist',ui-sans-serif,system-ui,sans-serif}
+.mention:hover{box-shadow:inset 0 0 0 1px var(--accent)}
+.lrow:hover{background:var(--hover)}
+.chip:hover{border-color:var(--hair-strong)}
+
+.yz .vtab{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 8px;border-radius:7px;color:var(--muted);font-size:12.5px;text-decoration:none;white-space:nowrap}
+.yz .vtab:hover{background:var(--hover);color:var(--text)}
+.yz .vtab.on{background:var(--raised);color:var(--text);box-shadow:inset 0 0 0 1px var(--hair-strong)}
+.yz .vtab.on svg{color:var(--accent)}
+.mono{font-family:'Geist Mono',ui-monospace,monospace}
+.eyebrow{font-size:10.5px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.row{transition:background .15s}
+.row:hover{background:var(--hover)}
+.row.on{background:var(--raised);box-shadow:inset 2px 0 0 var(--accent)}
+.tile{transition:box-shadow .15s}
+.tile:hover{box-shadow:inset 0 0 0 1px var(--hair-strong)}
+</style>
+</helmet>
+<div class="yz" data-base="{{base}}" data-mode="{{mode}}" data-accent="{{accentId}}" data-font="{{font}}" style="width: 390px; height: 844px; position: relative; overflow: hidden; background: var(--bg); color: var(--text); font-family: 'Geist', ui-sans-serif, system-ui, sans-serif; font-size: 14px">
+
+  <header style="position: absolute; left: 0; right: 0; top: 0; height: 56px; display: flex; align-items: center; gap: 4px; padding: 0 6px; box-sizing: border-box; border-bottom: 1px solid var(--hair); background: var(--top); z-index: 3">
+    <button type="button" class="ibtn" aria-label="Open explorer" style="width: 44px; height: 44px; display: grid; place-items: center; border: 0; border-radius: 10px; background: transparent; color: var(--text); cursor: pointer"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h10"></path></svg></button>
+    <button type="button" class="ibtn" style="display: flex; align-items: center; gap: 6px; height: 44px; padding: 0 8px; border: 0; border-radius: 10px; background: transparent; color: var(--text); cursor: pointer">
+      <span style="width: 9px; height: 9px; border-radius: 50%; box-sizing: border-box; border: 1.5px solid var(--accent)"></span>
+      <span style="font-size: 16px; font-weight: 500">Engineering</span>
+      <svg class="ic" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true" style="color: var(--muted)"><path d="M6 9l6 6 6-6"></path></svg>
+    </button>
+    <button type="button" class="ibtn" aria-label="Search" style="margin-left: auto; width: 44px; height: 44px; display: grid; place-items: center; border: 0; border-radius: 10px; background: transparent; color: var(--text); cursor: pointer"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="M16 16l4.5 4.5"></path></svg></button>
+    <button type="button" aria-label="New leaf" style="width: 44px; height: 44px; display: grid; place-items: center; border: 0; border-radius: 12px; background: var(--accent); color: var(--on-accent); cursor: pointer"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg></button>
+  </header>
+
+  <nav role="tablist" aria-label="View" style="position: absolute; left: 0; right: 0; top: 56px; height: 48px; overflow: hidden; border-bottom: 1px solid var(--hair); background: var(--bg); z-index: 3">
+    <div style="position: absolute; left: -265px; top: 8px; display: flex; gap: 4px"><a href="Mobile.dc.html" role="tab" aria-selected="false" class="vtab" style="height: 32px; flex-shrink: 0"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="2.2"></circle><circle cx="12" cy="12" r="8.5"></circle><path d="M12 9.8V3.5M14 13l5 3.5M10 13l-5 3.5"></path></svg>Map</a><a href="PhoneMindmap.dc.html" role="tab" aria-selected="false" class="vtab" style="height: 32px; flex-shrink: 0"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="2"></circle><path d="M7 12h2.5c3 0 3-6 7-6M9.5 12c3 0 3 6 7 6"></path><circle cx="18.5" cy="6" r="1.6"></circle><circle cx="18.5" cy="18" r="1.6"></circle></svg>Mind map</a><a href="PhoneOutline.dc.html" role="tab" aria-selected="false" class="vtab" style="height: 32px; flex-shrink: 0"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 6h2M9.5 6h10M7.5 12h2M12.5 12h7M7.5 18h2M12.5 18h7"></path></svg>Outline</a><a href="PhoneColumns.dc.html" role="tab" aria-selected="false" class="vtab" style="height: 32px; flex-shrink: 0"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="15" rx="2.5"></rect><path d="M9.2 4.5v15M14.8 4.5v15"></path></svg>Columns</a><a href="PhoneTreemap.dc.html" role="tab" aria-selected="true" class="vtab on" style="height: 32px; flex-shrink: 0"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="15" rx="2.5"></rect><path d="M11 4.5v15M11 11.5h9.5M3.5 14h7.5"></path></svg>Treemap</a><a href="PhoneGraph.dc.html" role="tab" aria-selected="false" class="vtab" style="height: 32px; flex-shrink: 0"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="7.5" r="2"></circle><circle cx="18" cy="6" r="2"></circle><circle cx="13" cy="18" r="2"></circle><path d="M8 7.3l8-1M7.1 9.2l4.8 7M17.3 7.9l-3.6 8.2"></path></svg>Graph</a><a href="PhoneRings.dc.html" role="tab" aria-selected="false" class="vtab" style="height: 32px; flex-shrink: 0"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"></circle><path d="M12 6.6c3.2 0 5.3 2.3 5.3 5.4s-2.4 5.3-5.3 5.3-5.4-2.3-5.4-5.3 2.3-5.4 5.4-5.4z"></path><circle cx="12" cy="12" r="2"></circle></svg>Rings</a><a href="PhoneAtlas.dc.html" role="tab" aria-selected="false" class="vtab" style="height: 32px; flex-shrink: 0"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 18.5l6-9 3.6 5.2 2.6-3.4 6.8 7.2z"></path><path d="M7.2 11.4l1.3 1 1.2-1"></path></svg>Atlas</a></div>
+    <span aria-hidden="true" style="position: absolute; right: 0; top: 0; bottom: 0; width: 36px; background: linear-gradient(90deg, transparent, var(--bg))"></span>
+    <span aria-hidden="true" style="position: absolute; left: 0; top: 0; bottom: 0; width: 24px; background: linear-gradient(270deg, transparent, var(--bg))"></span>
+  </nav>
+  <main style="position: absolute; left: 0; right: 0; top: 104px; bottom: 0; overflow: hidden">
+<div style="position: absolute; inset: 0">
+      <section style="position: absolute; left: 11.0px; top: 11.0px; width: 368.0px; height: 193.8px; box-sizing: border-box; border: 1px solid var(--hair); border-radius: 10px; background: var(--panel)">
+        <div style="display: flex; align-items: center; gap: 6px; height: 24px; padding: 0 8px">
+          <h2 class="eyebrow" style="margin: 0; font-size: 9.5px; color: var(--accent); white-space: nowrap">Backend</h2>
+          <span class="mono" style="margin-left: auto; font-size: 9.5px; color: var(--muted)">14.1k</span>
+        </div>
+      </section>
+      <div class="tile" style="position: absolute; left: 16.5px; top: 36.5px; width: 104.2px; height: 162.8px; box-sizing: border-box; display: flex; flex-direction: column; gap: 2px; padding: 7px 8px; border-radius: 6px; overflow: hidden; background: color-mix(in srgb, var(--accent) 10%, var(--raised)); ">
+        <span style="font-size: 12px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">Java</span><span class="mono" style="font-size: 9.5px; color: var(--muted)">4.2k</span>
+      </div>
+      <div class="tile" style="position: absolute; left: 123.7px; top: 36.5px; width: 53.2px; height: 95.0px; box-sizing: border-box; display: flex; flex-direction: column; gap: 2px; padding: 7px 8px; border-radius: 6px; overflow: hidden; background: color-mix(in srgb, var(--accent) 10%, var(--raised)); ">
+        <span style="font-size: 12px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">Virtual Threads</span><span class="mono" style="font-size: 9.5px; color: var(--muted)">1.3k</span>
+      </div>
+      <div class="tile" style="position: absolute; left: 123.7px; top: 134.5px; width: 53.2px; height: 64.8px; box-sizing: border-box; display: flex; flex-direction: column; gap: 2px; padding: 7px 8px; border-radius: 6px; overflow: hidden; background: color-mix(in srgb, var(--accent) 3%, var(--raised)); ">
+        <span style="font-size: 12px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">Streams</span><span class="mono" style="font-size: 9.5px; color: var(--muted)">900</span>
+      </div>
+      <div class="tile" style="position: absolute; left: 179.9px; top: 36.5px; width: 91.5px; height: 23.9px; box-sizing: border-box; display: flex; flex-direction: column; gap: 2px; padding: 4px 5px; border-radius: 6px; overflow: hidden; background: color-mix(in srgb, var(--accent) 3%, var(--raised)); ">
+        <span style="font-size: 10.5px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">Records</span>
+      </div>
+      <div class="tile" style="position: absolute; left: 179.9px; top: 63.4px; width: 91.5px; height: 135.9px; box-sizing: border-box; display: flex; flex-direction: column; gap: 2px; padding: 7px 8px; border-radius: 6px; overflow: hidden; background: color-mix(in srgb, var(--accent) 3%, var(--raised)); ">
+        <span style="font-size: 12px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">Spring Boot</span><span class="mono" style="font-size: 9.5px; color: var(--muted)">3.1k</span>
+      </div>
+      <div class="tile" style="position: absolute; left: 274.4px; top: 36.5px; width: 99.1px; height: 59.2px; box-sizing: border-box; display: flex; flex-direction: column; gap: 2px; padding: 7px 8px; border-radius: 6px; overflow: hidden; background: color-mix(in srgb, var(--accent) 17%, var(--raised)); ">
+        <span style="font-size: 12px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">Spring Security</span><span class="mono" style="font-size: 9.5px; color: var(--muted)">1.5k</span>
+      </div>
+      <div class="tile" style="position: absolute; left: 274.4px; top: 98.7px; width: 99.1px; height: 42.6px; box-sizing: border-box; display: flex; flex-direction: column; gap: 2px; padding: 7px 8px; border-radius: 6px; overflow: hidden; background: color-mix(in srgb, var(--accent) 17%, var(--raised)); ">
+        <span style="font-size: 12px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">Spring Data</span>
+      </div>
+      <div class="tile" style="position: absolute; left: 274.4px; top: 144.3px; width: 99.1px; height: 55.0px; box-sizing: border-box; display: flex; flex-direction: column; gap: 2px; padding: 7px 8px; border-radius: 6px; overflow: hidden; background: color-mix(in srgb, var(--accent) 17%, var(--raised)); ">
+        <span style="font-size: 12px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">REST Design</span><span class="mono" style="font-size: 9.5px; color: var(--muted)">1.4k</span>
+      </div>
+      <section style="position: absolute; left: 11.0px; top: 210.8px; width: 203.9px; height: 191.0px; box-sizing: border-box; border: 1px solid var(--hair); border-radius: 10px; background: var(--panel)">
+        <div style="display: flex; align-items: center; gap: 6px; height: 24px; padding: 0 8px">
+          <h2 class="eyebrow" style="margin: 0; font-size: 9.5px; color: var(--accent); white-space: nowrap">Identity</h2>
+          <span class="mono" style="margin-left: auto; font-size: 9.5px; color: var(--muted)">7.8k</span>
+        </div>
+      </section>
+      <div class="tile" style="position: absolute; left: 16.5px; top: 236.3px; width: 92.4px; height: 108.5px; box-sizing: border-box; display: flex; flex-direction: column; gap: 2px; padding: 7px 8px; border-radius: 6px; overflow: hidden; background: color-mix(in srgb, var(--accent) 24%, var(--raised)); box-shadow: inset 0 0 0 1.5px var(--accent);">
+        <span style="font-size: 12px; color: var(--accent); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">🔐 Keycloak</span><span class="mono" style="font-size: 9.5px; color: var(--muted)">2.6k</span>
+      </div>
+      <div class="tile" style="position: absolute; left: 16.5px; top: 347.9px; width: 92.4px; height: 48.5px; box-sizing: border-box; display: flex; flex-direction: column; gap: 2px; padding: 7px 8px; border-radius: 6px; overflow: hidden; background: color-mix(in srgb, var(--accent) 10%, var(--raised)); ">
+        <span style="font-size: 12px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">Tokens</span><span class="mono" style="font-size: 9.5px; color: var(--muted)">1.2k</span>
+      </div>
+      <div class="tile" style="position: absolute; left: 111.9px; top: 236.3px; width: 97.4px; height: 25.5px; box-sizing: border-box; display: flex; flex-direction: column; gap: 2px; padding: 4px 5px; border-radius: 6px; overflow: hidden; background: color-mix(in srgb, var(--accent) 3%, var(--raised)); ">
+        <span style="font-size: 10.5px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">Realms</span>
+      </div>
+      <div class="tile" style="position: absolute; left: 111.9px; top: 264.9px; width: 97.4px; height: 78.5px; box-sizing: border-box; display: flex; flex-direction: column; gap: 2px; padding: 7px 8px; border-radius: 6px; overflow: hidden; background: color-mix(in srgb, var(--accent) 24%, var(--raised)); ">
+        <span style="font-size: 12px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">OAuth 2.0</span><span class="mono" style="font-size: 9.5px; color: var(--muted)">2.0k</span>
+      </div>
+      <div class="tile" style="position: absolute; left: 111.9px; top: 346.4px; width: 97.4px; height: 50.0px; box-sizing: border-box; display: flex; flex-direction: column; gap: 2px; padding: 7px 8px; border-radius: 6px; overflow: hidden; background: color-mix(in srgb, var(--accent) 17%, var(--raised)); ">
+        <span style="font-size: 12px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">OpenID Connect</span><span class="mono" style="font-size: 9.5px; color: var(--muted)">1.3k</span>
+      </div>
+      <section style="position: absolute; left: 220.9px; top: 210.8px; width: 158.1px; height: 191.0px; box-sizing: border-box; border: 1px solid var(--hair); border-radius: 10px; background: var(--panel)">
+        <div style="display: flex; align-items: center; gap: 6px; height: 24px; padding: 0 8px">
+          <h2 class="eyebrow" style="margin: 0; font-size: 9.5px; color: var(--accent); white-space: nowrap">Cloud</h2>
+          <span class="mono" style="margin-left: auto; font-size: 9.5px; color: var(--muted)">6.1k</span>
+        </div>
+      </section>
+      <div class="tile" style="position: absolute; left: 226.4px; top: 236.3px; width: 97.1px; height: 69.1px; box-sizing: border-box; display: flex; flex-direction: column; gap: 2px; padding: 7px 8px; border-radius: 6px; overflow: hidden; background: color-mix(in srgb, var(--accent) 3%, var(--raised)); ">
+        <span style="font-size: 12px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">Google Cloud</span><span class="mono" style="font-size: 9.5px; color: var(--muted)">1.8k</span>
+      </div>
+      <div class="tile" style="position: absolute; left: 326.5px; top: 236.3px; width: 47.0px; height: 69.1px; box-sizing: border-box; display: flex; flex-direction: column; gap: 2px; padding: 4px 5px; border-radius: 6px; overflow: hidden; background: color-mix(in srgb, var(--accent) 17%, var(--raised)); ">
+        <span style="font-size: 10.5px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">Cloud Run</span>
+      </div>
+      <div class="tile" style="position: absolute; left: 226.4px; top: 308.5px; width: 32.3px; height: 87.9px; box-sizing: border-box; display: flex; flex-direction: column; gap: 2px; padding: 4px 5px; border-radius: 6px; overflow: hidden; background: color-mix(in srgb, var(--accent) 10%, var(--raised)); ">
+        <span style="font-size: 10.5px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">IAM</span>
+      </div>
+      <div class="tile" style="position: absolute; left: 261.7px; top: 308.5px; width: 63.2px; height: 87.9px; box-sizing: border-box; display: flex; flex-direction: column; gap: 2px; padding: 7px 8px; border-radius: 6px; overflow: hidden; background: color-mix(in srgb, var(--accent) 17%, var(--raised)); ">
+        <span style="font-size: 12px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">Docker</span><span class="mono" style="font-size: 9.5px; color: var(--muted)">1.5k</span>
+      </div>
+      <div class="tile" style="position: absolute; left: 327.9px; top: 308.5px; width: 45.6px; height: 54.8px; box-sizing: border-box; display: flex; flex-direction: column; gap: 2px; padding: 4px 5px; border-radius: 6px; overflow: hidden; background: color-mix(in srgb, var(--accent) 10%, var(--raised)); ">
+        <span style="font-size: 10.5px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">Jenkins</span>
+      </div>
+      <div class="tile" style="position: absolute; left: 327.9px; top: 366.3px; width: 45.6px; height: 30.0px; box-sizing: border-box; display: flex; flex-direction: column; gap: 2px; padding: 4px 5px; border-radius: 6px; overflow: hidden; background: color-mix(in srgb, var(--accent) 10%, var(--raised)); ">
+        <span style="font-size: 10.5px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">CircleCI</span>
+      </div>
+      <section style="position: absolute; left: 11.0px; top: 407.8px; width: 167.5px; height: 171.2px; box-sizing: border-box; border: 1px solid var(--hair); border-radius: 10px; background: var(--panel)">
+        <div style="display: flex; align-items: center; gap: 6px; height: 24px; padding: 0 8px">
+          <h2 class="eyebrow" style="margin: 0; font-size: 9.5px; color: var(--accent); white-space: nowrap">Data</h2>
+          <span class="mono" style="margin-left: auto; font-size: 9.5px; color: var(--muted)">5.8k</span>
+        </div>
+      </section>
+      <div class="tile" style="position: absolute; left: 16.5px; top: 433.3px; width: 87.8px; height: 92.4px; box-sizing: border-box; display: flex; flex-direction: column; gap: 2px; padding: 7px 8px; border-radius: 6px; overflow: hidden; background: color-mix(in srgb, var(--accent) 3%, var(--raised)); ">
+        <span style="font-size: 12px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">PostgreSQL</span><span class="mono" style="font-size: 9.5px; color: var(--muted)">2.2k</span>
+      </div>
+      <div class="tile" style="position: absolute; left: 16.5px; top: 528.8px; width: 87.8px; height: 44.7px; box-sizing: border-box; display: flex; flex-direction: column; gap: 2px; padding: 7px 8px; border-radius: 6px; overflow: hidden; background: color-mix(in srgb, var(--accent) 10%, var(--raised)); ">
+        <span style="font-size: 12px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">Transactions</span><span class="mono" style="font-size: 9.5px; color: var(--muted)">1.1k</span>
+      </div>
+      <div class="tile" style="position: absolute; left: 107.3px; top: 433.3px; width: 65.8px; height: 54.3px; box-sizing: border-box; display: flex; flex-direction: column; gap: 2px; padding: 7px 8px; border-radius: 6px; overflow: hidden; background: color-mix(in srgb, var(--accent) 10%, var(--raised)); ">
+        <span style="font-size: 12px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">Indexes</span><span class="mono" style="font-size: 9.5px; color: var(--muted)">1.0k</span>
+      </div>
+      <div class="tile" style="position: absolute; left: 107.3px; top: 490.6px; width: 65.8px; height: 48.5px; box-sizing: border-box; display: flex; flex-direction: column; gap: 2px; padding: 7px 8px; border-radius: 6px; overflow: hidden; background: color-mix(in srgb, var(--accent) 17%, var(--raised)); ">
+        <span style="font-size: 12px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">Schema Design</span><span class="mono" style="font-size: 9.5px; color: var(--muted)">900</span>
+      </div>
+      <div class="tile" style="position: absolute; left: 107.3px; top: 542.1px; width: 65.8px; height: 31.4px; box-sizing: border-box; display: flex; flex-direction: column; gap: 2px; padding: 4px 5px; border-radius: 6px; overflow: hidden; background: color-mix(in srgb, var(--accent) 3%, var(--raised)); ">
+        <span style="font-size: 10.5px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">Oracle DB</span>
+      </div>
+      <section style="position: absolute; left: 184.5px; top: 407.8px; width: 98.7px; height: 171.2px; box-sizing: border-box; border: 1px solid var(--hair); border-radius: 10px; background: var(--panel)">
+        <div style="display: flex; align-items: center; gap: 6px; height: 24px; padding: 0 8px">
+          <h2 class="eyebrow" style="margin: 0; font-size: 9.5px; color: var(--accent); white-space: nowrap">Frontend</h2>
+          <span class="mono" style="margin-left: auto; font-size: 9.5px; color: var(--muted)">3.5k</span>
+        </div>
+      </section>
+      <div class="tile" style="position: absolute; left: 190.0px; top: 433.3px; width: 87.7px; height: 66.5px; box-sizing: border-box; display: flex; flex-direction: column; gap: 2px; padding: 7px 8px; border-radius: 6px; overflow: hidden; background: color-mix(in srgb, var(--accent) 3%, var(--raised)); ">
+        <span style="font-size: 12px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">React</span><span class="mono" style="font-size: 9.5px; color: var(--muted)">1.7k</span>
+      </div>
+      <div class="tile" style="position: absolute; left: 190.0px; top: 502.9px; width: 37.3px; height: 70.6px; box-sizing: border-box; display: flex; flex-direction: column; gap: 2px; padding: 4px 5px; border-radius: 6px; overflow: hidden; background: color-mix(in srgb, var(--accent) 10%, var(--raised)); ">
+        <span style="font-size: 10.5px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">Hooks</span>
+      </div>
+      <div class="tile" style="position: absolute; left: 230.4px; top: 502.9px; width: 47.4px; height: 70.6px; box-sizing: border-box; display: flex; flex-direction: column; gap: 2px; padding: 4px 5px; border-radius: 6px; overflow: hidden; background: color-mix(in srgb, var(--accent) 10%, var(--raised)); ">
+        <span style="font-size: 10.5px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">Angular</span>
+      </div>
+      <section style="position: absolute; left: 289.3px; top: 407.8px; width: 89.7px; height: 171.2px; box-sizing: border-box; border: 1px solid var(--hair); border-radius: 10px; background: var(--panel)">
+        <div style="display: flex; align-items: center; gap: 6px; height: 24px; padding: 0 8px">
+          <h2 class="eyebrow" style="margin: 0; font-size: 9.5px; color: var(--accent); white-space: nowrap">AI Agents</h2>
+          <span class="mono" style="margin-left: auto; font-size: 9.5px; color: var(--muted)">3.2k</span>
+        </div>
+      </section>
+      <div class="tile" style="position: absolute; left: 294.8px; top: 433.3px; width: 78.7px; height: 68.6px; box-sizing: border-box; display: flex; flex-direction: column; gap: 2px; padding: 7px 8px; border-radius: 6px; overflow: hidden; background: color-mix(in srgb, var(--accent) 17%, var(--raised)); ">
+        <span style="font-size: 12px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">Claude Code</span><span class="mono" style="font-size: 9.5px; color: var(--muted)">1.6k</span>
+      </div>
+      <div class="tile" style="position: absolute; left: 294.8px; top: 504.9px; width: 53.2px; height: 68.6px; box-sizing: border-box; display: flex; flex-direction: column; gap: 2px; padding: 7px 8px; border-radius: 6px; overflow: hidden; background: color-mix(in srgb, var(--accent) 10%, var(--raised)); ">
+        <span style="font-size: 12px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">Prompting</span><span class="mono" style="font-size: 9.5px; color: var(--muted)">1.1k</span>
+      </div>
+      <div class="tile" style="position: absolute; left: 351.0px; top: 504.9px; width: 22.5px; height: 68.6px; box-sizing: border-box; display: flex; flex-direction: column; gap: 2px; padding: 4px 5px; border-radius: 6px; overflow: hidden; background: color-mix(in srgb, var(--accent) 10%, var(--raised)); ">
+        <span style="font-size: 10.5px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">Evaluations</span>
+      </div></div>
+  <section aria-label="Leaf preview" style="position: absolute; left: 0; right: 0; bottom: 0; height: 152px; box-sizing: border-box; padding: 8px 16px 18px 20px; display: flex; flex-direction: column; gap: 8px; border-top: 1px solid var(--hair-strong); border-radius: 20px 20px 0 0; background: var(--panel); box-shadow: 0 -18px 44px var(--shadow); z-index: 2">
+    <span aria-hidden="true" style="align-self: center; width: 36px; height: 4px; border-radius: 2px; background: var(--hair-strong)"></span>
+    <div style="display: flex; align-items: center; gap: 10px">
+      <span aria-hidden="true" style="font-size: 22px; line-height: 1">🔐</span>
+      <div style="display: flex; flex-direction: column; gap: 2px; min-width: 0">
+        <strong style="font-size: 18px; font-weight: 600; letter-spacing: -0.01em">Keycloak</strong>
+        <span class="mono" style="font-size: 10.5px; color: var(--muted); white-space: nowrap">Identity · 2,600 words · 2 sub-leaves</span>
+      </div>
+      <button type="button" class="ibtn" aria-label="Open leaf" style="margin-left: auto; width: 44px; height: 44px; display: grid; place-items: center; border: 0; border-radius: 12px; background: var(--raised); color: var(--text); cursor: pointer"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"></path></svg></button>
+    </div>
+    <div style="display: flex; align-items: center; gap: 12px; font-size: 11.5px; color: var(--text-body)">
+      <span>Area = words</span><span style="display: inline-flex; gap: 3px; align-items: center"><span style="width: 14px; height: 9px; border-radius: 2px; background: color-mix(in srgb, var(--accent) 3%, var(--raised))"></span><span style="width: 14px; height: 9px; border-radius: 2px; background: color-mix(in srgb, var(--accent) 10%, var(--raised))"></span><span style="width: 14px; height: 9px; border-radius: 2px; background: color-mix(in srgb, var(--accent) 17%, var(--raised))"></span><span style="width: 14px; height: 9px; border-radius: 2px; background: color-mix(in srgb, var(--accent) 24%, var(--raised))"></span><span style="margin-left: 4px">Glow = threads</span></span>
+    </div>
+  </section>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"base":{"editor":"enum","options":["vanta","graphite","paper"],"default":"vanta","section":"Theme"},"accent":{"editor":"enum","options":["green","amber","blue","violet"],"default":"green","section":"Theme"},"font":{"editor":"enum","options":["geist","serif"],"default":"geist","section":"Theme"},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const base = ['vanta', 'graphite', 'paper'].indexOf(this.props.base) >= 0 ? this.props.base : 'vanta';
+    const mode = base === 'paper' ? 'light' : 'dark';
+    const accentId = ['green', 'amber', 'blue', 'violet'].indexOf(this.props.accent) >= 0 ? this.props.accent : 'green';
+    const font = this.props.font === 'serif' ? 'serif' : 'geist';
+    return { base, mode, accentId, font, isDark: mode === 'dark', isLight: mode === 'light' };
+  }
+}
+</script>
+</body>
+</html>

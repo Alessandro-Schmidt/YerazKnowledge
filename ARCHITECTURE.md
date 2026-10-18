@@ -73,7 +73,7 @@ These rules are the only thing that must stay stable across versions. Tests lock
 | A paragraph that is only a link to a YouTube video, or to a PDF or video (`.mp4`, `.webm`) in `assets/`, shows as a player; one to any other file in `assets/` shows as a card that downloads it. On GitHub it stays a link. A video's subtitles are `name.<lang>.vtt` files beside it. | `[OIDC spec](/assets/oidc.pdf)` · `assets/talk.mp4` + `assets/talk.en.vtt` · `[Q3 report.xlsx](/assets/2026-10-17-q3-report.xlsx)` |
 | A paragraph that is only a titled link to any other web page is a **bookmark**: a card with its title and address. A bare URL stays a plain link. On GitHub both are links. | `[Baroque](https://en.wikipedia.org/wiki/Baroque)` |
 | Math is `$inline$` and `$$display$$`, as GitHub writes it. | `$e^{i\pi} + 1 = 0$` |
-| `.yeraz.json` at the root marks a repository as a Family. Every other entry at the root is one of its Trees, except `assets/`, hidden files and the root's `README.md`: that stays a leaf, and the Family's Peek shows it as the Family's own text. | `{"name":"Engineering","color":"green"}` |
+| `.yeraz.json` at the root marks a repository as a Family. Every other entry at the root is one of its Trees, except `assets/`, hidden files and the root's `README.md`: that stays a leaf, and the Family's Peek shows it as the Family's own text. Optional `trees` gives a Tree its own colour name, keyed by the Tree's entry at the root (folder name, or leaf file); a Tree without one takes the Family's `color`. | `{"name":"Engineering","color":"green","trees":{"Identity":"amber"}}` |
 | The filename is fixed when the leaf is created (a slug of its first title). Changing the title does not rename the file. | Title "Keycloak (IdP)" stays in `keycloak.md` |
 
 Why these rules:
@@ -140,6 +140,10 @@ Renaming a Family changes only `name` in `.yeraz.json`. The edit is committed li
 
 "Restore this version" saves the old text as an ordinary edit and commits it at once (§5.2): a new commit on top, never a rewrite of history, so the offline outbox and the three-way merge apply as for any edit. Like `git log` without `--follow`, the history stops where the file got its current path: versions from before a move stay on GitHub under the old path.
 
+### 5.5 When leaves were planted
+
+Growth rings (§6.1) asks GraphQL `blame(path:)` on the commit last pulled, 20 files per request, and takes the oldest commit date among each file's lines. The dates are kept on the device (`planted:<owner/name>`); later only leaves not dated yet are asked for, and a leaf not committed yet is planted now. Nothing else reads it.
+
 ## 6. The map
 
 - **One map per Family, one radial layout per Tree** (`map/family.ts`): each Tree is laid out on its own, centred on its core, as below; then the Trees are placed side by side.
@@ -176,6 +180,19 @@ Renaming a Family changes only `name` in `.yeraz.json`. The edit is committed li
   - **Opening:** the whole Family is fitted; a link to a node fits that node's Tree instead. **Selecting a Tree** (its core, its Explorer row) fits the camera to it: the Tree as it is. "Fit all trees" zooms back out.
   - **Every dot is one click from the Peek**, at any zoom: a click on no dot reaches the one whose edge is nearest the pointer, within 10 px (18 px for touch). `familyNodeAt` searches in layout units through the camera's screen transform, so no hit area is added per dot.
 - **Ceiling:** SVG should hold 60 fps up to about 2,000 nodes on a mid-range phone; the performance tests confirm the real number. Above it, the node and edge layers can be swapped for one `<canvas>` using the same layout data. That swap is planned, not built.
+
+### 6.1 Other views of a Family
+
+Next to the radial map, a Family can be shown seven other ways (design: `design/views/`): **Mind map, Outline, Columns, Treemap, Graph, Growth rings, Atlas**. Which one is a per-device preference (`localStorage` `yeraz-view`), chosen from the switcher in the top bar (a row of tabs on phones) or Settings › Views.
+
+- **Same data, same selection.** Every view reads the Family's graph; the Family's Trees play the part the design gives a Tree's branches. The selection is the URL's, so switching keeps it.
+- **One chunk each** (`views/index.ts`, `React.lazy`): first load is unchanged.
+- **Layouts are pure** (`views/layout/*.ts`, unit-tested, deterministic: seeded noise, no `Math.random`). Drawn views (Mind map, Graph, Rings, Atlas) share `views/Canvas.tsx`: one camera moved by `useZoom`, the geometry memoised and drawn once per layout, and the selection drawn into a layer, never by re-rendering the geometry (the map rule).
+- **Panels:** Mind map, Outline and Treemap use the floating Peek; Columns docks it as its last column; Graph, Rings and Atlas have their own card and open the Peek only as a full page. Phones use the Peek's sheet, except Rings, whose sheet is its core sample.
+- **Graph:** each Tree is laid out on its own (sunflower start, then a small force simulation of our own up to 250 leaves), scaled to 34·√n + 20, placed around the Tree most cross-Tree threads run through, and turned so its threaded leaves face it. Hulls are smoothed convex hulls.
+- **Growth rings** need when each leaf was planted: the oldest commit among its lines, by GraphQL `blame` (§5.5). Ring width = 9 px + the words of the leaves planted that month (the owner chose this over words written per month, which would need every file's size at every commit).
+- **Atlas:** islands are placed by packing (each Tree's leaves packed, then the islands with open sea between, `d3.packSiblings`); each island has its own elevation field on a grid (2 px for a small Family, coarser for a large one), contoured with `d3-contour`. About 0.3 s for 1,000 leaves, once per graph.
+- **Tree colours** colour a Tree in every view and on the map (`--tree` on its group).
 
 ## 7. Editor
 
@@ -311,6 +328,9 @@ src/
   sync/     pull.ts · push.ts · merge.ts · autosave.ts · assets.ts (images by SHA)
             structure.ts (new leaf, branch, branch text, move, delete as file changes) · overlay.ts
   map/      layout.ts (one Tree, d3) · family.ts (a Family's Trees, placed) · TreeMap.tsx · useZoom.ts
+  views/    views.ts (ids, saved choice) · ViewSwitcher.tsx · index.ts (lazy chunks) · common.ts
+            Canvas.tsx (the drawn views' stage) · MindMap · Outline · Columns · Treemap · Graph · Rings · Atlas
+            layout/ (pure: mindmap, treemap, graph, rings, atlas)
   editor/   Editor.tsx · LeafEditor.tsx · livePreview.ts · metaLine.ts · IconPicker.tsx · EditableCover.tsx
             insertMenu.ts · mentions.ts · images.ts (scale, encode) · attach.ts (files)
             emoji.ts (every emoji, names and keywords, for the icon picker; lazy)
@@ -318,7 +338,8 @@ src/
             History.tsx (a leaf's past versions, compared and restored)
             LeafLook.tsx (cover, colours) · cover.ts (cover position) · files.ts (file cards)
   ui/       App.tsx (routes) · Start.tsx (`#/`) · TopBar.tsx · TokenScreen.tsx
-            FamilyView.tsx (Explorer | map | Peek) · FamilyMenu.tsx · Explorer.tsx · Appearance.tsx
+            FamilyView.tsx (Explorer | map or a view | Peek) · FamilyMenu.tsx · Explorer.tsx · Appearance.tsx
+            Settings.tsx (the settings frame) · ViewsSettings.tsx · TreeColours.tsx
             theme.ts (turns design/themes/themes.json into CSS, applies it)
   store/    token.ts (the token: IndexedDB on the web, the OS keychain on desktop)
 src-tauri/  the desktop shell (Tauri 2): tauri.conf.json (window, CSP, bundle) ·
@@ -359,7 +380,8 @@ Any combination works: 3 bases × 4 accents × 2 fonts gives 24 themes from 9 de
 
 - A leaf's heading colour or a Tree's colour is stored as a name, for example `"amber"`, and resolved through the current theme. An amber heading is the dark-mode amber on Vanta and the light-mode amber on Paper.
 - A raw hex value is still allowed and goes through the contrast adjustment: `read/colors.ts` keeps one adjusted value per mode on the leaf's container (`data-leaf`), and the theme CSS picks the mode's, so switching still re-renders nothing.
-- **Order of priority:** leaf colour → Tree colour → theme accent.
+- **Order of priority:** leaf colour → Tree colour (`.yeraz.json` `trees`) → Family colour (`color`) → theme accent.
+- Settings › Tree colours sets the Family's and each Tree's colour; Settings › Appearance the interface's.
 
 ### Saving the choice
 

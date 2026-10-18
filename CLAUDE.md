@@ -11,7 +11,7 @@ Read `ideas.txt` (why), `ARCHITECTURE.md` (how), `development-plan.md` (what, in
 - `npm run typecheck` · `npm run lint` · `npm run format` · `npm run build` · `npm run size`
 - `npm run fixture -- --leaves 1000 --threads 1500 --seed 7` — write a fixture Tree to `fixtures-out/`
 - `npm run perf` — budget tests on the 1,000-leaf fixture, laptop and 4× throttled phone (§7.4)
-- `npm run visual` — the app in the states of `design/screens/01–07`, with the design's Trees, into `visual-review/`
+- `npm run visual` — the app in the states of `design/screens/01–07` and every view of `design/views/`, with the design's Trees, into `visual-review/`
 - Visual snapshots (`e2e/visual.spec.ts`) run on demand in Playwright's Linux image: `gh workflow run snapshots.yml`
   compares them; after a visual change, `-f update=true` re-renders them: review its artifact, commit it to `e2e/visual.spec.ts-snapshots/`
 - CI (`ci.yml`) is check + e2e (+ the desktop build when `src-tauri/` changes); deploy waits on check and e2e only.
@@ -27,6 +27,9 @@ Read `ideas.txt` (why), `ARCHITECTURE.md` (how), `development-plan.md` (what, in
 - `src/sync/` `pull.ts` read · `push.ts` commit · `merge.ts` three-way · `autosave.ts` · `structure.ts` (new/move/delete plans) · `overlay.ts` · `assets.ts` (images: fetch by SHA, name)
 - `src/editor/` CodeMirror 6 (lazy chunk): `Editor.tsx`, `livePreview.ts` (+ `metaLine.ts`: line 2 hidden, kept whole), `LeafEditor.tsx` (the leaf, edited in the Peek), `mentions.ts`, `insertMenu.ts`, `images.ts`, `emoji.ts`
 - `src/map/` `layout.ts` (pure, d3) · `family.ts` (a Family's Trees, placed) · `TreeMap.tsx` · `useZoom.ts`
+- `src/views/` the other views (`design/views/`): `views.ts` (ids, saved per device), `ViewSwitcher.tsx`, `index.ts` (lazy chunks),
+  `Canvas.tsx` (drawn views' stage: camera, selection layer), one file per view, pure layouts in `layout/`;
+  Settings › Views (`ui/ViewsSettings.tsx`) and › Tree colours (`ui/TreeColours.tsx`, `.yeraz.json` `trees`)
 - `src/read/` `render.ts` (markdown-it, lazy) · `Peek.tsx` · `History.tsx` (past versions, diff, restore) · `src/ui/` App, FamilyView, FamilyMenu, Start, Explorer, TokenScreen,
   theme (saved per device in `localStorage`, applied before paint by `index.html`), Appearance (`#/settings/appearance`),
   `customTheme.ts` + `ThemeEditor.tsx` (custom themes), `contrast.ts` (`readable` adjusts a failing colour)
@@ -61,7 +64,7 @@ Read `ideas.txt` (why), `ARCHITECTURE.md` (how), `development-plan.md` (what, in
   the root's `README.md` and one in a leaf's sibling folder stay leaves
 - [ ] Threads are root-relative Markdown links (`[Keycloak](/identity/keycloak.md)`)
 - [ ] An image's width ends its title: `![Realm](/assets/realm.png "width=50%")`, a percent of the column
-- [ ] Images in `/assets/`; `.yeraz.json` marks the root; filenames never change on retitle
+- [ ] Images in `/assets/`; `.yeraz.json` marks the root (`name`, `color`, optional `trees`: `{"Identity":"amber"}`); filenames never change on retitle
 - [ ] Embeds: a paragraph of one link to YouTube or `/assets/*.pdf|mp4|webm` (subtitles `name.<lang>.vtt`); math `$…$`, `$$…$$`
 
 ## Budgets (ARCHITECTURE.md §11)

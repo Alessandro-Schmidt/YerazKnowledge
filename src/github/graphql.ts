@@ -16,6 +16,27 @@ export interface TreeRef {
   title: string
   /** A named colour from `.yeraz.json`, or null for the theme accent. */
   color: string | null
+  /** Each Tree's own named colour, by its id (top-level folder or leaf), from `.yeraz.json`. */
+  trees?: Record<string, string>
+}
+
+/** The name, colour and Tree colours a `.yeraz.json` text gives; malformed parts are left out. */
+export function markerFields(text: unknown): Partial<Pick<TreeRef, 'title' | 'color' | 'trees'>> {
+  let marker: { name?: unknown; color?: unknown; trees?: unknown } = {}
+  try {
+    const parsed: unknown = typeof text === 'string' ? JSON.parse(text) : null
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) marker = parsed
+  } catch {
+    // A malformed marker still marks a Tree; it just has no name or colour.
+  }
+  const out: Partial<Pick<TreeRef, 'title' | 'color' | 'trees'>> = {}
+  if (typeof marker.name === 'string' && marker.name.trim()) out.title = marker.name.trim()
+  if (typeof marker.color === 'string') out.color = marker.color
+  if (marker.trees && typeof marker.trees === 'object' && !Array.isArray(marker.trees))
+    out.trees = Object.fromEntries(
+      Object.entries(marker.trees).filter((e): e is [string, string] => typeof e[1] === 'string'),
+    )
+  return out
 }
 
 const SHA = /^[0-9a-f]{40}$/
@@ -104,6 +125,51 @@ export async function fetchHistory(
   }
 }
 
+/** Files per blame request: blame is slow on GitHub's side, so the batches stay small. */
+export const BLAME_BATCH = 20
+
+/**
+ * When each file was planted: the date of the oldest commit among its lines (GraphQL
+ * blame, at commit `rev`), as ISO dates. One request per BLAME_BATCH files; a file
+ * missing at `rev` is left out. Used by Growth rings (design/views/README.md).
+ */
+export async function fetchPlanted(
+  client: GitHubClient,
+  repo: string,
+  rev: string,
+  paths: readonly string[],
+): Promise<Map<string, string>> {
+  const [owner, name] = repo.split('/')
+  const planted = new Map<string, string>()
+  for (let start = 0; start < paths.length; start += BLAME_BATCH) {
+    const batch = paths.slice(start, start + BLAME_BATCH)
+    const fields = batch.map(
+      (path, i) =>
+        `b${i}: blame(path: ${JSON.stringify(path)}) { ranges { commit { committedDate } } }`,
+    )
+    // A file gone at `rev` fails only its own field; GitHub still sends the others.
+    const { data } = await client.graphql<{
+      repository: {
+        object: Record<string, { ranges: { commit: { committedDate: string } }[] } | null> | null
+      } | null
+    }>(
+      `query Planted($owner: String!, $name: String!, $rev: String!) { repository(owner: $owner, name: $name) { object(expression: $rev) { ... on Commit { ${fields.join(' ')} } } } }`,
+      { owner, name, rev },
+    )
+    const object = data.repository?.object
+    if (!object) throw new GitHubError('not-found', `No commit ${rev} in ${repo}`)
+    batch.forEach((path, i) => {
+      const dates = object[`b${i}`]?.ranges.map((r) => r.commit.committedDate) ?? []
+      if (dates.length)
+        planted.set(
+          path,
+          dates.reduce((a, b) => (a < b ? a : b)),
+        )
+    })
+  }
+  return planted
+}
+
 const TREE_FIELDS = `
   owner { login } name isPrivate
   defaultBranchRef { name }
@@ -119,21 +185,16 @@ interface RepoNode {
 
 function toTreeRef(node: RepoNode): TreeRef | null {
   if (!node.marker || !node.defaultBranchRef) return null
-  let marker: { name?: unknown; color?: unknown } = {}
-  try {
-    const parsed: unknown = JSON.parse(node.marker.text ?? '')
-    if (parsed && typeof parsed === 'object') marker = parsed
-  } catch {
-    // A malformed marker still marks a Tree; it just has no name or colour.
-  }
+  const marker = markerFields(node.marker.text)
   return {
     owner: node.owner.login,
     name: node.name,
     repo: `${node.owner.login}/${node.name}`,
     branch: node.defaultBranchRef.name,
     isPrivate: node.isPrivate,
-    title: typeof marker.name === 'string' && marker.name.trim() ? marker.name.trim() : node.name,
-    color: typeof marker.color === 'string' ? marker.color : null,
+    title: marker.title ?? node.name,
+    color: marker.color ?? null,
+    ...(marker.trees ? { trees: marker.trees } : {}),
   }
 }
 

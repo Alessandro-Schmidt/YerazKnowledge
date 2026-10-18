@@ -1,0 +1,165 @@
+/* Graph (design/views/screens/05, 14; design/views/generators/graph.py). */
+
+.hull {
+  fill: var(--tree, var(--accent));
+  fill-opacity: 0.035;
+  stroke: var(--tree, var(--accent));
+  stroke-opacity: 0.16;
+  stroke-dasharray: 3 5;
+}
+.hullLabel {
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  fill: var(--tree, var(--accent));
+  text-anchor: middle;
+  cursor: pointer;
+}
+.structLine {
+  stroke: var(--line);
+  stroke-opacity: 0.16;
+  stroke-width: 1px;
+}
+.thread {
+  fill: none;
+  stroke: var(--tree, var(--accent));
+  stroke-width: 1.1px;
+  stroke-opacity: 0.3;
+}
+
+.node {
+  cursor: pointer;
+}
+.hit {
+  fill: transparent;
+}
+.dot {
+  fill: var(--node);
+}
+[data-sel] .dot {
+  fill: var(--tree, var(--accent));
+}
+.ring {
+  fill: none;
+  stroke: var(--node);
+  stroke-opacity: 0.45;
+  stroke-width: 1px;
+}
+.label {
+  font-size: 12.5px;
+  fill: var(--text);
+  paint-order: stroke;
+  stroke: var(--bg);
+  stroke-width: 4px;
+  stroke-linejoin: round;
+}
+[data-sel] .label {
+  fill: var(--tree, var(--accent));
+  font-weight: 600;
+}
+
+/* Selection layer. */
+.hotHull {
+  fill: var(--tree, var(--accent));
+  fill-opacity: 0.07;
+  stroke: var(--tree, var(--accent));
+  stroke-opacity: 0.4;
+  stroke-dasharray: 3 5;
+}
+.hotStruct {
+  stroke: var(--line);
+  stroke-opacity: 0.42;
+}
+.hotThread {
+  fill: none;
+  stroke: var(--tree, var(--accent));
+  stroke-width: 2px;
+  stroke-opacity: 0.95;
+}
+.halo {
+  fill: none;
+  stroke: var(--tree, var(--accent));
+}
+
+/* Layers off. */
+.hide-threads .threads,
+.hide-struct .struct,
+.hide-hulls .hulls {
+  display: none;
+}
+
+.structSwatch {
+  width: 14px;
+  height: 1px;
+  background: var(--line);
+  opacity: 0.5;
+}
+.hullSwatch {
+  width: 14px;
+  height: 10px;
+  border-radius: 5px;
+  border: 1px dashed var(--tree, var(--accent));
+}
+
+.card {
+  width: 272px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  border-radius: 12px;
+}
+.cardKind {
+  color: var(--tree, var(--accent));
+}
+.cardTitle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 22px;
+  line-height: 1;
+}
+.cardTitle strong {
+  font-size: 17px;
+  font-weight: 600;
+}
+.cardMeta {
+  font-size: 11px;
+  color: var(--text-body);
+}
+.cardThreads {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 4px;
+  padding-top: 10px;
+  border-top: 1px solid var(--hair);
+}
+.cardThreads > span {
+  margin: 0 0 4px 8px;
+}
+.cardThread {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+.cardThread:hover {
+  background: var(--hover);
+}
+.cardThread > span:last-child {
+  margin-left: auto;
+  font-size: 10.5px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.open {
+  height: 36px;
+  margin-top: 4px;
+}

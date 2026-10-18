@@ -1,0 +1,138 @@
+/* Settings › Views and Settings › Tree colours; the frame is Appearance.module.css. */
+
+.single {
+  grid-template-columns: minmax(0, 720px);
+}
+
+.views {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.view {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border: 1px solid var(--hair);
+  border-radius: 12px;
+  background: var(--panel);
+  cursor: pointer;
+}
+.view:has(:checked) {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+.view:has(:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.viewIcon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border-radius: 10px;
+  background: var(--raised);
+  color: var(--muted);
+}
+.view:has(:checked) .viewIcon {
+  color: var(--accent);
+}
+.viewText {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.viewText strong {
+  font-weight: 500;
+}
+
+.family {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 28px;
+  max-width: 420px;
+}
+
+.rows {
+  display: flex;
+  flex-direction: column;
+}
+.row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 56px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--hair);
+}
+.rowName {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.swatches {
+  display: flex;
+  gap: 6px;
+}
+.swatch {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  cursor: pointer;
+}
+.swatch input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.dot {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+}
+.dot[data-inherit] {
+  box-shadow: inset 0 0 0 7px var(--panel);
+  border: 1px dashed var(--hair-strong);
+}
+.swatch:has(:checked) .dot {
+  box-shadow:
+    0 0 0 3px var(--bg),
+    0 0 0 5px var(--text);
+}
+.swatch:has(:checked) .dot[data-inherit] {
+  box-shadow:
+    inset 0 0 0 7px var(--panel),
+    0 0 0 3px var(--bg),
+    0 0 0 5px var(--text);
+}
+.swatch:has(:focus-visible) .dot {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+}
+
+@media (max-width: 640px) {
+  .views {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .row {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .rowName {
+    flex-basis: 100%;
+  }
+}

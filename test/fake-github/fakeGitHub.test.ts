@@ -310,6 +310,43 @@ describe('GraphQL: discovery', () => {
   })
 })
 
+describe('GraphQL: blame', () => {
+  const blame = `query($rev: String!) { repository(owner: "you", name: "engineering") {
+    object(expression: $rev) { ... on Commit {
+      a: blame(path: "identity/vault.md") { ranges { startingLine endingLine commit { oid committedDate } } }
+      b: blame(path: "nowhere.md") { ranges { startingLine } }
+    } } } }`
+
+  it('gives each line the commit that wrote it, in ranges, and an error for a missing file', async () => {
+    const repo = fake.repo('you/engineering')
+    const planted = await repo.commit({
+      message: 'Plant',
+      date: new Date('2026-01-15T10:00:00Z'),
+      additions: [{ path: 'identity/vault.md', contents: '# Vault\n\nRealms.\n' }],
+    })
+    const edited = await repo.commit({
+      message: 'Edit',
+      date: new Date('2026-03-02T10:00:00Z'),
+      additions: [{ path: 'identity/vault.md', contents: '# Vault\n\nRealms.\nClients.\n' }],
+    })
+    const res = await gql(fake, blame, { rev: edited.oid })
+    expect(res.data.repository.object.a.ranges).toEqual([
+      {
+        startingLine: 1,
+        endingLine: 3,
+        commit: { oid: planted.oid, committedDate: '2026-01-15T10:00:00.000Z' },
+      },
+      {
+        startingLine: 4,
+        endingLine: 4,
+        commit: { oid: edited.oid, committedDate: '2026-03-02T10:00:00.000Z' },
+      },
+    ])
+    expect(res.data.repository.object.b).toBeNull()
+    expect(res.errors![0]!.message).toContain('nowhere.md')
+  })
+})
+
 describe('GraphQL: a file history', () => {
   const history = `query($rev: String!, $path: String!, $after: String) { repository(owner: "you", name: "engineering") {
     object(expression: $rev) { ... on Commit { history(path: $path, first: 2, after: $after) {

@@ -100,3 +100,26 @@ export function snippet(
   if (end < text.length) after = `${after.replace(/\s\S*$/, '')}…`
   return { before, match: text.slice(at, at + length), after }
 }
+
+/**
+ * A leaf's first line of prose, as plain text: what Outline, Columns and Treemap show
+ * under a title. Headings, code, images and embeds are skipped; links keep their text.
+ */
+export function firstLine(markdown: string): string {
+  let fence = false
+  for (const raw of bodyOf(markdown).split('\n')) {
+    const line = raw.trim()
+    if (/^(```|~~~)/.test(line)) fence = !fence
+    if (fence || !line || /^(#|!\[|<|\||```|~~~|\$\$|---|\*\*\*|___)/.test(line)) continue
+    const text = line
+      .replace(/^(>\s*)+/, '')
+      .replace(/^([-*+]|\d+[.)])\s+(\[[ xX]\]\s+)?/, '')
+      .replace(/!\[[^\]]*\]\([^)]*\)/g, '')
+      .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
+      .replace(/(\*\*|__|\*|_|~~|`)(.+?)\1/g, '$2')
+      .replace(/\s+/g, ' ')
+      .trim()
+    if (text) return text
+  }
+  return ''
+}
