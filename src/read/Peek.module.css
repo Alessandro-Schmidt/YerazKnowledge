@@ -23,6 +23,11 @@
   box-shadow: none;
 }
 
+.grip {
+  display: flex;
+  flex-direction: column;
+}
+
 .handle {
   display: none;
 }
@@ -410,6 +415,9 @@
   display: flex;
   align-items: center;
   gap: 4px;
+  /* At the right end even when nothing precedes it (a branch on a phone), so its menu,
+     which opens leftwards, stays on screen. */
+  margin-left: auto;
 }
 .actions > button {
   height: 36px;
@@ -471,6 +479,9 @@
     height: auto;
     top: 0;
     border-radius: 0;
+  }
+  .grip {
+    touch-action: none;
   }
   .handle {
     display: block;
