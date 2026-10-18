@@ -3,7 +3,7 @@
 // tree model and the parsed leaves; never saved.
 
 import type { LeafMeta, ParsedLeaf } from './parse'
-import { branchText, ROOT, type TreeModel } from './tree'
+import { BRANCH_TEXT, branchText, isLeafPath, ROOT, type TreeModel } from './tree'
 
 export interface GraphNode {
   id: string
@@ -27,12 +27,29 @@ export interface GraphNode {
 export interface Thread {
   from: string
   to: string
+  /** It ends at a ghost: a leaf not written yet. Only in the map's threads. */
+  ghost?: true
 }
 
 export interface ExternalLink {
   from: string
   repo: string
   path: string
+}
+
+/**
+ * A leaf that is linked to but not written yet (a ghost): derived from links alone, never a
+ * node. It belongs under the nearest node its path implies: its folder's leaf or branch, or
+ * an ancestor's when that folder doesn't exist yet; ROOT when not even its Tree does.
+ */
+export interface Ghost {
+  /** The path the links name, where writing it creates the leaf. */
+  id: string
+  parent: string
+  /** From its file name, as an unloaded leaf's. */
+  title: string
+  /** The leaves, and branches by their text, that link to it. */
+  from: string[]
 }
 
 export interface Graph {
@@ -44,6 +61,8 @@ export interface Graph {
   in: Map<string, string[]>
   /** Links to leaves in other Trees. */
   external: ExternalLink[]
+  /** Links to leaves of this Tree not written yet, by path. */
+  ghosts: Map<string, Ghost>
   stats: { leaves: number; branches: number; threads: number; words: number }
 }
 
@@ -97,6 +116,9 @@ export function buildGraph(
   const out = new Map<string, string[]>()
   const into = new Map<string, string[]>()
   const external: ExternalLink[] = []
+  const ghosts = new Map<string, Ghost>()
+  // A link differing from a file only by case is a typo, not a leaf to write.
+  const lower = new Set([...nodes.keys()].map((id) => id.toLowerCase()))
   // Threads start in a leaf or a branch's text, and end at a leaf or a branch (its text).
   const sources = [
     ...model.leaves.map((id) => [id, id] as const),
@@ -110,7 +132,13 @@ export function buildGraph(
       }
       const to =
         model.texts.get(link.path) ?? (nodes.get(link.path)?.kind === 'leaf' ? link.path : null)
-      if (to === null || to === id) continue
+      if (to === null) {
+        const ghost = ghosts.get(link.path) ?? ghostAt(nodes, lower, link.path)
+        if (ghost) ghosts.set(ghost.id, ghost)
+        ghost?.from.push(id)
+        continue
+      }
+      if (to === id) continue
       threads.push({ from: id, to })
       out.set(id, [...(out.get(id) ?? []), to])
       into.set(to, [...(into.get(to) ?? []), id])
@@ -124,6 +152,7 @@ export function buildGraph(
     out,
     in: into,
     external,
+    ghosts,
     stats: {
       leaves: model.leaves.length,
       branches: all.filter((n) => n.kind === 'branch').length,
@@ -132,6 +161,24 @@ export function buildGraph(
     },
   }
 }
+
+/** A ghost for an unwritten leaf at `path`, or null when the path can't be one. */
+function ghostAt(nodes: Map<string, GraphNode>, lower: Set<string>, path: string): Ghost | null {
+  if (!isLeafPath(path) || path.endsWith(`/${BRANCH_TEXT}`) || lower.has(path.toLowerCase()))
+    return null
+  const folder = (p: string) => p.slice(0, Math.max(0, p.lastIndexOf('/')))
+  let parent = folder(path)
+  // The folder's holder (ARCHITECTURE.md §4): a leaf's sibling folder, or a branch.
+  while (parent !== ROOT && nodes.get(`${parent}.md`)?.kind !== 'leaf' && !nodes.has(parent))
+    parent = folder(parent)
+  if (nodes.get(`${parent}.md`)?.kind === 'leaf') parent = `${parent}.md`
+  const name = path.slice(path.lastIndexOf('/') + 1, -'.md'.length)
+  return { id: path, parent, title: humanize(name), from: [] }
+}
+
+/** The ghosts a node links to. */
+export const ghostsFrom = (graph: Graph, id: string): string[] =>
+  [...graph.ghosts.values()].filter((g) => g.from.includes(id)).map((g) => g.id)
 
 /** The node a link to `path` reaches: a leaf, or the branch whose text it is; null for neither. */
 export function threadEnd(graph: Graph, path: string): string | null {
@@ -149,6 +196,8 @@ export function textFile(graph: Graph, id: string): string | null {
 /** The ids a selection keeps bright: itself, its parent, its children and its thread ends. */
 export function neighbours(graph: Graph, id: string): Set<string> {
   const node = graph.nodes.get(id)
+  const ghost = graph.ghosts.get(id)
+  if (ghost) return new Set([id, ghost.parent, ...ghost.from])
   if (!node) return new Set()
   return new Set([
     id,
@@ -156,6 +205,7 @@ export function neighbours(graph: Graph, id: string): Set<string> {
     ...node.children,
     ...(graph.out.get(id) ?? []),
     ...(graph.in.get(id) ?? []),
+    ...ghostsFrom(graph, id),
   ])
 }
 
@@ -163,7 +213,7 @@ export function neighbours(graph: Graph, id: string): Set<string> {
 export function crumbs(graph: Graph, id: string): string[] {
   const titles: string[] = []
   for (
-    let n = graph.nodes.get(graph.nodes.get(id)?.parent ?? '');
+    let n = graph.nodes.get((graph.nodes.get(id) ?? graph.ghosts.get(id))?.parent ?? '');
     n && n.kind !== 'root';
     n = graph.nodes.get(n.parent!)
   ) {

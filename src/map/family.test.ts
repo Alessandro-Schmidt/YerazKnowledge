@@ -51,6 +51,46 @@ describe('treeGraph', () => {
   })
 })
 
+describe('ghost leaves on the map', () => {
+  const sketch = graphOf({
+    'Identity/keycloak.md': '# Keycloak\n\n[OAuth](/Identity/oauth.md) [Plan](/Later/plan.md)\n',
+    'Identity/oidc.md': '# OIDC\n\n[OAuth](/Identity/oauth.md)\n',
+    'Chess/openings.md': '# Openings\n\n[Gambits](/Identity/keycloak/gambits.md)\n',
+  })
+  const family = familyLayout(sketch)
+
+  it('places a ghost in its Tree, last under its parent, with a dashed thread from each linker', () => {
+    const tree = treeGraph(sketch, 'Identity')
+    expect(tree.nodes.get(ROOT)!.children).toEqual([
+      'Identity/keycloak.md',
+      'Identity/oidc.md',
+      'Identity/oauth.md',
+    ])
+    expect(tree.nodes.get('Identity/oauth.md')).toMatchObject({ kind: 'leaf', title: 'Oauth' })
+    expect(tree.nodes.get('Identity/keycloak.md')!.children).toEqual([
+      'Identity/keycloak/gambits.md',
+    ])
+    expect(tree.threads).toEqual([
+      { from: 'Identity/keycloak.md', to: 'Identity/oauth.md', ghost: true },
+      { from: 'Identity/oidc.md', to: 'Identity/oauth.md', ghost: true },
+    ])
+    // Written leaves only: the counts are of what exists.
+    expect(tree.stats.leaves).toBe(2)
+    // The family graph itself is untouched.
+    expect(sketch.nodes.get('Identity')!.children).toHaveLength(2)
+    expect(family.treeOf.get('Identity/oauth.md')!.id).toBe('Identity')
+    expect(positionOf(family, 'Identity/oauth.md')).toMatchObject({ r: 4 })
+  })
+
+  it('draws a thread from another Tree to a ghost between them, and leaves a ghost Tree off', () => {
+    expect(family.between.map((t) => [t.from, t.to, t.ghost])).toEqual([
+      ['Chess/openings.md', 'Identity/keycloak/gambits.md', true],
+    ])
+    expect(family.trees.map((t) => t.id)).toEqual(['Chess', 'Identity'])
+    expect(family.treeOf.has('Later/plan.md')).toBe(false)
+  })
+})
+
 describe('familyLayout', () => {
   const family = familyLayout(small)
 

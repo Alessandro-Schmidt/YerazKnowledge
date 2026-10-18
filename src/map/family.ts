@@ -5,7 +5,7 @@
 
 import { packEnclose, packSiblings } from 'd3-hierarchy'
 import { curveBundle, line } from 'd3-shape'
-import type { Graph, GraphNode, Thread } from '../model/graph'
+import type { Ghost, Graph, GraphNode, Thread } from '../model/graph'
 import { BRANCH_TEXT, ROOT } from '../model/tree'
 import { layoutTree, nodeAt, textWidth, type Box, type MapLayout } from './layout'
 
@@ -41,7 +41,9 @@ const round = (v: number) => Math.round(v * 10) / 10
 
 /**
  * One Tree of a Family as a graph of its own: its top-level entry is the root (and the
- * core), and only the threads inside it are kept. Nodes keep their Family ids.
+ * core), and only the threads inside it are kept. Nodes keep their Family ids. Its ghosts
+ * (leaves linked to but not written yet) are leaves here, last among their parent's
+ * children, so the layout places them where their path says.
  */
 export function treeGraph(family: Graph, id: string): Graph {
   const top = family.nodes.get(id)!
@@ -61,16 +63,40 @@ export function treeGraph(family: Graph, id: string): Graph {
   }
   walk(top)
   const local = (n: string) => (n === id ? ROOT : n)
-  const threads = family.threads
+  const threads: Thread[] = family.threads
     .filter((t) => t.from !== ROOT && t.to !== ROOT)
     .map((t) => ({ from: local(t.from), to: local(t.to) }))
     .filter((t) => nodes.has(t.from) && nodes.has(t.to))
+  const ghosts = new Map<string, Ghost>()
+  for (const ghost of family.ghosts.values()) {
+    const parent = nodes.get(local(ghost.parent))
+    if (ghost.parent === ROOT || !parent) continue
+    ghosts.set(ghost.id, ghost)
+    nodes.set(parent.id, { ...parent, children: [...parent.children, ghost.id] })
+    nodes.set(ghost.id, {
+      id: ghost.id,
+      kind: 'leaf',
+      parent: parent.id,
+      children: [],
+      depth: parent.depth + 1,
+      title: ghost.title,
+      icon: null,
+      meta: null,
+      words: 0,
+      total: 0,
+      loaded: true,
+      sha: null,
+    })
+    for (const from of ghost.from)
+      if (nodes.has(local(from))) threads.push({ from: local(from), to: ghost.id, ghost: true })
+  }
   return {
     nodes,
     threads,
     out: new Map(),
     in: new Map(),
     external: [],
+    ghosts,
     stats: { leaves, branches, threads: threads.length, words: top.total },
   }
 }
@@ -133,13 +159,16 @@ function layoutFamily(graph: Graph): FamilyLayout {
   const bundle = line().curve(curveBundle.beta(0.85))
   const up = (id: string, tree: PlacedTree) => {
     const points: [number, number][] = []
-    for (let n = id; ; n = graph.nodes.get(n)!.parent!) {
+    for (let n = id; ; n = (graph.nodes.get(n) ?? graph.ghosts.get(n))!.parent!) {
       const p = positionOf(family, n)!
       points.push([p.x, p.y])
       if (n === tree.id) return points
     }
   }
-  for (const { from, to } of graph.threads) {
+  const ghostThreads = [...graph.ghosts.values()].flatMap((g) =>
+    g.from.map((from) => ({ from, to: g.id, ghost: true as const })),
+  )
+  for (const { from, to, ghost } of [...graph.threads, ...ghostThreads]) {
     const a = treeOf.get(from)
     const b = treeOf.get(to)
     if (!a || !b || a === b) continue
@@ -153,6 +182,7 @@ function layoutFamily(graph: Graph): FamilyLayout {
         from,
         to,
         d: d.replace(/\d+\.\d{2,}/g, (n) => String(round(Number(n)))),
+        ...(ghost && { ghost }),
       })
   }
   return family
