@@ -24,7 +24,7 @@ import { colorVar } from './theme'
 import { Divider, TopBar } from './TopBar'
 import styles from './FamilyView.module.css'
 import { PHONE, useMedia } from './useMedia'
-import { Search } from './Search'
+import { Search, type Matches } from './Search'
 
 export function FamilyView({ params }: { params: { owner: string; name: string; '*'?: string } }) {
   const repo = `${params.owner}/${params.name}`
@@ -40,6 +40,13 @@ export function FamilyView({ params }: { params: { owner: string; name: string; 
   const [action, setAction] = useState<StructureAction | null>(null)
   /** A leaf just created here: it opens ready to write. */
   const [created, setCreated] = useState<string | null>(null)
+  /** What the last search found: the map's Matches layer. */
+  const [found, setFound] = useState<Matches | null>(null)
+  const lit = found?.ids[key]
+  const matches = useMemo(
+    () => (found && lit ? { query: found.query, ids: lit } : null),
+    [found, lit],
+  )
 
   useEffect(() => {
     markNow('tree-open')
@@ -96,7 +103,7 @@ export function FamilyView({ params }: { params: { owner: string; name: string; 
           </h1>
           <FamilyMenu current={repo} />
         </div>
-        <Search />
+        <Search repo={repo} onMatches={setFound} />
         <span className={styles.status}>
           <Status data={data} repo={repo} branch={tree?.branch ?? 'main'} />
         </span>
@@ -175,6 +182,8 @@ export function FamilyView({ params }: { params: { owner: string; name: string; 
               title={tree?.title ?? repo}
               color={color}
               selected={selected}
+              matches={matches}
+              onClearMatches={() => setFound(null)}
               onSelect={select}
               onOpen={(id) => {
                 select(id)

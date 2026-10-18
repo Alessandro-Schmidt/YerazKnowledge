@@ -132,6 +132,28 @@ describe('session', () => {
     expect(s.getState().data['you/engineering']!.graph!.nodes.get(leaf)).toBeDefined()
   })
 
+  it('gives every leaf text from the cache, pending edits included, without a request', async () => {
+    const s = createSession({ store: memoryStore() })
+    await s.getState().signIn('good')
+    await s.getState().open('you/engineering')
+    const graph = s.getState().data['you/engineering']!.graph!
+    const leaves = [...graph.nodes.values()].filter((n) => n.kind === 'leaf')
+    const edited = leaves[0]!.id
+    await s.getState().apply('you/engineering', [
+      { path: edited, text: '# Edited\n\nA needle.\n' },
+      { path: 'fresh.md', text: '# Fresh\n' },
+    ])
+    fake.resetLog()
+    const texts = await s.getState().texts('you/engineering')
+    expect(fake.log).toHaveLength(0)
+    for (const leaf of leaves) expect(texts.has(leaf.id)).toBe(true)
+    expect(texts.get(edited)).toBe('# Edited\n\nA needle.\n')
+    expect(texts.get('fresh.md')).toBe('# Fresh\n')
+    expect(texts.get(leaves[1]!.id)).toBe(
+      await s.getState().textOf('you/engineering', leaves[1]!.id),
+    )
+  })
+
   it('creates many sub-leaves of a leaf in one commit', async () => {
     const s = createSession({ store: memoryStore() })
     await s.getState().signIn('good')
