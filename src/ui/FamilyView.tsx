@@ -59,7 +59,10 @@ export function FamilyView({ params }: { params: { owner: string; name: string; 
   const family = useMemo(() => (graph ? familyLayout(graph) : null), [graph])
   // No path: nothing selected. An empty path (`/tree/o/n/`): the Family itself.
   const wanted = params['*'] === undefined ? null : decodePath(params['*'])
-  const selected = graph && wanted !== null && graph.nodes.has(wanted) ? wanted : null
+  const selected =
+    graph && wanted !== null && (graph.nodes.has(wanted) || graph.ghosts.has(wanted))
+      ? wanted
+      : null
 
   // Arriving at a node's URL from outside (a link, the back button) shows its Peek.
   const [arrived, setArrived] = useState(wanted)
@@ -209,6 +212,10 @@ export function FamilyView({ params }: { params: { owner: string; name: string; 
                 setExpanded(false)
               }}
               onAction={setAction}
+              onWritten={(id) => {
+                select(id)
+                setCreated(id)
+              }}
             />
           )}
           {graph && !explorerOpen && !peekVisible && !phone && <WhereYouWrite graph={graph} />}

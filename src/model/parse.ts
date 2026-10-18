@@ -92,6 +92,16 @@ export function linkTarget(destination: string): LeafLink | null {
   return other ? { path: other[3]!, repo: `${other[1]}/${other[2]}` } : null
 }
 
+/** The text of the first link in `text` to this Tree's leaf at `path`, as plain words; null if none. */
+export function linkLabel(text: string, path: string): string | null {
+  for (const [, bang, label, destination] of prose(text).matchAll(LINK)) {
+    const link = bang ? null : linkTarget(destination!)
+    if (link?.repo === null && link.path === path)
+      return label!.replace(/[*`~\\]|^@/g, '').trim() || null
+  }
+  return null
+}
+
 /**
  * [start, end) offsets of code in `text`: fenced blocks (an unclosed fence runs to the
  * end) and inline code spans. Links and @mentions inside code are text, not threads.

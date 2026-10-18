@@ -11,7 +11,7 @@ import {
   type CSSProperties,
   type PointerEvent,
 } from 'react'
-import { compactWords, neighbours, type Graph } from '../model/graph'
+import { compactWords, neighbours, type Graph, type Thread } from '../model/graph'
 import { ROOT } from '../model/tree'
 import { mark, markNow } from '../perf'
 import controls from '../ui/controls.module.css'
@@ -173,18 +173,18 @@ export function TreeMap({
 
   /** Node id → its threads' paths, and the Tree they are drawn in (null: between Trees). */
   const threadsOf = useMemo(() => {
-    const map = new Map<string, { d: string; tree: PlacedTree | null }[]>()
-    const add = (id: string, d: string, tree: PlacedTree | null) =>
-      map.set(id, [...(map.get(id) ?? []), { d, tree }])
+    const map = new Map<string, { d: string; tree: PlacedTree | null; ghost?: true }[]>()
+    const add = (id: string, t: Thread & { d: string }, tree: PlacedTree | null) =>
+      map.set(id, [...(map.get(id) ?? []), { d: t.d, tree, ghost: t.ghost }])
     for (const tree of family.trees) {
       for (const t of tree.layout.threads) {
-        add(t.from === ROOT ? tree.id : t.from, t.d, tree)
-        add(t.to === ROOT ? tree.id : t.to, t.d, tree)
+        add(t.from === ROOT ? tree.id : t.from, t, tree)
+        add(t.to === ROOT ? tree.id : t.to, t, tree)
       }
     }
     for (const t of family.between) {
-      add(t.from, t.d, null)
-      add(t.to, t.d, null)
+      add(t.from, t, null)
+      add(t.to, t, null)
     }
     return map
   }, [family])
@@ -203,7 +203,11 @@ export function TreeMap({
     overlay.replaceChildren()
     delete stage.dataset.focus
     const tree = selected === null ? undefined : family.treeOf.get(selected)
-    const known = selected !== null && tree !== undefined && graph.nodes.has(selected)
+    const parentOf = (id: string) => (graph.nodes.get(id) ?? graph.ghosts.get(id))?.parent ?? null
+    const known =
+      selected !== null &&
+      tree !== undefined &&
+      (graph.nodes.has(selected) || graph.ghosts.has(selected))
     const onCore = known && selected === tree.id
     if (onCore) {
       els.cores.get(selected)?.setAttribute('data-sel', '')
@@ -254,15 +258,16 @@ export function TreeMap({
     }
     const at = positionOf(family, selected)!
     const follow = !visible(at.x, at.y)
-    const node = graph.nodes.get(selected)!
-    for (const id of [selected, ...node.children]) add(id, els.edges.get(id), 'data-hot')
-    let top = node
-    while (top.parent !== null && top.parent !== tree.id) top = graph.nodes.get(top.parent)!
-    add(top.id, els.segments.get(top.id), 'data-hot')
-    for (const { d, tree: drawnIn } of threadsOf.get(selected) ?? []) {
+    const children = graph.nodes.get(selected)?.children ?? []
+    for (const id of [selected, ...children]) add(id, els.edges.get(id), 'data-hot')
+    let top = selected
+    for (let up = parentOf(top); up !== null && up !== tree.id; up = parentOf(up)) top = up
+    add(top, els.segments.get(top), 'data-hot')
+    for (const { d, tree: drawnIn, ghost } of threadsOf.get(selected) ?? []) {
       const path = document.createElementNS(SVG_NS, 'path')
       path.setAttribute('d', d)
       path.setAttribute('class', styles.hotThread!)
+      if (ghost) path.setAttribute('data-ghost', '')
       layer(drawnIn).append(path)
     }
     for (const id of neighbours(graph, selected)) {
@@ -295,7 +300,9 @@ export function TreeMap({
     if (!ctm) return undefined
     const p = new DOMPoint(x, y).matrixTransform(ctm.inverse())
     const reach = (touch ? REACH.touch : REACH.mouse) / ctm.a
-    return familyNodeAt(family, p.x, p.y, reach) ?? undefined
+    const id = familyNodeAt(family, p.x, p.y, reach)
+    const hidden = id !== null && graph.ghosts.has(id) && 'hideGhosts' in stageRef.current!.dataset
+    return id === null || hidden ? undefined : id
   }
 
   const showTip = (event: PointerEvent<HTMLDivElement>) => {
@@ -309,16 +316,20 @@ export function TreeMap({
       tip.hidden = true
       return
     }
-    const node = graph.nodes.get(id)!
     const box = el.querySelector('circle')!.getBoundingClientRect()
     const host = tip.parentElement!.getBoundingClientRect()
-    const threadsIn = graph.in.get(id)?.length ?? 0
+    const ghost = graph.ghosts.get(id)
+    // A ghost is a node only in its Tree's own graph.
+    const node = graph.nodes.get(id) ?? family.treeOf.get(id)!.graph.nodes.get(id)!
+    const threadsIn = ghost?.from.length ?? graph.in.get(id)?.length ?? 0
+    const threads = `${threadsIn} thread${threadsIn === 1 ? '' : 's'} in`
     tip.querySelector('strong')!.textContent = `${node.icon ? `${node.icon} ` : ''}${node.title}`
-    tip.querySelector('span')!.textContent =
-      node.parent === ROOT
+    tip.querySelector('span')!.textContent = ghost
+      ? `Not written yet · ${threads}`
+      : node.parent === ROOT
         ? `Tree · ${compactWords(node.total)} words`
         : node.kind === 'leaf'
-          ? `${node.words.toLocaleString('en-US')} words · ${threadsIn} thread${threadsIn === 1 ? '' : 's'} in`
+          ? `${node.words.toLocaleString('en-US')} words · ${threads}`
           : `${compactWords(node.total)} words inside · ${node.children.length} items`
     tip.style.left = `${box.right - host.left + 12}px`
     tip.style.top = `${box.bottom - host.top + 12}px`
@@ -375,7 +386,12 @@ export function TreeMap({
         <span />
         <em>Click to peek · double-click to open</em>
       </div>
-      <LayerChips stageRef={stageRef} matches={matches} onClearMatches={onClearMatches} />
+      <LayerChips
+        stageRef={stageRef}
+        ghosts={graph.ghosts.size > 0}
+        matches={matches}
+        onClearMatches={onClearMatches}
+      />
       <div className={ui.bottom} style={{ maxWidth: `calc(100% - ${(insets.right ?? 0) + 32}px)` }}>
         <div className={`${controls.panel} ${ui.zoom}`}>
           <button
@@ -431,6 +447,12 @@ export function TreeMap({
             <span className={ui.threadSwatch} />
             Thread (@mention)
           </span>
+          {graph.ghosts.size > 0 && (
+            <span>
+              <span className={controls.glyph} data-kind="ghost" />
+              Not written yet
+            </span>
+          )}
           <span>Size = words written</span>
         </div>
       </div>
@@ -444,7 +466,14 @@ const Family = memo(function Family({ family }: { family: FamilyLayout }) {
     <>
       <g className={styles.threads}>
         {family.between.map((t, i) => (
-          <path key={i} className={styles.thread} d={t.d} data-thread="" data-between="" />
+          <path
+            key={i}
+            className={styles.thread}
+            d={t.d}
+            data-thread=""
+            data-between=""
+            data-ghost={t.ghost ? '' : undefined}
+          />
         ))}
       </g>
       {family.trees.map((t) => (
@@ -465,14 +494,20 @@ const Family = memo(function Family({ family }: { family: FamilyLayout }) {
  */
 function LayerChips({
   stageRef,
+  ghosts,
   matches,
   onClearMatches,
 }: {
   stageRef: React.RefObject<HTMLDivElement | null>
+  /** Links to leaves not written yet are on the map: they get a chip of their own. */
+  ghosts: boolean
   matches: TreeMapProps['matches']
   onClearMatches(): void
 }) {
-  const toggle = (attribute: 'hideBranches' | 'hideThreads', button: HTMLButtonElement) => {
+  const toggle = (
+    attribute: 'hideBranches' | 'hideThreads' | 'hideGhosts',
+    button: HTMLButtonElement,
+  ) => {
     const stage = stageRef.current!
     const hidden = attribute in stage.dataset
     if (hidden) delete stage.dataset[attribute]
@@ -503,6 +538,17 @@ function LayerChips({
         </svg>
         Threads
       </button>
+      {ghosts && (
+        <button
+          type="button"
+          className={ui.chip}
+          aria-pressed="true"
+          onClick={(e) => toggle('hideGhosts', e.currentTarget)}
+        >
+          <span className={controls.glyph} data-kind="ghost" aria-hidden="true" />
+          Not written
+        </button>
+      )}
       {matches && (
         <button
           type="button"
@@ -538,7 +584,13 @@ const Geometry = memo(function Geometry({ layout, graph }: { layout: MapLayout; 
       ))}
       <g className={styles.threads}>
         {layout.threads.map((t) => (
-          <path key={`${t.from}>${t.to}`} className={styles.thread} d={t.d} data-thread="" />
+          <path
+            key={`${t.from}>${t.to}`}
+            className={styles.thread}
+            d={t.d}
+            data-thread=""
+            data-ghost={t.ghost ? '' : undefined}
+          />
         ))}
       </g>
       <g className={styles.edges}>
@@ -550,6 +602,7 @@ const Geometry = memo(function Geometry({ layout, graph }: { layout: MapLayout; 
             data-edge=""
             data-id={e.id}
             data-depth={Math.min(e.depth, 3)}
+            data-ghost={graph.ghosts.has(e.id) ? '' : undefined}
           />
         ))}
       </g>
@@ -565,6 +618,7 @@ const Geometry = memo(function Geometry({ layout, graph }: { layout: MapLayout; 
           data-kind={n.kind}
           data-deep={n.depth >= 2 ? '' : undefined}
           data-icon={n.icon ? '' : undefined}
+          data-ghost={graph.ghosts.has(n.id) ? '' : undefined}
         >
           <circle className={styles.hit} cx={n.x} cy={n.y} r={n.r + 8} />
           {n.kind === 'leaf' && n.hasChildren && (

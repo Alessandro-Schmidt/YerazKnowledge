@@ -129,6 +129,9 @@
     0 0 0 2px var(--panel),
     0 0 0 3px var(--faint);
 }
+.glyph[data-kind='ghost'] {
+  border: 1.5px dashed var(--node);
+}
 .glyph[data-kind='branch'],
 .glyph[data-kind='root'] {
   border: 1.5px solid var(--tree, var(--accent));
