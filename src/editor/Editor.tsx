@@ -6,13 +6,14 @@ import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
 import { syntaxHighlighting } from '@codemirror/language'
 import { languages } from '@codemirror/language-data'
 import { Compartment, EditorState } from '@codemirror/state'
-import { EditorView, keymap, placeholder } from '@codemirror/view'
+import { EditorView, keymap } from '@codemirror/view'
 import { classHighlighter } from '@lezer/highlight'
 import { useEffect, useRef } from 'react'
 import { parseLeaf, withIcon, withMeta, type LeafMeta } from '../model/parse'
 import { mark, markNow } from '../perf'
 import styles from './Editor.module.css'
 import { assetSource, fileSizes, livePreview, treeFiles } from './livePreview'
+import { emptyHint, hiddenTitle } from './emptyText'
 import { insertMenu, type InsertHost } from './insertMenu'
 import { mentions, type MentionSource } from './mentions'
 import { pasteLink } from './pasteLink'
@@ -34,6 +35,8 @@ export interface EditorProps {
   handleRef?: React.RefObject<EditorHandle | null>
   /** Focus with the cursor at the end, as for a leaf that was just created. */
   autoFocus?: boolean
+  /** Line 1 hidden: a branch's text, whose name the Peek shows above it. */
+  titleHidden?: boolean
   /** The Tree's leaves, for @ mentions and their chips. */
   mentionsFrom?: MentionSource
   /** Insert menu items the page handles: images, new leaves and branches. */
@@ -54,6 +57,7 @@ export default function Editor({
   onChange,
   handleRef,
   autoFocus,
+  titleHidden,
   mentionsFrom,
   onInsert,
   onFiles,
@@ -91,7 +95,8 @@ export default function Editor({
           syntaxHighlighting(classHighlighter),
           EditorView.lineWrapping,
           EditorView.contentAttributes.of({ 'aria-label': 'Leaf text', spellcheck: 'true' }),
-          placeholder('Start writing…'),
+          emptyHint,
+          titleHidden ? hiddenTitle : [],
           mentionsFrom ? mentions(mentionsFrom) : [],
           insertMenu((kind, v) => insertRef.current?.(kind, v)),
           pasteLink,
