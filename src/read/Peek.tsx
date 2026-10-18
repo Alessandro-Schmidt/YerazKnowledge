@@ -66,8 +66,6 @@ export function Peek({
 }: PeekProps) {
   const [menu, setMenu] = useState(false)
   const [source, setSource] = useState(false)
-  /** The branch whose text is being written here. */
-  const [writing, setWriting] = useState<string | null>(null)
   /** The leaf whose history is shown in place of its editor. */
   const [historyOf, setHistoryOf] = useState<string | null>(null)
   useLayoutEffect(() => mark('peek-painted'), [id])
@@ -147,7 +145,7 @@ export function Peek({
                 path={id}
                 onClose={() => setHistoryOf(null)}
                 view={(text, sha) => (
-                  <BranchText
+                  <ReadText
                     repo={tree.repo}
                     graph={graph}
                     id={id}
@@ -190,48 +188,21 @@ export function Peek({
               ))}
             </div>
 
-            {/* A branch's text (its folder's README.md), written here in the leaf editor. */}
-            {node.kind === 'branch' &&
-              (writing === id ? (
-                <>
-                  <LeafEditor
-                    key={`${tree.repo} ${id}`}
-                    repo={tree.repo}
-                    path={textFile(graph, id)!}
-                    source={source}
-                    autoFocus
-                    onOpen={onSelect}
-                  />
-                  <button
-                    type="button"
-                    className={`${controls.primary} ${styles.textDone}`}
-                    onClick={() => setWriting(null)}
-                  >
-                    Done
-                  </button>
-                </>
-              ) : node.sha ? (
-                <BranchText
-                  repo={tree.repo}
-                  graph={graph}
-                  id={textFile(graph, id)!}
-                  sha={node.sha}
-                  href={href}
-                />
-              ) : (
-                <button
-                  type="button"
-                  className={`${controls.ghost} ${styles.addText}`}
-                  onClick={() => setWriting(id)}
-                >
-                  <Icon name="plus" size={15} />
-                  Add text
-                </button>
-              ))}
+            {/* A branch's text (its folder's README.md): always in the leaf editor, ready to
+                write, even before the file exists; the first save creates it. */}
+            {node.kind === 'branch' && (
+              <LeafEditor
+                key={`${tree.repo} ${id}`}
+                repo={tree.repo}
+                path={textFile(graph, id)!}
+                source={source}
+                onOpen={onSelect}
+              />
+            )}
 
             {/* The Family's own text: the repository's README.md, as it reads. */}
             {node.kind === 'root' && readme?.sha && (
-              <BranchText
+              <ReadText
                 repo={tree.repo}
                 graph={graph}
                 id={FAMILY_TEXT}
@@ -378,11 +349,6 @@ export function Peek({
                   >
                     {node.kind === 'leaf' ? 'Add sub-leaves…' : 'New leaves here…'}
                   </button>
-                  {node.kind === 'branch' && node.sha && writing !== id && (
-                    <button type="button" role="menuitem" onClick={() => setWriting(id)}>
-                      Edit text
-                    </button>
-                  )}
                   {node.kind === 'branch' && (
                     <button
                       type="button"
@@ -605,11 +571,8 @@ const linkTo = (graph: Graph, href: (id: string) => string) => (path: string) =>
   return end === null ? null : href(end)
 }
 
-/**
- * A branch's text, as the read view draws it (writing it opens the leaf editor instead),
- * or a past version of a leaf when `text` is given.
- */
-function BranchText({
+/** The Family's text (README.md) as the read view draws it, or a past version of a leaf. */
+function ReadText({
   repo,
   graph,
   id,

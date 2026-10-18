@@ -126,18 +126,6 @@
   color: var(--text-body);
 }
 
-/* A branch with no text yet: a quiet, dashed invitation. */
-.addText {
-  align-self: flex-start;
-  height: 32px;
-  border-style: dashed;
-  color: var(--muted);
-  font-size: 12.5px;
-}
-.addText:hover {
-  color: var(--text);
-}
-.textDone,
 .ghostWrite {
   align-self: flex-start;
 }
@@ -516,8 +504,7 @@
     font-weight: 500;
   }
   .kid,
-  .thread,
-  .addText {
+  .thread {
     min-height: 44px;
   }
 }

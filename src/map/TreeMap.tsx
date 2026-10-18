@@ -108,7 +108,7 @@ export function TreeMap({
     overlayCameraRef,
   )
 
-  // Fit once per Family: the Tree of the node it opens on, as it is, or every Tree. A later
+  // Fit once per Family: every Tree, whatever node it opens on (owner's decision). A later
   // layout (the leaves' content arriving, which sizes the dots) is fitted again only while
   // the camera is untouched: it never moves under someone who has panned, zoomed or
   // followed a selection.
@@ -116,6 +116,8 @@ export function TreeMap({
   const fittedLayout = useRef<FamilyLayout | null>(null)
   /** The Tree the camera was last fitted to; null for the whole Family. */
   const target = useRef<string | null>(null)
+  /** The Tree core whose selection was last acted on: the one opened on isn't followed. */
+  const followed = useRef<string | null>(null)
   // Panel insets, as plain values so effects re-run when a panel opens or closes.
   const {
     top: insetTop = 0,
@@ -128,21 +130,21 @@ export function TreeMap({
     [insetTop, insetRight, insetBottom, insetLeft],
   )
   useLayoutEffect(() => {
+    // A phone's bottom sheet leaves too little room to fit the Family above it: the Family
+    // takes the screen, and the sheet covers its lower part until dismissed.
+    const fitArea = () =>
+      (stageRef.current?.clientWidth ?? 0) <= PHONE_WIDTH ? { ...area, bottom: 0 } : area
     if (fitted.current === treeKey) {
       if (fittedLayout.current !== family && zoom.untouched())
-        zoom.fit(boxOf(family, target.current), padded(area), true)
+        zoom.fit(boxOf(family, target.current), padded(fitArea()), true)
       fittedLayout.current = family
       return
     }
     fitted.current = treeKey
     fittedLayout.current = family
-    target.current = selected === null ? null : (family.treeOf.get(selected)?.id ?? null)
-    zoom.fit(boxOf(family, target.current), padded(area))
-    // On a phone, a Family opened on a leaf zooms in on it (design screen 07): the whole
-    // Tree above the bottom sheet would be too small to read.
-    const at = selected !== null && selected !== target.current && positionOf(family, selected)
-    if (at && (stageRef.current?.clientWidth ?? 0) <= PHONE_WIDTH)
-      zoom.centre(at.x, at.y, area, Math.max(zoom.scale(), 1))
+    target.current = null
+    followed.current = selected
+    zoom.fit(family.bounds, padded(fitArea()))
   }, [treeKey, family, zoom, area, selected])
 
   // Elements by id, collected once per render of the geometry.
@@ -211,7 +213,8 @@ export function TreeMap({
     const onCore = known && selected === tree.id
     if (onCore) {
       els.cores.get(selected)?.setAttribute('data-sel', '')
-      if (target.current !== selected) {
+      if (followed.current !== selected) {
+        followed.current = selected
         target.current = selected
         // A phone's bottom sheet leaves too little room to fit a Tree above it: the Tree
         // takes the screen's width, and the sheet covers its lower part until dismissed.
@@ -421,6 +424,7 @@ export function TreeMap({
             // The same fit as opening the Family: the panel insets plus the map's own margins.
             onClick={() => {
               target.current = null
+              followed.current = null
               zoom.fit(family.bounds, padded(area), true)
             }}
           >
