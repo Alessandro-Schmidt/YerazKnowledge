@@ -1,5 +1,14 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { bodyOf, renderLeaf, type RenderContext } from './render'
+
+// Mermaid draws with the browser's layout, which Node doesn't have: a stand-in that draws
+// any source but one that doesn't parse.
+vi.mock('./mermaid', () => ({
+  diagram: (source: string) =>
+    source.includes('oops')
+      ? Promise.reject(new Error('Parse error'))
+      : Promise.resolve(`<svg data-source="${source.trim()}"></svg>`),
+}))
 
 const context: RenderContext = {
   leafHref: (path) => (path === 'identity/oidc.md' ? '#/tree/you/eng/identity/oidc.md' : null),
@@ -230,5 +239,84 @@ describe('renderLeaf', () => {
     )
     expect(html).toContain('<p><a href="https://example.com/post" target="_blank"')
     expect(html).toContain('Read <a href="https://example.com/a" target="_blank"')
+  })
+})
+
+describe('renderLeaf: what github.com renders', () => {
+  it('draws alerts as callouts with their title', async () => {
+    const html = await renderLeaf(
+      '# T\n\n> [!NOTE]\n> Useful **info**.\n\n> [!caution]\n>\n> Careful.\n\n> [!TIP] not alone\n',
+      context,
+    )
+    expect(html).toContain(
+      '<blockquote class="callout callout-note">\n<p class="callout-title">Note</p>\n<p>Useful <strong>info</strong>.</p>',
+    )
+    expect(html).toContain(
+      '<blockquote class="callout callout-caution">\n<p class="callout-title">Caution</p>\n<p>Careful.</p>',
+    )
+    // GitHub needs the marker alone on its line; otherwise it stays a quote.
+    expect(html).toContain('<blockquote>\n<p>[!TIP] not alone</p>')
+  })
+
+  it('draws footnotes numbered as GitHub does, without inline footnotes or embeds', async () => {
+    const html = await renderLeaf(
+      '# T\n\nA claim[^src] and ^[not one].\n\n[^src]: [Paper](https://example.com/paper)\n',
+      context,
+    )
+    expect(html).toContain(
+      'A claim<sup class="footnote-ref"><a href="#fn1" id="fnref1">1</a></sup>',
+    )
+    expect(html).toContain('and ^[not one].')
+    expect(html).toContain(
+      '<li id="fn1" class="footnote-item"><p><a href="https://example.com/paper"',
+    )
+    expect(html).not.toContain('repo-card')
+  })
+
+  it('draws Mermaid blocks as diagrams, and one that doesn’t parse as its code', async () => {
+    const html = await renderLeaf(
+      '# T\n\n```mermaid\ngraph TD\nA-->B\n```\n\n```mermaid\noops <b>\n```\n',
+      context,
+    )
+    expect(html).toContain('<div class="diagram"><svg data-source="graph TD\nA-->B"></svg></div>')
+    expect(html).toContain('<pre><code class="language-mermaid">oops &lt;b&gt;\n</code></pre>')
+  })
+
+  it('draws <details> toggles from fixed tags only, the summary escaped', async () => {
+    const html = await renderLeaf(
+      [
+        '# T',
+        '',
+        '<details>',
+        '<summary>More <img src=x onerror=alert(1)></summary>',
+        '',
+        '</details>',
+        '',
+        '<details open><summary>Steps & notes</summary>',
+        '',
+        '**Hidden** text.',
+        '',
+        '<details>',
+        '',
+        'Inner.',
+        '',
+        '</details>',
+        '',
+        '</details>',
+        '',
+        '<details onclick="alert(1)">',
+        '',
+        '</details>',
+      ].join('\n'),
+      context,
+    )
+    // A summary holding markup isn't a summary: the paragraph stays text.
+    expect(html).toContain('<p>&lt;details&gt;\n&lt;summary&gt;More &lt;img')
+    expect(html).toContain(
+      '<details open><summary>Steps &amp; notes</summary>\n<p><strong>Hidden</strong> text.</p>\n' +
+        '<details><summary>Details</summary>\n<p>Inner.</p>\n</details>\n</details>\n',
+    )
+    expect(html).toContain('<p>&lt;details onclick=&quot;alert(1)&quot;&gt;</p>')
+    expect(html).not.toMatch(/<(img|details onclick)/)
   })
 })

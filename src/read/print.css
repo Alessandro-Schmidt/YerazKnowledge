@@ -32,7 +32,8 @@
   }
   #print-root pre,
   #print-root blockquote,
-  #print-root .katex-display {
+  #print-root .katex-display,
+  #print-root .diagram {
     break-inside: avoid;
   }
   #print-root a {
