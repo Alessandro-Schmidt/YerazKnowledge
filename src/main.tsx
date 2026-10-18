@@ -10,6 +10,9 @@ import { applyCustom, savedCustom } from './ui/customTheme'
 import { installTheme, savedTheme } from './ui/theme'
 
 installTheme(savedTheme())
+// Only the map zooms (global.css): Safari's own page pinch is refused here too. The map's
+// pinch is made of touch events, so it still works.
+document.addEventListener('gesturestart', (e) => e.preventDefault())
 applyCustom(savedCustom())
 
 // `npm run dev:fake` answers every GitHub request from the in-memory fake and signs in
