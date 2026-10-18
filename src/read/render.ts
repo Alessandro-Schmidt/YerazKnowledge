@@ -1,9 +1,11 @@
 // Leaf text → HTML for the read view, which is what a leaf prints as (ARCHITECTURE.md §8). markdown-it is loaded on first
 // use, so it isn't part of the first-load JavaScript. Raw HTML in a leaf is shown as text,
-// never run. Links to leaves become @ chips that open the leaf in the app. Math, code
-// highlighting and embeds are in rich.ts.
+// never run; only `<details>` toggles are drawn, from fixed tags. Links to leaves become @
+// chips that open the leaf in the app. GitHub's alerts and footnotes are drawn as on
+// github.com. Math, code highlighting, diagrams and embeds are in rich.ts.
 
 import type MarkdownItClass from 'markdown-it'
+import { calloutOf, calloutTitle, detailsClose, detailsOpen } from '../model/blocks'
 import { imageWidth } from '../model/embeds'
 import { HEADING, linkTarget, META, ownPath, repairHeader, stripBom } from '../model/parse'
 import { encodePath } from '../ui/paths'
@@ -28,71 +30,125 @@ type StateCore = Parameters<CoreRule>[0]
 let parser: Promise<MarkdownIt> | null = null
 
 function load(): Promise<MarkdownIt> {
-  parser ??= Promise.all([import('markdown-it'), import('@lezer/highlight')]).then(
-    ([{ default: MarkdownIt }, highlight]) => {
-      const md = new MarkdownIt({ html: false, linkify: true })
-      rich(md, highlight)
-      md.core.ruler.after('inline', 'task-lists', taskLists)
-      // The leaf's title is the page's h2, so its own headings start one level below.
-      md.core.ruler.push('shift-headings', (state) => {
-        for (const token of state.tokens) {
-          if (token.type === 'heading_open' || token.type === 'heading_close') {
-            token.tag = `h${Math.min(6, Number(token.tag.slice(1)) + 1)}`
-          }
+  parser ??= Promise.all([
+    import('markdown-it'),
+    import('markdown-it-footnote'),
+    import('@lezer/highlight'),
+  ]).then(([{ default: MarkdownIt }, { default: footnote }, highlight]) => {
+    const md = new MarkdownIt({ html: false, linkify: true }).use(footnote)
+    // GitHub has no inline footnotes (`^[text]`), and numbers them without brackets.
+    md.inline.ruler.disable('footnote_inline')
+    md.renderer.rules.footnote_caption = (tokens, i) =>
+      String(Number((tokens[i]!.meta as { id: number }).id) + 1)
+    rich(md, highlight)
+    md.core.ruler.after('block', 'callouts', callouts)
+    md.core.ruler.after('block', 'details', details)
+    md.core.ruler.after('inline', 'task-lists', taskLists)
+    // The leaf's title is the page's h2, so its own headings start one level below.
+    md.core.ruler.push('shift-headings', (state) => {
+      for (const token of state.tokens) {
+        if (token.type === 'heading_open' || token.type === 'heading_close') {
+          token.tag = `h${Math.min(6, Number(token.tag.slice(1)) + 1)}`
         }
-      })
-      // The Tree's own images (`/assets/…`) need the token in private repositories: the
-      // read view fills in `src` from the blob cache (hydrateAssets).
-      const renderImage = md.renderer.rules.image!
-      md.renderer.rules.image = (tokens, i, options, env, self) => {
-        const token = tokens[i]!
-        const own = ownPath(String(token.attrGet('src') ?? ''))
-        if (own !== null) {
-          token.attrs = token.attrs?.filter(([name]) => name !== 'src') ?? null
-          token.attrSet('data-asset', own)
-        }
-        const title = token.attrGet('title')
-        if (title !== null) {
-          const { width, caption } = imageWidth(String(title))
-          token.attrs = token.attrs?.filter(([name]) => name !== 'title') ?? null
-          if (caption) token.attrSet('title', caption)
-          if (width !== null) token.attrSet('width', `${width}%`)
-        }
-        token.attrSet('loading', 'lazy')
-        token.attrSet('decoding', 'async')
-        return renderImage(tokens, i, options, env, self)
       }
-      const renderLink =
-        md.renderer.rules.link_open ??
-        ((tokens, i, options, _env, self) => self.renderToken(tokens, i, options))
-      md.renderer.rules.link_open = (tokens, i, options, env, self) => {
-        const { context } = env as { context: RenderContext }
-        const token = tokens[i]!
-        const href = String(token.attrGet('href') ?? '')
-        const target = linkTarget(href)
-        const other = target?.repo ? context.tree?.(target.repo) : null
-        const inApp = !target
-          ? null
-          : target.repo === null
-            ? context.leafHref(target.path)
-            : other
-              ? `${other.href}/${encodePath(target.path)}`
-              : null
-        if (inApp && target) {
-          const icon = target.repo === null ? context.leafIcon(target.path) : null
-          token.attrSet('href', inApp)
-          token.attrJoin('class', 'mention')
-          token.attrSet('data-before', `@ ${icon ? `${icon} ` : ''}`)
-        } else if (/^https?:\/\//.test(href)) {
-          token.attrSet('target', '_blank')
-          token.attrSet('rel', 'noopener noreferrer')
-        }
-        return renderLink(tokens, i, options, env, self)
+    })
+    // The Tree's own images (`/assets/…`) need the token in private repositories: the
+    // read view fills in `src` from the blob cache (hydrateAssets).
+    const renderImage = md.renderer.rules.image!
+    md.renderer.rules.image = (tokens, i, options, env, self) => {
+      const token = tokens[i]!
+      const own = ownPath(String(token.attrGet('src') ?? ''))
+      if (own !== null) {
+        token.attrs = token.attrs?.filter(([name]) => name !== 'src') ?? null
+        token.attrSet('data-asset', own)
       }
-      return md
-    },
-  )
+      const title = token.attrGet('title')
+      if (title !== null) {
+        const { width, caption } = imageWidth(String(title))
+        token.attrs = token.attrs?.filter(([name]) => name !== 'title') ?? null
+        if (caption) token.attrSet('title', caption)
+        if (width !== null) token.attrSet('width', `${width}%`)
+      }
+      token.attrSet('loading', 'lazy')
+      token.attrSet('decoding', 'async')
+      return renderImage(tokens, i, options, env, self)
+    }
+    const renderLink =
+      md.renderer.rules.link_open ??
+      ((tokens, i, options, _env, self) => self.renderToken(tokens, i, options))
+    md.renderer.rules.link_open = (tokens, i, options, env, self) => {
+      const { context } = env as { context: RenderContext }
+      const token = tokens[i]!
+      const href = String(token.attrGet('href') ?? '')
+      const target = linkTarget(href)
+      const other = target?.repo ? context.tree?.(target.repo) : null
+      const inApp = !target
+        ? null
+        : target.repo === null
+          ? context.leafHref(target.path)
+          : other
+            ? `${other.href}/${encodePath(target.path)}`
+            : null
+      if (inApp && target) {
+        const icon = target.repo === null ? context.leafIcon(target.path) : null
+        token.attrSet('href', inApp)
+        token.attrJoin('class', 'mention')
+        token.attrSet('data-before', `@ ${icon ? `${icon} ` : ''}`)
+      } else if (/^https?:\/\//.test(href)) {
+        token.attrSet('target', '_blank')
+        token.attrSet('rel', 'noopener noreferrer')
+      }
+      return renderLink(tokens, i, options, env, self)
+    }
+    return md
+  })
   return parser
+}
+
+/** A quote whose first line is only `[!NOTE]` (TIP, IMPORTANT, WARNING, CAUTION) is an alert. */
+function callouts(state: StateCore) {
+  const tokens = state.tokens
+  for (let i = 0; i + 2 < tokens.length; i++) {
+    const inline = tokens[i + 2]!
+    if (tokens[i]!.type !== 'blockquote_open' || tokens[i + 1]!.type !== 'paragraph_open') continue
+    const [first = '', ...rest] = inline.content.split('\n')
+    const kind = calloutOf(first)
+    if (!kind) continue
+    tokens[i]!.attrJoin('class', `callout callout-${kind}`)
+    const title = new state.Token('html_block', '', 0)
+    title.content = `<p class="callout-title">${calloutTitle(kind)}</p>\n`
+    inline.content = rest.join('\n')
+    // The marker alone was the whole paragraph: the title takes its place.
+    tokens.splice(i + 1, rest.length ? 0 : 3, title)
+  }
+}
+
+/**
+ * `<details>` toggles, as GitHub draws them: a paragraph of only `<details>` (and its
+ * `<summary>`) opens one and a paragraph of only `</details>` closes it, at the top level.
+ * Only these fixed tags are written, the summary escaped, so raw HTML still never runs.
+ */
+function details(state: StateCore) {
+  const tokens = state.tokens
+  const html = (content: string) => {
+    const token = new state.Token('html_block', '', 0)
+    token.content = content
+    return token
+  }
+  const opens: number[] = []
+  for (let i = 0; i + 2 < tokens.length; i++) {
+    if (tokens[i]!.type !== 'paragraph_open' || tokens[i]!.level !== 0) continue
+    const text = tokens[i + 1]!.content
+    if (detailsOpen(text)) opens.push(i)
+    else if (detailsClose(text) && opens.length) {
+      const at = opens.pop()!
+      const { open, summary } = detailsOpen(tokens[at + 1]!.content)!
+      const tag = `<details${open ? ' open' : ''}><summary>${state.md.utils.escapeHtml(summary)}</summary>\n`
+      tokens.splice(i, 3, html('</details>\n'))
+      tokens.splice(at, 3, html(tag))
+      i -= 2
+    }
+  }
 }
 
 /** `- [ ] task` and `- [x] done` become disabled checkboxes (read-only in the read view). */
