@@ -62,6 +62,8 @@ export interface SessionState {
   open(repo: string): Promise<void>
   /** A leaf's current text: the pending edit, or the committed version. */
   textOf(repo: string, path: string): Promise<string>
+  /** Every leaf's current text in a Tree, by path, from the blob cache: no request. */
+  texts(repo: string): Promise<Map<string, string>>
   /** A URL showing an attachment (`assets/…`), or null when the Tree has no such file. */
   assetUrl(repo: string, path: string): Promise<string | null>
   /** Every file path in an open Tree, pending edits included. */
@@ -437,6 +439,21 @@ export function createSession(deps: {
         const text = sha && !isLocal(sha) ? await store.get<string>(`blob:${sha}`) : undefined
         if (text === undefined) throw new Error(`No text for ${path}`)
         return text
+      },
+
+      async texts(repo) {
+        const key = repo.toLowerCase()
+        await pulls.get(key)
+        const pending = await loadDirty(key)
+        const cached = (bases.get(key)?.entries ?? []).filter(
+          (e) => e.path.endsWith('.md') && !(e.path in pending) && !isLocal(e.sha),
+        )
+        const blobs = await store.getMany<string>(cached.map((e) => `blob:${e.sha}`))
+        const texts = new Map<string, string>()
+        cached.forEach((e, i) => blobs[i] !== undefined && texts.set(e.path, blobs[i]))
+        for (const [path, { text }] of Object.entries(pending))
+          if (typeof text === 'string' && path.endsWith('.md')) texts.set(path, text)
+        return texts
       },
 
       async assetUrl(repo, path) {

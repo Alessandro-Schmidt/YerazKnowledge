@@ -32,6 +32,9 @@ export interface TreeMapProps {
   title: string
   color: string
   selected: string | null
+  /** The Matches layer: the nodes a search found here, lit above the veil like a selection. */
+  matches: { query: string; ids: readonly string[] } | null
+  onClearMatches(): void
   onSelect(id: string | null): void
   onOpen(id: string): void
   /** Space covered by floating panels, kept clear when fitting and following the selection. */
@@ -75,6 +78,8 @@ export function TreeMap({
   title,
   color,
   selected,
+  matches,
+  onClearMatches,
   onSelect,
   onOpen,
   insets,
@@ -187,7 +192,8 @@ export function TreeMap({
   // Selection: one translucent veil over the map dims everything (the design's 30 %), and
   // copies of the selection's neighbourhood are drawn above it. The work depends on the
   // number of neighbours, not the size of the Family (budget: < 50 ms to highlight).
-  // Selecting a Tree (its core) fits the camera to it: the Tree as it is.
+  // Selecting a Tree (its core) fits the camera to it: the Tree as it is. Search matches are
+  // copied above the same veil, so they glow wherever they are in the Family.
   useLayoutEffect(() => {
     const stage = stageRef.current!
     const overlay = overlayRef.current!
@@ -197,9 +203,9 @@ export function TreeMap({
     overlay.replaceChildren()
     delete stage.dataset.focus
     const tree = selected === null ? undefined : family.treeOf.get(selected)
-    if (selected === null || !tree || !graph.nodes.has(selected)) return
-
-    if (selected === tree.id) {
+    const known = selected !== null && tree !== undefined && graph.nodes.has(selected)
+    const onCore = known && selected === tree.id
+    if (onCore) {
       els.cores.get(selected)?.setAttribute('data-sel', '')
       if (target.current !== selected) {
         target.current = selected
@@ -208,11 +214,10 @@ export function TreeMap({
         const phone = stage.clientWidth <= PHONE_WIDTH
         zoom.fit(boxOf(family, selected), padded(phone ? { ...area, bottom: 0 } : area), true)
       }
-      return
     }
+    const lit = matches?.ids ?? []
+    if ((!known || onCore) && !lit.length) return
     stage.dataset.focus = ''
-    const at = positionOf(family, selected)!
-    const follow = !visible(at.x, at.y)
     // Copies keep their Tree's place: each Tree's go in a group moved like the Tree.
     const groups = new Map<PlacedTree, Element>()
     const layer = (t: PlacedTree | null | undefined): Element => {
@@ -242,6 +247,13 @@ export function TreeMap({
     veil.setAttribute('height', '200000')
     overlay.append(veil)
 
+    for (const id of lit) add(id, els.nodes.get(id) ?? els.cores.get(id), 'data-match')
+    if (!known || onCore) {
+      if (onCore) add(selected, els.cores.get(selected))
+      return
+    }
+    const at = positionOf(family, selected)!
+    const follow = !visible(at.x, at.y)
     const node = graph.nodes.get(selected)!
     for (const id of [selected, ...node.children]) add(id, els.edges.get(id), 'data-hot')
     let top = node
@@ -265,7 +277,7 @@ export function TreeMap({
     halo.setAttribute('class', styles.halo!)
     layer(tree).append(halo)
     if (follow) zoom.centre(at.x, at.y, area)
-  }, [selected, graph, family, threadsOf, zoom, area])
+  }, [selected, matches, graph, family, threadsOf, zoom, area])
 
   /** The node a pointer event is on: a dot, or a Tree's core (the Tree's id). */
   const idAt = (target: EventTarget): string | undefined => {
@@ -363,7 +375,7 @@ export function TreeMap({
         <span />
         <em>Click to peek · double-click to open</em>
       </div>
-      <LayerChips stageRef={stageRef} />
+      <LayerChips stageRef={stageRef} matches={matches} onClearMatches={onClearMatches} />
       <div className={ui.bottom} style={{ maxWidth: `calc(100% - ${(insets.right ?? 0) + 32}px)` }}>
         <div className={`${controls.panel} ${ui.zoom}`}>
           <button
@@ -447,8 +459,19 @@ const Family = memo(function Family({ family }: { family: FamilyLayout }) {
   )
 })
 
-/** Branches / Threads toggles: they flip attributes on the <svg>, so the map doesn't re-render. */
-function LayerChips({ stageRef }: { stageRef: React.RefObject<HTMLDivElement | null> }) {
+/**
+ * Branches / Threads toggles: they flip attributes on the <svg>, so the map doesn't re-render.
+ * The Matches chip shows while a search is lit, and clears it.
+ */
+function LayerChips({
+  stageRef,
+  matches,
+  onClearMatches,
+}: {
+  stageRef: React.RefObject<HTMLDivElement | null>
+  matches: TreeMapProps['matches']
+  onClearMatches(): void
+}) {
   const toggle = (attribute: 'hideBranches' | 'hideThreads', button: HTMLButtonElement) => {
     const stage = stageRef.current!
     const hidden = attribute in stage.dataset
@@ -480,6 +503,18 @@ function LayerChips({ stageRef }: { stageRef: React.RefObject<HTMLDivElement | n
         </svg>
         Threads
       </button>
+      {matches && (
+        <button
+          type="button"
+          className={ui.chip}
+          aria-label={`Clear matches for “${matches.query}”`}
+          onClick={onClearMatches}
+        >
+          <Icon name="search" size={14} />
+          Matches · {matches.ids.length}
+          <Icon name="close" size={14} />
+        </button>
+      )}
     </div>
   )
 }
