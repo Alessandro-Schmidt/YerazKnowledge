@@ -11,8 +11,8 @@ import { session, useSession } from '../store/session'
 import { Icon } from './icons'
 import { treeHref } from './paths'
 import styles from './Search.module.css'
+import { isMac } from './platform'
 
-const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform)
 const LIMIT = 20
 
 /** What a search found, by Tree (`owner/name`, lower case): the map lights these nodes. */

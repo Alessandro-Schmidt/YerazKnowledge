@@ -94,17 +94,25 @@ test("a Tree's core shows that Tree as it is; Fit all trees shows the Family aga
   await expect.poll(() => scale(page)).toBeLessThan(family * 1.2)
 })
 
-test('a leaf link opens on its Tree, as it is', async ({ page, graph }) => {
+test('a link to a leaf or a Tree opens on every Tree together', async ({ page, graph }) => {
   const leaf = richLeaf(graph)
-  await page.goto(`./#/tree/you/engineering/${leaf.id}`)
-  await signInHere(page)
-  await expect(peek(page).getByRole('heading', { level: 2 })).toHaveText(leaf.title)
-  await expect(page.getByRole('status')).toHaveText('Synced to main')
-  const opened = await scale(page)
-  // On a phone the Peek's sheet covers the map's controls.
-  await peek(page).getByRole('button', { name: 'Dismiss' }).click()
-  await page.getByRole('button', { name: 'Fit all trees' }).click()
-  await expect.poll(() => scale(page)).toBeLessThan(opened)
+  const tree = graph.nodes.get('')!.children.find((id) => graph.nodes.get(id)!.kind === 'branch')!
+  for (const id of [leaf.id, tree]) {
+    await page.goto(`./#/tree/you/engineering/${id}`)
+    // Opened from its URL, not selected on a map already shown.
+    if (id === leaf.id) await signInHere(page)
+    else await page.reload()
+    await expect(peek(page).getByRole('heading', { level: 2 })).toHaveText(
+      graph.nodes.get(id)!.title,
+    )
+    await expect(page.getByRole('status')).toHaveText('Synced to main')
+    const opened = await scale(page)
+    // On a phone the Peek's sheet covers the map's controls.
+    await peek(page).getByRole('button', { name: 'Dismiss' }).click()
+    await page.getByRole('button', { name: 'Fit all trees' }).click()
+    // No closer than the whole Family (a Tree alone would be well over 1.2×).
+    await expect.poll(() => scale(page)).toBeGreaterThan(opened / 1.2)
+  }
 })
 
 test('hovering a dot names it', async ({ page, graph, isMobile }) => {
