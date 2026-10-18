@@ -21,12 +21,39 @@ function mockServiceWorker(): Plugin {
   }
 }
 
+// Files only Mermaid loads (its diagram types and layout engines, ~5 MB): the chunks the app
+// reaches only through read/mermaid.ts. They aren't precached, so installing the app doesn't
+// download them; they are cached the first time a leaf has a diagram.
+const mermaidOnly = new Set<string>()
+function mermaidChunks(): Plugin {
+  return {
+    name: 'yeraz:mermaid-chunks',
+    apply: 'build',
+    generateBundle(_options, bundle) {
+      const chunks = new Map(
+        Object.values(bundle).flatMap((c) => (c.type === 'chunk' ? [[c.fileName, c]] : [])),
+      )
+      const reached = new Set<string>()
+      const visit = (file: string) => {
+        const chunk = chunks.get(file)
+        if (!chunk || reached.has(file) || chunk.facadeModuleId?.endsWith('/src/read/mermaid.ts'))
+          return
+        reached.add(file)
+        for (const next of [...chunk.imports, ...chunk.dynamicImports]) visit(next)
+      }
+      for (const chunk of chunks.values()) if (chunk.isEntry) visit(chunk.fileName)
+      for (const file of chunks.keys()) if (!reached.has(file)) mermaidOnly.add(file)
+    },
+  }
+}
+
 export default defineConfig(({ mode }) => ({
   // Relative asset paths: the same dist/ works on GitHub Pages (under /<repo>/) and in Tauri.
   base: './',
   plugins: [
     react(),
     mode === 'fake' && mockServiceWorker(),
+    mermaidChunks(),
     // Installable, and the app shell works offline; data is offline already in IndexedDB
     // (ARCHITECTURE.md §10). Not in dev:fake, where MSW's worker answers GitHub.
     mode !== 'fake' &&
@@ -62,6 +89,20 @@ export default defineConfig(({ mode }) => ({
         },
         workbox: {
           globPatterns: ['**/*.{js,css,html,svg,ico,png,woff2}'],
+          manifestTransforms: [
+            (entries) => ({
+              manifest: entries.filter((e) => !mermaidOnly.has(e.url)),
+              warnings: [],
+            }),
+          ],
+          runtimeCaching: [
+            {
+              // The app's own scripts not precached: Mermaid's, named by their content.
+              urlPattern: ({ sameOrigin, url }) => sameOrigin && url.pathname.endsWith('.js'),
+              handler: 'CacheFirst',
+              options: { cacheName: 'diagrams', expiration: { maxEntries: 300 } },
+            },
+          ],
           navigateFallback: 'index.html',
           // KaTeX and the language parsers are lazy chunks; cache them too.
           maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,

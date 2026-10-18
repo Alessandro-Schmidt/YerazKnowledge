@@ -220,6 +220,73 @@
   border-left: 2px solid var(--hair-strong);
   color: var(--muted);
 }
+/* GitHub's alerts (render.ts): the quote in its kind's named colour, with a title.
+   The app's danger colour is amber, so a caution is amber like a warning. */
+.content :global(.callout) {
+  --callout: var(--c-blue);
+  border-left-color: var(--callout);
+  color: var(--leaf-text, var(--text-body));
+}
+.content :global(.callout-tip) {
+  --callout: var(--c-green);
+}
+.content :global(.callout-important) {
+  --callout: var(--c-violet);
+}
+.content :global(.callout-warning),
+.content :global(.callout-caution) {
+  --callout: var(--c-amber);
+}
+.content :global(.callout-title) {
+  margin-bottom: 4px;
+  font-family: var(--font-ui);
+  font-weight: 600;
+  color: var(--callout);
+}
+.content :global(.callout) > :last-child,
+.content :global(.footnotes) li > :last-child,
+.content details > :last-child {
+  margin-bottom: 0;
+}
+/* Footnotes: numbers raised, the notes small below a hairline. */
+.content :global(.footnote-ref) {
+  line-height: 0;
+  font-family: var(--font-ui);
+  font-size: 0.75em;
+}
+.content :global(.footnote-ref) a,
+.content :global(.footnote-backref) {
+  text-decoration: none;
+}
+.content :global(.footnotes-sep) {
+  margin: 24px 0 12px;
+}
+.content :global(.footnotes) {
+  font-size: 13px;
+  color: var(--muted);
+}
+/* A toggle: its summary in the interface font, its text indented below it. */
+.content details {
+  margin: 0 0 12px;
+}
+.content summary {
+  cursor: pointer;
+  font-family: var(--font-ui);
+  font-weight: 500;
+  color: var(--text);
+}
+.content details[open] > summary {
+  margin-bottom: 8px;
+}
+.content details > :not(summary) {
+  margin-left: 16px;
+}
+/* A Mermaid diagram (rich.ts), centred at its own size. */
+.content :global(.diagram) {
+  margin: 0 0 14px;
+  overflow-x: auto;
+  text-align: center;
+}
 .content :global(.task) {
   list-style: none;
   margin-left: -20px;

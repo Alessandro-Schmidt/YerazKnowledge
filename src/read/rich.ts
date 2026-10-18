@@ -1,10 +1,11 @@
 // What the read view adds to Markdown (ARCHITECTURE.md §7, §8): KaTeX math, code
-// highlighted by the editor's own Lezer parsers, and embeds (YouTube, PDFs and videos
-// kept in the Tree, repository cards and bookmarks). KaTeX and the parsers load only for
-// leaves that use them.
+// highlighted by the editor's own Lezer parsers, Mermaid diagrams, and embeds (YouTube,
+// PDFs and videos kept in the Tree, repository cards and bookmarks). KaTeX, Mermaid and
+// the parsers load only for leaves that use them.
 
 import type MarkdownItClass from 'markdown-it'
 import type { Parser } from '@lezer/common'
+import { isDiagram } from '../model/blocks'
 import { embedOf, languageName, MATH, shortUrl, subtitleTracks, type Embed } from '../model/embeds'
 import { fileCardHtml } from './files'
 
@@ -14,6 +15,8 @@ type Token = ReturnType<MarkdownIt['parse']>[number]
 export type RichEnv = {
   katex?: typeof import('katex').default
   parsers?: Map<string, Parser>
+  /** Each Mermaid block's SVG by its source; null when it isn't a diagram (shown as code). */
+  diagrams?: Map<string, string | null>
   files?(): Iterable<string>
   /** A file's size in bytes, when known, for its card. */
   size?(path: string): number | null
@@ -23,16 +26,26 @@ export type RichEnv = {
 
 const lang = (info: string) => info.trim().split(/\s+/)[0]!.toLowerCase()
 
-/** Loads KaTeX and the code parsers the tokens need, before rendering (markdown-it is sync). */
+/** Loads KaTeX, Mermaid and the code parsers the tokens need (markdown-it renders sync). */
 export async function prepare(tokens: Token[], env: RichEnv): Promise<void> {
   const walk = (list: Token[]): Token[] => list.flatMap((t) => [t, ...walk(t.children ?? [])])
   const all = walk(tokens)
-  const langs = new Set(all.filter((t) => t.type === 'fence' && t.info).map((t) => lang(t.info)))
+  const fences = all.filter((t) => t.type === 'fence' && t.info)
+  const diagrams = fences.filter((t) => isDiagram(t.info)).map((t) => t.content)
+  const langs = new Set(fences.filter((t) => !isDiagram(t.info)).map((t) => lang(t.info)))
   const [katex] = await Promise.all([
     all.some((t) => t.type === 'math') ? import('./katex').then((m) => m.default) : undefined,
     langs.size ? loadParsers(langs, (env.parsers = new Map())) : undefined,
+    diagrams.length ? drawDiagrams(diagrams, (env.diagrams = new Map())) : undefined,
   ])
   if (katex) env.katex = katex
+}
+
+async function drawDiagrams(sources: string[], into: Map<string, string | null>) {
+  const { diagram } = await import('./mermaid')
+  await Promise.all(
+    sources.map(async (source) => into.set(source, await diagram(source).catch(() => null))),
+  )
 }
 
 async function loadParsers(names: Set<string>, into: Map<string, Parser>) {
@@ -81,6 +94,8 @@ export function rich(md: MarkdownIt, highlight: typeof import('@lezer/highlight'
   md.renderer.rules.fence = (tokens, i, options, e, self) => {
     const env = e as RichEnv
     const token = tokens[i]!
+    const svg = isDiagram(token.info) ? env.diagrams?.get(token.content) : null
+    if (svg) return `<div class="diagram">${svg}</div>\n`
     const parser = token.info ? env.parsers?.get(lang(token.info)) : undefined
     if (!parser) return fence(tokens, i, options, env, self)
     let html = ''
@@ -98,11 +113,15 @@ export function rich(md: MarkdownIt, highlight: typeof import('@lezer/highlight'
     return `<pre><code class="language-${escape(lang(token.info))}">${html}</code></pre>\n`
   }
 
-  // A paragraph that is only a link becomes a player, a repository card or a bookmark.
+  // A paragraph that is only a link becomes a player, a repository card or a bookmark;
+  // not in a footnote, where a link alone is the usual source.
   md.core.ruler.push('embeds', (state) => {
     const tokens = state.tokens
+    let footnote = 0
     for (let i = tokens.length - 2; i > 0; i--) {
-      if (tokens[i - 1]!.type !== 'paragraph_open' || tokens[i - 1]!.hidden) continue
+      if (tokens[i]!.type === 'footnote_close') footnote++
+      if (tokens[i]!.type === 'footnote_open') footnote--
+      if (footnote || tokens[i - 1]!.type !== 'paragraph_open' || tokens[i - 1]!.hidden) continue
       const embed = tokens[i]!.type === 'inline' ? embedOf(tokens[i]!.content) : null
       if (!embed) continue
       const block = new state.Token('html_block', '', 0)

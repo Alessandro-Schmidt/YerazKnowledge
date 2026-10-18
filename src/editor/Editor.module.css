@@ -117,6 +117,47 @@
   padding-left: 14px;
   color: var(--muted);
 }
+/* GitHub's alerts and footnote marks, as in the read view (Peek.module.css). */
+.editor :global(.cm-line.cm-callout) {
+  --callout: var(--c-blue);
+  border-left-color: var(--callout);
+  color: var(--leaf-text, var(--text-body));
+}
+.editor :global(.cm-line.cm-callout-tip) {
+  --callout: var(--c-green);
+}
+.editor :global(.cm-line.cm-callout-important) {
+  --callout: var(--c-violet);
+}
+.editor :global(.cm-line.cm-callout-warning),
+.editor :global(.cm-line.cm-callout-caution) {
+  --callout: var(--c-amber);
+}
+.editor :global(.cm-callout-title) {
+  font-family: var(--font-ui);
+  font-weight: 600;
+  color: var(--callout);
+}
+.editor :global(.cm-footnote) {
+  vertical-align: super;
+  line-height: 0;
+  font-family: var(--font-ui);
+  font-size: 0.75em;
+  color: var(--accent);
+}
+/* A Mermaid diagram: its source until it is drawn (or if it can't be), then the drawing. */
+.editor :global(.cm-diagram) {
+  margin: 4px 0 12px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  white-space: pre-wrap;
+  color: var(--faint);
+  cursor: text;
+}
+.editor :global(.cm-diagram.diagram) {
+  overflow-x: auto;
+  text-align: center;
+}
 .editor :global(.cm-line.cm-code-block) {
   font-family: var(--font-mono);
   font-size: 13px;

@@ -1,7 +1,7 @@
 // The Peek: the selected node, floating over the map (420 px), or its full page when
 // expanded (760 px column). On phones it is a bottom sheet. A leaf is editable in all three.
 
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type MouseEvent } from 'react'
 import type { TreeRef } from '../github/graphql'
 import { compactWords, crumbs, textFile, threadEnd, type Graph } from '../model/graph'
 import { ROOT } from '../model/tree'
@@ -512,8 +512,18 @@ function BranchText({
       ref={body}
       className={`reading ${styles.content}`}
       dangerouslySetInnerHTML={{ __html: html.html }}
+      onClick={footnoteJump}
     />
   )
+}
+
+/** A footnote's link scrolls to its note (and back) instead of changing the app's route. */
+function footnoteJump(event: MouseEvent<HTMLElement>) {
+  const link = (event.target as HTMLElement).closest<HTMLAnchorElement>('a[href^="#fn"]')
+  if (!link) return
+  event.preventDefault()
+  const id = CSS.escape(link.getAttribute('href')!.slice(1))
+  event.currentTarget.querySelector(`#${id}`)?.scrollIntoView({ block: 'center' })
 }
 
 /**
