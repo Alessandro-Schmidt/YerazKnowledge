@@ -1,0 +1,122 @@
+/* Mind map (design/views/screens/01, 10; design/views/generators/mindmap.py). */
+
+.edge {
+  fill: none;
+  stroke: var(--line);
+  stroke-opacity: 0.14;
+  stroke-width: 1.1px;
+}
+.edge[data-depth='1'] {
+  stroke-opacity: 0.24;
+  stroke-width: 2px;
+}
+.edge[data-depth='2'] {
+  stroke-opacity: 0.18;
+  stroke-width: 1.4px;
+}
+.spine {
+  fill: none;
+  stroke: var(--line);
+  stroke-opacity: 0.24;
+  stroke-width: 2px;
+}
+
+.node {
+  cursor: pointer;
+}
+.hit {
+  fill: transparent;
+}
+.pill {
+  fill: var(--bg);
+  stroke: var(--tree, var(--accent));
+  stroke-opacity: 0.55;
+}
+.pillLabel {
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  fill: var(--tree, var(--accent));
+  text-anchor: middle;
+}
+.map[data-phone] .pillLabel {
+  font-size: 10px;
+}
+
+.dot {
+  fill: var(--node);
+}
+.node[data-kind='branch'] .dot {
+  fill: var(--bg);
+  stroke: var(--tree, var(--accent));
+  stroke-width: 1.4px;
+}
+.ring {
+  fill: none;
+  stroke: var(--node);
+  stroke-opacity: 0.45;
+  stroke-width: 1px;
+}
+.label {
+  fill: var(--text);
+  paint-order: stroke;
+  stroke: var(--bg);
+  stroke-width: 4px;
+  stroke-linejoin: round;
+}
+.label[data-deep] {
+  fill: var(--text-body);
+}
+.words {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 400;
+  fill: var(--faint);
+}
+
+.core {
+  cursor: pointer;
+}
+.coreBox {
+  fill: var(--panel);
+  stroke: var(--hair-strong);
+}
+.coreTitle {
+  font-weight: 600;
+  fill: var(--text);
+}
+.coreWords {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  fill: var(--muted);
+}
+
+/* The selection layer. */
+.halo {
+  fill: none;
+  stroke: var(--tree, var(--accent));
+  stroke-width: 1px;
+}
+.selDot {
+  fill: var(--tree, var(--accent));
+}
+.selLabel {
+  font-weight: 600;
+  fill: var(--tree, var(--accent));
+  paint-order: stroke;
+  stroke: var(--bg);
+  stroke-width: 4px;
+  stroke-linejoin: round;
+}
+.hotThread {
+  fill: none;
+  stroke: var(--tree, var(--accent));
+  stroke-width: 1.3px;
+  stroke-opacity: 0.7;
+  stroke-dasharray: 4 5;
+}
+.end {
+  fill: none;
+  stroke: var(--tree, var(--accent));
+  stroke-opacity: 0.6;
+}

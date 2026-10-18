@@ -1,0 +1,197 @@
+/* Columns (design/views/screens/03, 12; design/views/generators/columns.py, mobile_a.py). */
+
+.wrap {
+  position: absolute;
+  inset: 0;
+  display: flex;
+}
+
+.strip {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.column {
+  flex: 0 0 270px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-right: 1px solid var(--hair);
+  background: var(--panel);
+}
+.column[data-first] {
+  flex-basis: 236px;
+}
+
+.head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 16px 16px 10px 20px;
+}
+.head h2 {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sub {
+  flex-shrink: 0;
+  font-size: 10.5px;
+  color: var(--faint);
+}
+
+.items {
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0 8px;
+  list-style: none;
+}
+
+.item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 38px;
+  padding: 0 10px 0 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.item[data-rich] {
+  align-items: flex-start;
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+.item[data-rich] > :first-child {
+  margin-top: 5px;
+}
+.item:hover {
+  background: var(--hover);
+}
+.item[aria-current='true'] {
+  background: var(--raised);
+  box-shadow: inset 2px 0 0 var(--tree, var(--accent));
+}
+.item > svg {
+  flex-shrink: 0;
+  color: var(--faint);
+}
+
+.itemText {
+  flex: 1;
+  min-width: 0;
+}
+.itemName {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13.5px;
+}
+.itemName > span:last-child {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.item[aria-current='true'] .itemName {
+  font-weight: 600;
+}
+.first {
+  display: -webkit-box;
+  margin-top: 3px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--muted);
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.count {
+  flex-shrink: 0;
+  font-size: 10.5px;
+  color: var(--faint);
+}
+.item[data-rich] .count {
+  margin-top: 2px;
+}
+
+.add {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  margin: 6px 8px 12px;
+  padding: 0 12px;
+  border: 1px dashed var(--hair-strong);
+  border-radius: 8px;
+  background: transparent;
+  font-size: 12.5px;
+  color: var(--muted);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.add:hover {
+  color: var(--text);
+  border-color: var(--muted);
+}
+
+/* Phone: spines, then the last column full width. */
+.spine {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 1;
+  width: 40px;
+  padding: 0;
+  border: 0;
+  border-right: 1px solid var(--hair);
+  background: var(--panel);
+  color: var(--muted);
+  cursor: pointer;
+}
+.spine > svg {
+  position: absolute;
+  left: 13px;
+  top: 14px;
+}
+.spineText {
+  position: absolute;
+  left: 20px;
+  top: 46px;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  white-space: nowrap;
+  transform-origin: 0 0;
+  transform: rotate(90deg) translateY(-50%);
+  color: var(--text);
+  font-size: 14px;
+}
+.wrap[data-phone] .strip {
+  overflow: hidden;
+}
+.wrap[data-phone] .column {
+  flex: 1 1 auto;
+  border-right: 0;
+  background: var(--bg);
+}
+.wrap[data-phone] .item {
+  min-height: 48px;
+}
+.wrap[data-phone] .add {
+  min-height: 44px;
+}

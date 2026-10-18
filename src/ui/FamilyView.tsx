@@ -1,7 +1,8 @@
 // The workspace: one Family (a repository) with every one of its Trees on the map at once,
-// the Explorer on the left and the Peek on the right. The app opens straight into it.
+// or in the view chosen on this device (views/), the Explorer on the left and the Peek on
+// the right. The app opens straight into it.
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react'
 import { useLocation } from 'wouter'
 import { familyLayout, treesOf } from '../map/family'
 import { TreeMap } from '../map/TreeMap'
@@ -25,6 +26,10 @@ import { Divider, TopBar } from './TopBar'
 import styles from './FamilyView.module.css'
 import { PHONE, useMedia } from './useMedia'
 import { Search, type Matches } from './Search'
+import { treeColor } from '../views/common'
+import { VIEW_COMPONENTS } from '../views'
+import { PANEL } from '../views/views'
+import { useView, ViewSwitcher } from '../views/ViewSwitcher'
 
 export function FamilyView({ params }: { params: { owner: string; name: string; '*'?: string } }) {
   const repo = `${params.owner}/${params.name}`
@@ -33,6 +38,9 @@ export function FamilyView({ params }: { params: { owner: string; name: string; 
   const data = useSession((s) => s.data[key])
   const tree = useSession((s) => s.trees.find((t) => t.repo.toLowerCase() === key))
   const phone = useMedia(PHONE)
+  const view = useView()
+  // Phones use the Peek sheet, except Rings, whose own sheet holds the core sample.
+  const panel = phone ? (view === 'rings' ? 'own' : 'float') : PANEL[view]
 
   const [explorerOpen, setExplorerOpen] = useState(() => !window.matchMedia(PHONE).matches)
   const [peekOpen, setPeekOpen] = useState(true)
@@ -71,6 +79,8 @@ export function FamilyView({ params }: { params: { owner: string; name: string; 
     if (wanted !== null) setPeekOpen(true)
   }
   const peekVisible = peekOpen && selected !== null
+  // A view with its own panel shows the Peek only as a full page.
+  const peekShown = peekVisible && (panel !== 'own' || expanded)
 
   const select = useCallback(
     (id: string | null) => {
@@ -83,10 +93,21 @@ export function FamilyView({ params }: { params: { owner: string; name: string; 
   )
   const href = useCallback((id: string) => `#${treeHref(repo, id)}`, [repo])
   const color = colorVar(tree?.color)
+  // Each Tree's colour, for the map's Tree groups.
+  const treeColors = useMemo(
+    () =>
+      Object.fromEntries(
+        graph && tree ? treesOf(graph).map((id) => [id, treeColor(tree, id)]) : [],
+      ) as Record<string, string>,
+    [graph, tree],
+  )
 
   const insets = phone
-    ? { bottom: peekVisible ? Math.round(window.innerHeight * 0.6) : 0 }
-    : { right: peekVisible && !expanded ? 452 : 0 }
+    ? { bottom: peekShown ? Math.round(window.innerHeight * 0.6) : 0 }
+    : panel === 'dock'
+      ? { right: peekShown && !expanded ? DOCK : 0 }
+      : { right: peekShown && !expanded ? 452 : 0 }
+  const View = view === 'map' ? null : VIEW_COMPONENTS[view]
 
   return (
     <div className={styles.page} style={{ '--tree': color } as React.CSSProperties}>
@@ -106,6 +127,7 @@ export function FamilyView({ params }: { params: { owner: string; name: string; 
           </h1>
           <FamilyMenu current={repo} />
         </div>
+        {!phone && <ViewSwitcher />}
         <Search repo={repo} onMatches={setFound} />
         <span className={styles.status}>
           <Status data={data} repo={repo} branch={tree?.branch ?? 'main'} />
@@ -124,12 +146,16 @@ export function FamilyView({ params }: { params: { owner: string; name: string; 
             type="button"
             className={controls.iconButton}
             aria-label="Show leaf panel"
-            aria-pressed={peekVisible}
+            aria-pressed={peekShown}
             onClick={() => {
-              if (peekVisible) {
+              if (peekShown) {
                 setPeekOpen(false)
                 setExpanded(false)
-              } else select(selected ?? ROOT)
+              } else {
+                select(selected ?? ROOT)
+                // A view with its own panel opens the leaf as a page.
+                if (panel === 'own') setExpanded(true)
+              }
             }}
           >
             <Icon name="panelRight" size={18} />
@@ -147,6 +173,7 @@ export function FamilyView({ params }: { params: { owner: string; name: string; 
           )}
         </div>
       </TopBar>
+      {phone && <ViewSwitcher phone />}
       <ConflictBanner repo={repo} />
       {action && graph && tree && (
         <StructureDialog
@@ -177,13 +204,32 @@ export function FamilyView({ params }: { params: { owner: string; name: string; 
           />
         )}
         <main className={styles.main}>
-          {graph && family ? (
+          {graph && tree && View ? (
+            <Suspense fallback={<p className={styles.placeholder} aria-busy="true" />}>
+              <View
+                key={view}
+                tree={tree}
+                graph={graph}
+                selected={selected}
+                matches={matches}
+                phone={phone}
+                insets={insets}
+                onSelect={select}
+                onOpen={(id) => {
+                  select(id)
+                  setExpanded(true)
+                }}
+                onAction={setAction}
+              />
+            </Suspense>
+          ) : graph && family ? (
             <TreeMap
               treeKey={key}
               graph={graph}
               family={family}
               title={tree?.title ?? repo}
               color={color}
+              treeColors={treeColors}
               selected={selected}
               matches={matches}
               onClearMatches={() => setFound(null)}
@@ -197,12 +243,13 @@ export function FamilyView({ params }: { params: { owner: string; name: string; 
           ) : (
             <Placeholder data={data} />
           )}
-          {graph && tree && peekVisible && (
+          {graph && tree && peekShown && (
             <Peek
               tree={tree}
               graph={graph}
               id={selected!}
               expanded={expanded}
+              docked={panel === 'dock'}
               created={created === selected}
               href={href}
               onSelect={select}
@@ -218,12 +265,17 @@ export function FamilyView({ params }: { params: { owner: string; name: string; 
               }}
             />
           )}
-          {graph && !explorerOpen && !peekVisible && !phone && <WhereYouWrite graph={graph} />}
+          {graph && view === 'map' && !explorerOpen && !peekVisible && !phone && (
+            <WhereYouWrite graph={graph} />
+          )}
         </main>
       </div>
     </div>
   )
 }
+
+/** Width of the Peek docked beside the Columns (design/views/screens/03). */
+const DOCK = 640
 
 function Status({
   data,

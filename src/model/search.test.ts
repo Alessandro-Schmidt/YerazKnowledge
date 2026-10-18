@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { bodyOf, search, snippet, type Searchable } from './search'
+import { bodyOf, firstLine, search, snippet, type Searchable } from './search'
 
 const items: Searchable[] = [
   { repo: 'you/eng', id: 'identity/keycloak.md', title: 'Keycloak', kind: 'leaf', icon: '🔐' },
@@ -123,5 +123,29 @@ describe('search in text', () => {
       match: 'au',
       after: ' lait',
     })
+  })
+})
+
+describe('firstLine', () => {
+  it('is the first prose line, without title, metadata or Markdown', () => {
+    const text = [
+      '# 🔐 Keycloak',
+      '<!-- yeraz {"color":{"heading":"amber"}} -->',
+      '',
+      '![Realm](/assets/realm.png "width=50%")',
+      '## Setup',
+      'Realms, **clients** and roles; see [OpenID Connect](/identity/oidc.md).',
+      'Second line.',
+    ].join('\n')
+    expect(firstLine(text)).toBe('Realms, clients and roles; see OpenID Connect.')
+  })
+
+  it('skips code blocks and takes list items and quotes as prose', () => {
+    expect(firstLine('# T\n```js\nconst a = 1\n```\n- [x] Done this')).toBe('Done this')
+    expect(firstLine('# T\n> Quoted *idea*')).toBe('Quoted idea')
+  })
+
+  it('is empty for a leaf with only a title', () => {
+    expect(firstLine('# Only a title\n')).toBe('')
   })
 })

@@ -4,6 +4,7 @@
 //   GET  /repos/{o}/{r}/git/trees/{ref}[?recursive=1]   ETags and 304s
 //   GET  /repos/{o}/{r}/git/blobs/{sha}                  images: raw bytes (vnd.github.raw+json)
 //   POST /graphql   object(oid:) / object(expression:), defaultBranchRef, Commit.history(path:),
+//                   Commit.blame(path:),
 //                   viewer.repositories (discovery), createCommitOnBranch
 //   POST /user/repos
 // plus a request log and fault switches. Error messages copy GitHub's where known;
@@ -387,6 +388,47 @@ export function createFakeGitHub(options: { login?: string; tokens?: string[] } 
       file: ({ path }: { path: string }) => {
         const sha = c.files.get(path)
         return sha ? { __typename: 'TreeEntry', path, oid: sha, object: blob(repo, sha) } : null
+      },
+      // Each line of `path` with the commit that wrote it, in ranges of lines from one commit.
+      // A line is kept from the version before when that version had the same line still
+      // unmatched; otherwise this commit wrote it (close enough to git's diff for the app).
+      blame: ({ path }: { path: string }) => {
+        if (!c.files.has(path))
+          throw new GraphQLError(`Could not resolve to a Blob for the path '${path}'.`)
+        const text = (sha: string | undefined) =>
+          sha === undefined ? null : (decodeText(repo.blobs.get(sha)!) ?? '')
+        let lines: { text: string; commit: Commit }[] = []
+        for (const commit of repo.commits.slice(0, repo.commits.indexOf(c) + 1)) {
+          const now = text(commit.files.get(path))
+          if (now === null) {
+            lines = []
+            continue
+          }
+          const old = [...lines]
+          lines = now
+            .replace(/\n$/, '')
+            .split('\n')
+            .map((line) => {
+              const at = old.findIndex((o) => o.text === line)
+              return at < 0 ? { text: line, commit } : old.splice(at, 1)[0]!
+            })
+        }
+        const ranges: GqlObject[] = []
+        lines.forEach((line, i) => {
+          const last = ranges.at(-1)
+          if (last && last.commit === line.commit) last.endingLine = i + 1
+          else
+            ranges.push({
+              __typename: 'BlameRange',
+              startingLine: i + 1,
+              endingLine: i + 1,
+              commit: line.commit,
+            })
+        })
+        return {
+          __typename: 'Blame',
+          ranges: ranges.map((r) => ({ ...r, commit: commitObj(repo, r.commit as Commit) })),
+        }
       },
       // The commits from this one back that changed `path`, newest first. Like GitHub's,
       // it doesn't follow a file across a move.

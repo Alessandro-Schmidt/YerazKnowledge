@@ -12,6 +12,7 @@ import styles from './FamilyMenu.module.css'
 import { Icon } from './icons'
 import { treeHref } from './paths'
 import { CreateTreeDialog } from './StructureDialogs'
+import { ViewIcon } from '../views/ViewSwitcher'
 
 /** The Family last shown on this device, so the app reopens on it. */
 const LAST = 'yeraz-family'
@@ -106,6 +107,14 @@ export function FamilyMenu({ current }: { current?: string }) {
           <button type="button" role="menuitem" onClick={() => navigate('/settings/appearance')}>
             <Icon name="contrast" size={15} />
             Appearance
+          </button>
+          <button type="button" role="menuitem" onClick={() => navigate('/settings/views')}>
+            <ViewIcon view="treemap" />
+            Views
+          </button>
+          <button type="button" role="menuitem" onClick={() => navigate('/settings/colours')}>
+            <ViewIcon view="map" />
+            Tree colours
           </button>
           <button type="button" role="menuitem" onClick={() => void session.getState().signOut()}>
             <Icon name="signOut" size={15} />

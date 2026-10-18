@@ -20,6 +20,8 @@ export interface ZoomControls {
   centre(x: number, y: number, insets?: Partial<Insets>, k?: number): void
   /** True when layout point (x, y) is inside the free area. */
   isVisible(x: number, y: number, insets?: Partial<Insets>): boolean
+  /** Brings layout point (x, y) into the free area, moving only along the axes it is out on. */
+  follow(x: number, y: number, insets?: Partial<Insets>): void
   scale(): number
   /** True while the camera is where the last fit put it: nobody has panned, zoomed or followed since. */
   untouched(): boolean
@@ -183,6 +185,17 @@ export function useZoom(
         return (
           sx > i.left + 24 && sx < w - i.right - 24 && sy > i.top + 24 && sy < h - i.bottom - 24
         )
+      },
+      follow(x, y, insets) {
+        const t = current()
+        const { i, w, h, cx, cy } = area(insets)
+        const sx = t.x + x * t.k
+        const sy = t.y + y * t.k
+        const outX = sx < i.left + 24 || sx > w - i.right - 24
+        const outY = sy < i.top + 24 || sy > h - i.bottom - 24
+        if (!outX && !outY) return
+        move(outX ? cx - x * t.k : t.x, outY ? cy - y * t.k : t.y, t.k, true)
+        untouched.current = false
       },
       scale: () => current().k,
       untouched: () => untouched.current,

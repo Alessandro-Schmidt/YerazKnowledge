@@ -41,6 +41,7 @@
 .newLeaf {
   height: 36px;
   margin-left: 4px;
+  white-space: nowrap;
 }
 
 .body {
