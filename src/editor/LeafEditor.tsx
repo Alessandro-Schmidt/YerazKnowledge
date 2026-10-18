@@ -292,6 +292,7 @@ export function LeafEditor({
           files={() => session.getState().files(repo)}
           fileSize={(p) => session.getState().fileSize(repo, p)}
           autoFocus={autoFocus}
+          titleHidden={branch !== null}
         />
       </Suspense>
       {/* Images or any file: onInsert sets what it accepts. */}

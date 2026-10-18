@@ -29,8 +29,23 @@
 .editor :global(.cm-content ::selection) {
   background: var(--accent-soft) !important;
 }
-.editor :global(.cm-placeholder) {
+/* An empty text says how to write it: an arrow, then the words, in italic. */
+.editor :global(.cm-hint) {
   color: var(--faint);
+  font-style: italic;
+}
+.editor :global(.cm-hint-arrow) {
+  margin-right: 6px;
+  color: var(--accent);
+  font-style: normal;
+}
+.editor :global(.cm-hint kbd) {
+  padding: 0 5px;
+  border: 1px solid var(--hair);
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 0.85em;
+  font-style: normal;
 }
 
 /* Line 1 is the title. */
