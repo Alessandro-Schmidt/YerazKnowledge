@@ -226,3 +226,16 @@
 .core[data-sel] .coreCircle {
   stroke-opacity: 0.5;
 }
+
+/* Search matches (the Matches layer): copied above the veil like the selection, ringed by
+   a stroke that keeps its width at every zoom, so a match shows with the whole Family in view. */
+.node[data-match] .dot,
+.core[data-match] .coreCircle {
+  stroke: var(--tree, var(--accent));
+  stroke-opacity: 1;
+  stroke-width: 4px;
+  vector-effect: non-scaling-stroke;
+}
+[data-zoom='far'] .node[data-match] .label {
+  display: inline;
+}

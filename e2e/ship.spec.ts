@@ -17,7 +17,7 @@ test.describe('title search', () => {
     await signIn(page)
     if (isMobile) await page.getByRole('button', { name: /Search leaves/ }).click()
     else await page.keyboard.press('ControlOrMeta+k')
-    const box = page.getByRole('combobox', { name: 'Search titles' })
+    const box = page.getByRole('combobox', { name: 'Search titles and text' })
     await expect(box).toBeFocused()
     await box.fill(leaf.title.toUpperCase())
     await expect(page.getByRole('option').first()).toContainText(leaf.title)
@@ -30,10 +30,45 @@ test.describe('title search', () => {
     test.skip(isMobile, 'Keyboard')
     await signIn(page)
     await page.keyboard.press('ControlOrMeta+k')
-    await page.getByRole('combobox', { name: 'Search titles' }).fill('zzzz qqqq')
-    await expect(page.getByText('No titles match.')).toBeVisible()
+    await page.getByRole('combobox', { name: 'Search titles and text' }).fill('zzzz qqqq')
+    await expect(page.getByText('Nothing matches.')).toBeVisible()
     await page.keyboard.press('Escape')
     await expect(page.getByRole('dialog', { name: 'Search' })).toHaveCount(0)
+  })
+
+  test('finds leaves by their text, with a snippet, and lights them on the map', async ({
+    page,
+    fake,
+    isMobile,
+  }) => {
+    await fake.repo('you/engineering').commit({
+      message: 'needles',
+      additions: [
+        {
+          path: 'notes/haystack.md',
+          contents: '# Haystack\n\nSomewhere in here is a zebrafish.\n',
+        },
+        { path: 'notes/pond.md', contents: '# Pond\n\nA Zebrafish swims.\n' },
+      ],
+    })
+    await signIn(page)
+    if (isMobile) await page.getByRole('button', { name: /Search leaves/ }).click()
+    else await page.keyboard.press('ControlOrMeta+k')
+    await page.getByRole('combobox', { name: 'Search titles and text' }).fill('zebrafish')
+    const options = page.getByRole('option')
+    await expect(options).toHaveCount(2)
+    await expect(options.filter({ hasText: 'Haystack' })).toContainText('is a zebrafish.')
+    await page.getByRole('button', { name: 'Light up 2 matches on the map' }).click()
+    await expect(page.getByRole('dialog', { name: 'Search' })).toHaveCount(0)
+    const map = page.locator('[data-map]')
+    await expect(map).toHaveAttribute('data-focus')
+    for (const id of ['notes/haystack.md', 'notes/pond.md'])
+      await expect(map.locator(`[data-overlay] [data-node][data-id="${id}"]`)).toHaveAttribute(
+        'data-match',
+      )
+    await page.getByRole('button', { name: 'Clear matches for “zebrafish”' }).click()
+    await expect(map.locator('[data-overlay] [data-match]')).toHaveCount(0)
+    await expect(map).not.toHaveAttribute('data-focus')
   })
 })
 

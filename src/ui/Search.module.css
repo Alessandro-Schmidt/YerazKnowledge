@@ -58,6 +58,11 @@
   color: var(--text);
   box-shadow: 0 24px 60px var(--shadow);
 }
+/* The results scroll; the field and the light-up button stay. */
+.dialog[open] {
+  display: flex;
+  flex-direction: column;
+}
 .dialog::backdrop {
   background: color-mix(in srgb, var(--bg) 70%, transparent);
 }
@@ -84,6 +89,7 @@
   padding: 6px;
   list-style: none;
   overflow-y: auto;
+  min-height: 0;
 }
 .result {
   display: grid;
@@ -98,7 +104,7 @@
   background: var(--accent-soft);
 }
 .icon {
-  grid-row: span 2;
+  grid-row: span 3;
   text-align: center;
 }
 .icon:empty::before {
@@ -127,6 +133,34 @@
   font-size: 11.5px;
   white-space: nowrap;
   text-overflow: ellipsis;
+}
+.snippet {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 12.5px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.snippet mark {
+  background: none;
+  color: var(--accent);
+  font-weight: 600;
+}
+.light {
+  display: block;
+  width: 100%;
+  padding: 12px 16px;
+  border: 0;
+  border-top: 1px solid var(--hair);
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-size: 13.5px;
+  text-align: left;
+  cursor: pointer;
+}
+.light:hover {
+  background: var(--accent-soft);
 }
 .none {
   margin: 0;
