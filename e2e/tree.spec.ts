@@ -196,6 +196,61 @@ test('expands the Peek to a full page, comes back, and dismisses it', async ({ p
   await expect(page.locator('[data-map]')).toHaveAttribute('data-focus')
 })
 
+/** A touch swipe on the Peek's handle, `dy` pixels down (negative: up). */
+async function swipe(page: Page, dy: number) {
+  const handle = peek(page).locator('[class*="handle"]')
+  const init = { pointerType: 'touch', isPrimary: true, clientX: 200, clientY: 400 }
+  await handle.dispatchEvent('pointerdown', init)
+  await handle.dispatchEvent('pointerup', { ...init, clientY: 400 + dy })
+}
+
+test('on a phone, swiping the sheet up opens the full page; down goes back, then dismisses', async ({
+  page,
+  graph,
+}) => {
+  test.skip(!isPhone(page), 'The bottom sheet is on phones')
+  const leaf = richLeaf(graph)
+  await openTree(page)
+  await page.goto(`./#/tree/you/engineering/${leaf.id}`)
+  const panel = peek(page)
+  await swipe(page, -10)
+  await expect(panel).not.toHaveAttribute('data-expanded')
+  await swipe(page, -120)
+  await expect(panel).toHaveAttribute('data-expanded')
+  await swipe(page, 120)
+  await expect(panel).not.toHaveAttribute('data-expanded')
+  await swipe(page, 120)
+  await expect(panel).toHaveCount(0)
+})
+
+test("on a phone, a branch's More actions menu stays on screen", async ({ page, graph }) => {
+  test.skip(!isPhone(page), 'Phone layout')
+  const branch = [...graph.nodes.values()].find((n) => n.kind === 'branch' && n.parent !== '')!
+  await openTree(page)
+  await page.goto(`./#/tree/you/engineering/${branch.id}`)
+  await peek(page).getByRole('button', { name: 'More actions' }).click()
+  const box = (await peek(page).getByRole('menu').boundingBox())!
+  expect(box.x).toBeGreaterThanOrEqual(0)
+  expect(box.x + box.width).toBeLessThanOrEqual(page.viewportSize()!.width)
+})
+
+test('only the map zooms: the page itself never scales, nor zooms into a field', async ({
+  page,
+}) => {
+  await openTree(page)
+  const css = (selector: string, property: string) =>
+    page
+      .locator(selector)
+      .first()
+      .evaluate((el, p) => getComputedStyle(el).getPropertyValue(p), property)
+  expect(await css('html', 'touch-action')).toBe('pan-x pan-y')
+  expect(await css('[data-map] > svg', 'touch-action')).toBe('none')
+  if (isPhone(page)) {
+    await page.getByRole('button', { name: /Search leaves/ }).click()
+    expect(parseFloat(await css('input', 'font-size'))).toBeGreaterThanOrEqual(16)
+  }
+})
+
 test('opening a leaf URL shows its Peek, even after the Peek was dismissed', async ({
   page,
   graph,

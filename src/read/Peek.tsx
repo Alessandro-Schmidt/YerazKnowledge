@@ -395,8 +395,27 @@ function PeekHead({
   onExpand,
   onClose,
 }: { kind: string; crumb: string } & Pick<PeekProps, 'expanded' | 'onExpand' | 'onClose'>) {
+  // On a touch screen the handle and head are a grip: swipe up to open the full page,
+  // down to come back to the map, or, from the sheet, to dismiss it.
+  const start = useRef<number | null>(null)
   return (
-    <>
+    <div
+      className={styles.grip}
+      onPointerDown={(e) => {
+        if (e.pointerType !== 'mouse') start.current = e.clientY
+      }}
+      onPointerUp={(e) => {
+        if (start.current === null) return
+        const dy = e.clientY - start.current
+        start.current = null
+        if (dy < -SWIPE && !expanded) onExpand(true)
+        else if (dy > SWIPE) {
+          if (expanded) onExpand(false)
+          else onClose()
+        }
+      }}
+      onPointerCancel={() => (start.current = null)}
+    >
       <span className={styles.handle} aria-hidden="true" />
       <div className={styles.head}>
         <span className={styles.kind}>{kind}</span>
@@ -418,9 +437,12 @@ function PeekHead({
           <Icon name="close" />
         </button>
       </div>
-    </>
+    </div>
   )
 }
+
+/** How far (px) a swipe on the Peek's grip travels before it counts. */
+const SWIPE = 40
 
 /** How a thread list names its ends, and where they are; a ghost is not written yet. */
 const threadNames = (graph: Graph) => ({
