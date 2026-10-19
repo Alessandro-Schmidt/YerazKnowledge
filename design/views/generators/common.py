@@ -8,8 +8,8 @@ OUT.mkdir(parents=True, exist_ok=True)
 TREE_SRC = (HERE.parent.parent / 'screens/source/Tree.dc.html').read_text()   # the theme block comes from the Tree screen
 BASE_CSS = TREE_SRC[TREE_SRC.index('<style>') + len('<style>'):TREE_SRC.index('</style>')]
 
-MARK_DARK = '/_blob/f67842db732c929ea5aca88c45614a41'
-MARK_LIGHT = '/_blob/1a7446438282a48a692a6027a51c74ee'
+MARK_DARK = '/_blob/5e08a8888a5320e635380ff9ad23f9f0'      # brand/svg/yeraz-mark-small.svg
+MARK_LIGHT = '/_blob/8823c5adfa9e0febbcc9b44b0b7aec59'     # brand/svg/yeraz-mark-small-light.svg
 
 # The design's Engineering Tree (Tree.dc.html engData / engLinks).
 def L(id, name, words=None, sum='', children=None, emoji=None):
@@ -147,8 +147,8 @@ def header(active):
     return f'''
   <header style="display: flex; align-items: center; gap: 14px; padding: 10px 16px; border-bottom: 1px solid var(--hair); background: var(--top)">
     <div style="display: flex; align-items: center; gap: 10px">
-      <sc-if value="{{{{isDark}}}}" hint-placeholder-val="{{{{ true }}}}"><img src="{MARK_DARK}" alt="" style="height: 22px; width: auto; display: block"></sc-if>
-      <sc-if value="{{{{isLight}}}}" hint-placeholder-val="{{{{ false }}}}"><img src="{MARK_LIGHT}" alt="" style="height: 22px; width: auto; display: block"></sc-if>
+      <sc-if value="{{{{isDark}}}}" hint-placeholder-val="{{{{ true }}}}"><img src="{MARK_DARK}" alt="" style="height: 24px; width: auto; display: block"></sc-if>
+      <sc-if value="{{{{isLight}}}}" hint-placeholder-val="{{{{ false }}}}"><img src="{MARK_LIGHT}" alt="" style="height: 24px; width: auto; display: block"></sc-if>
       <span style="font-weight: 600; font-size: 15px; letter-spacing: 0.01em">Yeraz</span>
     </div>
     <span style="width: 1px; height: 20px; background: var(--hair)"></span>

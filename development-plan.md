@@ -77,8 +77,8 @@ Values shown are the default theme: Vanta base, green accent. Every theme define
 - **Type:** Geist for the interface, Geist Mono for paths, counts and shortcuts.
 - **Radii:** 8–9 px for controls, 14 px for floating panels.
 - **Icons:** stroke icons, 1.6 px, no emoji in the interface. Emoji appear only as leaf icons chosen by the user.
-- **Logo:** a capital Y cut into six flat faces of brushed steel.
-  - `design/brand/svg/yeraz-mark.svg` sits in the top bar, 22 px tall, next to the word "Yeraz" in Geist 600. On the light Paper base, use `yeraz-mark-light.svg` instead.
+- **Logo:** a leaf in brushed steel whose veins are its git history: the midrib carries four commits, the veins are branches.
+  - `design/brand/svg/yeraz-mark-small.svg` sits in the top bar, 24 px tall, next to the word "Yeraz" in Geist 600. On the light Paper base, use `yeraz-mark-small-light.svg` instead.
   - The logo has no colour of its own. Never tint it with the accent or recolour it with CSS; use the files as they are.
   - Favicon and app icons come from `design/brand/` (see `design/README.md`).
 - **No raster images in the interface:** icons and the logo are SVG, so they stay sharp at every pixel density.
