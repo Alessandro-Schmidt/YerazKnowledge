@@ -6,10 +6,10 @@ import { Redirect, useLocation } from 'wouter'
 import type { TreeRef } from '../github/graphql'
 import { session, useSession } from '../store/session'
 import controls from './controls.module.css'
-import { ConnectDialog, FamilyMenu, lastFamily } from './FamilyMenu'
+import { ConnectDialog, FamilyMenu, lastFamily, openOn } from './FamilyMenu'
 import styles from './FamilyView.module.css'
 import { Icon } from './icons'
-import { treeHref } from './paths'
+import { allHref, treeHref } from './paths'
 import { FolderButton } from './FolderButton'
 import { CreateTreeDialog } from './StructureDialogs'
 import { Divider, TopBar } from './TopBar'
@@ -26,6 +26,8 @@ export function Start() {
 
   const last = lastFamily()?.toLowerCase()
   const family = trees.find((t) => t.repo.toLowerCase() === last) ?? trees[0]
+  // Every Family together, unless this device chose to open on the last one (issue #69).
+  if (trees.length > 1 && openOn() === 'all') return <Redirect to={allHref()} replace />
   if (family) return <Redirect to={treeHref(family.repo)} replace />
 
   const go = (tree: TreeRef) => {

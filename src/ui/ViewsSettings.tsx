@@ -1,15 +1,23 @@
 // Settings › Views: how this device shows a Family (design/views/README.md). The same choice as
 // the switcher in the top bar; both save it per device.
 
+import { useState } from 'react'
 import { useView, ViewIcon } from '../views/ViewSwitcher'
 import { saveView, VIEW_IDS, VIEWS } from '../views/views'
 import styles from './Appearance.module.css'
 import own from './Settings.module.css'
 import controls from './controls.module.css'
+import { openOn, saveOpenOn, type OpenOn } from './FamilyMenu'
 import { SettingsShell } from './Settings'
+
+const OPENINGS: { id: OpenOn; label: string; note: string }[] = [
+  { id: 'all', label: 'All Families', note: 'Every Family on one map, each in its own ring.' },
+  { id: 'last', label: 'The last Family', note: 'The Family you were in last, on its own.' },
+]
 
 export function ViewsSettings() {
   const view = useView()
+  const [opening, setOpening] = useState(openOn)
   return (
     <SettingsShell page="views">
       <main className={`${styles.main} ${own.single}`}>
@@ -41,6 +49,27 @@ export function ViewsSettings() {
                 </label>
               ))}
             </div>
+          </fieldset>
+          <fieldset className={styles.group}>
+            <legend className={controls.eyebrow}>Open the app on</legend>
+            {OPENINGS.map(({ id, label, note }) => (
+              <label key={id} className={own.view}>
+                <input
+                  type="radio"
+                  name="opening"
+                  value={id}
+                  checked={opening === id}
+                  onChange={() => {
+                    saveOpenOn(id)
+                    setOpening(id)
+                  }}
+                />
+                <span className={own.viewText}>
+                  <strong>{label}</strong>
+                  <span className={styles.note}>{note}</span>
+                </span>
+              </label>
+            ))}
           </fieldset>
         </div>
       </main>

@@ -41,6 +41,8 @@ export interface TreeMapProps {
   onOpen(id: string): void
   /** Space covered by floating panels, kept clear when fitting and following the selection. */
   insets: Partial<Insets>
+  /** Names of the layout's groups (every Family on one map): each is drawn as a named ring. */
+  groupTitles?: Record<string, string>
 }
 
 const SVG_NS = 'http://www.w3.org/2000/svg'
@@ -86,6 +88,7 @@ export function TreeMap({
   onSelect,
   onOpen,
   insets,
+  groupTitles,
 }: TreeMapProps) {
   const stageRef = useRef<HTMLDivElement>(null)
   const svgRef = useRef<SVGSVGElement>(null)
@@ -378,7 +381,7 @@ export function TreeMap({
           </defs>
           <rect width="100%" height="100%" fill={`url(#${CSS.escape(gridId)})`} />
           <g ref={cameraRef} className={styles.camera}>
-            <Family family={family} colors={treeColors} />
+            <Family family={family} colors={treeColors} groupTitles={groupTitles} />
           </g>
         </svg>
         {/* The selection layer: its own composited layer, so selecting never repaints the map. */}
@@ -472,12 +475,25 @@ export function TreeMap({
 const Family = memo(function Family({
   family,
   colors,
+  groupTitles = {},
 }: {
   family: FamilyLayout
   colors: Record<string, string>
+  groupTitles?: Record<string, string> | undefined
 }) {
   return (
     <>
+      {family.groups.map((g) => {
+        const size = Math.round(Math.max(28, g.r / 14))
+        return (
+          <g key={g.id} data-group={g.id}>
+            <circle className={fam.group} cx={g.x} cy={g.y} r={g.r} />
+            <text className={fam.groupName} x={g.x} y={g.y - g.r + size * 1.6} fontSize={size}>
+              {groupTitles[g.id] ?? g.id}
+            </text>
+          </g>
+        )
+      })}
       <g className={styles.threads}>
         {family.between.map((t, i) => (
           <path
