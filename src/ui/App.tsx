@@ -5,6 +5,7 @@ import { session, useSession } from '../store/session'
 import { Appearance } from './Appearance'
 import { treeHref, decodePath } from './paths'
 import { TokenScreen } from './TokenScreen'
+import { AllView } from './AllView'
 import { FamilyView } from './FamilyView'
 import { Start } from './Start'
 import { TreeColours } from './TreeColours'
@@ -15,6 +16,7 @@ import { ViewsSettings } from './ViewsSettings'
 //   #/tree/:owner/:name[/path/to/leaf.md] a Family (one repository) with all its Trees,
 //                                         optionally with a node selected
 //   #/edit/:owner/:name/path/to/leaf.md   an old link: the leaf, editable in its Family
+//   #/all[/:owner/:name/path]            every Family on one map, optionally with a node selected
 //   #/settings/appearance                 Settings › Appearance (system colours, fonts)
 //   #/settings/views                      Settings › Views (how a Family is shown)
 //   #/settings/colours                    Settings › Tree colours (in .yeraz.json)
@@ -60,6 +62,8 @@ export function App() {
       <Switch>
         <Route path="/" component={Start} />
         <Route path="/tree/:owner/:name/*?" component={FamilyView} />
+        <Route path="/all/:owner/:name/*?" component={AllView} />
+        <Route path="/all" component={AllView} />
         <Route path="/edit/:owner/:name/*">
           {(params) => (
             <Redirect

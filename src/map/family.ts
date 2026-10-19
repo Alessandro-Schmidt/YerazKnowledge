@@ -32,6 +32,15 @@ export interface FamilyLayout {
   between: (Thread & { d: string })[]
   /** The box around every Tree and its name, for fitting the whole Family. */
   bounds: Box
+  /** Groups of Trees packed together (every Family on one map, families.ts): circle and id. */
+  groups: TreeGroup[]
+}
+
+export interface TreeGroup {
+  id: string
+  x: number
+  y: number
+  r: number
 }
 
 /** Room between Trees, in layout units. */
@@ -120,7 +129,11 @@ export function familyLayout(graph: Graph): FamilyLayout {
   return family
 }
 
-function layoutFamily(graph: Graph): FamilyLayout {
+/**
+ * A Family's layout. With `groupOf`, the Trees of each group are packed together first,
+ * then the groups (each Family of the map of every Family, families.ts).
+ */
+export function layoutFamily(graph: Graph, groupOf?: (tree: string) => string): FamilyLayout {
   const trees: PlacedTree[] = treesOf(graph).map((id) => {
     const tree = treeGraph(graph, id)
     const full = layoutTree(tree)
@@ -136,8 +149,27 @@ function layoutFamily(graph: Graph): FamilyLayout {
   })
 
   // The largest Trees first, so they sit in the middle.
-  packSiblings([...trees].sort((a, b) => b.r - a.r))
-  const centre = trees.length ? packEnclose(trees) : { x: 0, y: 0 }
+  const pack = (circles: { r: number }[]) => packSiblings([...circles].sort((a, b) => b.r - a.r))
+  const groups: TreeGroup[] = []
+  if (groupOf) {
+    const members = new Map<string, PlacedTree[]>()
+    for (const t of trees) members.set(groupOf(t.id), [...(members.get(groupOf(t.id)) ?? []), t])
+    for (const [id, inside] of members) {
+      pack(inside)
+      const c = packEnclose(inside)
+      for (const t of inside) Object.assign(t, { x: t.x - c.x, y: t.y - c.y })
+      // Room for the group's name along its top.
+      groups.push({ id, x: 0, y: 0, r: c.r + GAP * 2 })
+    }
+    pack(groups)
+    for (const g of groups)
+      for (const t of members.get(g.id)!) Object.assign(t, { x: t.x + g.x, y: t.y + g.y })
+  } else pack(trees)
+  const centre = trees.length ? packEnclose(groups.length ? groups : trees) : { x: 0, y: 0 }
+  for (const g of groups) {
+    Object.assign(g, { x: Math.round(g.x - centre.x), y: Math.round(g.y - centre.y) })
+    g.r = Math.round(g.r)
+  }
   const bounds: Box = { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity }
   const treeOf = new Map<string, PlacedTree>()
   for (const t of trees) {
@@ -151,9 +183,15 @@ function layoutFamily(graph: Graph): FamilyLayout {
     bounds.x1 = Math.max(bounds.x1, t.x + b.x1, t.x + half)
     bounds.y1 = Math.max(bounds.y1, t.y + t.name.y + t.name.size * 0.3)
   }
+  for (const g of groups) {
+    bounds.x0 = Math.min(bounds.x0, g.x - g.r)
+    bounds.y0 = Math.min(bounds.y0, g.y - g.r)
+    bounds.x1 = Math.max(bounds.x1, g.x + g.r)
+    bounds.y1 = Math.max(bounds.y1, g.y + g.r)
+  }
   if (!trees.length) Object.assign(bounds, { x0: -100, y0: -100, x1: 100, y1: 100 })
 
-  const family = { trees, treeOf, between: [], bounds } as FamilyLayout
+  const family = { trees, treeOf, between: [], bounds, groups } as FamilyLayout
   // From a leaf up its Tree to the core, across to the other core (bowed to one side, so
   // the two directions between a pair don't overlap), and down to the other leaf.
   const bundle = line().curve(curveBundle.beta(0.85))

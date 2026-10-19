@@ -13,3 +13,23 @@
 [data-zoom='near'] .name {
   display: none;
 }
+
+/* Every Family on one map (families.ts): each Family's Trees inside a named ring. */
+.group {
+  fill: none;
+  stroke: var(--hair);
+  stroke-width: 2;
+  stroke-dasharray: 6 8;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+.groupName {
+  font-weight: 600;
+  fill: var(--muted);
+  text-anchor: middle;
+  letter-spacing: 0.02em;
+  pointer-events: none;
+}
+[data-zoom='near'] .groupName {
+  display: none;
+}

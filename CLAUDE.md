@@ -28,7 +28,8 @@ Read `ideas.txt` (why), `ARCHITECTURE.md` (how), `development-plan.md` (what, in
 - `src/local/folder.ts` folders on this device (issue #64, ARCHITECTURE.md §5.6): File System Access API, or the desktop's
   commands (`src-tauri/src/folder.rs`); a folder Family's id is `~/<slug>`. Tests use `test/memoryFolder.ts`
 - `src/editor/` CodeMirror 6 (lazy chunk): `Editor.tsx`, `livePreview.ts` (+ `metaLine.ts`: line 2 hidden, kept whole), `LeafEditor.tsx` (the leaf, edited in the Peek), `mentions.ts`, `insertMenu.ts`, `images.ts`, `emoji.ts`
-- `src/map/` `layout.ts` (pure, d3) · `family.ts` (a Family's Trees, placed) · `TreeMap.tsx` · `useZoom.ts`
+- `src/map/` `layout.ts` (pure, d3) · `family.ts` (a Family's Trees, placed) · `families.ts` (every Family merged, ids
+  `owner/name::path`; drawn by `ui/AllView.tsx` at `#/all`, the default `#/`) · `TreeMap.tsx` · `useZoom.ts`
 - `src/views/` the other views (`design/views/`): `views.ts` (ids, saved per device), `ViewSwitcher.tsx`, `index.ts` (lazy chunks),
   `Canvas.tsx` (drawn views' stage: camera, selection layer), one file per view, pure layouts in `layout/`;
   Settings › Views (`ui/ViewsSettings.tsx`) and › Tree colours (`ui/TreeColours.tsx`, `.yeraz.json` `trees`)
