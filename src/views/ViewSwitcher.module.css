@@ -10,6 +10,15 @@
   background: var(--panel);
   flex-shrink: 0;
 }
+/* In a narrow window the views scroll sideways rather than push the bar off (issue #76). */
+@media (max-width: 1100px) {
+  .bar {
+    flex-shrink: 1;
+    min-width: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+}
 
 .tab {
   display: inline-flex;
