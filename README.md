@@ -48,6 +48,16 @@ Yeraz signs in with a fine-grained personal access token, kept on your device (i
 
 It works in the desktop app and in Chrome or Edge on a computer. Safari, Firefox and phone browsers can't open folders, so there Yeraz needs GitHub. A folder keeps no history: *History* is GitHub's.
 
+### Bring your notes from another app
+
+An Obsidian vault, a Notion export (*Markdown & CSV*, unzipped) or any folder of Markdown becomes a new Family with one command, from a clone of this repository:
+
+```sh
+npm run import -- ~/Obsidian/Vault ~/Notes/Vault --name "My notes"
+```
+
+Notion's ids leave the file names, `[[wikilinks]]` and relative links become threads, attachments move to `assets/`, and each note gets its title on line 1. The source isn't touched. Open the new folder with *Use a folder*, or push it to a GitHub repository. With [Claude Code](https://claude.com/claude-code) in this repository, asking it to *import my Obsidian vault* runs the same steps (`.claude/skills/import-notes/`).
+
 ### Every Family together
 
 With more than one Family (repositories or folders), Yeraz opens on all of them on one map, each in its own ring, and every view (Mind map, Outline, Columns, Treemap, Graph, Growth rings, Atlas) shows them all too. Click any leaf to read and edit it there. *All Families* in the Family menu brings that map back; to open on the last Family instead, choose *The last Family* in Settings › Views.
