@@ -60,7 +60,8 @@ Read `ideas.txt` (why), `ARCHITECTURE.md` (how), `development-plan.md` (what, in
 ## Repository format (the contract, ARCHITECTURE.md §4)
 
 - [ ] A leaf is a `.md` file; line 1 is the title (`# 🔐 Keycloak`, leading emoji = icon)
-- [ ] Optional line 2: `<!-- yeraz {...} -->` metadata; colours are names (`"amber"`), not hex; `coverPosition` is % from the top
+- [ ] Optional line 2: `<!-- yeraz {...} -->` metadata; colours are names (`"amber"`), not hex; `coverPosition` is % from the top;
+  `icon` is an image icon (`/assets/…` or https, instead of the title's emoji); `iconPosition` is `center` or `right`
 - [ ] Sub-leaves live in a sibling folder with the same name (`keycloak.md` + `keycloak/`)
 - [ ] A branch is a folder without a same-named `.md`; its name is the folder name, as typed
 - [ ] A branch's text is `README.md` in its folder (exact name): not a leaf, never renames the branch;

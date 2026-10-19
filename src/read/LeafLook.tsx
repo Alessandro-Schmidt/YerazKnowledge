@@ -43,3 +43,10 @@ export function Cover({
     />
   )
 }
+
+/** The address of a leaf's image (its image icon, line 2): a file of the Tree, or https. */
+export function imageAt(repo: string, src: string): Promise<string | null> {
+  if (/^https:\/\//.test(src)) return Promise.resolve(src)
+  const own = ownPath(src)
+  return own === null ? Promise.resolve(null) : session.getState().assetUrl(repo, own)
+}

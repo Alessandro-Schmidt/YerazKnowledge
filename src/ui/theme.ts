@@ -2,6 +2,7 @@
 // setting four data attributes on <html>. Nothing else in src/ holds a colour.
 
 import themes from '../../design/themes/themes.json'
+import { FLAGS_FONT } from './flags'
 
 export type BaseId = keyof typeof themes.bases
 export type AccentId = keyof typeof themes.accents
@@ -27,7 +28,8 @@ const FONT_FACES: Record<string, string> = {
 
 /** A reading font's CSS stack, pointing at the self-hosted family. */
 export function fontStack(id: FontId): string {
-  return themes.fonts[id].reading.replace(/'[^']+'/, (f) => FONT_FACES[f] ?? f)
+  // The flags font first: it exists only where the system has no flags (flags.ts).
+  return `'${FLAGS_FONT}', ${themes.fonts[id].reading.replace(/'[^']+'/, (f) => FONT_FACES[f] ?? f)}`
 }
 
 export function modeOf(base: BaseId): Mode {
