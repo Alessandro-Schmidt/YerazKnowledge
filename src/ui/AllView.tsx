@@ -6,7 +6,7 @@
 // ponytail: the Explorer and Tree colours stay per Family; search picks open the result in its
 // Family.
 
-import { Suspense, useCallback, useEffect, useMemo, useState } from 'react'
+import { Suspense, useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import { useLocation } from 'wouter'
 import type { TreeRef } from '../github/graphql'
 import {
@@ -41,6 +41,7 @@ import { Search, type Matches } from './Search'
 import { parentFor, StructureDialog, type StructureAction } from './StructureDialogs'
 import { colorVar } from './theme'
 import { Divider, TopBar } from './TopBar'
+import { widthStore, widthVars } from './panels'
 import { PHONE, useMedia } from './useMedia'
 
 const TITLE = 'All Families'
@@ -165,9 +166,11 @@ export function AllView({ params }: { params: { owner?: string; name?: string; '
     return ids.length ? { query: found.query, ids } : null
   }, [found])
 
+  // The panels' widths, dragged by their edges and saved on this device (issue #80).
+  const widths = useSyncExternalStore(widthStore.subscribe, widthStore.get)
   const insets = phone
     ? { bottom: peekShown ? Math.round(window.innerHeight * 0.6) : 0 }
-    : { right: peekShown && !expanded ? (panel === 'dock' ? DOCK : 452) : 0 }
+    : { right: peekShown && !expanded ? (panel === 'dock' ? widths.dock : widths.peek + 32) : 0 }
   // New leaf goes to the selection's Family, or the first one.
   const target = family ?? families[0]
   const View = view === 'map' ? null : VIEW_COMPONENTS[view]
@@ -182,7 +185,7 @@ export function AllView({ params }: { params: { owner?: string; name?: string; '
   }
 
   return (
-    <div className={styles.page}>
+    <div className={styles.page} data-panels="" style={widthVars(widths) as React.CSSProperties}>
       <TopBar>
         <Divider />
         <div className={styles.crumbs}>
@@ -302,6 +305,3 @@ export function AllView({ params }: { params: { owner?: string; name?: string; '
     </div>
   )
 }
-
-/** Width of the Peek docked beside the Columns (as in FamilyView). */
-const DOCK = 640

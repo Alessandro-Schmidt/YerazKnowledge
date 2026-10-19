@@ -1,0 +1,44 @@
+/* A panel's draggable edge (ResizeHandle.tsx): a line in the accent colour on hover. */
+.edge {
+  position: absolute;
+  z-index: 4;
+  top: 0;
+  bottom: 0;
+  width: 10px;
+  cursor: col-resize;
+  touch-action: none;
+}
+.edge[data-edge='left'] {
+  left: 0;
+}
+.edge[data-edge='right'] {
+  right: -5px;
+}
+.edge::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 4px;
+  width: 2px;
+  background: transparent;
+  transition: background 0.12s;
+}
+.edge[data-edge='left']::after {
+  left: 0;
+}
+.edge:hover::after,
+.edge:focus-visible::after,
+.edge[data-dragging]::after {
+  background: var(--accent);
+}
+.edge:focus-visible {
+  outline: none;
+}
+
+/* Phones show the panels as sheets: no edge to drag. */
+@media (max-width: 640px) {
+  .edge {
+    display: none;
+  }
+}
