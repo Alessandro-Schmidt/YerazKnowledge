@@ -10,6 +10,7 @@ import { compactWords, type Graph } from '../model/graph'
 import { ROOT } from '../model/tree'
 import { markNow } from '../perf'
 import { preloadEditor } from '../editor/LeafEditor'
+import { imageAt } from '../read/LeafLook'
 import { Peek } from '../read/Peek'
 import { session, useSession } from '../store/session'
 import controls from './controls.module.css'
@@ -93,6 +94,7 @@ export function FamilyView({ params }: { params: { owner: string; name: string; 
     [navigate, repo],
   )
   const href = useCallback((id: string) => `#${treeHref(repo, id)}`, [repo])
+  const imageUrl = useCallback((_: string, src: string) => imageAt(repo, src), [repo])
   const color = colorVar(tree?.color)
   // Each Tree's colour, for the map's Tree groups.
   const treeColors = useMemo(
@@ -229,6 +231,7 @@ export function FamilyView({ params }: { params: { owner: string; name: string; 
               treeKey={key}
               graph={graph}
               family={family}
+              imageUrl={imageUrl}
               title={tree?.title ?? repo}
               color={color}
               treeColors={treeColors}

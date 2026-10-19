@@ -58,7 +58,9 @@ test.describe('the header', () => {
       mimeType: 'image/png',
       buffer: Buffer.from(png.slice(png.indexOf(',') + 1), 'base64'),
     })
-    await page.getByRole('button', { name: 'Reposition' }).click()
+    // Reposition is in the cover's one button (with Upload and Remove).
+    await page.getByRole('button', { name: 'Change cover' }).click()
+    await page.getByRole('menuitem', { name: 'Reposition' }).click()
     await page.getByRole('slider', { name: 'Cover position' }).press('ArrowDown')
     await page.getByRole('button', { name: 'Save position' }).click()
     await page.keyboard.press('ControlOrMeta+s')

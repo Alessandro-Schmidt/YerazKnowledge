@@ -62,7 +62,7 @@ These rules are the only thing that must stay stable across versions. Tests lock
 |---|---|
 | A leaf is a `.md` file. **Line 1 is the title.** | `# Keycloak` |
 | An emoji at the start of the title is the leaf's icon. | `# 🔐 Keycloak` |
-| Optional **line 2** is a metadata comment: cover and the part of it that shows (`coverPosition`, percent from the top, centred when absent), image icon, colours. It is invisible when GitHub renders the file. Colours are **named** (`green`, `amber`, `blue`, `violet`…), so they adapt to every theme (§13). | `<!-- yeraz {"cover":"https://…","coverPosition":30,"color":{"heading":"amber"}} -->` |
+| Optional **line 2** is a metadata comment: cover and the part of it that shows (`coverPosition`, percent from the top, centred when absent), an image icon (`icon`: `/assets/…` or an https address, in place of the title's emoji; shown on the map in its dot), where the icon sits over the cover (`iconPosition`: `center` or `right`, left when absent), colours. It is invisible when GitHub renders the file. Colours are **named** (`green`, `amber`, `blue`, `violet`…), so they adapt to every theme (§13). | `<!-- yeraz {"cover":"https://…","coverPosition":30,"color":{"heading":"amber"}} -->` |
 | A leaf's sub-leaves and sub-branches live in a **sibling folder with the same name**. | `identity/keycloak.md` + `identity/keycloak/realms.md` |
 | A branch is a folder with no sibling `.md` file of the same name. Its name is the folder name, kept as typed. Git stores no empty folders, so a new branch is created with its first leaf. | `AI Agents/` |
 | A branch's **text** is the `README.md` in its folder (that name exactly, case included), which GitHub shows under the folder's files. It is not a leaf: no node, no words in the totals, and its line 1 doesn't rename the branch. A folder holding only its `README.md` is still a branch. The root's `README.md`, and one in a leaf's sibling folder, stay ordinary leaves. Links in a branch's text are threads from the branch; a link to it is a thread to the branch. | `AI Agents/README.md` |
@@ -241,6 +241,10 @@ Next to the radial map, a Family can be shown seven other ways (design: `design/
   - On desktop, check Tauri's webview printing on all three OSes early in development. The fallback is a small Rust command that calls the webview's native print.
   - PDFs always use the original images, never smaller copies.
   - Printing always uses the Paper base, whatever theme is on screen, so a dark theme never prints as a black page.
+
+### Flags
+
+Windows' emoji font has no flags: "🇫🇷" shows as the letters FR. Where the system can't draw a flag (always on Windows, otherwise tested on a canvas), `ui/flags.ts` adds a flags-only cut of Google's Noto Color Emoji (`public/fonts/noto-flags.woff2`, SIL OFL 1.1, about 700 KB of COLRv1 vectors), named first in every font stack and limited to the flags' code points, so it is fetched only when a flag is on screen, and kept out of the offline precache. Apple's emoji, the owner's first choice, may not be bundled; Noto's waving flags are the closest free match. Apple's and Android's own flags stay.
 
 ### Images at full definition
 
