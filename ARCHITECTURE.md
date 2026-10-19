@@ -195,7 +195,8 @@ Issue #64: a Family can be a folder on this device instead of a repository, so n
   - Each Family's graph is merged under one root with its ids prefixed (`owner/name::path`), so the Family map draws it unchanged. `layoutFamily` packs each Family's Trees together, then the Families, each in a dashed ring with its name.
   - A link to a leaf in another connected Family (its GitHub URL, §4) is a thread between the two rings.
   - A selected node opens in its own Family's Peek, with that Family's graph and paths, so reading, editing and saving are the same code as inside a Family. Save and Refresh act on every Family.
-  - Only the radial map shows every Family; the other views and the Explorer stay per Family.
+  - Every view (§6.1) shows every Family too: it gets the merged graph and `allRef` (repo `*`, each Tree keeping its Family's colour); its first lines and planting dates are each Family's, merged (`views/common.ts`), and its actions go to the node's Family. The Explorer stays per Family.
+  - Opening the app on a Family's own address (a restored tab, a bookmark) shows every Family too; an address naming a leaf opens on it.
 - **Ceiling:** SVG should hold 60 fps up to about 2,000 nodes on a mid-range phone; the performance tests confirm the real number. Above it, the node and edge layers can be swapped for one `<canvas>` using the same layout data. That swap is planned, not built.
 
 ### 6.1 Other views of a Family

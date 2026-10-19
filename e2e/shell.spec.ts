@@ -49,7 +49,13 @@ test('switches theme through the data attributes alone', async ({ page }) => {
 })
 
 test('loads the Geist interface font', async ({ page }) => {
-  expect(await page.evaluate(() => document.fonts.check('500 14px "Geist Variable"'))).toBe(true)
+  // `fonts.ready` can settle before the screen first asks for this weight: ask for it, then
+  // check it is there (a missing or broken font loads no face).
+  const faces = await page.evaluate(async () => {
+    const loaded = await document.fonts.load('500 14px "Geist Variable"')
+    return { loaded: loaded.length, check: document.fonts.check('500 14px "Geist Variable"') }
+  })
+  expect(faces).toEqual({ loaded: 1, check: true })
 })
 
 test('the token screen has no accessibility violations', async ({ page }) => {
