@@ -37,6 +37,8 @@ export interface EditorProps {
   autoFocus?: boolean
   /** Line 1 hidden: a branch's text, whose name the Peek shows above it. */
   titleHidden?: boolean
+  /** Line 1 to write when the text has none and an icon or line 2 needs one (a branch's name). */
+  untitled?: string | undefined
   /** The Tree's leaves, for @ mentions and their chips. */
   mentionsFrom?: MentionSource
   /** Insert menu items the page handles: images, new leaves and branches. */
@@ -58,6 +60,7 @@ export default function Editor({
   handleRef,
   autoFocus,
   titleHidden,
+  untitled,
   mentionsFrom,
   onInsert,
   onFiles,
@@ -74,6 +77,7 @@ export default function Editor({
   const assetRef = useRef(assetUrl)
   const filesListRef = useRef(files)
   const sizeRef = useRef(fileSize)
+  const untitledRef = useRef(untitled)
   useEffect(() => {
     changed.current = onChange
     insertRef.current = onInsert
@@ -81,6 +85,7 @@ export default function Editor({
     assetRef.current = assetUrl
     filesListRef.current = files
     sizeRef.current = fileSize
+    untitledRef.current = untitled
   })
 
   useEffect(() => {
@@ -179,8 +184,9 @@ export default function Editor({
       })
     }
     handleRef.current = {
-      setIcon: (icon) => rewrite((text) => withIcon(text, icon)),
-      setMeta: (update) => rewrite((text) => withMeta(text, update(parseLeaf(text).meta ?? {}))),
+      setIcon: (icon) => rewrite((text) => withIcon(text, icon, untitledRef.current)),
+      setMeta: (update) =>
+        rewrite((text) => withMeta(text, update(parseLeaf(text).meta ?? {}), untitledRef.current)),
       insertText(text, block) {
         const v = view.current
         if (!v) return

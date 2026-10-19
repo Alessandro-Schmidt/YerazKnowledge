@@ -264,3 +264,14 @@
 [data-zoom='far'] .node[data-match] .label {
   display: inline;
 }
+
+/* A Tree's icon, on its core's top edge (TreeMap.tsx). */
+.coreIcon circle {
+  fill: var(--core);
+  stroke: var(--node);
+  stroke-opacity: 0.3;
+  stroke-width: 1px;
+}
+.coreIcon {
+  pointer-events: none;
+}

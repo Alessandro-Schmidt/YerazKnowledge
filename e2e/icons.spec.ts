@@ -120,3 +120,48 @@ test.describe('flags on Windows', () => {
       .toEqual(['loaded'])
   })
 })
+
+test.describe('a Tree’s icon and cover', () => {
+  test.skip(({ isMobile }) => isMobile, 'Desktop engines')
+
+  test('a folder Tree keeps them in its README.md, and its core shows the icon', async ({
+    page,
+    fake,
+    graph,
+  }) => {
+    const tree = graph.nodes
+      .get('')!
+      .children.find((id) => graph.nodes.get(id)!.kind === 'branch' && !graph.nodes.get(id)!.sha)!
+    await page.goto(`./#/tree/${REPO}/${tree}`)
+    await signInHere(page)
+    const peek = page.getByRole('region', { name: 'Tree preview' })
+    await peek.getByRole('button', { name: 'Add icon' }).click()
+    await peek.getByRole('menuitem', { name: 'Choose an emoji' }).click()
+    await peek.getByRole('searchbox', { name: 'Search emoji' }).fill('robot')
+    await peek.getByRole('searchbox', { name: 'Search emoji' }).press('Enter')
+
+    const chooser = page.waitForEvent('filechooser')
+    await peek.getByRole('button', { name: 'Add cover' }).click()
+    await (
+      await chooser
+    ).setFiles({
+      name: 'cover.png',
+      mimeType: 'image/png',
+      buffer: await png(page, 1200, 400),
+    })
+    await expect(peek.getByRole('button', { name: 'Change cover' })).toBeVisible()
+    await page.keyboard.press('ControlOrMeta+s')
+    // The README starts from the branch's name; its line 1 never renames the branch.
+    await expect
+      .poll(() => fake.repo(REPO).read(`${tree}/README.md`))
+      .toMatch(
+        new RegExp(
+          `^# 🤖 ${graph.nodes.get(tree)!.title}\\n<!-- yeraz \\{"cover":"/assets/\\d{4}-\\d{2}-\\d{2}-cover\\.png"\\} -->\\n`,
+        ),
+      )
+    await expect(page.locator(`[data-map] > svg [data-tree="${tree}"] [data-core]`)).toContainText(
+      '🤖',
+    )
+    await expect(peek.getByRole('heading', { level: 2 })).toHaveText(graph.nodes.get(tree)!.title)
+  })
+})

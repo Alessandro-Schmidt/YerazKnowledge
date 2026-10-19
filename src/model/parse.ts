@@ -174,12 +174,12 @@ export function parseLeaf(text: string): ParsedLeaf {
  * Line 1 with a new icon (or none), keeping the title: `# 🔐 Keycloak`. A text without a
  * title line gets one. Only line 1 changes; the file name never does (ARCHITECTURE.md §4).
  */
-export function withIcon(text: string, icon: string | null): string {
+export function withIcon(text: string, icon: string | null, untitled = 'Untitled'): string {
   const end = text.search(/\r\n|\r|\n|$/)
   const first = text.slice(0, end)
   const heading = HEADING.exec(stripBom(first))
   const title = heading ? (splitIcon(heading[1] ?? '').title ?? '') : ''
-  const line = `# ${icon ? `${icon} ` : ''}${title || 'Untitled'}`.trimEnd()
+  const line = `# ${icon ? `${icon} ` : ''}${title || untitled}`.trimEnd()
   return heading ? line + text.slice(end) : `${line}\n\n${text}`
 }
 
@@ -235,10 +235,10 @@ const canonical = (value: unknown): string =>
  * Line 2 with new metadata (cover, colours…), or without line 2 when `meta` is empty.
  * Unchanged metadata leaves the text byte for byte as it was; only line 2 ever changes.
  */
-export function withMeta(text: string, meta: LeafMeta | null): string {
+export function withMeta(text: string, meta: LeafMeta | null, untitled = 'Untitled'): string {
   const newline = /\r\n|\r|\n/.exec(text)?.[0] ?? '\n'
   if (!HEADING.test(stripBom(text.slice(0, text.search(/\r\n|\r|\n|$/)))))
-    text = `# Untitled${newline}${newline}${text}`
+    text = `# ${untitled}${newline}${newline}${text}`
   const titleEnd = text.search(/\r\n|\r|\n|$/)
   const secondStart = titleEnd + (/^\r\n/.test(text.slice(titleEnd)) ? 2 : 1)
   const secondEnd =

@@ -113,17 +113,35 @@ describe("a branch's text (its folder's README.md)", () => {
     return buildGraph(model, parsed, 'T')
   })()
 
-  it('keeps the folder name and adds no words, leaves or icon', () => {
+  it('keeps the folder name and adds no words or leaves; its icon and look are the text’s', () => {
     expect(g.nodes.get('AI Agents')).toMatchObject({
       kind: 'branch',
       title: 'AI Agents',
-      icon: null,
+      icon: '🤖',
       words: 0,
       total: g.nodes.get('AI Agents/prompting.md')!.words,
       sha: 'sha-AI Agents/README.md',
     })
     expect(g.nodes.has('AI Agents/README.md')).toBe(false)
     expect(g.stats).toMatchObject({ leaves: 2, branches: 1 })
+  })
+
+  it('takes a cover and an image icon from its text’s line 2', () => {
+    const files = {
+      'Art/README.md':
+        '# Art\n<!-- yeraz {"cover":"/assets/c.png","icon":"/assets/i.png","iconPosition":"center"} -->\n',
+      'Art/caravaggio.md': '# Caravaggio\n',
+    }
+    const model = buildTree(
+      Object.keys(files).map((path) => ({ path, type: 'blob' as const, sha: path, size: 1 })),
+    )
+    const parsed = new Map(Object.entries(files).map(([p, t]) => [p, parseLeaf(t)]))
+    expect(buildGraph(model, parsed, 'T').nodes.get('Art')).toMatchObject({
+      title: 'Art',
+      icon: null,
+      image: '/assets/i.png',
+      meta: { cover: '/assets/c.png', iconPosition: 'center' },
+    })
   })
 
   it('makes its links threads from the branch, and links to it threads to the branch', () => {
