@@ -1,8 +1,16 @@
 // An empty text, in the editor: what to do with it, in place of a body (owner's wording),
 // and a branch's text without its heading, which the Peek already shows as the branch's name.
 
+import { syntaxTree } from '@codemirror/language'
 import { EditorState, Facet, StateField, type Text } from '@codemirror/state'
-import { Decoration, EditorView, WidgetType, type DecorationSet } from '@codemirror/view'
+import {
+  Decoration,
+  EditorView,
+  ViewPlugin,
+  WidgetType,
+  type DecorationSet,
+  type ViewUpdate,
+} from '@codemirror/view'
 import { HEADING, META } from '../model/parse'
 import { isMac, isTouch } from '../ui/platform'
 
@@ -51,6 +59,58 @@ class Hint extends WidgetType {
 }
 
 const hint = Decoration.widget({ widget: new Hint(), side: 1 })
+
+/** A new line's hint's words (issue #68): on touch, tap and hold or `/` opens the menu. */
+export function lineHintParts(touch: boolean, mac: boolean): [string, string, string] {
+  if (touch) return ['Tap and hold, or type ', '/', ', to see options']
+  return ['Hold ', mac ? '⌘' : 'Ctrl', ' to see options']
+}
+
+class LineHint extends WidgetType {
+  eq() {
+    return true
+  }
+  toDOM() {
+    const el = document.createElement('span')
+    el.className = 'cm-line-hint'
+    el.setAttribute('aria-hidden', 'true')
+    const [before, key, after] = lineHintParts(isTouch(), isMac)
+    const kbd = document.createElement('kbd')
+    kbd.textContent = key
+    el.append(before, kbd, after)
+    return el
+  }
+}
+
+const lineHint = Decoration.widget({ widget: new LineHint(), side: 1 })
+
+/** Where the new line's hint goes: the empty body line being written on, outside code. */
+function newLine(view: EditorView): DecorationSet {
+  const { state } = view
+  const { main } = state.selection
+  if (!view.hasFocus || !main.empty || state.selection.ranges.length > 1) return Decoration.none
+  const line = state.doc.lineAt(main.head)
+  if (line.text !== '' || line.number < bodyStart(state.doc) || isEmpty(state.doc))
+    return Decoration.none
+  for (let n = syntaxTree(state).resolveInner(line.from, 1); n.parent; n = n.parent)
+    if (n.name === 'FencedCode' || n.name === 'CodeBlock') return Decoration.none
+  return Decoration.set(lineHint.range(line.from))
+}
+
+/** A faint hint at the start of each new line: how to open the insert menu. */
+export const newLineHint = ViewPlugin.fromClass(
+  class {
+    decorations: DecorationSet
+    constructor(view: EditorView) {
+      this.decorations = newLine(view)
+    }
+    update(update: ViewUpdate) {
+      if (update.docChanged || update.selectionSet || update.focusChanged)
+        this.decorations = newLine(update.view)
+    }
+  },
+  { decorations: (v) => v.decorations },
+)
 
 /** The hint at the end of an empty text, where the cursor goes to write. */
 export const emptyHint = EditorView.decorations.compute(['doc'], (state) =>
