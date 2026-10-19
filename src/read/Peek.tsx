@@ -98,10 +98,16 @@ export function Peek({
   const children = node.kind === 'root' ? treesOf(graph) : node.children
   const crumb =
     node.kind === 'root'
-      ? `github.com/${tree.repo}`
+      ? tree.folder !== undefined
+        ? `This device · ${tree.folder}`
+        : `github.com/${tree.repo}`
       : [graph.nodes.get(ROOT)!.title, ...crumbs(graph, id)].join(' / ')
   const path =
-    node.kind === 'root' ? `${tree.repo} @ ${tree.branch}` : node.kind === 'branch' ? `${id}/` : id
+    node.kind === 'root'
+      ? (tree.folder ?? `${tree.repo} @ ${tree.branch}`)
+      : node.kind === 'branch'
+        ? `${id}/`
+        : id
   const chips =
     node.kind === 'root'
       ? [
@@ -332,7 +338,7 @@ export function Peek({
                       Export PDF
                     </button>
                   )}
-                  {node.kind === 'leaf' && (
+                  {node.kind === 'leaf' && tree.folder === undefined && (
                     <button type="button" role="menuitem" onClick={() => setHistoryOf(id)}>
                       History
                     </button>

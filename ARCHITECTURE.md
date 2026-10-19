@@ -12,7 +12,7 @@ This document was written with two lenses: **performance** and **least code**. M
 
 ## 1. Principles
 
-1. **GitHub is the backend.** There is no server of ours. A repository is a database, a commit is a transaction.
+1. **GitHub is the backend.** There is no server of ours. A repository is a database, a commit is a transaction. A Family can also live in a folder on the device (§5.6), for people without GitHub: the same files, written instead of committed.
 2. **Markdown text is the only document model.** The editor edits text directly. Nothing is converted to another format and back, so nothing can be lost in conversion, and diffs stay minimal.
 3. **Everything is cached by content hash.** Each file version is stored locally under its git blob SHA. A SHA never changes meaning, so the cache never needs invalidating and nothing is downloaded twice.
 4. **One codebase, two shells.** The same static web build runs on GitHub Pages (installable on phones) and inside a Tauri desktop app.
@@ -143,6 +143,16 @@ Renaming a Family changes only `name` in `.yeraz.json`. The edit is committed li
 ### 5.5 When leaves were planted
 
 Growth rings (§6.1) asks GraphQL `blame(path:)` on the commit last pulled, 20 files per request, and takes the oldest commit date among each file's lines. The dates are kept on the device (`planted:<owner/name>`); later only leaves not dated yet are asked for, and a leaf not committed yet is planted now. Nothing else reads it.
+
+### 5.6 A Family in a folder
+
+Issue #64: a Family can be a folder on this device instead of a repository, so nobody needs a GitHub account to start. A folder that iCloud Drive, Dropbox, OneDrive or a shared drive keeps in sync shares it between devices; Yeraz itself syncs nothing.
+
+- **Reaching the folder** (`local/folder.ts`): the File System Access API in Chrome and Edge (the handle is kept in IndexedDB; after a restart the browser may need one click to allow access again), and in the desktop app five Rust commands (`src-tauri/src/folder.rs`: pick, list, read, write, remove), since the macOS and Linux webviews lack that API. Safari, Firefox and phone browsers can't open folders, so there Yeraz stays GitHub only.
+- **Same format, same model:** the folder holds exactly what a repository would (§4), with `.yeraz.json` at its root. Picking a folder without one adds it, and a welcome leaf if it has no leaves; anything else in it is left as it is. Its id is `~/<slug>` (`~` is no GitHub account), so routes, keys and the session treat it like any Family.
+- **Read path** (`sync/folder.ts`): one listing of the folder, hidden entries left out. Leaves are read and known by git blob SHA, cached as in §5.1; one read before is known by its size and modification time, so reopening reads only what changed. Images and other files are listed by size and time and read when shown.
+- **Write path:** edits are kept in IndexedDB as in §5.2 and written two seconds after the last keystroke (not two minutes: other devices see the folder, not a commit). Before writing, the folder is listed again: a leaf changed there since the edit started (another device, another app) goes through the same three-way merge as a refused commit. Desktop writes go to a hidden file renamed over the leaf, so a sync client never uploads half a file.
+- **Not available:** a leaf's history (§5.4) needs git, so a folder's Peek has no History; Growth rings date a folder's leaves by their last change on disk.
 
 ## 6. The map
 
@@ -325,7 +335,8 @@ src/
   model/    parse.ts · tree.ts (paths → hierarchy, sibling-folder rule) · embeds.ts · diff.ts (line diff)
             graph.ts (titles, word totals, threads, backlinks)
             links.ts (find and rewrite) · sha.ts (git blob SHA)
-  sync/     pull.ts · push.ts · merge.ts · autosave.ts · assets.ts (images by SHA)
+  local/    folder.ts (a Family in a folder: File System Access API, or the desktop's commands)
+  sync/     pull.ts · push.ts · merge.ts · autosave.ts · assets.ts (images by SHA) · folder.ts (§5.6)
             structure.ts (new leaf, branch, branch text, move, delete as file changes) · overlay.ts
   map/      layout.ts (one Tree, d3) · family.ts (a Family's Trees, placed) · TreeMap.tsx · useZoom.ts
   views/    views.ts (ids, saved choice) · ViewSwitcher.tsx · index.ts (lazy chunks) · common.ts
@@ -343,7 +354,8 @@ src/
             theme.ts (turns design/themes/themes.json into CSS, applies it)
   store/    token.ts (the token: IndexedDB on the web, the OS keychain on desktop)
 src-tauri/  the desktop shell (Tauri 2): tauri.conf.json (window, CSP, bundle) ·
-            src/lib.rs (keychain commands get_token / set_token / delete_token) · icons/
+            src/lib.rs (keychain commands get_token / set_token / delete_token) ·
+            src/folder.rs (folder commands, §5.6) · icons/
 ```
 
 `model/` and the planning half of `sync/` are pure TypeScript with no DOM or network. Most of the logic lives there, and is unit-tested there.

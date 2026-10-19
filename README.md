@@ -29,6 +29,12 @@ Yeraz signs in with a fine-grained personal access token, kept on your device (i
 4. To create new Trees from the app, also set **Administration** to *Read and write* (on all repositories).
 5. Paste the token into Yeraz.
 
+### Or use a folder, without GitHub
+
+*Use a folder* on the first screen (or in the Family menu) keeps a Family in a folder on your computer instead: no account, no token. Pick one that iCloud Drive, Dropbox, OneDrive or a shared drive keeps in sync, and your other devices see the same notes. Edits are written to the folder a couple of seconds after you stop typing; when another device changed the same leaf meanwhile, the two versions are merged, or both kept. The files follow the same format as a repository, so the folder can become one later.
+
+It works in the desktop app and in Chrome or Edge on a computer. Safari, Firefox and phone browsers can't open folders, so there Yeraz needs GitHub. A folder keeps no history: *History* is GitHub's.
+
 ### Make a repository a Tree
 
 A repository is a Tree when it has a `.yeraz.json` at its root, for example `{"name": "Engineering", "color": "green"}`. Yeraz finds every such repository the token can see. *Create a new repository* on Home makes one for you. To rename a Tree, click its name in the top bar, on its Home card or in its own panel. This repository's [`knowledge-base-example/`](knowledge-base-example) folder is an example Tree.
