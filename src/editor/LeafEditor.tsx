@@ -117,7 +117,9 @@ export function LeafEditor({
 
   // The leaf's look (line 2): cover and colours. Shown at once, written to the text.
   const [look, setLook] = useState<LeafMeta | null>(null)
-  const meta = look ?? node?.meta ?? null
+  // A branch's look is its text's (README.md): the graph gives it to the branch.
+  const owned = branch ?? node
+  const meta = look ?? owned?.meta ?? null
   const changeLook = (update: (meta: LeafMeta) => LeafMeta) => {
     const next = update(meta ?? {})
     setLook(next)
@@ -227,9 +229,8 @@ export function LeafEditor({
       />
       {/* The header's controls change the editor's text, so they appear with it. */}
       <Suspense fallback={<div className={styles.loading} aria-busy="true" />}>
-        {/* A branch's text has no icon, cover or colours of its own. */}
-        <div className={styles.header} hidden={branch !== null}>
-          {(node?.icon || image) && (
+        <div className={styles.header}>
+          {(owned?.icon || image) && (
             <div
               className={styles.iconRow}
               data-position={iconPlace(meta)}
@@ -242,20 +243,20 @@ export function LeafEditor({
                 data-icon-trigger=""
                 aria-haspopup="true"
                 aria-expanded={picking}
-                aria-label={image ? 'Change icon (an image)' : `Change icon ${node?.icon}`}
+                aria-label={image ? 'Change icon (an image)' : `Change icon ${owned?.icon}`}
                 onClick={() => setPicking((p) => !p)}
               >
                 {image ? (
                   <Cover repo={repo} src={image} className={styles.iconImage} />
                 ) : (
-                  <span className={styles.icon}>{node?.icon}</span>
+                  <span className={styles.icon}>{owned?.icon}</span>
                 )}
               </button>
             </div>
           )}
           <LeafStyle
             meta={meta}
-            hasIcon={!!(node?.icon || image)}
+            hasIcon={!!(owned?.icon || image)}
             onChange={changeLook}
             onCover={() => coverPicker.current?.click()}
             onReposition={() => setRepositioning(true)}
@@ -267,7 +268,7 @@ export function LeafEditor({
             }}
           />
           {picking && (
-            <IconPicker icon={node?.icon ?? null} onPick={setEmoji} onClose={closePicker} />
+            <IconPicker icon={owned?.icon ?? null} onPick={setEmoji} onClose={closePicker} />
           )}
         </div>
         <input
@@ -319,6 +320,7 @@ export function LeafEditor({
           fileSize={(p) => session.getState().fileSize(repo, p)}
           autoFocus={autoFocus}
           titleHidden={branch !== null}
+          untitled={branch?.title}
         />
       </Suspense>
       {/* Images or any file: onInsert sets what it accepts. */}

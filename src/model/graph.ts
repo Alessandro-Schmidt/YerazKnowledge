@@ -93,6 +93,9 @@ export function buildGraph(
   const nodes = new Map<string, GraphNode>()
   for (const node of model.nodes.values()) {
     const parsed = node.kind === 'leaf' ? leaves.get(node.id) : undefined
+    // A branch's look (icon, cover, colours) is its text's, README.md; its line 1 never
+    // renames it (ARCHITECTURE.md §4).
+    const look = node.kind === 'branch' && node.text ? leaves.get(node.text.path) : parsed
     const words =
       node.kind !== 'leaf' ? 0 : parsed ? parsed.words : Math.round(node.size / BYTES_PER_WORD)
     nodes.set(node.id, {
@@ -102,9 +105,9 @@ export function buildGraph(
       children: node.children,
       depth: node.depth,
       title: node.kind === 'root' ? treeTitle : (parsed?.title ?? humanize(node.name)),
-      icon: parsed?.icon ?? null,
-      ...(iconImage(parsed?.meta) && { image: iconImage(parsed?.meta)! }),
-      meta: parsed?.meta ?? null,
+      icon: look?.icon ?? null,
+      ...(iconImage(look?.meta) && { image: iconImage(look?.meta)! }),
+      meta: look?.meta ?? null,
       words,
       total: words,
       loaded: node.kind !== 'leaf' || parsed !== undefined,

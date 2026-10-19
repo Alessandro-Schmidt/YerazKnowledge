@@ -189,14 +189,19 @@ export function TreeMap({
     if (!imageUrl) return
     let live = true
     for (const el of svgRef.current!.querySelectorAll<SVGImageElement>('image[data-src]')) {
-      const id = el.closest('[data-id]')?.getAttribute('data-id')
+      const node = el.closest('[data-id]')?.getAttribute('data-id')
+      const tree = el.closest('[data-tree]')?.getAttribute('data-tree')
+      // A core's image is its Tree's: the core's own id is the Tree's root.
+      const id = node === ROOT ? tree : node
       if (id === null || id === undefined) continue
+      const copies =
+        node === ROOT
+          ? `[data-tree="${CSS.escape(id)}"] [data-core] image[data-src]`
+          : `[data-id="${CSS.escape(id)}"] image[data-src]`
       void imageUrl(id, el.dataset.src!).then((url) => {
         if (!live || !url) return
         // The node, and any copy of it the selection layer made before the address arrived.
-        for (const copy of stageRef.current?.querySelectorAll(
-          `[data-id="${CSS.escape(id)}"] image[data-src]`,
-        ) ?? [])
+        for (const copy of stageRef.current?.querySelectorAll(copies) ?? [])
           copy.setAttribute('href', url)
       })
     }
@@ -630,6 +635,9 @@ function LayerChips({
   )
 }
 
+/** A Tree's icon on its core: a little larger than a leaf's. */
+const CORE_ICON_R = 13
+
 /** A leaf's image icon, filling its dot (clipped to it by the map's `#dot` clip path). */
 export function MapImage({ x, y, r, src }: { x: number; y: number; r: number; src: string }) {
   return (
@@ -731,6 +739,17 @@ const Geometry = memo(function Geometry({ layout, graph }: { layout: MapLayout; 
       ))}
       <g className={styles.core} data-core="" data-id={ROOT}>
         <circle className={styles.coreCircle} r={layout.coreR} />
+        {/* The Tree's icon (its text's, README.md, for a folder) sits on the core's top edge. */}
+        {(root.image || root.icon) && (
+          <g className={styles.coreIcon}>
+            <circle cy={-layout.coreR} r={CORE_ICON_R} />
+            {root.image ? (
+              <MapImage x={0} y={-layout.coreR} r={CORE_ICON_R} src={root.image} />
+            ) : (
+              <MapIcon x={0} y={-layout.coreR} r={CORE_ICON_R} icon={root.icon!} />
+            )}
+          </g>
+        )}
         {layout.coreLines.map((line, i) => (
           <text
             key={i}
