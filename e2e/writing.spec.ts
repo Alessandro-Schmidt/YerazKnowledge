@@ -221,6 +221,40 @@ test('moving a leaf rewrites every backlink in one commit', async ({ page, fake,
   }
 })
 
+test('a Tree moves under another Tree, everything in it with it, in one commit (#81)', async ({
+  page,
+  fake,
+  graph,
+}) => {
+  test.skip(isPhone(page), 'The move dialog is the same on phones; one run is enough')
+  // Two Trees that are folders: the first moves under the second.
+  const [tree, into] = graph.nodes
+    .get('')!
+    .children.filter((id) => graph.nodes.get(id)!.kind === 'branch')
+    .sort()
+  const files = [...graph.nodes.values()]
+    .filter((n) => n.kind === 'leaf' && n.id.startsWith(`${tree}/`))
+    .map((n) => n.id)
+  await page.goto(`./#/tree/${REPO}/${tree}`)
+  await signInHere(page)
+  const panel = page.getByRole('region', { name: 'Tree preview' })
+  await panel.getByRole('button', { name: 'More actions' }).click()
+  await page.getByRole('menuitem', { name: 'Move…' }).click()
+  const dialog = page.getByRole('dialog')
+  await dialog.getByRole('radio', { name: graph.nodes.get(into!)!.title, exact: true }).check()
+  fake.resetLog()
+  await dialog.getByRole('button', { name: 'Move' }).click()
+  await expect(page.getByRole('region', { name: 'Branch preview' })).toBeVisible()
+  await page.keyboard.press('ControlOrMeta+s')
+  await expect.poll(() => mutations(fake).length).toBe(1)
+
+  const repo = fake.repo(REPO)
+  for (const path of files) {
+    expect(repo.read(path), path).toBeUndefined()
+    expect(repo.read(`${into}/${path}`), path).toBeDefined()
+  }
+})
+
 test('a new leaf at the top of the Family is a Tree of its own, ready to write', async ({
   page,
   fake,

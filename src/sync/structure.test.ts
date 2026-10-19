@@ -151,6 +151,32 @@ describe('planMove', () => {
     expect(planMove(graph, textOf, 'identity/oauth.md', 'identity').changes).toEqual([])
   })
 
+  it('moves a Tree (a branch) under another Tree, everything in it, links rewritten (#81)', () => {
+    const { changes, moves, id } = planMove(graph, textOf, 'identity', 'AI Agents')
+    expect(id).toBe('AI Agents/identity')
+    expect([...moves].sort()).toEqual([
+      ['identity/keycloak.md', 'AI Agents/identity/keycloak.md'],
+      ['identity/keycloak/realms.md', 'AI Agents/identity/keycloak/realms.md'],
+      ['identity/oauth.md', 'AI Agents/identity/oauth.md'],
+    ])
+    const byPath = Object.fromEntries(changes.map((c) => [c.path, c.text]))
+    expect(byPath['identity/oauth.md']).toBeNull()
+    expect(byPath['AI Agents/identity/oauth.md']).toContain(
+      '(</AI Agents/identity/keycloak/realms.md>)',
+    )
+    expect(byPath['AI Agents/prompting.md']).toContain('(</AI Agents/identity/keycloak.md>)')
+    // And back to the top, where it is a Tree again.
+    expect(planMove(graph, textOf, 'AI Agents', 'identity').id).toBe('identity/AI Agents')
+  })
+
+  it('refuses to move a branch inside itself; at its parent already, nothing changes', () => {
+    expect(() => planMove(graph, textOf, 'identity', 'identity/keycloak.md')).toThrow(
+      StructureError,
+    )
+    expect(() => planMove(graph, textOf, 'identity', 'identity')).toThrow(StructureError)
+    expect(planMove(graph, textOf, 'identity', '').changes).toEqual([])
+  })
+
   it('renames on arrival when the name is taken', () => {
     const { moves } = planMove(graph, textOf, 'identity/keycloak/realms.md', 'identity')
     expect(moves.get('identity/keycloak/realms.md')).toBe('identity/realms.md')

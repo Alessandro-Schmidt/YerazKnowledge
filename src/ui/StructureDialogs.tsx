@@ -75,14 +75,13 @@ export function StructureDialog({
     }
   }
 
-  // Destinations for a move: anything outside the moved leaf's own subtree.
+  // Destinations for a move: anything outside the moved leaf's or branch's own subtree.
   const destinations = useMemo(() => {
     if (action.kind !== 'move') return []
-    const inside = new Set(leavesUnder(graph, action.id))
-    const prefix = `${action.id.slice(0, -3)}/`
+    const moved = graph.nodes.get(action.id)!
+    const prefix = `${moved.kind === 'leaf' ? action.id.slice(0, -3) : action.id}/`
     return [...graph.nodes.values()]
-      .filter((n) => n.kind !== 'leaf' || !inside.has(n.id))
-      .filter((n) => !n.id.startsWith(prefix) && n.id !== graph.nodes.get(action.id)!.parent)
+      .filter((n) => n.id !== action.id && !n.id.startsWith(prefix) && n.id !== moved.parent)
       .map((n) => n.id)
   }, [action, graph])
 
@@ -204,10 +203,10 @@ export function StructureDialog({
     }
 
     case 'move': {
-      const leaf = graph.nodes.get(action.id)!
+      const moved = graph.nodes.get(action.id)!
       return (
         <Dialog
-          title={`Move ${leaf.title}`}
+          title={`Move ${moved.title}`}
           submit="Move"
           busy={busy}
           error={error}
@@ -223,14 +222,16 @@ export function StructureDialog({
                   ),
                 ),
               )
-              const { changes, moves } = planMove(graph, (p) => texts.get(p)!, action.id, dest)
+              const { changes, id } = planMove(graph, (p) => texts.get(p)!, action.id, dest)
               await session.getState().apply(tree.repo, changes)
-              onDone({ select: moves.get(action.id) ?? action.id })
+              onDone({ select: id })
             })
           }
         >
           <p className={styles.text}>
-            Its sub-leaves move with it, and every link to them is updated in the same commit.
+            {moved.kind === 'leaf'
+              ? 'Its sub-leaves move with it, and every link to them is updated in the same commit.'
+              : 'Everything in it moves with it, and every link to it is updated in the same commit.'}
           </p>
           <fieldset className={styles.fieldset}>
             <legend className={controls.eyebrow}>Move to</legend>

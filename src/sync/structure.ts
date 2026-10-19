@@ -156,29 +156,33 @@ export const moveReads = (graph: Graph, id: string) => [
 ]
 
 /**
- * Moves a leaf, with its sub-leaves and its sub-branches' texts, under another node. Every
- * link to a moved file is rewritten in the same commit; the files' own root-relative links
- * don't change.
+ * Moves a leaf (with its sub-leaves and its sub-branches' texts) or a branch (a Tree, with
+ * everything in its folder, issue #81) under another node. Every link to a moved file is
+ * rewritten in the same commit; the files' own root-relative links don't change. `id` is
+ * where the moved node is now.
  */
 export function planMove(
   graph: Graph,
   textOf: (path: string) => string,
   id: string,
   newParentId: string,
-): { changes: FileChange[]; moves: Map<string, string> } {
+): { changes: FileChange[]; moves: Map<string, string>; id: string } {
   const node = graph.nodes.get(id)
-  if (node?.kind !== 'leaf') throw new StructureError('Only leaves can be moved')
+  if (node?.kind !== 'leaf' && node?.kind !== 'branch')
+    throw new StructureError('Only leaves and branches can be moved')
   if (!graph.nodes.has(newParentId)) throw new StructureError(`Nothing at ${newParentId}`)
-  if (node.parent === newParentId) return { changes: [], moves: new Map() }
-  const moved = leavesUnder(graph, id)
+  if (node.parent === newParentId) return { changes: [], moves: new Map(), id }
+  // A leaf's folder is its name without `.md`; a branch's is its id.
+  const oldPrefix = node.kind === 'leaf' ? id.slice(0, -'.md'.length) : id
   if (
     newParentId !== ROOT &&
-    (moved.includes(newParentId) || newParentId.startsWith(`${id.slice(0, -3)}/`))
+    (newParentId === id ||
+      nodesUnder(graph, id).includes(newParentId) ||
+      newParentId.startsWith(`${oldPrefix}/`))
   ) {
-    throw new StructureError("A leaf can't move inside itself")
+    throw new StructureError(`A ${node.kind} can't move inside itself`)
   }
 
-  const oldPrefix = id.slice(0, -'.md'.length)
   const newPrefix = `${folderOf(graph, newParentId)}${unique(baseName(id), takenNames(graph, newParentId), '-')}`
   const moves = new Map(
     filesUnder(graph, id).map((p) => [
@@ -196,7 +200,7 @@ export function planMove(
     const after = rewriteLinks(before, moves)
     if (after !== before) changes.push({ path, text: after })
   }
-  return { changes, moves }
+  return { changes, moves, id: node.kind === 'leaf' ? `${newPrefix}.md` : newPrefix }
 }
 
 /**
