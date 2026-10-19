@@ -223,15 +223,23 @@ export function neighbours(graph: Graph, id: string): Set<string> {
 
 /** Titles of a node's ancestors, below the root: `Identity / Keycloak`. */
 export function crumbs(graph: Graph, id: string): string[] {
-  const titles: string[] = []
+  return ancestors(graph, id)
+    .slice(1)
+    .map((n) => n.title)
+}
+
+/** The nodes above a node (or a ghost), from the Family's root down to its parent. */
+export function ancestors(graph: Graph, id: string): GraphNode[] {
+  const above: GraphNode[] = []
+  const parent = (graph.nodes.get(id) ?? graph.ghosts.get(id))?.parent
   for (
-    let n = graph.nodes.get((graph.nodes.get(id) ?? graph.ghosts.get(id))?.parent ?? '');
-    n && n.kind !== 'root';
-    n = graph.nodes.get(n.parent!)
+    let n = parent === undefined || parent === null ? undefined : graph.nodes.get(parent);
+    n;
+    n = n.kind === 'root' ? undefined : graph.nodes.get(n.parent!)
   ) {
-    titles.unshift(n.title)
+    above.unshift(n)
   }
-  return titles
+  return above
 }
 
 /** 40500 → `40.5k`, 900 → `900`. */
