@@ -15,7 +15,7 @@ import {
 import { EditorView, keymap, showTooltip, type Tooltip } from '@codemirror/view'
 import type { SyntaxNode } from '@lezer/common'
 import { bookmarkTitle, embedOf } from '../model/embeds'
-import { menu } from './insertMenu'
+import { menu } from './menu'
 
 /** The pasted text, when it is a single http(s) URL. */
 export function pastedUrl(text: string): string | null {

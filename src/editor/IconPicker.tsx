@@ -5,14 +5,16 @@ import styles from './LeafEditor.module.css'
 
 // Every emoji, searchable by name and keyword; any emoji typed at the start of the title
 // works too. The page opens it from "Add icon" or the icon itself: buttons marked
-// data-icon-trigger, which toggle it rather than count as a click outside.
+// data-icon-trigger, which toggle it rather than count as a click outside. An icon (an emoji
+// or an image) is removed from beside the search, where it is always in sight.
 
 export function IconPicker({
-  icon,
+  removable,
   onPick,
   onClose,
 }: {
-  icon: string | null
+  /** The page has an icon to remove. */
+  removable: boolean
   onPick(icon: string | null): void
   onClose(): void
 }) {
@@ -65,18 +67,29 @@ export function IconPicker({
 
   return (
     <div ref={box} className={`${controls.panel} ${styles.picker}`} role="group" aria-label="Icons">
-      <input
-        type="search"
-        className={`${controls.input} ${styles.emojiSearch}`}
-        placeholder="Search emoji"
-        aria-label="Search emoji"
-        autoFocus
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' && found?.[0]) pick(found[0].emoji)
-        }}
-      />
+      <div className={styles.pickerTop}>
+        <input
+          type="search"
+          className={`${controls.input} ${styles.emojiSearch}`}
+          placeholder="Search emoji"
+          aria-label="Search emoji"
+          autoFocus
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && found?.[0]) pick(found[0].emoji)
+          }}
+        />
+        {removable && (
+          <button
+            type="button"
+            className={`${controls.ghost} ${styles.removeIcon}`}
+            onClick={() => pick(null)}
+          >
+            Remove icon
+          </button>
+        )}
+      </div>
       <div className={styles.emojiList}>
         {!all ? (
           <p className={styles.emojiNote}>Loading…</p>
@@ -95,15 +108,6 @@ export function IconPicker({
           ))
         )}
       </div>
-      {icon && (
-        <button
-          type="button"
-          className={`${controls.ghost} ${styles.removeIcon}`}
-          onClick={() => pick(null)}
-        >
-          Remove icon
-        </button>
-      )}
     </div>
   )
 }

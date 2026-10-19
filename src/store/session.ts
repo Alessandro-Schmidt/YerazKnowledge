@@ -30,7 +30,9 @@ import {
   FolderError,
   MARKER,
   browserFolders,
+  chooseFiles,
   desktopFolders,
+  deviceFolders,
   isFolder,
   type FolderAccess,
   type FolderFs,
@@ -78,6 +80,8 @@ export interface SessionState {
   token: string | null
   /** Whether this device can keep a Family in a folder (issue #64). */
   folders: boolean
+  /** Families are kept in this browser's storage: it can't open folders (phones, Safari, Firefox). */
+  onDevice: boolean
   trees: TreeRef[]
   discovery: 'idle' | 'loading' | 'done' | 'error'
   data: Record<string, TreeData>
@@ -92,8 +96,9 @@ export interface SessionState {
   /**
    * Asks for a folder on this device and adds it as a Family; null when the person cancels.
    * A folder without `.yeraz.json` gets one (and a welcome leaf, when it has no leaves).
+   * With `empty`, a Family kept on the device starts with nothing but those.
    */
-  addFolder(): Promise<TreeRef | null>
+  addFolder(empty?: boolean): Promise<TreeRef | null>
   /** Asks the person again for access to a Family's folder (from a click), then opens it. */
   allowFolder(repo: string): Promise<void>
   /** Creates a private repository holding a new Tree. Throws a message on failure. */
@@ -203,7 +208,7 @@ export function createSession(deps: {
   /** Where the token is kept: the key/value store, or the keychain in the desktop app. */
   tokens?: TokenStore
   api?: () => string
-  /** How this device reaches folders; null when it can't (Safari, Firefox, phones). */
+  /** How this device reaches folders, or its own storage when it can't open them; null for neither. */
   folders?: FolderAccess | null
   autosaveDelay?: number
 }): StoreApi<SessionState> {
@@ -435,6 +440,7 @@ export function createSession(deps: {
       phase: 'starting',
       token: null,
       folders: !!deps.folders,
+      onDevice: !!deps.folders?.onDevice,
       trees: [],
       discovery: 'idle',
       data: {},
@@ -529,13 +535,13 @@ export function createSession(deps: {
         return tree
       },
 
-      async addFolder() {
+      async addFolder(empty) {
         const access = deps.folders
         if (!access)
           throw new Error(
             "This browser can't open folders. Use Chrome or Edge on a computer, or the desktop app.",
           )
-        const picked = await access.pick()
+        const picked = await access.pick(empty)
         if (!picked) return null
         const fs = await access.open(picked.handle, true)
         const files = await fs.list()
@@ -853,6 +859,9 @@ export const session = createSession({
   store: appStore,
   tokens: tokenStore(appStore, desktopInvoke),
   api: githubApi,
-  folders: desktopInvoke ? desktopFolders(desktopInvoke) : browserFolders(),
+  folders: desktopInvoke
+    ? desktopFolders(desktopInvoke)
+    : (browserFolders() ??
+      (typeof indexedDB === 'undefined' ? null : deviceFolders(appStore, chooseFiles))),
 })
 export const useSession = <T>(selector: (s: SessionState) => T): T => useStore(session, selector)

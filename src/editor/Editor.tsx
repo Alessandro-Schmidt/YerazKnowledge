@@ -22,7 +22,7 @@ export interface EditorHandle {
   setIcon(icon: string | null): void
   /** Changes line 2's metadata (cover, colours); other keys are kept. */
   setMeta(update: (meta: LeafMeta) => LeafMeta): void
-  /** Inserts text at the cursor, on a line of its own when `block`, and focuses. */
+  /** Inserts text at the cursor (or in place of the selection), on a line of its own when `block`, and focuses. */
   insertText(text: string, block?: boolean): void
   focus(): void
 }
@@ -190,7 +190,15 @@ export default function Editor({
       insertText(text, block) {
         const v = view.current
         if (!v) return
-        const { head } = v.state.selection.main
+        const { from, to, head } = v.state.selection.main
+        // A selection is replaced, as an image is by "Replace image" in its ⋯ menu.
+        if (from !== to) {
+          v.dispatch({
+            changes: { from, to, insert: text },
+            selection: { anchor: from + text.length },
+          })
+          return v.focus()
+        }
         const line = v.state.doc.lineAt(head)
         const insert = block
           ? `${head > line.from ? '\n' : ''}${text}${head < line.to ? '\n' : ''}`

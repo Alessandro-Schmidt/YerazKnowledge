@@ -6,6 +6,7 @@ import styles from './SyncStatus.module.css'
 /** "Synced", "Unsaved edits · auto-push in 1:24", "Saving…", "Offline" or "Conflict". A folder is saved in seconds: no countdown. */
 export function SyncStatus({ repo, branch }: { repo: string; branch: string }) {
   const state = useSession((s) => s.sync[repo.toLowerCase()])
+  const onDevice = useSession((s) => s.onDevice)
   const [now, setNow] = useState(() => Date.now())
   const ticking = state?.status === 'pending' && state.due !== null
   useEffect(() => {
@@ -18,16 +19,20 @@ export function SyncStatus({ repo, branch }: { repo: string; branch: string }) {
   return (
     <span className={styles.status} data-state={state.status} role="status">
       <span className={styles.dot} aria-hidden="true" />
-      {label(state, isFolder(repo) ? null : branch, now)}
+      {label(state, isFolder(repo) ? null : branch, now, onDevice)}
     </span>
   )
 }
 
-/** `branch` is null for a Family in a folder. */
-function label(state: SyncState, branch: string | null, now: number): string {
+/** `branch` is null for a Family in a folder, kept in the browser's storage when `onDevice`. */
+function label(state: SyncState, branch: string | null, now: number, onDevice: boolean): string {
   switch (state.status) {
     case 'synced':
-      return branch === null ? 'Saved to the folder' : `Synced to ${branch}`
+      return branch !== null
+        ? `Synced to ${branch}`
+        : onDevice
+          ? 'Saved on this device'
+          : 'Saved to the folder'
     case 'pending': {
       if (state.due === null || branch === null) return 'Unsaved edits'
       const left = Math.max(0, Math.ceil((state.due - now) / 1000))

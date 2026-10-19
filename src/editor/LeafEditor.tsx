@@ -268,7 +268,11 @@ export function LeafEditor({
             }}
           />
           {picking && (
-            <IconPicker icon={owned?.icon ?? null} onPick={setEmoji} onClose={closePicker} />
+            <IconPicker
+              removable={!!(owned?.icon || image)}
+              onPick={setEmoji}
+              onClose={closePicker}
+            />
           )}
         </div>
         <input
