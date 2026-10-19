@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { session } from '../store/session'
+import { session, useSession } from '../store/session'
 import controls from './controls.module.css'
 import { FolderButton } from './FolderButton'
 import { Icon } from './icons'
@@ -14,6 +14,7 @@ export function TokenScreen({ onDone }: { onDone?: () => void }) {
   const [token, setToken] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const onDevice = useSession((s) => s.onDevice)
 
   async function submit(event: FormEvent) {
     event.preventDefault()
@@ -83,11 +84,13 @@ export function TokenScreen({ onDone }: { onDone?: () => void }) {
             folder or leaf at its top is a Tree. The app opens on yours next.
           </p>
           <hr className={styles.or} />
-          <h2 className={styles.subtitle}>Or keep your notes in a folder</h2>
+          <h2 className={styles.subtitle}>
+            {onDevice ? 'Or keep your notes on this device' : 'Or keep your notes in a folder'}
+          </h2>
           <p className={styles.lead}>
-            No GitHub account needed. Pick a folder on this computer: one that iCloud Drive,
-            Dropbox, OneDrive or a shared drive keeps in sync brings your notes to your other
-            devices too.
+            {onDevice
+              ? "No GitHub account needed. This browser can't keep a folder open, so Yeraz keeps your notes in its own storage here: start empty, or copy in a folder of notes. The folder itself isn't changed."
+              : 'No GitHub account needed. Pick a folder on this computer: one that iCloud Drive, Dropbox, OneDrive or a shared drive keeps in sync brings your notes to your other devices too.'}
           </p>
           <FolderButton onAdded={(tree) => (location.hash = `#${treeHref(tree.repo)}`)} />
         </form>
