@@ -8,7 +8,8 @@
   display: flex;
   align-items: center;
   gap: 2px;
-  min-width: 0;
+  /* The Family's name keeps a few letters however narrow the window (issue #76). */
+  min-width: 88px;
 }
 
 .title {
@@ -38,6 +39,7 @@
 
 .toggles {
   display: flex;
+  flex-shrink: 0;
   gap: 6px;
 }
 
@@ -125,7 +127,28 @@
   background: var(--tree, var(--accent));
 }
 
+/* A narrow window (issue #76): nothing in the bar overlaps or runs off it. The status and
+   New leaf give up their words (the dot and the + stay, screen readers hear both), the
+   search box becomes its icon (Search.module.css) and the views scroll (ViewSwitcher). */
+@media (max-width: 1100px) {
+  .status [role='status'] {
+    gap: 0;
+    font-size: 0;
+  }
+  .newLeaf {
+    width: 36px;
+    padding: 0;
+    justify-content: center;
+  }
+  .newLeafText {
+    display: none;
+  }
+}
+
 @media (max-width: 640px) {
+  .crumbs {
+    min-width: 0;
+  }
   /* No room for the words beside Save and Refresh: the dot says the state, and screen
      readers still hear it. */
   .status [role='status'] {

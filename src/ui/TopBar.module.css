@@ -39,14 +39,17 @@
   background: var(--hair);
 }
 
+/* A narrow window keeps the leaf, not the word, so the bar's controls fit (issue #76). */
+@media (max-width: 900px) {
+  .word,
+  .divider {
+    display: none;
+  }
+}
 @media (max-width: 640px) {
   .top {
     gap: 10px;
     padding-left: 12px;
     padding-right: 12px;
-  }
-  .word,
-  .divider {
-    display: none;
   }
 }

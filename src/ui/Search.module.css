@@ -4,7 +4,8 @@
   align-items: center;
   gap: 10px;
   flex: 0 1 420px;
-  min-width: 0;
+  /* Wide enough for its icon, a word and its key; narrower windows show the icon alone. */
+  min-width: 150px;
   height: 36px;
   margin: 0 auto;
   padding: 0 8px 0 12px;
@@ -33,6 +34,20 @@
   font-family: var(--font-mono);
   font-size: 11px;
   color: var(--faint);
+}
+/* A narrow window: the box is its icon, as on a phone (issue #76). */
+@media (max-width: 1100px) {
+  .box {
+    flex: 0 0 36px;
+    min-width: 0;
+    justify-content: center;
+    margin: 0;
+    padding: 0;
+  }
+  .placeholder,
+  .key {
+    display: none;
+  }
 }
 @media (max-width: 640px) {
   .box {
