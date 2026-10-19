@@ -114,7 +114,9 @@ export default function Outline({
           <p className={styles.where}>
             <span className={controls.eyebrow}>Family</span>
             <span className={controls.mono}>
-              github.com/{tree.repo} · {tree.branch}
+              {tree.folder !== undefined
+                ? `This device · ${tree.folder}`
+                : `github.com/${tree.repo} · ${tree.branch}`}
             </span>
           </p>
           <div className={styles.titleRow}>

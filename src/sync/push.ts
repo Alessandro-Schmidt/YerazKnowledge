@@ -106,7 +106,7 @@ async function merge(
 }
 
 /** Caches what was committed: blobs by SHA, and the listing at the new head. */
-async function remember(
+export async function remember(
   store: KeyValueStore,
   ref: TreeRef,
   listing: CachedListing,
