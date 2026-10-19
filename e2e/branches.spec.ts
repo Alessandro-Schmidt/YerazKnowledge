@@ -69,8 +69,8 @@ test.describe('writing a branch’s text', () => {
     // The branch's name shows once, above its text: the README's heading is hidden.
     await expect(peek.getByText('Cloud', { exact: true })).toHaveCount(1)
     await expect(peek.locator('.cm-title')).toHaveCount(0)
-    // A branch's text has no icon, cover or colours of its own.
-    await expect(page.getByRole('button', { name: 'Add cover' })).toBeHidden()
+    // A branch's icon, cover and colours are its text's (icons.spec.ts); none here yet.
+    await expect(peek.getByRole('button', { name: 'Add cover' })).toBeVisible()
     expect(fake.repo(REPO).read('Cloud/README.md')).toBeUndefined()
 
     await page.locator('.cm-content').click()

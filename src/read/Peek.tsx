@@ -28,7 +28,6 @@ import { coverPosition } from './cover'
 import { leafColors } from './colors'
 import { downloadAsset } from './files'
 import { History } from './History'
-import { Cover } from './LeafLook'
 import { printLeaf } from './print'
 import { renderLeaf } from './render'
 import { planGhostLeaf } from '../sync/structure'
@@ -140,14 +139,6 @@ export function Peek({
 
       <div className={styles.scroll}>
         <div className={styles.column}>
-          {node.kind !== 'leaf' && (
-            <Cover
-              repo={tree.repo}
-              src={node.meta?.cover}
-              position={coverPosition(node.meta)}
-              className={styles.cover}
-            />
-          )}
           <article className={styles.article}>
             {node.kind === 'leaf' && historyOf === id ? (
               <History
