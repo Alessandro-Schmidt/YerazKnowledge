@@ -241,7 +241,7 @@ export function FamilyView({ params }: { params: { owner: string; name: string; 
               insets={insets}
             />
           ) : (
-            <Placeholder data={data} />
+            <Placeholder data={data} repo={repo} />
           )}
           {graph && tree && peekShown && (
             <Peek
@@ -303,8 +303,10 @@ function Status({
 
 function Placeholder({
   data,
+  repo,
 }: {
   data: ReturnType<typeof session.getState>['data'][string] | undefined
+  repo: string
 }) {
   if (data?.status !== 'error') {
     return (
@@ -319,7 +321,15 @@ function Placeholder({
         {data.error}
       </p>
       <div className={styles.actions}>
-        {data.kind === 'auth' ? (
+        {data.kind === 'permission' ? (
+          <button
+            type="button"
+            className={controls.primary}
+            onClick={() => void session.getState().allowFolder(repo)}
+          >
+            Allow access to the folder
+          </button>
+        ) : data.kind === 'auth' ? (
           <button
             type="button"
             className={controls.ghost}

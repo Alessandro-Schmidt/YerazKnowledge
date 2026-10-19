@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { Redirect, Route, Router, Switch } from 'wouter'
+import { Redirect, Route, Router, Switch, useLocation } from 'wouter'
 import { useHashLocation } from 'wouter/use-hash-location'
 import { session, useSession } from '../store/session'
 import { Appearance } from './Appearance'
@@ -18,6 +18,7 @@ import { ViewsSettings } from './ViewsSettings'
 //   #/settings/appearance                 Settings › Appearance (system colours, fonts)
 //   #/settings/views                      Settings › Views (how a Family is shown)
 //   #/settings/colours                    Settings › Tree colours (in .yeraz.json)
+//   #/github                              Connect GitHub, when only folders are in use
 export function App() {
   const phase = useSession((s) => s.phase)
 
@@ -70,10 +71,17 @@ export function App() {
         <Route path="/settings/appearance" component={Appearance} />
         <Route path="/settings/views" component={ViewsSettings} />
         <Route path="/settings/colours" component={TreeColours} />
+        <Route path="/github" component={ConnectGitHub} />
         <Route>
           <Redirect to="/" replace />
         </Route>
       </Switch>
     </Router>
   )
+}
+
+/** The token screen for someone whose Families are all in folders so far. */
+function ConnectGitHub() {
+  const [, navigate] = useLocation()
+  return <TokenScreen onDone={() => navigate('/')} />
 }

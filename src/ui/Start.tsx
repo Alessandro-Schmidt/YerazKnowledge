@@ -10,6 +10,7 @@ import { ConnectDialog, FamilyMenu, lastFamily } from './FamilyMenu'
 import styles from './FamilyView.module.css'
 import { Icon } from './icons'
 import { treeHref } from './paths'
+import { FolderButton } from './FolderButton'
 import { CreateTreeDialog } from './StructureDialogs'
 import { Divider, TopBar } from './TopBar'
 
@@ -50,8 +51,8 @@ export function Start() {
           <div className={styles.placeholder}>
             <h2 className={styles.emptyTitle}>No Family yet</h2>
             <p>
-              A Family is a GitHub repository with a <code>.yeraz.json</code> file at its root.
-              Every folder or leaf at its top is a Tree.
+              A Family is a GitHub repository, or a folder on this device, with a{' '}
+              <code>.yeraz.json</code> file at its root. Every folder or leaf at its top is a Tree.
             </p>
             <div className={styles.actions}>
               <button
@@ -66,6 +67,7 @@ export function Start() {
                 <Icon name="repo" />
                 Connect repository
               </button>
+              <FolderButton onAdded={go} />
             </div>
           </div>
         )}

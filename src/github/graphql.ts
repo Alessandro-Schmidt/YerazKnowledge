@@ -18,6 +18,8 @@ export interface TreeRef {
   color: string | null
   /** Each Tree's own named colour, by its id (top-level folder or leaf), from `.yeraz.json`. */
   trees?: Record<string, string>
+  /** A Family kept in a folder on this device (issue #64): the folder's name. */
+  folder?: string
 }
 
 /** The name, colour and Tree colours a `.yeraz.json` text gives; malformed parts are left out. */

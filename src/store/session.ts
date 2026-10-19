@@ -24,23 +24,44 @@ import {
   type TreeRef,
   type Version,
 } from '../github/graphql'
+import {
+  FOLDER_OWNER,
+  FOLDER_WELCOME,
+  FolderError,
+  MARKER,
+  browserFolders,
+  desktopFolders,
+  isFolder,
+  type FolderAccess,
+  type FolderFs,
+} from '../local/folder'
 import { buildGraph, type Graph } from '../model/graph'
 import type { ParsedLeaf } from '../model/parse'
 import { gitBlobSha } from '../model/sha'
+import { slugify } from '../model/slug'
 import { buildTree } from '../model/tree'
 import { assetBytes, mimeOf } from '../sync/assets'
 import { createAutosave, type Autosave } from '../sync/autosave'
+import { pullFolder, pushFolder } from '../sync/folder'
 import { isLocal, overlay } from '../sync/overlay'
-import { blobTexts, fillContent, pullTree, type CachedListing } from '../sync/pull'
+import {
+  blobTexts,
+  fillContent,
+  pullTree,
+  type CachedListing,
+  type PullProgress,
+} from '../sync/pull'
 import { byteLength, pushTree, type Dirty } from '../sync/push'
 import { sameContent, type FileChange } from '../sync/structure'
 import { openStore, type KeyValueStore } from './db'
 import { desktopInvoke, tokenStore, type TokenStore } from './token'
 
+export type ErrorKind = GitHubError['kind'] | FolderError['kind'] | 'unknown'
+
 export type TreeData =
   | { status: 'loading'; graph: Graph | null; fetched: number; total: number }
   | { status: 'ready'; graph: Graph; offline: boolean }
-  | { status: 'error'; graph: Graph | null; error: string; kind: GitHubError['kind'] | 'unknown' }
+  | { status: 'error'; graph: Graph | null; error: string; kind: ErrorKind }
 
 /** What the top bar says about saving (development-plan.md M2 step 4). */
 export type SyncState =
@@ -52,8 +73,11 @@ export type SyncState =
   | { status: 'error'; message: string; files: number }
 
 export interface SessionState {
+  /** Signed in: a GitHub token, or a Family kept in a folder on this device. */
   phase: 'starting' | 'signed-out' | 'signed-in'
   token: string | null
+  /** Whether this device can keep a Family in a folder (issue #64). */
+  folders: boolean
   trees: TreeRef[]
   discovery: 'idle' | 'loading' | 'done' | 'error'
   data: Record<string, TreeData>
@@ -65,6 +89,13 @@ export interface SessionState {
   discover(): Promise<void>
   /** Adds a repository by `owner/name`. Throws a message when it isn't a Tree. */
   connect(repo: string): Promise<TreeRef>
+  /**
+   * Asks for a folder on this device and adds it as a Family; null when the person cancels.
+   * A folder without `.yeraz.json` gets one (and a welcome leaf, when it has no leaves).
+   */
+  addFolder(): Promise<TreeRef | null>
+  /** Asks the person again for access to a Family's folder (from a click), then opens it. */
+  allowFolder(repo: string): Promise<void>
   /** Creates a private repository holding a new Tree. Throws a message on failure. */
   createTree(input: { name: string; title: string }): Promise<TreeRef>
   /** Pulls a Tree; concurrent calls for the same Tree share one pull. */
@@ -118,9 +149,6 @@ export interface SessionState {
 const KEYS = { trees: 'session:trees', connected: 'session:connected' }
 const dirtyKey = (repo: string) => `dirty:${repo.toLowerCase()}`
 
-/** The file that marks a Tree and holds its name (ARCHITECTURE.md §4). */
-const MARKER = '.yeraz.json'
-
 /** The name a `.yeraz.json` text gives, or null. */
 function nameIn(text: unknown): string | null {
   if (typeof text !== 'string') return null
@@ -132,10 +160,8 @@ function nameIn(text: unknown): string | null {
   }
 }
 
-export function describeError(e: unknown): {
-  message: string
-  kind: GitHubError['kind'] | 'unknown'
-} {
+export function describeError(e: unknown): { message: string; kind: ErrorKind } {
+  if (e instanceof FolderError) return { message: e.message, kind: e.kind }
   if (!(e instanceof GitHubError)) return { message: 'Something went wrong.', kind: 'unknown' }
   const messages: Record<GitHubError['kind'], string> = {
     network: "Can't reach GitHub. Check your connection.",
@@ -149,6 +175,14 @@ export function describeError(e: unknown): {
   }
   return { message: messages[e.kind], kind: e.kind }
 }
+
+const errorOf = (e: unknown) => {
+  const { message, kind } = describeError(e)
+  return { error: message, kind }
+}
+
+/** How long a folder Family waits after the last edit to write it (GitHub's waits two minutes). */
+const FOLDER_IDLE_MS = 2000
 
 const mergeTrees = (a: TreeRef[], b: TreeRef[]) => {
   const seen = new Map<string, TreeRef>()
@@ -169,6 +203,8 @@ export function createSession(deps: {
   /** Where the token is kept: the key/value store, or the keychain in the desktop app. */
   tokens?: TokenStore
   api?: () => string
+  /** How this device reaches folders; null when it can't (Safari, Firefox, phones). */
+  folders?: FolderAccess | null
   autosaveDelay?: number
 }): StoreApi<SessionState> {
   const { store } = deps
@@ -181,6 +217,8 @@ export function createSession(deps: {
   // ponytail: object URLs live as long as the page; revoke them if memory ever matters.
   const urls = new Map<string | Uint8Array, string>()
   const histories = new Map<string, Promise<{ versions: Version[]; next: string | null }>>()
+  /** Folders opened this session, by Family. */
+  const opened = new Map<string, FolderFs>()
   let client: GitHubClient | null = null
 
   return createStore<SessionState>()((set, get) => {
@@ -190,6 +228,23 @@ export function createSession(deps: {
       return (client ??= createGitHubClient({ token, api: api() }))
     }
     const connected = async () => (await store.get<string[]>(KEYS.connected)) ?? []
+    /** A folder Family's files. With `ask`, the browser may ask for access again (on a click). */
+    const folderOf = async (key: string, ask = false) => {
+      let fs = opened.get(key)
+      if (!fs) {
+        const handle = await store.get(`folder:${key}`)
+        if (!handle || !deps.folders)
+          throw new FolderError('missing', "This device can't open this Family's folder.")
+        fs = await deps.folders.open(handle, ask)
+        opened.set(key, fs)
+      }
+      return fs
+    }
+    /** A file's bytes: from the folder, or from GitHub by blob SHA (cached). */
+    const bytesOf = async (repo: string, path: string, sha: string) =>
+      isFolder(repo)
+        ? (await folderOf(repo.toLowerCase())).read(path)
+        : assetBytes(repo, sha, { client: github(), store })
     /** A name typed on this device and not committed yet wins over what GitHub last said. */
     const pendingTitle = (key: string) => nameIn(dirty.get(key)?.[MARKER]?.text)
     /** So do colours chosen here: the pending `.yeraz.json` gives the whole marker. */
@@ -233,7 +288,7 @@ export function createSession(deps: {
       const sha = base.entries.find((e) => e.path === MARKER)?.sha
       if (pending === undefined && sha && !isLocal(sha)) {
         try {
-          text = new TextDecoder().decode(await assetBytes(repo, sha, { client: github(), store }))
+          text = new TextDecoder().decode(await bytesOf(repo, MARKER, sha))
         } catch (e) {
           throw new Error(describeError(e).message, { cause: e })
         }
@@ -246,7 +301,7 @@ export function createSession(deps: {
       }
       if (!marker || typeof marker !== 'object' || Array.isArray(marker))
         throw new Error(
-          ".yeraz.json isn't valid JSON, so it can't be changed here. Fix the file on GitHub first.",
+          ".yeraz.json isn't valid JSON, so it can't be changed here. Fix the file first.",
         )
       return { text, marker: marker as Record<string, unknown> }
     }
@@ -317,7 +372,9 @@ export function createSession(deps: {
       const snapshot: Dirty = structuredClone(edits)
       setSync(key, { status: 'saving', files: Object.keys(snapshot).length })
       try {
-        const pushed = await pushTree(base.ref, snapshot, { client: github(), store })
+        const pushed = isFolder(key)
+          ? await pushFolder(base.ref, snapshot, { fs: await folderOf(key), store })
+          : await pushTree(base.ref, snapshot, { client: github(), store })
         // The new base first, then the committed edits go: a file is always in one of the
         // two, so an image being shown doesn't vanish mid-commit.
         const listing = await store.get<CachedListing>(`tree:${base.ref.repo}`)
@@ -366,10 +423,9 @@ export function createSession(deps: {
     const autosaveFor = (key: string) => {
       let save = autosaves.get(key)
       if (!save) {
-        save = createAutosave(
-          () => commit(key),
-          deps.autosaveDelay === undefined ? {} : { delay: deps.autosaveDelay },
-        )
+        // A folder is written soon after typing stops, so what syncs it sees the edit.
+        const delay = deps.autosaveDelay ?? (isFolder(key) ? FOLDER_IDLE_MS : undefined)
+        save = createAutosave(() => commit(key), delay === undefined ? {} : { delay })
         autosaves.set(key, save)
       }
       return save
@@ -378,6 +434,7 @@ export function createSession(deps: {
     return {
       phase: 'starting',
       token: null,
+      folders: !!deps.folders,
       trees: [],
       discovery: 'idle',
       data: {},
@@ -385,7 +442,12 @@ export function createSession(deps: {
 
       async start() {
         const [token, trees] = await Promise.all([tokens.get(), store.get<TreeRef[]>(KEYS.trees)])
-        set({ phase: token ? 'signed-in' : 'signed-out', token: token ?? null, trees: trees ?? [] })
+        const inFolders = (trees ?? []).some((t) => isFolder(t.repo))
+        set({
+          phase: token || inFolders ? 'signed-in' : 'signed-out',
+          token: token ?? null,
+          trees: trees ?? [],
+        })
       },
 
       async signIn(token) {
@@ -405,18 +467,31 @@ export function createSession(deps: {
 
       async signOut() {
         // Pending edits stay on this device, keyed by repository, for the next sign-in.
+        // Families in folders aren't GitHub's: they stay.
         for (const save of autosaves.values()) save.dispose()
         autosaves.clear()
         client = null
         pulls.clear()
         bases.clear()
         dirty.clear()
-        await Promise.all([tokens.set(undefined), store.set(KEYS.trees, undefined)])
-        set({ phase: 'signed-out', token: null, trees: [], data: {}, sync: {}, discovery: 'idle' })
+        const kept = get().trees.filter((t) => isFolder(t.repo))
+        await Promise.all([
+          tokens.set(undefined),
+          store.set(KEYS.trees, kept.length ? kept : undefined),
+        ])
+        set({
+          phase: kept.length ? 'signed-in' : 'signed-out',
+          token: null,
+          trees: kept,
+          data: {},
+          sync: {},
+          discovery: 'idle',
+        })
       },
 
       async discover() {
         if (get().discovery === 'loading') return
+        if (!get().token) return set({ discovery: 'done' })
         set({ discovery: 'loading' })
         try {
           const found = await discoverTrees(github())
@@ -425,7 +500,7 @@ export function createSession(deps: {
           await saveTrees(
             mergeTrees(
               found,
-              extra.filter((t) => keep.has(t.repo.toLowerCase())),
+              extra.filter((t) => keep.has(t.repo.toLowerCase()) || isFolder(t.repo)),
             ),
           )
           set({ discovery: 'done' })
@@ -452,6 +527,59 @@ export function createSession(deps: {
         await store.set(KEYS.connected, [...new Set([...(await connected()), tree.repo])])
         await saveTrees(mergeTrees(get().trees, [tree]))
         return tree
+      },
+
+      async addFolder() {
+        const access = deps.folders
+        if (!access)
+          throw new Error(
+            "This browser can't open folders. Use Chrome or Edge on a computer, or the desktop app.",
+          )
+        const picked = await access.pick()
+        if (!picked) return null
+        const fs = await access.open(picked.handle, true)
+        const files = await fs.list()
+        const encoder = new TextEncoder()
+        let fields: ReturnType<typeof markerFields> = {}
+        if (files.some((f) => f.path === MARKER))
+          fields = markerFields(new TextDecoder().decode(await fs.read(MARKER)))
+        else {
+          await fs.write(MARKER, encoder.encode(`${JSON.stringify({ name: picked.name })}\n`))
+          if (!files.some((f) => f.path.endsWith('.md')))
+            await fs.write('welcome.md', encoder.encode(FOLDER_WELCOME))
+        }
+        const taken = new Set(get().trees.map((t) => t.repo.toLowerCase()))
+        const slug = slugify(picked.name)
+        let name = slug
+        for (let n = 2; taken.has(`${FOLDER_OWNER}/${name}`); n++) name = `${slug}-${n}`
+        const ref: TreeRef = {
+          owner: FOLDER_OWNER,
+          name,
+          repo: `${FOLDER_OWNER}/${name}`,
+          branch: '',
+          isPrivate: true,
+          title: fields.title ?? picked.name,
+          color: fields.color ?? null,
+          trees: fields.trees ?? {},
+          folder: picked.name,
+        }
+        await store.set(`folder:${ref.repo}`, picked.handle)
+        opened.set(ref.repo, fs)
+        await saveTrees(mergeTrees(get().trees, [ref]))
+        set({ phase: 'signed-in' })
+        return ref
+      },
+
+      async allowFolder(repo) {
+        const key = repo.toLowerCase()
+        opened.delete(key)
+        try {
+          await folderOf(key, true)
+        } catch (e) {
+          setData(key, { status: 'error', graph: null, ...errorOf(e) })
+          return
+        }
+        await get().open(repo)
       },
 
       async createTree(input) {
@@ -483,6 +611,8 @@ export function createSession(deps: {
           const previous = get().data[key]?.graph ?? null
           try {
             let ref = get().trees.find((t) => t.repo.toLowerCase() === key)
+            if (!ref && isFolder(key))
+              throw new FolderError('missing', "This folder isn't one of your Families.")
             if (!ref) {
               setData(key, { status: 'loading', graph: null, fetched: 0, total: 0 })
               ref = (await lookupTree(github(), repo)) ?? undefined
@@ -492,32 +622,31 @@ export function createSession(deps: {
             const title = ref.title
             const edits = await loadDirty(key)
             setData(key, { status: 'loading', graph: previous, fetched: 0, total: 0 })
-            const pulled = await pullTree(ref, {
-              client: github(),
-              store,
-              onProgress: (p) => {
-                if (p.stage === 'structure' && (p.missing > 0 || !previous)) {
-                  setData(key, {
-                    status: 'loading',
-                    graph: buildGraph(p.model, new Map(), title),
-                    fetched: 0,
-                    total: p.missing,
-                  })
-                } else if (p.stage === 'content') {
-                  set((s) => {
-                    const current = s.data[key]
-                    return current?.status === 'loading'
-                      ? {
-                          data: {
-                            ...s.data,
-                            [key]: { ...current, fetched: p.fetched, total: p.total },
-                          },
-                        }
-                      : {}
-                  })
-                }
-              },
-            })
+            const onProgress = (p: PullProgress) => {
+              if (p.stage === 'structure' && (p.missing > 0 || !previous)) {
+                setData(key, {
+                  status: 'loading',
+                  graph: buildGraph(p.model, new Map(), title),
+                  fetched: 0,
+                  total: p.missing,
+                })
+              } else if (p.stage === 'content') {
+                set((s) => {
+                  const current = s.data[key]
+                  return current?.status === 'loading'
+                    ? {
+                        data: {
+                          ...s.data,
+                          [key]: { ...current, fetched: p.fetched, total: p.total },
+                        },
+                      }
+                    : {}
+                })
+              }
+            }
+            const pulled = isFolder(key)
+              ? await pullFolder(ref, { fs: await folderOf(key), store, onProgress })
+              : await pullTree(ref, { client: github(), store, onProgress })
             bases.set(key, {
               ref,
               entries: pulled.entries,
@@ -532,8 +661,7 @@ export function createSession(deps: {
               else setSync(key, { status: 'offline', files: count(key) })
             } else if (!get().sync[key]) setSync(key, { status: 'synced' })
           } catch (e) {
-            const { message, kind } = describeError(e)
-            setData(key, { status: 'error', graph: previous, error: message, kind })
+            setData(key, { status: 'error', graph: previous, ...errorOf(e) })
           } finally {
             pulls.delete(key)
           }
@@ -578,8 +706,7 @@ export function createSession(deps: {
         if (id === null) return null
         let url = urls.get(id)
         if (!url) {
-          const bytes =
-            id instanceof Uint8Array ? id : await assetBytes(repo, id, { client: github(), store })
+          const bytes = id instanceof Uint8Array ? id : await bytesOf(repo, path, id)
           url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: mimeOf(path) }))
           urls.set(id, url)
         }
@@ -606,6 +733,7 @@ export function createSession(deps: {
       async history(repo, path, after = null) {
         const key = repo.toLowerCase()
         await pulls.get(key)
+        if (isFolder(key)) throw new Error('A folder keeps no history of its leaves.')
         const ref = bases.get(key)?.ref
         const head = ref && (await store.get<CachedListing>(`tree:${ref.repo}`))?.head
         if (!ref || !head) throw new Error("This Family hasn't opened yet. Try again in a moment.")
@@ -629,6 +757,13 @@ export function createSession(deps: {
         if (!ref || !head) throw new Error("This Family hasn't opened yet. Try again in a moment.")
         const graph = get().data[key]?.graph
         const leaves = graph ? [...graph.nodes.values()].filter((n) => n.kind === 'leaf') : []
+        // ponytail: a folder has no blame, so a leaf is dated by its last change on disk.
+        if (isFolder(key)) {
+          const stats = (await store.get<Record<string, { modified: number }>>(`stat:${key}`)) ?? {}
+          return new Map(
+            leaves.map((n) => [n.id, new Date(stats[n.id]?.modified ?? Date.now()).toISOString()]),
+          )
+        }
         const saved = (await store.get<Record<string, string>>(`planted:${key}`)) ?? {}
         const committed = new Set(bases.get(key)!.entries.map((e) => e.path))
         const missing = leaves.map((n) => n.id).filter((id) => !saved[id] && committed.has(id))
@@ -718,5 +853,6 @@ export const session = createSession({
   store: appStore,
   tokens: tokenStore(appStore, desktopInvoke),
   api: githubApi,
+  folders: desktopInvoke ? desktopFolders(desktopInvoke) : browserFolders(),
 })
 export const useSession = <T>(selector: (s: SessionState) => T): T => useStore(session, selector)
