@@ -130,6 +130,9 @@
   text-anchor: middle;
   pointer-events: none;
 }
+.iconImage {
+  pointer-events: none;
+}
 
 .ring {
   fill: none;

@@ -22,6 +22,7 @@ import { TreeMap } from '../map/TreeMap'
 import type { Graph } from '../model/graph'
 import { ROOT } from '../model/tree'
 import { preloadEditor } from '../editor/LeafEditor'
+import { imageAt } from '../read/LeafLook'
 import { Peek } from '../read/Peek'
 import { session, useSession } from '../store/session'
 import { treeColor } from '../views/common'
@@ -124,6 +125,11 @@ export function AllView({ params }: { params: { owner?: string; name?: string; '
       if (id === null) setExpanded(false)
     },
     [navigate],
+  )
+  /** A node's image icon, from its own Family. */
+  const imageUrl = useCallback(
+    (id: string, src: string) => imageAt(splitId(id)?.repo ?? '', src),
+    [],
   )
   const fromMap = (id: string | null) => {
     const at = id === null ? null : splitId(id)
@@ -238,6 +244,7 @@ export function AllView({ params }: { params: { owner?: string; name?: string; '
               treeKey="all"
               graph={merged}
               family={layout}
+              imageUrl={imageUrl}
               title={TITLE}
               color={colorVar(null)}
               treeColors={treeColors}

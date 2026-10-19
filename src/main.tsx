@@ -7,6 +7,7 @@ import { session } from './store/session'
 import { App } from './ui/App'
 import { ErrorBoundary } from './ui/ErrorBoundary'
 import { applyCustom, savedCustom } from './ui/customTheme'
+import { installFlags } from './ui/flags'
 import { installTheme, savedTheme } from './ui/theme'
 
 installTheme(savedTheme())
@@ -14,6 +15,7 @@ installTheme(savedTheme())
 // pinch is made of touch events, so it still works.
 document.addEventListener('gesturestart', (e) => e.preventDefault())
 applyCustom(savedCustom())
+installFlags()
 
 // `npm run dev:fake` answers every GitHub request from the in-memory fake and signs in
 // with its token. The check is replaced at build time, so production never includes it.

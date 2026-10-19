@@ -30,6 +30,85 @@
   line-height: 1.2;
 }
 
+/* The icon's row: where it sits (line 2 `iconPosition`), over the cover's lower edge. */
+.iconRow {
+  display: flex;
+  /* Over the cover only the icon takes clicks, not the row (the cover's own bar may be under it). */
+  pointer-events: none;
+}
+.iconRow .iconButton {
+  pointer-events: auto;
+}
+.iconRow[data-position='center'] {
+  justify-content: center;
+}
+.iconRow[data-position='right'] {
+  justify-content: flex-end;
+}
+.iconRow[data-position='right'] .iconButton {
+  margin: 0 -10px 0 0;
+}
+.iconRow[data-over-cover] {
+  position: relative;
+  margin-top: -52px;
+}
+.iconImage {
+  display: block;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  object-fit: cover;
+  box-shadow: 0 0 0 3px var(--bg);
+}
+
+/* The icon's and the cover's choices. */
+.menuHost {
+  position: relative;
+}
+.menu {
+  position: absolute;
+  z-index: 6;
+  top: calc(100% + 6px);
+  left: 0;
+  min-width: 190px;
+  display: flex;
+  flex-direction: column;
+  padding: 4px;
+  border-radius: 10px;
+  box-shadow: 0 16px 40px var(--shadow);
+}
+.menu button {
+  display: flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  font-size: 13px;
+  cursor: pointer;
+}
+.menu button:hover {
+  background: var(--hover);
+}
+.menu button[aria-checked='true']::after {
+  content: '✓';
+  margin-left: auto;
+  color: var(--accent);
+}
+.menu button[data-danger] {
+  color: var(--c-amber);
+}
+.menuLabel {
+  padding: 8px 10px 2px;
+  color: var(--faint);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .picker {
   position: absolute;
   z-index: 5;

@@ -27,6 +27,8 @@ export interface LaidNode {
   hasChildren: boolean
   /** The leaf's emoji, drawn on its dot; null when it has none. */
   icon: string | null
+  /** The leaf's image icon, drawn on its dot in place of an emoji. */
+  image?: string
   label: string
   /** Horizontal label (small Trees, as in the design) or rotated along the radius. */
   labelX: number
@@ -80,10 +82,12 @@ export const ICON_SIZE = 1.9
 /** A ghost's dot (a leaf not written yet): hollow, so a little larger than an empty leaf's. */
 const GHOST_R = 4
 
-export function dotRadius(node: Pick<GraphNode, 'kind' | 'words' | 'total' | 'icon'>): number {
+export function dotRadius(
+  node: Pick<GraphNode, 'kind' | 'words' | 'total' | 'icon' | 'image'>,
+): number {
   if (node.kind !== 'leaf') return 4 + Math.sqrt(node.total) / 11
   const r = 2.4 + Math.sqrt(node.words) / 5.6
-  return node.icon ? Math.max(ICON_R, r) : r
+  return node.icon || node.image ? Math.max(ICON_R, r) : r
 }
 
 // Label sizes, as map.module.css draws them: leaves 13 px, top-level branches 10.5 px
@@ -311,6 +315,7 @@ export function layoutTree(graph: Graph, options: LayoutOptions = {}): MapLayout
         r: round(graph.ghosts.has(g.id) ? GHOST_R : dotRadius(g)),
         hasChildren: g.children.length > 0,
         icon: g.kind === 'leaf' ? g.icon : null,
+        ...(g.kind === 'leaf' && g.image && { image: g.image }),
         label: labelOf(g, d.depth),
         labelX: 0,
         labelY: 0,

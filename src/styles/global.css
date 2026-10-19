@@ -2,8 +2,9 @@
 
 :root {
   --accent-soft: color-mix(in srgb, var(--accent) 12%, transparent);
-  --font-ui: 'Geist Variable', 'Geist', ui-sans-serif, system-ui, sans-serif;
-  --font-mono: 'Geist Mono Variable', 'Geist Mono', ui-monospace, monospace;
+  /* 'Yeraz Flags' exists only where the system has no flags (ui/flags.ts). */
+  --font-ui: 'Yeraz Flags', 'Geist Variable', 'Geist', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'Yeraz Flags', 'Geist Mono Variable', 'Geist Mono', ui-monospace, monospace;
   color-scheme: dark;
 }
 
