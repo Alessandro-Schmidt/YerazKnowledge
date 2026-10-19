@@ -404,7 +404,7 @@ test('deleting a leaf warns about the leaves that link to it', async ({ page, fa
   await expect.poll(() => fake.repo(REPO).read(leaf.id)).toBeUndefined()
 })
 
-test('live preview hides Markdown away from the cursor, toggles tasks, and shows the source on request', async ({
+test('live preview hides Markdown, toggles tasks, and shows the source on request', async ({
   page,
 }) => {
   test.skip(isPhone(page), 'Typing tests run on desktop engines')
@@ -414,9 +414,10 @@ test('live preview hides Markdown away from the cursor, toggles tasks, and shows
   await page.getByRole('dialog').getByLabel('Title').fill('Preview check')
   await page.getByRole('dialog').getByRole('button', { name: 'Create leaf' }).click()
   await expect(page.locator('.cm-title')).toBeVisible()
-  await page.keyboard.type('## Section\n- [ ] A task\n\nLast line')
+  await page.keyboard.type('## Section\n- [ ] A task')
 
-  // Away from the cursor, "##" and "[ ]" are not shown; the task is a checkbox.
+  // "##" and "[ ]" are not shown, even on the line being written (issue #68); the task is
+  // a checkbox.
   await expect(page.locator('.cm-h2')).toHaveText('Section')
   const box = page.locator('input.cm-task')
   await expect(box).not.toBeChecked()
