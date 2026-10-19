@@ -15,6 +15,11 @@
 .iconButton:hover {
   background: var(--hover);
 }
+.iconButton:disabled {
+  opacity: 0.4;
+  cursor: default;
+  background: transparent;
+}
 .iconButton[aria-pressed='true'] {
   background: var(--raised);
   color: var(--text);

@@ -133,6 +133,7 @@ export function FamilyView({ params }: { params: { owner: string; name: string; 
           <Status data={data} repo={repo} branch={tree?.branch ?? 'main'} />
         </span>
         <div className={styles.toggles}>
+          <SaveAndRefresh repo={repo} loading={data?.status === 'loading'} />
           <button
             type="button"
             className={controls.iconButton}
@@ -299,6 +300,41 @@ function Status({
   if (data.offline && (!sync || sync.status === 'synced'))
     return <span role="status">Offline · showing the saved copy</span>
   return <SyncStatus repo={repo} branch={branch} />
+}
+
+/**
+ * Issue #63: commit pending edits now (as Ctrl/Cmd+S does), and bring in what other devices
+ * committed (the read path again: one request, a free 304 when nothing changed).
+ */
+function SaveAndRefresh({ repo, loading }: { repo: string; loading: boolean }) {
+  const sync = useSession((s) => s.sync[repo.toLowerCase()])
+  const unsaved = !!sync && 'files' in sync && sync.files > 0 && sync.status !== 'saving'
+  return (
+    <>
+      <button
+        type="button"
+        className={`${controls.iconButton} ${styles.save}`}
+        aria-label="Save now"
+        title="Save now (Ctrl+S)"
+        disabled={!unsaved}
+        data-unsaved={unsaved || undefined}
+        onClick={() => void session.getState().flush(repo)}
+      >
+        <Icon name="save" size={18} />
+      </button>
+      <button
+        type="button"
+        className={controls.iconButton}
+        aria-label="Refresh"
+        title="Refresh"
+        aria-busy={loading || undefined}
+        disabled={loading}
+        onClick={() => void session.getState().open(repo)}
+      >
+        <Icon name="refresh" size={18} />
+      </button>
+    </>
+  )
 }
 
 function Placeholder({

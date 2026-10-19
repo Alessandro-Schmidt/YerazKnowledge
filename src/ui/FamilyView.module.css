@@ -24,6 +24,9 @@
 
 .status {
   display: flex;
+  /* The search box gives way first, so "Synced to main" reads whole; long messages cut. */
+  flex-shrink: 0;
+  max-width: 28vw;
   min-width: 0;
   margin-left: auto;
   color: var(--muted);
@@ -123,16 +126,23 @@
 }
 
 @media (max-width: 640px) {
-  .status {
-    font-size: 11px;
-    max-width: 30vw;
+  /* No room for the words beside Save and Refresh: the dot says the state, and screen
+     readers still hear it. */
+  .status [role='status'] {
+    gap: 0;
+    font-size: 0;
   }
   .toggles {
     margin-left: auto;
+    gap: 2px;
   }
   .toggles button {
-    width: 44px;
+    width: 40px;
     height: 44px;
+  }
+  /* Phones show Save only while there is something to save. */
+  .save:not([data-unsaved]) {
+    display: none;
   }
   .newLeaf {
     padding: 0;
