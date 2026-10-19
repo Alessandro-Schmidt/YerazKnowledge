@@ -9,6 +9,19 @@ Notes as Markdown in your own GitHub repositories. The main screen is a map of h
 - **Write in Markdown, see the result.** The editor edits the text itself, with live preview: `@` mentions, images, math, code, YouTube, PDFs and subtitled videos.
 - **Saved for you.** Edits are kept on your device as you type and committed in the background, one commit per save. Two devices editing the same leaf are merged.
 
+## Preview
+
+Two Families together: *Engineering* (400 leaves) and *Art History* (90 leaves), with their threads. Every view shows the same notes; switch from the top bar, or choose one in Settings › Views.
+
+![The map: every Family on one radial map, each in its own ring](docs/preview/map.webp)
+
+| | |
+|---|---|
+| ![A leaf open beside the map, edited in place](docs/preview/leaf.webp) **A leaf**, edited where it is shown | ![Columns: the path to a leaf, one column per level](docs/preview/columns.webp) **Columns**, from a Tree down to a leaf |
+| ![Outline: every Tree, branch and leaf as a list, with first lines and word counts](docs/preview/outline.webp) **Outline**, with first lines and word counts | ![Treemap: the area of each tile is the words written](docs/preview/treemap.webp) **Treemap**, sized by words written |
+| ![Graph: leaves and their threads, grouped by Tree](docs/preview/graph.webp) **Graph**, leaves and threads by Tree | ![Mind map: a Family as a tree from its core](docs/preview/mind.webp) **Mind map**, a Family from its core |
+| ![Growth rings: one ring per month since the first leaf](docs/preview/rings.webp) **Growth rings**, one ring per month | ![Atlas: every Tree an island, every leaf a peak](docs/preview/atlas.webp) **Atlas**, Trees as islands, leaves as peaks |
+
 ## Use it
 
 **On the web:** <https://alessandro-schmidt.github.io/YerazKnowledge/>. It works in any modern browser, and installs as an app: *Add to Home Screen* on a phone, or the install button in Chrome or Edge's address bar.
