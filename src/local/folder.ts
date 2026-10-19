@@ -3,7 +3,10 @@
 // keeps in sync. The same repository format (ARCHITECTURE.md §4), read and written as files.
 // Browsers with the File System Access API (Chrome, Edge) use it; the desktop app asks its
 // own Rust commands (src-tauri/src/lib.rs), since not every OS's webview has that API.
+// Phones, Safari and Firefox can't keep a folder open: there a Family is kept in the
+// browser's own storage on the device, started empty or from a copy of a folder's files.
 
+import type { KeyValueStore } from '../store/db'
 import type { Invoke } from '../store/token'
 
 /** A file in the folder; paths are relative to it, with `/`. */
@@ -37,10 +40,15 @@ export class FolderError extends Error {
 
 /** How this device reaches folders. A handle is what `pick` gave; it is kept in the key/value store. */
 export interface FolderAccess {
-  /** Asks the person for a folder; null when they cancel. */
-  pick(): Promise<{ name: string; handle: unknown } | null>
+  /**
+   * Asks the person for a folder; null when they cancel. On the device's own storage,
+   * `empty` starts a Family with nothing in it instead.
+   */
+  pick(empty?: boolean): Promise<{ name: string; handle: unknown } | null>
   /** The folder's files. With `ask`, a browser may ask the person again (needs a click). */
   open(handle: unknown, ask: boolean): Promise<FolderFs>
+  /** Families are kept in this browser's storage, not in folders the person can see. */
+  onDevice?: boolean
 }
 
 /** The file that marks a Family and holds its name (ARCHITECTURE.md §4). */
@@ -218,3 +226,95 @@ export function desktopFolders(invoke: Invoke): FolderAccess {
     },
   }
 }
+
+/** Files the person picked, with their paths inside the folder they picked (if one). */
+export type ChooseFiles = () => Promise<{ path: string; bytes: Uint8Array }[] | null>
+
+/**
+ * Families kept in the browser's storage on this device (`device:<id>` keys), for browsers
+ * that can't open folders. `choose` asks the person for a folder's files to copy in; the
+ * copy is the Family from then on: the folder they came from isn't written.
+ */
+export function deviceFolders(store: KeyValueStore, choose: ChooseFiles): FolderAccess {
+  const newId = () => `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`
+  return {
+    onDevice: true,
+    async pick(empty) {
+      const id = newId()
+      if (empty) return { name: 'Notes', handle: id }
+      const picked = await choose()
+      if (!picked?.length) return null
+      // Paths from a folder start with its name; that name is the Family's.
+      const top = picked.map((f) => f.path.split('/')[0]!)
+      const inFolder = picked.every((f, i) => f.path.includes('/') && top[i] === top[0])
+      const fs = deviceFs(store, id)
+      for (const file of picked) {
+        const path = inFolder ? file.path.slice(top[0]!.length + 1) : file.path
+        if (path.split('/').every((name, i) => visible(name, i === 0)))
+          await fs.write(path, file.bytes)
+      }
+      return { name: inFolder ? top[0]! : 'Notes', handle: id }
+    },
+    open: async (handle) => deviceFs(store, handle as string),
+  }
+}
+
+/** The files of a Family kept on this device: an index of paths, and each file's bytes. */
+function deviceFs(store: KeyValueStore, id: string): FolderFs {
+  const key = `device:${id}`
+  let index: Promise<Record<string, FolderFile>> | null = null
+  const files = () => (index ??= store.get<Record<string, FolderFile>>(key).then((v) => v ?? {}))
+  // One change to the index at a time; times only go forward, so a scan sees every write.
+  let queue: Promise<void> = Promise.resolve()
+  let clock = 0
+  const change = (edit: (all: Record<string, FolderFile>) => void) =>
+    (queue = queue.then(async () => {
+      const all = await files()
+      edit(all)
+      await store.set(key, all)
+    }))
+  return {
+    list: async () => Object.values(await files()),
+    async read(path) {
+      const bytes = (await files())[path] && (await store.get<Uint8Array>(`${key}:${path}`))
+      if (!bytes) throw new Error(`${path} isn't in this Family any more.`)
+      return bytes
+    },
+    async write(path, bytes) {
+      await store.set(`${key}:${path}`, bytes.slice())
+      clock = Math.max(Date.now(), clock + 1)
+      const modified = clock
+      await change((all) => void (all[path] = { path, size: bytes.byteLength, modified }))
+    },
+    async remove(path) {
+      await change((all) => void delete all[path])
+      await store.set(`${key}:${path}`, null)
+    },
+  }
+}
+
+/** Asks for a folder's files (or several files, where a folder can't be chosen). */
+export const chooseFiles: ChooseFiles = () =>
+  new Promise((resolve) => {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.multiple = true
+    input.webkitdirectory = true
+    input.hidden = true
+    const done = async (files: File[] | null) => {
+      input.remove()
+      resolve(
+        files &&
+          (await Promise.all(
+            files.map(async (f) => ({
+              path: f.webkitRelativePath || f.name,
+              bytes: new Uint8Array(await f.arrayBuffer()),
+            })),
+          )),
+      )
+    }
+    input.addEventListener('change', () => void done([...(input.files ?? [])]))
+    input.addEventListener('cancel', () => void done(null))
+    document.body.append(input)
+    input.click()
+  })

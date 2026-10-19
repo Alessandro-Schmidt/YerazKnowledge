@@ -59,6 +59,7 @@ export function FamilyMenu({ current, all }: { current?: string; all?: boolean }
   const trees = useSession((s) => s.trees)
   const github = useSession((s) => s.token !== null)
   const folders = useSession((s) => s.folders)
+  const onDevice = useSession((s) => s.onDevice)
   const [, navigate] = useLocation()
   const host = useRef<HTMLDivElement>(null)
 
@@ -84,6 +85,15 @@ export function FamilyMenu({ current, all }: { current?: string; all?: boolean }
     void session.getState().open(tree.repo)
     navigate(treeHref(tree.repo))
   }
+  /** A folder, or on a device without folders a copy of one (or nothing), as a new Family. */
+  const addFolder = (empty: boolean) =>
+    void session
+      .getState()
+      .addFolder(empty)
+      .then(
+        (tree) => tree && go(tree),
+        (e: unknown) => window.alert(e instanceof Error ? e.message : String(e)),
+      )
 
   return (
     <div ref={host} className={styles.host}>
@@ -143,21 +153,15 @@ export function FamilyMenu({ current, all }: { current?: string; all?: boolean }
             </button>
           )}
           {folders && (
-            <button
-              type="button"
-              role="menuitem"
-              onClick={() =>
-                void session
-                  .getState()
-                  .addFolder()
-                  .then(
-                    (tree) => tree && go(tree),
-                    (e: unknown) => window.alert(e instanceof Error ? e.message : String(e)),
-                  )
-              }
-            >
+            <button type="button" role="menuitem" onClick={() => addFolder(false)}>
               <Icon name="folder" size={15} />
-              Use a folder
+              {onDevice ? 'Copy in a folder' : 'Use a folder'}
+            </button>
+          )}
+          {onDevice && (
+            <button type="button" role="menuitem" onClick={() => addFolder(true)}>
+              <Icon name="plus" size={15} />
+              New Family on this device
             </button>
           )}
           <hr />

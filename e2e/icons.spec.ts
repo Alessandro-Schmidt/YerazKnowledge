@@ -74,6 +74,20 @@ test.describe('icon and cover', () => {
     await expect.poll(() => saved(fake)).toBe('# Armenia\n\nMount Ararat.\n')
   })
 
+  test('the icon itself opens the picker, whose Remove icon is in sight beside the search', async ({
+    page,
+    fake,
+  }) => {
+    await open(page, fake)
+    await page.getByRole('button', { name: 'Change icon 🇦🇲' }).click()
+    const picker = page.getByRole('group', { name: 'Icons' })
+    await expect(picker.getByRole('button', { name: 'Remove icon' })).toBeInViewport()
+    await picker.getByRole('button', { name: 'Remove icon' }).click()
+    await expect(page.getByRole('button', { name: 'Add icon' })).toBeVisible()
+    await page.keyboard.press('ControlOrMeta+s')
+    await expect.poll(() => saved(fake)).toBe('# Armenia\n\nMount Ararat.\n')
+  })
+
   test('the cover is one button: upload, reposition and remove are in it', async ({
     page,
     fake,
@@ -138,6 +152,8 @@ test.describe('a Tree’s icon and cover', () => {
     await peek.getByRole('button', { name: 'Add icon' }).click()
     await peek.getByRole('menuitem', { name: 'Choose an emoji' }).click()
     await peek.getByRole('searchbox', { name: 'Search emoji' }).fill('robot')
+    // Enter picks the first emoji found, once the list has loaded.
+    await expect(peek.getByRole('button', { name: 'robot' })).toBeVisible()
     await peek.getByRole('searchbox', { name: 'Search emoji' }).press('Enter')
 
     const chooser = page.waitForEvent('filechooser')

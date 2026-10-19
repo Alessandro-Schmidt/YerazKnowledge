@@ -31,7 +31,7 @@ test.describe('bookmarks', () => {
     await page.keyboard.press('ControlOrMeta+End')
   })
 
-  test('a pasted URL becomes a bookmark: a card whose title edits it and address opens it', async ({
+  test('a pasted URL becomes a bookmark: a card whose address opens it and ⋯ edits it', async ({
     page,
     fake,
   }) => {
@@ -61,8 +61,10 @@ test.describe('bookmarks', () => {
     ])
     await expect(card).toBeVisible()
 
-    // A click on its title shows its Markdown, to edit.
-    await card.getByText('Baroque', { exact: true }).click()
+    // Its ⋯ shows its Markdown, to edit.
+    await card.hover()
+    await card.getByRole('button', { name: 'Embed actions' }).click()
+    await page.getByRole('menuitem', { name: 'Show Markdown' }).click()
     await expect(editor).toContainText(`[Baroque](${PAGE})`)
   })
 
