@@ -124,7 +124,13 @@
   box-shadow: 0 24px 60px var(--shadow);
 }
 
+.pickerTop {
+  display: flex;
+  gap: 8px;
+}
 .emojiSearch {
+  flex: 1;
+  min-width: 0;
   height: 34px;
 }
 
@@ -169,6 +175,7 @@
 }
 
 .removeIcon {
+  flex: none;
   height: 34px;
   font-size: 12.5px;
 }

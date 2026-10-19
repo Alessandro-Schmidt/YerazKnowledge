@@ -3,7 +3,7 @@
 import { setupServer } from 'msw/node'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { memoryFolder, memoryFolders } from '../../test/memoryFolder'
-import { FolderError, type FolderAccess } from '../local/folder'
+import { deviceFolders, FolderError, type FolderAccess } from '../local/folder'
 import { memoryStore } from './db'
 import { createSession } from './session'
 
@@ -130,5 +130,51 @@ describe('a Family in a folder', () => {
     const s = createSession({ store: memoryStore(), folders: null })
     expect(s.getState().folders).toBe(false)
     await expect(s.getState().addFolder()).rejects.toThrow("This browser can't open folders")
+  })
+})
+
+describe('a Family kept on a device without folders (phones, Safari, Firefox)', () => {
+  const text = (s: string) => new TextEncoder().encode(s)
+
+  it('starts empty: a marker and a welcome leaf, kept in the browser’s storage', async () => {
+    const store = memoryStore()
+    const s = createSession({ store, folders: deviceFolders(store, async () => null) })
+    await s.getState().start()
+    expect(s.getState()).toMatchObject({ folders: true, onDevice: true })
+    expect(await s.getState().addFolder()).toBeNull() // the picker was cancelled
+    const ref = (await s.getState().addFolder(true))!
+    expect(ref).toMatchObject({ repo: '~/notes', title: 'Notes' })
+    await s.getState().open(ref.repo)
+    const data = s.getState().data['~/notes']
+    expect(data?.status === 'ready' && data.graph.nodes.get('welcome.md')?.title).toBe('Welcome')
+  })
+
+  it('copies a picked folder in, without its hidden files, and keeps edits across reopening', async () => {
+    const store = memoryStore()
+    const picked = [
+      { path: 'Vault/Ideas/first.md', bytes: text('# First\n') },
+      { path: 'Vault/.obsidian/app.json', bytes: text('{}') },
+      { path: 'Vault/assets/x.png', bytes: new Uint8Array([9, 9]) },
+    ]
+    const folders = deviceFolders(store, async () => picked)
+    const s = createSession({ store, folders, autosaveDelay: 20 })
+    const ref = (await s.getState().addFolder())!
+    expect(ref).toMatchObject({ repo: '~/vault', title: 'Vault' })
+    const fs = await folders.open(await store.get(`folder:${ref.repo}`), false)
+    expect((await fs.list()).map((f) => f.path).sort()).toEqual([
+      '.yeraz.json',
+      'Ideas/first.md',
+      'assets/x.png',
+    ])
+
+    await s.getState().open(ref.repo)
+    await s.getState().apply(ref.repo, [{ path: 'Ideas/first.md', text: '# First\n\nMore.\n' }])
+    await new Promise((r) => setTimeout(r, 60))
+    expect(s.getState().sync[ref.repo]).toEqual({ status: 'synced' })
+
+    const again = createSession({ store, folders })
+    await again.getState().start()
+    await again.getState().open(ref.repo)
+    expect(await again.getState().textOf(ref.repo, 'Ideas/first.md')).toBe('# First\n\nMore.\n')
   })
 })

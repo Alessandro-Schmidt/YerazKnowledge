@@ -1,14 +1,17 @@
 // Live preview (ARCHITECTURE.md §7): one decoration extension over the Markdown text.
 // Writing shows the result, not the Markdown (issue #68): only the piece of syntax the
-// cursor touches shows its marks (a heading's `##`, a span's `**`, a link's `[…](…)`), so
-// it can be edited. Images, embeds and callouts show their Markdown on the cursor's line.
+// cursor touches shows its marks (a heading's `##`, a span's `**`), so it can be edited.
+// Links, images, embeds and tables never show their Markdown unless the person asks, from
+// their ⋯ menu (elements.ts, tables.ts); callouts and toggles show theirs on the cursor's line.
 // "Show Markdown" turns this extension off: same editor, same text.
-// GitHub's alerts, footnote marks and Mermaid diagrams show as github.com draws them.
+// GitHub's alerts, footnote marks, toggles and Mermaid diagrams show as github.com draws them.
 
 import { syntaxTree } from '@codemirror/language'
 import {
   Facet,
+  RangeSet,
   RangeSetBuilder,
+  StateEffect,
   StateField,
   type ChangeSpec,
   type EditorState,
@@ -23,7 +26,14 @@ import {
   type ViewUpdate,
 } from '@codemirror/view'
 import type { SyntaxNode } from '@lezer/common'
-import { calloutOf, calloutTitle, isDiagram, type Callout } from '../model/blocks'
+import {
+  calloutOf,
+  calloutTitle,
+  detailsClose,
+  detailsOpen,
+  isDiagram,
+  type Callout,
+} from '../model/blocks'
 import {
   embedOf,
   imageWidth,
@@ -37,9 +47,21 @@ import {
 import { leadingIcon, linkTarget, ownPath } from '../model/parse'
 import { downloadAsset, fileCardHtml } from '../read/files'
 import { encodePath } from '../ui/paths'
+import {
+  beingTyped,
+  deletion,
+  elements,
+  moreButton,
+  openElementMenu,
+  revealSource,
+  shownSource,
+  sourceShown,
+} from './elements'
 import { titleShown } from './emptyText'
+import { askHost } from './insertMenu'
 import { mentionSource } from './mentions'
 import { metaLine } from './metaLine'
+import { tableEditing } from './tables'
 
 /** The title's icon with the space after it, so both can be hidden. */
 const titleIcon = (rest: string) => {
@@ -90,14 +112,20 @@ export const fileSizes = Facet.define<
 const MIN_IMAGE_WIDTH = 10
 const clampWidth = (width: number) => Math.min(100, Math.max(MIN_IMAGE_WIDTH, Math.round(width)))
 
+/** The image that starts at `from`, if any. */
+function imageAt(state: EditorState, from: number): SyntaxNode | null {
+  let image: SyntaxNode | null = syntaxTree(state).resolveInner(from, 1)
+  while (image && !(image.name === 'Image' && image.from === from)) image = image.parent
+  return image
+}
+
 /** The change that gives the image starting at `from` this width (§4), or null if none. */
 export function imageResize(
   state: EditorState,
   from: number,
   width: number | null,
 ): ChangeSpec | null {
-  let image: SyntaxNode | null = syntaxTree(state).resolveInner(from, 1)
-  while (image && !(image.name === 'Image' && image.from === from)) image = image.parent
+  const image = imageAt(state, from)
   const url = image?.getChild('URL')
   if (!image || !url) return null
   const title = image.getChild('LinkTitle')
@@ -177,6 +205,36 @@ function keyWidth(view: EditorView, frame: HTMLElement, event: KeyboardEvent) {
   commitWidth(view, frame, clampWidth(width))
 }
 
+const IMAGE_ITEMS = [
+  { kind: 'replace', label: 'Replace image' },
+  { kind: 'markdown', label: 'Show Markdown' },
+  { kind: 'delete', label: 'Delete image' },
+] as const
+
+/** An image's ⋯ menu: another picture in its place, its Markdown, or deleting it. */
+function imageMenu(view: EditorView, frame: HTMLElement, button: HTMLElement) {
+  const from = view.posAtDOM(frame)
+  openElementMenu(
+    view,
+    from,
+    'Image',
+    IMAGE_ITEMS,
+    (kind) => {
+      const image = imageAt(view.state, from)
+      if (!image) return
+      if (kind === 'markdown') return revealSource(view, image.from, image.to, image.to)
+      if (kind === 'delete') {
+        view.dispatch({ changes: deletion(view.state, image.from, image.to) })
+        return view.focus()
+      }
+      // The new picture takes the selection's place: this image.
+      view.dispatch({ selection: { anchor: image.from, head: image.to } })
+      askHost(view, 'image')
+    },
+    button,
+  )
+}
+
 class ImageWidget extends WidgetType {
   constructor(
     readonly src: string,
@@ -218,6 +276,7 @@ class ImageWidget extends WidgetType {
       }
       frame.append(handle)
     }
+    frame.append(moreButton('Image', (button) => imageMenu(view, frame, button)))
     showWidth(frame, this.width)
     return frame
   }
@@ -279,13 +338,20 @@ class EmbedWidget extends WidgetType {
       JSON.stringify([this.embed, this.size, this.tree, this.tracks])
     )
   }
-  toDOM() {
+  toDOM(view: EditorView) {
+    const box = this.draw()
+    box.append(moreButton('Embed', (button) => embedMenu(view, box, button, this.embed)))
+    return box
+  }
+  private draw() {
     const { embed } = this
     if (embed.kind === 'repo') {
       // As in the read view: a connected Tree opens in the app, any other repository on GitHub.
       const { tree } = this
+      const box = document.createElement('div')
+      box.className = 'cm-embed cm-embed-repo-box'
       const card = document.createElement('a')
-      card.className = 'cm-embed cm-embed-repo'
+      card.className = 'cm-embed-repo'
       card.href = tree?.href ?? `https://github.com/${embed.repo}`
       if (!tree) {
         card.target = '_blank'
@@ -298,7 +364,8 @@ class EmbedWidget extends WidgetType {
       const kind = document.createElement('em')
       kind.textContent = tree ? 'Family' : 'GitHub repository'
       card.append(name, repo, kind)
-      return card
+      box.append(card)
+      return box
     }
     const box = document.createElement('div')
     box.className = `cm-embed cm-embed-${embed.kind}`
@@ -351,9 +418,36 @@ class EmbedWidget extends WidgetType {
     }
     return box
   }
-  ignoreEvent() {
-    return this.embed.kind !== 'bookmark'
+  ignoreEvent(event: Event) {
+    return this.embed.kind !== 'bookmark' || !!(event.target as Element).closest?.('.cm-more')
   }
+}
+
+/** An embed's ⋯ menu: open a bookmark, show the Markdown, or delete it. */
+function embedMenu(view: EditorView, box: HTMLElement, button: HTMLElement, embed: Embed) {
+  const from = view.posAtDOM(box)
+  const items = [
+    ...(embed.kind === 'bookmark' ? [{ kind: 'open' as const, label: 'Open link' }] : []),
+    { kind: 'markdown' as const, label: 'Show Markdown' },
+    { kind: 'delete' as const, label: 'Delete' },
+  ]
+  openElementMenu(
+    view,
+    from,
+    'Embed',
+    items,
+    (kind) => {
+      const line = view.state.doc.lineAt(from)
+      if (kind === 'open' && embed.kind === 'bookmark')
+        window.open(embed.url, '_blank', 'noopener,noreferrer')
+      else if (kind === 'markdown') revealSource(view, line.from, line.to, line.to)
+      else if (kind === 'delete') {
+        view.dispatch({ changes: deletion(view.state, line.from, line.to) })
+        view.focus()
+      }
+    },
+    button,
+  )
 }
 
 /** An alert's title in place of its `[!NOTE]` marker. */
@@ -402,17 +496,124 @@ class DiagramWidget extends WidgetType {
   }
 }
 
+/** A toggle's summary in place of its `<details>` and `<summary>` tags; its arrow folds it. */
+class SummaryWidget extends WidgetType {
+  constructor(
+    readonly summary: string,
+    readonly folded: boolean,
+  ) {
+    super()
+  }
+  eq(other: SummaryWidget) {
+    return other.summary === this.summary && other.folded === this.folded
+  }
+  toDOM(view: EditorView) {
+    const box = document.createElement('div')
+    box.className = 'cm-details-summary'
+    const fold = document.createElement('button')
+    fold.type = 'button'
+    fold.className = 'cm-details-toggle'
+    fold.setAttribute('aria-expanded', String(!this.folded))
+    fold.setAttribute('aria-label', `${this.folded ? 'Open' : 'Close'} ${this.summary}`)
+    fold.addEventListener('mousedown', (e) => e.preventDefault())
+    fold.addEventListener('click', () =>
+      view.dispatch({ effects: foldDetails.of(view.posAtDOM(box)) }),
+    )
+    const title = document.createElement('span')
+    title.textContent = this.summary
+    box.append(fold, title)
+    return box
+  }
+  /** A click on the summary puts the cursor in it, which shows its source to edit. */
+  ignoreEvent(event: Event) {
+    return !!(event.target as Element).closest?.('.cm-details-toggle')
+  }
+}
+
+/** The end of a toggle, in place of `</details>`. */
+class DetailsEndWidget extends WidgetType {
+  eq() {
+    return true
+  }
+  toDOM() {
+    const end = document.createElement('div')
+    end.className = 'cm-details-end'
+    return end
+  }
+  ignoreEvent() {
+    return false
+  }
+}
+
+/** Folds or unfolds the toggle whose `<details>` starts at a position. */
+const foldDetails = StateEffect.define<number>()
+
+/** Toggles folded otherwise than they are written (`<details open>` is unfolded). */
+const flippedDetails = StateField.define<readonly number[]>({
+  create: () => [],
+  update(value, tr) {
+    let next = tr.docChanged ? value.map((pos) => tr.changes.mapPos(pos)) : value
+    for (const e of tr.effects)
+      if (e.is(foldDetails))
+        next = next.includes(e.value) ? next.filter((p) => p !== e.value) : [...next, e.value]
+    return next
+  },
+})
+
 /**
- * Closed ```mermaid blocks at the top level, away from the cursor, as their diagrams. They
- * span lines, so they come from a state field: a view plugin can't replace line breaks.
+ * Blocks spanning lines, from a state field (a view plugin can't replace line breaks):
+ * closed ```mermaid blocks at the top level, away from the cursor, as their diagrams, and
+ * `<details>` toggles as on github.com, folded as written until their arrow is clicked.
  */
 export function diagramBlocks(state: EditorState): DecorationSet {
   const blocks: Range<Decoration>[] = []
   const touched = (from: number, to: number) =>
     state.selection.ranges.some((r) => r.from <= to && r.to >= from)
+  const flipped = state.field(flippedDetails, false) ?? []
+  const opens: { from: number; to: number; open: boolean; summary: string }[] = []
+  /** Folded toggles' bodies: nothing in them is drawn. */
+  const folded: [number, number][] = []
+  const lines = (from: number, to: number): [number, number] => [
+    state.doc.lineAt(from).from,
+    state.doc.lineAt(to).to,
+  ]
   syntaxTree(state).iterate({
     enter: (node) => {
       if (node.name === 'Document') return true
+      if (node.name === 'HTMLBlock' || node.name === 'Paragraph') {
+        const [from, to] = lines(node.from, node.to)
+        const text = state.sliceDoc(node.from, node.to)
+        const open = detailsOpen(text)
+        if (open) opens.push({ from, to, ...open })
+        else if (detailsClose(text) && opens.length) {
+          const start = opens.pop()!
+          const fold = start.open === flipped.includes(start.from)
+          if (!touched(start.from, start.to))
+            blocks.push(
+              Decoration.replace({
+                widget: new SummaryWidget(start.summary, fold),
+                block: true,
+              }).range(start.from, start.to),
+            )
+          if (!touched(from, to))
+            blocks.push(
+              Decoration.replace({ widget: new DetailsEndWidget(), block: true }).range(from, to),
+            )
+          const body = [start.to + 1, from - 1] as const
+          if (body[0] <= body[1]) {
+            if (fold && body[0] < body[1] && !touched(body[0], body[1])) {
+              folded.push([body[0], body[1]])
+              blocks.push(Decoration.replace({ block: true }).range(body[0], body[1]))
+            } else
+              for (let pos = body[0]; pos <= body[1];) {
+                const l = state.doc.lineAt(pos)
+                blocks.push(line('cm-details-body').range(l.from))
+                pos = l.to + 1
+              }
+          }
+        }
+        return false
+      }
       if (node.name !== 'FencedCode') return false
       const info = node.node.getChild('CodeInfo')
       const code = node.node.getChild('CodeText')
@@ -432,13 +633,21 @@ export function diagramBlocks(state: EditorState): DecorationSet {
       return false
     },
   })
-  return Decoration.set(blocks)
+  const hidden = (d: Range<Decoration>) =>
+    d.value.spec.widget && folded.some(([from, to]) => d.from >= from && d.to <= to)
+  return Decoration.set(
+    blocks.filter((d) => !hidden(d)),
+    true,
+  )
 }
 
 const diagrams = StateField.define<DecorationSet>({
   create: diagramBlocks,
   update: (blocks, tr) =>
-    tr.docChanged || tr.selection || syntaxTree(tr.startState) !== syntaxTree(tr.state)
+    tr.docChanged ||
+    tr.selection ||
+    tr.effects.some((e) => e.is(foldDetails)) ||
+    syntaxTree(tr.startState) !== syntaxTree(tr.state)
       ? diagramBlocks(tr.state)
       : blocks,
   provide: (field) => EditorView.decorations.from(field),
@@ -463,7 +672,15 @@ function activeLines(state: EditorState): Set<number> {
   return lines
 }
 
-function build(view: EditorView): DecorationSet {
+/** The live preview's decorations, and the drawn pieces the cursor steps over whole. */
+interface Built {
+  decorations: DecorationSet
+  atomic: RangeSet<Decoration>
+  /** Embeds drawn in place of their lines. */
+  embeds: { from: number; to: number }[]
+}
+
+function build(view: EditorView): Built {
   const { state } = view
   const active = activeLines(state)
   const isActive = (pos: number) => active.has(state.doc.lineAt(pos).number)
@@ -471,6 +688,7 @@ function build(view: EditorView): DecorationSet {
   const touched = (from: number, to: number) =>
     state.selection.ranges.some((r) => r.from <= to && r.to >= from)
   const decorations: Range<Decoration>[] = []
+  const atomic: Range<Decoration>[] = []
   /** Where alerts' `[!NOTE]` markers start: they aren't links. */
   const markers = new Set<number>()
 
@@ -546,6 +764,7 @@ function build(view: EditorView): DecorationSet {
             const dest = url ? state.sliceDoc(url.from, url.to) : ''
             const target = linkTarget(dest)
             const active = touched(node.from, node.to)
+            const shown = sourceShown(state, node.from, node.to)
             const source = state.facet(mentionSource)
             const leaf = target && target.repo === null ? source?.leaf(target.path) : undefined
             const other = target?.repo ? source?.tree?.(target.repo) : null
@@ -575,33 +794,38 @@ function build(view: EditorView): DecorationSet {
                       : mark(target && target.repo === null ? 'cm-mention' : 'cm-link')
               ).range(node.from, node.to),
             )
-            if (!active) {
-              for (const child of [...node.node.getChildren('LinkMark'), ...(url ? [url] : [])]) {
-                decorations.push(hide.range(child.from, child.to))
+            // The marks stay hidden while the link is written in, unless asked for (elements.ts).
+            if (!shown && url) {
+              const marks = node.node.getChildren('LinkMark')
+              const textEnd = marks[1]?.from ?? url.from
+              for (const [from, to] of [
+                [node.from, marks[0]?.to ?? node.from + 1],
+                [textEnd, node.to],
+              ] as const) {
+                decorations.push(hide.range(from, to))
+                atomic.push(hide.range(from, to))
               }
-              const title = node.node.getChild('LinkTitle')
-              if (title) decorations.push(hide.range(title.from, title.to))
             }
             return false
           }
           case 'Image': {
-            if (isActive(node.from)) return false
+            if (sourceShown(state, node.from, node.to)) return false
             const url = node.node.getChild('URL')
             const text = state.sliceDoc(node.from, node.to)
             const alt = /^!\[([^\]]*)\]/.exec(text)?.[1] ?? ''
             const title = node.node.getChild('LinkTitle')
             const { width } = imageWidth(title ? state.sliceDoc(title.from + 1, title.to - 1) : '')
             if (url) {
-              decorations.push(
-                Decoration.replace({
-                  widget: new ImageWidget(
-                    state.sliceDoc(url.from, url.to),
-                    alt,
-                    width,
-                    state.facet(assetSource),
-                  ),
-                }).range(node.from, node.to),
-              )
+              const image = Decoration.replace({
+                widget: new ImageWidget(
+                  state.sliceDoc(url.from, url.to),
+                  alt,
+                  width,
+                  state.facet(assetSource),
+                ),
+              }).range(node.from, node.to)
+              decorations.push(image)
+              atomic.push(image)
             }
             return false
           }
@@ -669,20 +893,30 @@ function build(view: EditorView): DecorationSet {
   }
 
   // Math and embeds replace whole spans; what was decorated inside them gives way.
-  const replaced = richRanges(view, isActive, touched)
+  const replaced = richRanges(view, touched)
   const inside = (d: Range<Decoration>) =>
     d.from !== d.to && replaced.some((r) => d.from < r.to && d.to > r.from)
-  const builder = new RangeSetBuilder<Decoration>()
-  ;[...decorations.filter((d) => !inside(d)), ...replaced]
-    .sort((a, b) => a.from - b.from || a.value.startSide - b.value.startSide)
-    .forEach((d) => builder.add(d.from, d.to, d.value))
-  return builder.finish()
+  const embeds = replaced.filter((r) => r.value.spec.widget instanceof EmbedWidget)
+  const sorted = (list: Range<Decoration>[]) => {
+    const builder = new RangeSetBuilder<Decoration>()
+    list
+      .sort((a, b) => a.from - b.from || a.value.startSide - b.value.startSide)
+      .forEach((d) => builder.add(d.from, d.to, d.value))
+    return builder.finish()
+  }
+  return {
+    decorations: sorted([...decorations.filter((d) => !inside(d)), ...replaced]),
+    atomic: sorted([...atomic.filter((d) => !inside(d)), ...embeds]),
+    embeds: embeds.map(({ from, to }) => ({ from, to })),
+  }
 }
 
-/** Embed lines away from the cursor's line, and math the cursor doesn't touch, outside code. */
+/**
+ * Embed lines (unless being typed, or shown as Markdown on request), and math the cursor
+ * doesn't touch, outside code.
+ */
 function richRanges(
   view: EditorView,
-  isActive: (pos: number) => boolean,
   touched: (from: number, to: number) => boolean,
 ): Range<Decoration>[] {
   const { state } = view
@@ -701,7 +935,10 @@ function richRanges(
       const alone =
         state.doc.line(l.number - 1).text.trim() === '' &&
         (l.number === state.doc.lines || state.doc.line(l.number + 1).text.trim() === '')
-      const embed = alone && !isActive(l.from) ? embedOf(l.text) : null
+      const embed =
+        alone && !beingTyped(state, l.from, l.to) && !sourceShown(state, l.from, l.to)
+          ? embedOf(l.text)
+          : null
       if (embed) {
         const tree =
           embed.kind === 'repo' ? (state.facet(mentionSource)?.tree?.(embed.repo) ?? null) : null
@@ -759,27 +996,53 @@ const toggleTasks = EditorView.domEventHandlers({
   },
 })
 
+const preview = ViewPlugin.fromClass(
+  class {
+    built: Built
+    constructor(view: EditorView) {
+      this.built = build(view)
+    }
+    update(update: ViewUpdate) {
+      if (
+        update.docChanged ||
+        update.viewportChanged ||
+        update.selectionSet ||
+        syntaxTree(update.startState) !== syntaxTree(update.state) ||
+        update.startState.field(shownSource, false) !== update.state.field(shownSource, false)
+      ) {
+        this.built = build(update.view)
+      }
+    }
+  },
+  {
+    decorations: (v) => v.built.decorations,
+    provide: (plugin) =>
+      EditorView.atomicRanges.of((view) => view.plugin(plugin)?.built.atomic ?? RangeSet.empty),
+  },
+)
+
+/** Typing right before or after a drawn embed goes on a line of its own, not into its link. */
+const typeBesideEmbeds = EditorView.inputHandler.of((view, from, to, text) => {
+  const embed =
+    from === to
+      ? view.plugin(preview)?.built.embeds.find((e) => e.from === from || e.to === from)
+      : undefined
+  if (!embed) return false
+  const after = embed.to === from
+  view.dispatch({
+    changes: { from, insert: after ? `\n${text}` : `${text}\n` },
+    selection: { anchor: from + text.length + (after ? 1 : 0) },
+  })
+  return true
+})
+
 export const livePreview = [
-  ViewPlugin.fromClass(
-    class {
-      decorations: DecorationSet
-      constructor(view: EditorView) {
-        this.decorations = build(view)
-      }
-      update(update: ViewUpdate) {
-        if (
-          update.docChanged ||
-          update.viewportChanged ||
-          update.selectionSet ||
-          syntaxTree(update.startState) !== syntaxTree(update.state)
-        ) {
-          this.decorations = build(update.view)
-        }
-      }
-    },
-    { decorations: (v) => v.decorations },
-  ),
+  elements,
+  preview,
+  flippedDetails,
   diagrams,
+  tableEditing,
+  typeBesideEmbeds,
   toggleTasks,
   metaLine,
 ]

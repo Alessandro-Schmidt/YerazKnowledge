@@ -429,3 +429,196 @@
   font-family: var(--font-ui);
   font-size: 13px;
 }
+
+/* An element's ⋯ (elements.ts): over an image, an embed or a table's corner, on hover or
+   focus; always there on touch screens. A link's sits over it, in a tooltip. */
+.editor :global(.cm-more) {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid var(--hair-strong);
+  border-radius: 6px;
+  background: var(--raised);
+  color: var(--text);
+  font: 600 15px/1 var(--font-ui);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+.editor :global(.cm-image:hover .cm-more),
+.editor :global(.cm-embed:hover .cm-more),
+.editor :global(.cm-table:hover .cm-more),
+.editor :global(.cm-table:focus-within .cm-more),
+.editor :global(.cm-more:focus-visible),
+.editor :global(.cm-tooltip .cm-more) {
+  opacity: 1;
+}
+.editor :global(.cm-more:hover),
+.editor :global(.cm-more:focus-visible) {
+  outline: none;
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.editor :global(.cm-tooltip:has(> .cm-more)) {
+  border: 0;
+  background: none;
+}
+.editor :global(.cm-tooltip .cm-more) {
+  position: static;
+}
+.editor :global(.cm-embed) {
+  position: relative;
+}
+@media (hover: none) {
+  .editor :global(.cm-more) {
+    opacity: 1;
+  }
+}
+
+/* A link's text and address, edited from its ⋯ menu. */
+.editor :global(.cm-tooltip:has(.cm-link-form)) {
+  border: 0;
+  background: none;
+}
+.editor :global(.cm-link-form) {
+  display: grid;
+  gap: 8px;
+  width: min(340px, 86vw);
+  padding: 12px;
+  border: 1px solid var(--hair-strong);
+  border-radius: 10px;
+  background: var(--raised);
+  box-shadow: 0 16px 40px var(--shadow);
+  font-family: var(--font-ui);
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.editor :global(.cm-link-form label) {
+  display: grid;
+  gap: 4px;
+}
+.editor :global(.cm-link-form input) {
+  min-height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--hair-strong);
+  border-radius: 7px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+}
+.editor :global(.cm-link-form input:focus) {
+  outline: none;
+  border-color: var(--accent);
+}
+.editor :global(.cm-link-form div) {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.editor :global(.cm-link-form button) {
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--hair-strong);
+  border-radius: 7px;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.editor :global(.cm-link-form button[type='submit']) {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+/* A table (tables.ts), as in the read view; its cells are written in place. */
+.editor :global(.cm-table) {
+  position: relative;
+  margin: 6px 0 12px;
+}
+.editor :global(.cm-table-scroll) {
+  overflow-x: auto;
+}
+.editor :global(.cm-table table) {
+  border-collapse: collapse;
+  font-size: 0.95em;
+  line-height: 1.5;
+}
+.editor :global(.cm-table th),
+.editor :global(.cm-table td) {
+  min-width: 64px;
+  padding: 6px 10px;
+  border: 1px solid var(--hair);
+  text-align: left;
+  vertical-align: top;
+  white-space: pre-wrap;
+  cursor: text;
+}
+.editor :global(.cm-table th) {
+  font-family: var(--font-ui);
+  font-weight: 600;
+  color: var(--text);
+}
+.editor :global(.cm-table th:focus),
+.editor :global(.cm-table td:focus) {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.editor :global(.cm-table code) {
+  font-family: var(--font-mono);
+  font-size: 0.88em;
+}
+.editor :global(.cm-table .cm-link) {
+  color: var(--accent);
+}
+
+/* A toggle (<details>): its summary with an arrow that folds it, its text indented. */
+.editor :global(.cm-details-summary) {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-ui);
+  font-weight: 500;
+  color: var(--text);
+  cursor: text;
+}
+.editor :global(.cm-details-toggle) {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 5px;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+.editor :global(.cm-details-toggle)::before {
+  content: '';
+  border-left: 6px solid currentColor;
+  border-top: 4.5px solid transparent;
+  border-bottom: 4.5px solid transparent;
+  transition: transform 0.12s;
+}
+.editor :global(.cm-details-toggle[aria-expanded='true'])::before {
+  transform: rotate(90deg);
+}
+.editor :global(.cm-details-toggle:hover) {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.editor :global(.cm-line.cm-details-body) {
+  padding-left: 28px;
+}
+.editor :global(.cm-details-end) {
+  height: 6px;
+}

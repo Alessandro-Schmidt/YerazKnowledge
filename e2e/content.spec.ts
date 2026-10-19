@@ -187,9 +187,11 @@ test.describe('images', () => {
     const screenshot = await draw(page, 'screenshot', 1200, 800)
     const photo = await draw(page, 'photo', 6000, 4000)
     await addImage(page, 'Realm diagram.png', 'image/png', screenshot)
-    await expect(page.locator('.cm-content')).toContainText('Realm diagram')
+    // Drawn at once, even on the cursor's line: its Markdown isn't shown.
+    const content = page.locator('.cm-content')
+    await expect(content.locator('.cm-image img[alt="Realm diagram"]')).toHaveCount(1)
     await addImage(page, 'Ararat.jpg', 'image/jpeg', photo)
-    await expect(page.locator('.cm-content')).toContainText('Ararat', { timeout: 20_000 })
+    await expect(content.locator('.cm-image img[alt="Ararat"]')).toHaveCount(1, { timeout: 20_000 })
     await expect(page.getByRole('status')).toContainText('Unsaved edits')
 
     fake.resetLog()
