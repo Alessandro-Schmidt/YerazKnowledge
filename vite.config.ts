@@ -21,6 +21,9 @@ function mockServiceWorker(): Plugin {
   }
 }
 
+/** The app icons' version, in their addresses: the leaf (PR #78) replaced the Y. */
+const ICONS = 'leaf'
+
 // Files only Mermaid loads (its diagram types and layout engines, ~5 MB): the chunks the app
 // reaches only through read/mermaid.ts. They aren't precached, so installing the app doesn't
 // download them; they are cached the first time a leaf has a diagram.
@@ -70,17 +73,29 @@ export default defineConfig(({ mode }) => ({
           // The icon's tile, so the splash screen matches the icon (development-plan.md M4).
           background_color: '#000000',
           theme_color: themes.bases.vanta.tokens.top,
+          // `?v=` changes with the artwork (ICONS in index.html too): an installed app keeps
+          // the icons it was installed with until their addresses change.
           icons: [
-            { src: 'icons/pwa-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
-            { src: 'icons/pwa-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
             {
-              src: 'icons/pwa-maskable-192.png',
+              src: `icons/pwa-192.png?v=${ICONS}`,
+              sizes: '192x192',
+              type: 'image/png',
+              purpose: 'any',
+            },
+            {
+              src: `icons/pwa-512.png?v=${ICONS}`,
+              sizes: '512x512',
+              type: 'image/png',
+              purpose: 'any',
+            },
+            {
+              src: `icons/pwa-maskable-192.png?v=${ICONS}`,
               sizes: '192x192',
               type: 'image/png',
               purpose: 'maskable',
             },
             {
-              src: 'icons/pwa-maskable-512.png',
+              src: `icons/pwa-maskable-512.png?v=${ICONS}`,
               sizes: '512x512',
               type: 'image/png',
               purpose: 'maskable',
@@ -89,6 +104,8 @@ export default defineConfig(({ mode }) => ({
         },
         workbox: {
           globPatterns: ['**/*.{js,css,html,svg,ico,png,woff2}'],
+          // The icons' `?v=` (ICONS) still finds them in the offline cache.
+          ignoreURLParametersMatching: [/^v$/],
           // The flags font (ui/flags.ts) is only for systems without flags: not every install.
           globIgnores: ['**/noto-flags.woff2'],
           manifestTransforms: [
