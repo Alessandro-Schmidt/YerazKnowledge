@@ -64,8 +64,9 @@ Read `ideas.txt` (why), `ARCHITECTURE.md` (how), `development-plan.md` (what, in
   `icon` is an image icon (`/assets/…` or https, instead of the title's emoji); `iconPosition` is `center` or `right`
 - [ ] Sub-leaves live in a sibling folder with the same name (`keycloak.md` + `keycloak/`)
 - [ ] A branch is a folder without a same-named `.md`; its name is the folder name, as typed
-- [ ] A branch's text is `README.md` in its folder (exact name): not a leaf, never renames the branch;
-  the root's `README.md` and one in a leaf's sibling folder stay leaves
+- [ ] A branch's text is `README.md` in its folder (exact name): not a leaf, never renames the branch, but its
+  line 1 emoji and line 2 are the branch's icon and look (a Tree's too); the root's `README.md` and one in a
+  leaf's sibling folder stay leaves
 - [ ] Threads are root-relative Markdown links (`[Keycloak](/identity/keycloak.md)`)
 - [ ] An image's width ends its title: `![Realm](/assets/realm.png "width=50%")`, a percent of the column
 - [ ] Images in `/assets/`; `.yeraz.json` marks the root (`name`, `color`, optional `trees`: `{"Identity":"amber"}`); filenames never change on retitle
