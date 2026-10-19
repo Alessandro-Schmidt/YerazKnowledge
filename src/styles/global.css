@@ -131,3 +131,15 @@ input {
   text-transform: uppercase;
   color: var(--accent);
 }
+
+/* Motion (issue #66) stops when the system asks for less of it; ui/motion.tsx does the same. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after,
+  ::backdrop {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

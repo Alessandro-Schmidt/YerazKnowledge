@@ -15,6 +15,7 @@ import {
 import { compactWords, neighbours, type Graph, type Thread } from '../model/graph'
 import { ROOT } from '../model/tree'
 import { mark, markNow } from '../perf'
+import { play } from '../ui/motion'
 import controls from '../ui/controls.module.css'
 import { Icon } from '../ui/icons'
 import { familyNodeAt, positionOf, type FamilyLayout, type PlacedTree } from './family'
@@ -77,6 +78,20 @@ function boxOf(family: FamilyLayout, tree: string | null): Box {
 }
 
 const treeTransform = (t: PlacedTree) => `translate(${t.x} ${t.y})`
+
+/** Ids in `positions` of a Tree's core (its id is the Tree's). */
+const CORE = '\0core:'
+/** How many nodes at most glide to a new layout. */
+const GLIDES = 600
+/** Every node and core of the Family, in Family coordinates. */
+function positions(family: FamilyLayout) {
+  const at = new Map<string, { x: number; y: number }>()
+  for (const t of family.trees) {
+    at.set(CORE + t.id, { x: t.x, y: t.y })
+    for (const n of t.layout.nodes) at.set(n.id, { x: t.x + n.x, y: t.y + n.y })
+  }
+  return at
+}
 
 export function TreeMap({
   treeKey,
@@ -182,6 +197,38 @@ export function TreeMap({
     }
     mark('map-painted')
   }, [family])
+
+  // The Family's leaves changed in place (a refresh brought other devices' commits, a leaf
+  // was written, moved or deleted): each node glides from where it was, new ones fade in,
+  // and the lines are drawn again under them (issue #66). A layout with the same nodes (the
+  // content arriving, sizing the dots) doesn't move: that would cost every open its frames.
+  const placed = useRef<{ key: string; at: Map<string, { x: number; y: number }> } | null>(null)
+  useLayoutEffect(() => {
+    const at = positions(family)
+    const was = placed.current?.key === treeKey ? placed.current.at : null
+    placed.current = { key: treeKey, at }
+    if (!was || (was.size === at.size && [...at.keys()].every((id) => was.has(id)))) return
+    const els = elements.current
+    const element = (id: string) =>
+      id.startsWith(CORE) ? els.cores.get(id.slice(CORE.length)) : els.nodes.get(id)
+    const glides: [Element, number, number][] = []
+    const fresh: Element[] = []
+    for (const [id, p] of at) {
+      const el = element(id)
+      const from = was.get(id)
+      if (!el) continue
+      if (!from) fresh.push(el)
+      else if (Math.abs(from.x - p.x) + Math.abs(from.y - p.y) > 0.5)
+        glides.push([el, from.x - p.x, from.y - p.y])
+    }
+    // Past this many, the frames cost more than the motion tells: the change just appears.
+    if (glides.length + fresh.length > GLIDES) return
+    for (const [el, dx, dy] of glides)
+      play(el, [{ transform: `translate(${dx}px, ${dy}px)` }, {}], { duration: 450 })
+    for (const el of fresh) play(el, [{ opacity: 0 }, {}], { duration: 450 })
+    for (const lines of svgRef.current!.querySelectorAll('[data-lines]'))
+      play(lines, [{ opacity: 0 }, { opacity: 0 }, {}], { duration: 450 })
+  }, [family, treeKey])
 
   // Image icons: their addresses arrive after the geometry is drawn (private files come
   // through the blob cache), and are set on the drawing, never by rendering it again.
@@ -529,7 +576,7 @@ const Family = memo(function Family({
           </g>
         )
       })}
-      <g className={styles.threads}>
+      <g className={styles.threads} data-lines="">
         {family.between.map((t, i) => (
           <path
             key={i}
@@ -671,7 +718,7 @@ const Geometry = memo(function Geometry({ layout, graph }: { layout: MapLayout; 
       {layout.rings.map((r) => (
         <circle key={r} className={styles.orbit} r={r} />
       ))}
-      <g className={styles.threads}>
+      <g className={styles.threads} data-lines="">
         {layout.threads.map((t) => (
           <path
             key={`${t.from}>${t.to}`}
@@ -682,7 +729,7 @@ const Geometry = memo(function Geometry({ layout, graph }: { layout: MapLayout; 
           />
         ))}
       </g>
-      <g className={styles.edges}>
+      <g className={styles.edges} data-lines="">
         {layout.edges.map((e) => (
           <path
             key={e.id}

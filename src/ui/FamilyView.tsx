@@ -15,6 +15,7 @@ import { Peek } from '../read/Peek'
 import { session, useSession } from '../store/session'
 import controls from './controls.module.css'
 import { Explorer } from './Explorer'
+import { Presence } from './motion'
 import { FamilyMenu, rememberFamily } from './FamilyMenu'
 import { Icon } from './icons'
 import { InlineName } from './InlineName'
@@ -194,19 +195,21 @@ export function FamilyView({ params }: { params: { owner: string; name: string; 
       )}
 
       <div className={styles.body}>
-        {explorerOpen && graph && tree && (
-          <Explorer
-            tree={tree}
-            graph={graph}
-            selected={selected}
-            onSelect={(id) => {
-              select(id)
-              if (phone) setExplorerOpen(false)
-            }}
-            onClose={() => setExplorerOpen(false)}
-            onAction={setAction}
-          />
-        )}
+        <Presence show={!!(explorerOpen && graph && tree)}>
+          {explorerOpen && graph && tree && (
+            <Explorer
+              tree={tree}
+              graph={graph}
+              selected={selected}
+              onSelect={(id) => {
+                select(id)
+                if (phone) setExplorerOpen(false)
+              }}
+              onClose={() => setExplorerOpen(false)}
+              onAction={setAction}
+            />
+          )}
+        </Presence>
         <main className={styles.main}>
           {graph && tree && View ? (
             <Suspense fallback={<p className={styles.placeholder} aria-busy="true" />}>
@@ -248,28 +251,30 @@ export function FamilyView({ params }: { params: { owner: string; name: string; 
           ) : (
             <Placeholder data={data} repo={repo} />
           )}
-          {graph && tree && peekShown && (
-            <Peek
-              tree={tree}
-              graph={graph}
-              id={selected!}
-              expanded={expanded}
-              docked={panel === 'dock'}
-              created={created === selected}
-              href={href}
-              onSelect={select}
-              onExpand={setExpanded}
-              onClose={() => {
-                setPeekOpen(false)
-                setExpanded(false)
-              }}
-              onAction={setAction}
-              onWritten={(id) => {
-                select(id)
-                setCreated(id)
-              }}
-            />
-          )}
+          <Presence show={!!(graph && tree && peekShown)}>
+            {graph && tree && peekShown && (
+              <Peek
+                tree={tree}
+                graph={graph}
+                id={selected!}
+                expanded={expanded}
+                docked={panel === 'dock'}
+                created={created === selected}
+                href={href}
+                onSelect={select}
+                onExpand={setExpanded}
+                onClose={() => {
+                  setPeekOpen(false)
+                  setExpanded(false)
+                }}
+                onAction={setAction}
+                onWritten={(id) => {
+                  select(id)
+                  setCreated(id)
+                }}
+              />
+            )}
+          </Presence>
           {graph && view === 'map' && !explorerOpen && !peekVisible && !phone && (
             <WhereYouWrite graph={graph} />
           )}

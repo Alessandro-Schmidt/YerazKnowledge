@@ -367,6 +367,7 @@ src/
             FamilyView.tsx (Explorer | map or a view | Peek) · FamilyMenu.tsx · Explorer.tsx · Appearance.tsx
             Settings.tsx (the settings frame) · ViewsSettings.tsx · TreeColours.tsx
             theme.ts (turns design/themes/themes.json into CSS, applies it)
+            motion.tsx (exits, growing and settling: Web Animations; entrances are CSS)
   store/    token.ts (the token: IndexedDB on the web, the OS keychain on desktop)
 src-tauri/  the desktop shell (Tauri 2): tauri.conf.json (window, CSP, bundle) ·
             src/lib.rs (keychain commands get_token / set_token / delete_token) ·

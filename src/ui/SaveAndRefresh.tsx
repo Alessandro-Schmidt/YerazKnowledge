@@ -31,7 +31,7 @@ export function SaveAndRefresh({ repos }: { repos: readonly string[] }) {
       </button>
       <button
         type="button"
-        className={controls.iconButton}
+        className={`${controls.iconButton} ${styles.refresh}`}
         aria-label="Refresh"
         title="Refresh"
         aria-busy={loading || undefined}

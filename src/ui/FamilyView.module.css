@@ -164,3 +164,13 @@
   margin: 0;
   line-height: 1.6;
 }
+
+/* Refresh turns while the Families come in (issue #66). */
+.refresh[aria-busy] svg {
+  animation: spin 0.9s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(1turn);
+  }
+}

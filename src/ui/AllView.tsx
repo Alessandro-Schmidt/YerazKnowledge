@@ -34,6 +34,7 @@ import { ConflictBanner } from './ConflictBanner'
 import { FamilyMenu } from './FamilyMenu'
 import styles from './FamilyView.module.css'
 import { Icon } from './icons'
+import { Presence } from './motion'
 import { allHref, decodePath } from './paths'
 import { SaveAndRefresh } from './SaveAndRefresh'
 import { Search, type Matches } from './Search'
@@ -264,28 +265,30 @@ export function AllView({ params }: { params: { owner?: string; name?: string; '
               Opening your Families…
             </p>
           )}
-          {peekShown && (
-            <Peek
-              tree={family.ref}
-              graph={family.graph}
-              id={path ?? ROOT}
-              expanded={expanded}
-              docked={panel === 'dock'}
-              created={created === path}
-              href={(id) => `#${allHref(family.ref.repo, id)}`}
-              onSelect={(id) => select(family.ref, id)}
-              onExpand={setExpanded}
-              onClose={() => {
-                setPeekOpen(false)
-                setExpanded(false)
-              }}
-              onAction={(a) => setAction({ tree: family.ref, action: a })}
-              onWritten={(id) => {
-                select(family.ref, id)
-                setCreated(id)
-              }}
-            />
-          )}
+          <Presence show={peekShown}>
+            {peekShown && (
+              <Peek
+                tree={family.ref}
+                graph={family.graph}
+                id={path ?? ROOT}
+                expanded={expanded}
+                docked={panel === 'dock'}
+                created={created === path}
+                href={(id) => `#${allHref(family.ref.repo, id)}`}
+                onSelect={(id) => select(family.ref, id)}
+                onExpand={setExpanded}
+                onClose={() => {
+                  setPeekOpen(false)
+                  setExpanded(false)
+                }}
+                onAction={(a) => setAction({ tree: family.ref, action: a })}
+                onWritten={(id) => {
+                  select(family.ref, id)
+                  setCreated(id)
+                }}
+              />
+            )}
+          </Presence>
         </main>
       </div>
     </div>

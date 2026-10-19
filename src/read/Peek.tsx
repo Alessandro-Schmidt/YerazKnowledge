@@ -1,7 +1,15 @@
 // The Peek: the selected node, floating over the map (420 px), or its full page when
 // expanded (760 px column). On phones it is a bottom sheet. A leaf is editable in all three.
 
-import { useEffect, useLayoutEffect, useRef, useState, type MouseEvent } from 'react'
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type MouseEvent,
+  type RefObject,
+  type UIEvent,
+} from 'react'
 import type { TreeRef } from '../github/graphql'
 import {
   compactWords,
@@ -22,6 +30,8 @@ import controls from '../ui/controls.module.css'
 import { Glyph } from '../ui/Glyph'
 import { Icon } from '../ui/icons'
 import { InlineName } from '../ui/InlineName'
+import { play } from '../ui/motion'
+import { PHONE } from '../ui/useMedia'
 import { treeHref } from '../ui/paths'
 import styles from './Peek.module.css'
 import { coverPosition } from './cover'
@@ -71,6 +81,8 @@ export function Peek({
   /** The leaf whose history is shown in place of its editor. */
   const [historyOf, setHistoryOf] = useState<string | null>(null)
   useLayoutEffect(() => mark('peek-painted'), [id])
+  const sheet = useRef<HTMLElement>(null)
+  const motion = usePeekMotion(sheet, id, expanded, onExpand)
   const ghost = graph.ghosts.get(id)
   if (ghost) {
     return (
@@ -130,14 +142,15 @@ export function Peek({
 
   return (
     <section
+      ref={sheet}
       className={styles.peek}
       data-expanded={expanded || undefined}
       data-docked={docked || undefined}
       aria-label={`${kind} preview`}
     >
-      <PeekHead {...{ kind, crumb, expanded, onExpand, onClose }} />
+      <PeekHead {...{ kind, crumb, expanded, onClose, sheet }} onExpand={motion.expand} />
 
-      <div className={styles.scroll}>
+      <div className={styles.scroll} onScroll={motion.onScroll}>
         <div className={styles.column}>
           <article className={styles.article}>
             {node.kind === 'leaf' && historyOf === id ? (
@@ -267,7 +280,7 @@ export function Peek({
           <button
             type="button"
             className={`${controls.ghost} ${styles.openLeaf}`}
-            onClick={() => onExpand(true)}
+            onClick={() => motion.expand(true)}
           >
             Open leaf
             <Icon name="arrowRight" />
@@ -395,27 +408,44 @@ function PeekHead({
   expanded,
   onExpand,
   onClose,
-}: { kind: string; crumb: string } & Pick<PeekProps, 'expanded' | 'onExpand' | 'onClose'>) {
+  sheet,
+}: { kind: string; crumb: string; sheet: RefObject<HTMLElement | null> } & Pick<
+  PeekProps,
+  'expanded' | 'onExpand' | 'onClose'
+>) {
   // On a touch screen the handle and head are a grip: swipe up to open the full page,
-  // down to come back to the map, or, from the sheet, to dismiss it.
+  // down to come back to the map, or, from the sheet, to dismiss it. The Peek follows the
+  // finger (upwards reluctantly), and settles back when the swipe is too short.
   const start = useRef<number | null>(null)
+  const follow = (dy: number) => shift(sheet.current, dy)
+  const settle = (dy: number) => {
+    shift(sheet.current, 0)
+    play(sheet.current, [{ transform: dragged(dy) }, {}])
+  }
   return (
     <div
       className={styles.grip}
       onPointerDown={(e) => {
         if (e.pointerType !== 'mouse') start.current = e.clientY
       }}
+      onPointerMove={(e) => {
+        if (start.current !== null) follow(e.clientY - start.current)
+      }}
       onPointerUp={(e) => {
         if (start.current === null) return
         const dy = e.clientY - start.current
         start.current = null
         if (dy < -SWIPE && !expanded) onExpand(true)
-        else if (dy > SWIPE) {
-          if (expanded) onExpand(false)
-          else onClose()
-        }
+        else if (dy > SWIPE && expanded) {
+          follow(0)
+          onExpand(false)
+        } else if (dy > SWIPE) onClose()
+        else settle(dy)
       }}
-      onPointerCancel={() => (start.current = null)}
+      onPointerCancel={() => {
+        start.current = null
+        settle(0)
+      }}
     >
       <span className={styles.handle} aria-hidden="true" />
       <div className={styles.head}>
@@ -444,6 +474,85 @@ function PeekHead({
 
 /** How far (px) a swipe on the Peek's grip travels before it counts. */
 const SWIPE = 40
+
+/** Where a finger dragging the grip by `dy` puts the Peek: upwards, reluctantly. */
+const dragged = (dy: number) => `translateY(${dy > 0 ? dy : dy / 3}px)`
+/** Moves the Peek with the finger; a dismissed one goes out from there (ui/motion.tsx). */
+function shift(el: HTMLElement | null, dy: number) {
+  if (el) el.style.transform = dy ? dragged(dy) : ''
+}
+
+/**
+ * The Peek's motion (ui/motion.tsx): opening the full page grows it out of the floating
+ * Peek or sheet, coming back slides it to its place; another leaf settles in. On a phone,
+ * scrolling the sheet's note opens it to the full page.
+ */
+function usePeekMotion(
+  sheet: RefObject<HTMLElement | null>,
+  id: string,
+  expanded: boolean,
+  onExpand: (expanded: boolean) => void,
+) {
+  /** Where the Peek was before it was expanded or brought back from here. */
+  const before = useRef<DOMRect | null>(null)
+  const shown = useRef({ id, expanded })
+  useLayoutEffect(() => {
+    const was = shown.current
+    shown.current = { id, expanded }
+    const el = sheet.current
+    if (!el) return
+    if (was.expanded !== expanded) {
+      const from = before.current
+      before.current = null
+      const to = el.getBoundingClientRect()
+      if (!from) play(el, [{ opacity: 0.4 }, {}])
+      else if (expanded) {
+        const inset = [
+          from.top - to.top,
+          to.right - from.right,
+          to.bottom - from.bottom,
+          from.left - to.left,
+        ]
+        play(
+          el,
+          [
+            { clipPath: `inset(${inset.map((n) => `${Math.max(0, n)}px`).join(' ')} round 14px)` },
+            { clipPath: 'inset(0 round 0)' },
+          ],
+          { duration: 320 },
+        )
+      } else
+        play(
+          el,
+          [
+            {
+              transform: `translate(${from.left - to.left}px, ${from.top - to.top}px)`,
+              opacity: 0.5,
+            },
+            {},
+          ],
+          { duration: 320 },
+        )
+    } else if (was.id !== id)
+      play(
+        el.querySelector(`.${styles.column}`),
+        [{ opacity: 0, transform: 'translateY(8px)' }, {}],
+        { duration: 200 },
+      )
+  }, [sheet, id, expanded])
+  const expand = (to: boolean) => {
+    before.current = sheet.current?.getBoundingClientRect() ?? null
+    onExpand(to)
+  }
+  const onScroll = (e: UIEvent<HTMLElement>) => {
+    if (!expanded && e.currentTarget.scrollTop > GROW && window.matchMedia(PHONE).matches)
+      expand(true)
+  }
+  return { expand, onScroll }
+}
+
+/** How far (px) a phone's sheet scrolls before it opens to the full page. */
+const GROW = 24
 
 /** How a thread list names its ends, and where they are; a ghost is not written yet. */
 const threadNames = (graph: Graph) => ({
@@ -476,6 +585,8 @@ function GhostPeek({
 >) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const sheet = useRef<HTMLElement>(null)
+  const motion = usePeekMotion(sheet, ghost.id, expanded, onExpand)
   const { named, where } = threadNames(graph)
   const write = async () => {
     setBusy(true)
@@ -495,6 +606,7 @@ function GhostPeek({
   }
   return (
     <section
+      ref={sheet}
       className={styles.peek}
       data-expanded={expanded || undefined}
       aria-label="Leaf not written yet"
@@ -502,9 +614,10 @@ function GhostPeek({
       <PeekHead
         kind="Not written yet"
         crumb={[graph.nodes.get(ROOT)!.title, ...crumbs(graph, ghost.id)].join(' / ')}
-        {...{ expanded, onExpand, onClose }}
+        {...{ expanded, onClose, sheet }}
+        onExpand={motion.expand}
       />
-      <div className={styles.scroll}>
+      <div className={styles.scroll} onScroll={motion.onScroll}>
         <div className={styles.column}>
           <article className={styles.article}>
             <div className={styles.titleRow}>
