@@ -119,10 +119,16 @@ test('hovering a dot names it', async ({ page, graph, isMobile }) => {
   test.skip(isMobile, 'Hover needs a mouse')
   const leaf = richLeaf(graph)
   await signIn(page)
-  const at = await centreOf(page, dot(leaf.id))
-  await page.mouse.move(at.x, at.y)
+  // When the leaves' content arrives the map is fitted again (the camera is untouched), so
+  // a dot measured too early has moved by the time the pointer gets there: aim at where it
+  // is, until the camera has settled.
   const tip = page.getByText('Click to peek').locator('..')
-  await expect(tip).toBeVisible()
+  await expect(async () => {
+    const at = await centreOf(page, dot(leaf.id))
+    await page.mouse.move(5, 300)
+    await page.mouse.move(at.x, at.y)
+    await expect(tip).toBeVisible({ timeout: 500 })
+  }).toPass()
   await expect(tip.locator('strong')).toHaveText(leaf.title)
   await page.mouse.move(5, 300)
   await expect(tip).toBeHidden()
