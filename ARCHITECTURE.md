@@ -98,6 +98,8 @@ Why these rules:
 4. **Parse** each new blob into `{ title, icon, meta, words, links }`. This is one pure function, stored under the blob SHA.
 5. **Build the index** (leaves, branches, threads, backlinks, adjacency) and lay out the map.
 
+**Refresh** in the top bar (issue #63) runs this path again on demand: one request, a free 304 when nothing changed (for a folder, a new scan, §5.6).
+
 The map is **progressive**: it renders right after step 1 using only paths and blob sizes (bytes ÷ 6 ≈ words), then refines as content arrives.
 
 ### 5.2 Writing and saving (write path)
@@ -106,7 +108,7 @@ The map is **progressive**: it renders right after step 1 using only paths and b
 - **A commit happens when any of these occurs:**
   - 2 minutes pass with no edits.
   - The user leaves the leaf, or the app goes to the background (`visibilitychange` → hidden).
-  - The user presses Ctrl/Cmd+S.
+  - The user presses Ctrl/Cmd+S, or Save in the top bar (issue #63; on phones it shows only while edits wait).
 - **One request per commit,** however many files changed: GraphQL `createCommitOnBranch` with:
   - every dirty file (additions with base64 contents, plus deletions);
   - `expectedHeadOid` set to the last commit we know. If someone else pushed in between, the commit is refused instead of overwriting their work.
