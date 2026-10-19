@@ -191,6 +191,11 @@ Issue #64: a Family can be a folder on this device instead of a repository, so n
   - **Threads between Trees** run from leaf to leaf through both cores, bowed to one side between the cores so the two directions don't overlap, with the same bundle curve as threads inside a Tree. Many threads between two Trees read as one thick cable: how strongly they relate.
   - **Opening:** the whole Family is fitted; a link to a node fits that node's Tree instead. **Selecting a Tree** (its core, its Explorer row) fits the camera to it: the Tree as it is. "Fit all trees" zooms back out.
   - **Every dot is one click from the Peek**, at any zoom: a click on no dot reaches the one whose edge is nearest the pointer, within 10 px (18 px for touch). `familyNodeAt` searches in layout units through the camera's screen transform, so no hit area is added per dot.
+- **Every Family on one map** (issue #69, `map/families.ts`, `ui/AllView.tsx`, `#/all`): what `#/` opens on when there is more than one Family, unless Settings › Views says *The last Family* (per device, `localStorage` `yeraz-open`).
+  - Each Family's graph is merged under one root with its ids prefixed (`owner/name::path`), so the Family map draws it unchanged. `layoutFamily` packs each Family's Trees together, then the Families, each in a dashed ring with its name.
+  - A link to a leaf in another connected Family (its GitHub URL, §4) is a thread between the two rings.
+  - A selected node opens in its own Family's Peek, with that Family's graph and paths, so reading, editing and saving are the same code as inside a Family. Save and Refresh act on every Family.
+  - Only the radial map shows every Family; the other views and the Explorer stay per Family.
 - **Ceiling:** SVG should hold 60 fps up to about 2,000 nodes on a mid-range phone; the performance tests confirm the real number. Above it, the node and edge layers can be swapped for one `<canvas>` using the same layout data. That swap is planned, not built.
 
 ### 6.1 Other views of a Family
@@ -340,7 +345,8 @@ src/
   local/    folder.ts (a Family in a folder: File System Access API, or the desktop's commands)
   sync/     pull.ts · push.ts · merge.ts · autosave.ts · assets.ts (images by SHA) · folder.ts (§5.6)
             structure.ts (new leaf, branch, branch text, move, delete as file changes) · overlay.ts
-  map/      layout.ts (one Tree, d3) · family.ts (a Family's Trees, placed) · TreeMap.tsx · useZoom.ts
+  map/      layout.ts (one Tree, d3) · family.ts (a Family's Trees, placed) · families.ts (every Family, merged)
+            TreeMap.tsx · useZoom.ts
   views/    views.ts (ids, saved choice) · ViewSwitcher.tsx · index.ts (lazy chunks) · common.ts
             Canvas.tsx (the drawn views' stage) · MindMap · Outline · Columns · Treemap · Graph · Rings · Atlas
             layout/ (pure: mindmap, treemap, graph, rings, atlas)
@@ -350,7 +356,7 @@ src/
   read/     render.ts (markdown-it) · rich.ts (math, code, embeds) · Peek.tsx · print.css
             History.tsx (a leaf's past versions, compared and restored)
             LeafLook.tsx (cover, colours) · cover.ts (cover position) · files.ts (file cards)
-  ui/       App.tsx (routes) · Start.tsx (`#/`) · TopBar.tsx · TokenScreen.tsx
+  ui/       App.tsx (routes) · Start.tsx (`#/`) · AllView.tsx (`#/all`) · TopBar.tsx · TokenScreen.tsx
             FamilyView.tsx (Explorer | map or a view | Peek) · FamilyMenu.tsx · Explorer.tsx · Appearance.tsx
             Settings.tsx (the settings frame) · ViewsSettings.tsx · TreeColours.tsx
             theme.ts (turns design/themes/themes.json into CSS, applies it)
