@@ -407,8 +407,10 @@ test.describe('embeds', () => {
     await expect(editor.locator('.cm-math .katex')).toHaveCount(1)
     await expect(editor.locator('.cm-embed-youtube iframe')).toHaveCount(1)
     await expect(editor.locator('.cm-embed-video video')).toHaveAttribute('src', /^blob:/)
-    // On the cursor's line, the Markdown is back.
+    // Writing elsewhere on its line keeps the math drawn (issue #68); clicking it shows its source.
     await editor.getByText('Euler').click()
+    await expect(editor.locator('.cm-math .katex')).toHaveCount(1)
+    await editor.locator('.cm-math').click()
     await expect(editor.locator('.cm-math')).toHaveCount(0)
     await expect(editor).toContainText('$e^{i\\pi} + 1 = 0$')
   })

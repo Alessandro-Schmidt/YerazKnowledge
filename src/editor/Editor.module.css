@@ -16,13 +16,14 @@
 }
 .editor :global(.cm-content) {
   padding: 0 0 40vh;
-  caret-color: var(--accent);
+  /* The caret is the text's colour (issue #68). */
+  caret-color: var(--leaf-text, var(--text-body));
 }
 .editor :global(.cm-line) {
   padding: 0;
 }
 .editor :global(.cm-cursor) {
-  border-left-color: var(--accent);
+  border-left-color: var(--leaf-text, var(--text-body));
 }
 .editor :global(.cm-selectionBackground),
 .editor :global(.cm-focused .cm-selectionBackground),
@@ -30,16 +31,22 @@
   background: var(--accent-soft) !important;
 }
 /* An empty text says how to write it: an arrow, then the words, in italic. */
-.editor :global(.cm-hint) {
+.editor :global(.cm-hint),
+.editor :global(.cm-line-hint) {
   color: var(--faint);
   font-style: italic;
+}
+.editor :global(.cm-line-hint) {
+  pointer-events: none;
+  user-select: none;
 }
 .editor :global(.cm-hint-arrow) {
   margin-right: 6px;
   color: var(--accent);
   font-style: normal;
 }
-.editor :global(.cm-hint kbd) {
+.editor :global(.cm-hint kbd),
+.editor :global(.cm-line-hint kbd) {
   padding: 0 5px;
   border: 1px solid var(--hair);
   border-radius: 4px;

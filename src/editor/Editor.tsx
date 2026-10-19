@@ -13,7 +13,7 @@ import { parseLeaf, withIcon, withMeta, type LeafMeta } from '../model/parse'
 import { mark, markNow } from '../perf'
 import styles from './Editor.module.css'
 import { assetSource, fileSizes, livePreview, treeFiles } from './livePreview'
-import { emptyHint, hiddenTitle } from './emptyText'
+import { emptyHint, hiddenTitle, newLineHint } from './emptyText'
 import { insertMenu, type InsertHost } from './insertMenu'
 import { mentions, type MentionSource } from './mentions'
 import { pasteLink } from './pasteLink'
@@ -96,6 +96,7 @@ export default function Editor({
           EditorView.lineWrapping,
           EditorView.contentAttributes.of({ 'aria-label': 'Leaf text', spellcheck: 'true' }),
           emptyHint,
+          newLineHint,
           titleHidden ? hiddenTitle : [],
           mentionsFrom ? mentions(mentionsFrom) : [],
           insertMenu((kind, v) => insertRef.current?.(kind, v)),
