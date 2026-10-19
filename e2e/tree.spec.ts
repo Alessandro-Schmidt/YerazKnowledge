@@ -202,6 +202,25 @@ test('expands the Peek to a full page, comes back, and dismisses it', async ({ p
   await expect(page.locator('[data-map]')).toHaveAttribute('data-focus')
 })
 
+test('the Peek’s breadcrumbs open the places above the leaf', async ({ page, graph }) => {
+  // A sub-leaf two places below the Family: its Tree, then its parent leaf.
+  const leaf = [...graph.nodes.values()]
+    .filter((n) => n.kind === 'leaf' && n.parent && graph.nodes.get(n.parent)!.parent)
+    .sort((a, b) => a.id.localeCompare(b.id))[0]!
+  const parent = graph.nodes.get(leaf.parent!)!
+  await openTree(page)
+  await page.goto(`./#/tree/you/engineering/${leaf.id}`)
+  const crumbs = peek(page).getByRole('navigation', { name: 'Breadcrumb' })
+  await expect(crumbs.getByRole('link').first()).toHaveText(graph.nodes.get('')!.title)
+  await crumbs.getByRole('link', { name: parent.title, exact: true }).click()
+  await expect(peek(page).getByRole('heading', { level: 2 })).toHaveText(parent.title)
+  await peek(page).getByRole('navigation', { name: 'Breadcrumb' }).getByRole('link').first().click()
+  await expect(peek(page)).toHaveAccessibleName('Family preview')
+  await expect(
+    peek(page).getByRole('navigation', { name: 'Breadcrumb' }).getByRole('link'),
+  ).toHaveAttribute('href', 'https://github.com/you/engineering')
+})
+
 /** A touch swipe on the Peek's handle, `dy` pixels down (negative: up). */
 async function swipe(page: Page, dy: number) {
   const handle = peek(page).locator('[class*="handle"]')

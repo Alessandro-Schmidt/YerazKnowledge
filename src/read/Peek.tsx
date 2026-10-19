@@ -2,6 +2,7 @@
 // expanded (760 px column). On phones it is a bottom sheet. A leaf is editable in all three.
 
 import {
+  Fragment,
   useEffect,
   useLayoutEffect,
   useRef,
@@ -12,6 +13,7 @@ import {
 } from 'react'
 import type { TreeRef } from '../github/graphql'
 import {
+  ancestors,
   compactWords,
   crumbs,
   ghostsFrom,
@@ -19,6 +21,7 @@ import {
   threadEnd,
   type Ghost,
   type Graph,
+  type GraphNode,
 } from '../model/graph'
 import { ROOT } from '../model/tree'
 import { mark } from '../perf'
@@ -87,7 +90,7 @@ export function Peek({
   if (ghost) {
     return (
       <GhostPeek
-        {...{ tree, graph, ghost, expanded, onSelect, onExpand, onClose }}
+        {...{ tree, graph, ghost, expanded, href, onSelect, onExpand, onClose }}
         onWritten={onWritten}
       />
     )
@@ -107,12 +110,15 @@ export function Peek({
   // The Family lists its Trees; its README.md is its text, shown above them.
   const readme = node.kind === 'root' ? graph.nodes.get(FAMILY_TEXT) : undefined
   const children = node.kind === 'root' ? treesOf(graph) : node.children
+  // Where it is: the Family's home, or the places above it, each one a link (issue #79).
   const crumb =
     node.kind === 'root'
       ? tree.folder !== undefined
         ? `This device · ${tree.folder}`
         : `github.com/${tree.repo}`
-      : [graph.nodes.get(ROOT)!.title, ...crumbs(graph, id)].join(' / ')
+      : ancestors(graph, id)
+  const away =
+    node.kind === 'root' && tree.folder === undefined ? `https://github.com/${tree.repo}` : null
   const path =
     node.kind === 'root'
       ? (tree.folder ?? `${tree.repo} @ ${tree.branch}`)
@@ -148,7 +154,10 @@ export function Peek({
       data-docked={docked || undefined}
       aria-label={`${kind} preview`}
     >
-      <PeekHead {...{ kind, crumb, expanded, onClose, sheet }} onExpand={motion.expand} />
+      <PeekHead
+        {...{ kind, crumb, away, href, onSelect, expanded, onClose, sheet }}
+        onExpand={motion.expand}
+      />
 
       <div className={styles.scroll} onScroll={motion.onScroll}>
         <div className={styles.column}>
@@ -405,14 +414,20 @@ const count = (n: number, one: string, many = `${one}s`) =>
 function PeekHead({
   kind,
   crumb,
+  away = null,
+  href,
+  onSelect,
   expanded,
   onExpand,
   onClose,
   sheet,
-}: { kind: string; crumb: string; sheet: RefObject<HTMLElement | null> } & Pick<
-  PeekProps,
-  'expanded' | 'onExpand' | 'onClose'
->) {
+}: {
+  kind: string
+  /** The places above, each a link to it; or a line of text, linking `away` when given. */
+  crumb: string | GraphNode[]
+  away?: string | null
+  sheet: RefObject<HTMLElement | null>
+} & Pick<PeekProps, 'href' | 'onSelect' | 'expanded' | 'onExpand' | 'onClose'>) {
   // On a touch screen the handle and head are a grip: swipe up to open the full page,
   // down to come back to the map, or, from the sheet, to dismiss it. The Peek follows the
   // finger (upwards reluctantly), and settles back when the swipe is too short.
@@ -450,7 +465,34 @@ function PeekHead({
       <span className={styles.handle} aria-hidden="true" />
       <div className={styles.head}>
         <span className={styles.kind}>{kind}</span>
-        <span className={`${controls.mono} ${styles.crumb}`}>{crumb}</span>
+        <nav className={`${controls.mono} ${styles.crumb}`} aria-label="Breadcrumb">
+          {typeof crumb === 'string' ? (
+            away ? (
+              <a href={away} target="_blank" rel="noopener noreferrer">
+                {crumb}
+              </a>
+            ) : (
+              crumb
+            )
+          ) : (
+            crumb.map((n, i) => (
+              <Fragment key={n.id}>
+                {i > 0 && ' / '}
+                <a
+                  href={href(n.id)}
+                  onClick={(e) => {
+                    // A plain click opens it here; others (a new tab) follow the link.
+                    if (e.button || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return
+                    e.preventDefault()
+                    onSelect(n.id)
+                  }}
+                >
+                  {n.title}
+                </a>
+              </Fragment>
+            ))
+          )}
+        </nav>
         <button
           type="button"
           className={controls.iconButton}
@@ -575,13 +617,14 @@ function GhostPeek({
   graph,
   ghost,
   expanded,
+  href,
   onSelect,
   onExpand,
   onClose,
   onWritten,
 }: { ghost: Ghost } & Pick<
   PeekProps,
-  'tree' | 'graph' | 'expanded' | 'onSelect' | 'onExpand' | 'onClose' | 'onWritten'
+  'tree' | 'graph' | 'expanded' | 'href' | 'onSelect' | 'onExpand' | 'onClose' | 'onWritten'
 >) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -613,8 +656,8 @@ function GhostPeek({
     >
       <PeekHead
         kind="Not written yet"
-        crumb={[graph.nodes.get(ROOT)!.title, ...crumbs(graph, ghost.id)].join(' / ')}
-        {...{ expanded, onClose, sheet }}
+        crumb={ancestors(graph, ghost.id)}
+        {...{ href, onSelect, expanded, onClose, sheet }}
         onExpand={motion.expand}
       />
       <div className={styles.scroll} onScroll={motion.onScroll}>

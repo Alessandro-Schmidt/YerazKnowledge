@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   buildGraph,
   compactWords,
+  ancestors,
   crumbs,
   ghostsFrom,
   humanize,
@@ -247,6 +248,13 @@ describe('neighbours and crumbs', () => {
 
   it('lists ancestor titles below the root', () => {
     expect(crumbs(graphOf(), 'identity/keycloak/realms.md')).toEqual(['Identity', 'Keycloak'])
+    // The trail above it, root first, for the Peek's breadcrumbs.
+    expect(ancestors(graphOf(), 'identity/keycloak/realms.md').map((n) => n.id)).toEqual([
+      '',
+      'identity',
+      'identity/keycloak.md',
+    ])
+    expect(ancestors(graphOf(), '')).toEqual([])
     expect(crumbs(graphOf(), 'identity')).toEqual([])
   })
 })
