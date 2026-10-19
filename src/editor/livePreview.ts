@@ -1,6 +1,8 @@
 // Live preview (ARCHITECTURE.md §7): one decoration extension over the Markdown text.
-// Lines without the cursor hide their syntax and show the result; the line being edited
-// shows its Markdown. "Show Markdown" turns this extension off: same editor, same text.
+// Writing shows the result, not the Markdown (issue #68): only the piece of syntax the
+// cursor touches shows its marks (a heading's `##`, a span's `**`, a link's `[…](…)`), so
+// it can be edited. Images, embeds and callouts show their Markdown on the cursor's line.
+// "Show Markdown" turns this extension off: same editor, same text.
 // GitHub's alerts, footnote marks and Mermaid diagrams show as github.com draws them.
 
 import { syntaxTree } from '@codemirror/language'
@@ -247,6 +249,10 @@ class MathWidget extends WidgetType {
     )
     return el
   }
+  // Clicks reach the editor: one puts the cursor at the math (toggleTasks below).
+  ignoreEvent() {
+    return false
+  }
 }
 
 /**
@@ -461,6 +467,9 @@ function build(view: EditorView): DecorationSet {
   const { state } = view
   const active = activeLines(state)
   const isActive = (pos: number) => active.has(state.doc.lineAt(pos).number)
+  /** The cursor or a selection touches `from`…`to`: that piece shows its Markdown. */
+  const touched = (from: number, to: number) =>
+    state.selection.ranges.some((r) => r.from <= to && r.to >= from)
   const decorations: Range<Decoration>[] = []
   /** Where alerts' `[!NOTE]` markers start: they aren't links. */
   const markers = new Set<number>()
@@ -490,7 +499,8 @@ function build(view: EditorView): DecorationSet {
             if (node.from === 0) {
               const icon = titleIcon(state.doc.line(1).text.slice(after))
               decorations.push(hide.range(node.from, after + icon.length))
-            } else if (!isActive(node.from)) {
+            } else if (after > node.to && !touched(node.from, after - 1)) {
+              // Shown while the cursor is in the marks, or before the space that makes it one.
               decorations.push(hide.range(node.from, after))
             }
             return
@@ -510,10 +520,13 @@ function build(view: EditorView): DecorationSet {
           case 'EmphasisMark':
           case 'CodeMark':
           case 'StrikethroughMark': {
-            const parent = node.node.parent?.name
-            if (parent !== 'FencedCode' && !isActive(node.from))
+            const parent = node.node.parent
+            if (
+              parent?.name !== 'FencedCode' &&
+              !touched(parent?.from ?? node.from, parent?.to ?? node.to)
+            )
               decorations.push(hide.range(node.from, node.to))
-            if (parent === 'FencedCode')
+            if (parent?.name === 'FencedCode')
               decorations.push(mark('cm-fence').range(node.from, node.to))
             return
           }
@@ -522,7 +535,7 @@ function build(view: EditorView): DecorationSet {
             // A footnote's mark, `[^1]`, raised like GitHub's (its definition's too).
             if (/^\[\^[^\]\s]+\]$/.test(state.sliceDoc(node.from, node.to))) {
               decorations.push(mark('cm-footnote').range(node.from, node.to))
-              if (!isActive(node.from))
+              if (!touched(node.from, node.to))
                 decorations.push(
                   hide.range(node.from, node.from + 2),
                   hide.range(node.to - 1, node.to),
@@ -532,7 +545,7 @@ function build(view: EditorView): DecorationSet {
             const url = node.node.getChild('URL')
             const dest = url ? state.sliceDoc(url.from, url.to) : ''
             const target = linkTarget(dest)
-            const active = isActive(node.from)
+            const active = touched(node.from, node.to)
             const source = state.facet(mentionSource)
             const leaf = target && target.repo === null ? source?.leaf(target.path) : undefined
             const other = target?.repo ? source?.tree?.(target.repo) : null
@@ -614,16 +627,16 @@ function build(view: EditorView): DecorationSet {
             return
           }
           case 'QuoteMark':
-            if (!isActive(node.from)) decorations.push(hide.range(node.from, node.to))
+            if (!touched(node.from, node.to)) decorations.push(hide.range(node.from, node.to))
             return
           case 'ListMark':
             decorations.push(mark('cm-list-mark').range(node.from, node.to))
             return
           case 'TaskMarker': {
             const checked = /x/i.test(state.sliceDoc(node.from, node.to))
-            if (!isActive(node.from)) {
+            const bullet = node.node.parent?.parent?.getChild('ListMark')
+            if (!touched(bullet?.from ?? node.from, node.to)) {
               // The checkbox replaces the bullet too.
-              const bullet = node.node.parent?.parent?.getChild('ListMark')
               if (bullet) decorations.push(hide.range(bullet.from, node.from))
               decorations.push(
                 Decoration.replace({ widget: new CheckboxWidget(checked) }).range(
@@ -656,7 +669,7 @@ function build(view: EditorView): DecorationSet {
   }
 
   // Math and embeds replace whole spans; what was decorated inside them gives way.
-  const replaced = richRanges(view, isActive)
+  const replaced = richRanges(view, isActive, touched)
   const inside = (d: Range<Decoration>) =>
     d.from !== d.to && replaced.some((r) => d.from < r.to && d.to > r.from)
   const builder = new RangeSetBuilder<Decoration>()
@@ -666,8 +679,12 @@ function build(view: EditorView): DecorationSet {
   return builder.finish()
 }
 
-/** Single-line math and embed lines, away from the cursor and outside code. */
-function richRanges(view: EditorView, isActive: (pos: number) => boolean): Range<Decoration>[] {
+/** Embed lines away from the cursor's line, and math the cursor doesn't touch, outside code. */
+function richRanges(
+  view: EditorView,
+  isActive: (pos: number) => boolean,
+  touched: (from: number, to: number) => boolean,
+): Range<Decoration>[] {
   const { state } = view
   const out: Range<Decoration>[] = []
   const resolve = state.facet(assetSource)
@@ -680,11 +697,11 @@ function richRanges(view: EditorView, isActive: (pos: number) => boolean): Range
     for (let pos = from; pos <= to;) {
       const l = state.doc.lineAt(pos)
       pos = l.to + 1
-      if (l.number === 1 || isActive(l.from) || !l.text.trim() || inCode(l.from)) continue
+      if (l.number === 1 || !l.text.trim() || inCode(l.from)) continue
       const alone =
         state.doc.line(l.number - 1).text.trim() === '' &&
         (l.number === state.doc.lines || state.doc.line(l.number + 1).text.trim() === '')
-      const embed = alone ? embedOf(l.text) : null
+      const embed = alone && !isActive(l.from) ? embedOf(l.text) : null
       if (embed) {
         const tree =
           embed.kind === 'repo' ? (state.facet(mentionSource)?.tree?.(embed.repo) ?? null) : null
@@ -704,6 +721,7 @@ function richRanges(view: EditorView, isActive: (pos: number) => boolean): Range
         continue
       }
       for (const m of mathSpans(l.text)) {
+        if (touched(l.from + m.from, l.from + m.to)) continue
         out.push(
           Decoration.replace({ widget: new MathWidget(m.tex, m.display) }).range(
             l.from + m.from,
@@ -716,10 +734,20 @@ function richRanges(view: EditorView, isActive: (pos: number) => boolean): Range
   return out
 }
 
-/** Toggles a task when its checkbox is clicked: `[ ]` ↔ `[x]` in the text. */
+/**
+ * Toggles a task when its checkbox is clicked: `[ ]` ↔ `[x]` in the text. A click on drawn
+ * math puts the cursor at its start, which shows its source to edit.
+ */
 const toggleTasks = EditorView.domEventHandlers({
   mousedown(event, view) {
     const target = event.target as HTMLElement
+    const math = target.closest('.cm-math')
+    if (math) {
+      view.dispatch({ selection: { anchor: view.posAtDOM(math) } })
+      view.focus()
+      event.preventDefault()
+      return true
+    }
     if (!target.classList.contains('cm-task')) return false
     const pos = view.posAtDOM(target)
     const text = view.state.sliceDoc(pos, pos + 3)

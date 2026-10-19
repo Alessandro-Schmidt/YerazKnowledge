@@ -215,10 +215,11 @@ Next to the radial map, a Family can be shown seven other ways (design: `design/
 
 - **CodeMirror 6** with `@codemirror/lang-markdown` (GitHub-flavoured). The document in the editor *is* the file's text.
 - **Live preview is one decoration extension.** It:
-  - hides Markdown syntax on lines that don't hold the cursor, and styles headings and quotes;
+  - hides Markdown syntax and styles headings and quotes. Writing shows the result (issue #68): only the piece of syntax the cursor touches shows its marks (a heading's `##`, a span's `**`, a link's `[…](…)`, a task's `[ ]`, inline math), so it can be edited; images, embeds and callouts show their Markdown on the cursor's line;
   - replaces the right ranges with widgets: images, `@` chips, checkboxes, math (KaTeX), YouTube embeds, PDFs, video with subtitle tracks, repository cards and bookmarks.
 - **Images resize by their sides** (issue #27): dragging either side inwards makes the image smaller, outwards bigger, both sides moving so it stays centred, from 10% up to the column. The width is written into the image's title once, on release (`imageResize`); the end handle is also a slider (arrows by 5%, Home, End).
 - **"Show the code" turns that extension off.** Same editor, same text, no conversion.
+- **A new line says how to open the options** (issue #68, `emptyText.ts`): the empty line being written on shows, faintly, "Hold ⌘ / Ctrl to see options", or "Tap and hold, or type /" on touch. The caret is the text's colour.
 - **`@` mentions** use `@codemirror/autocomplete` over the in-memory index. Picking a leaf inserts `[Title](/path.md)`, which is displayed as a chip with the target's icon.
 - **Hold Ctrl/Cmd for 2 seconds** to open the insert menu: to-do list, ordered list, bullet list, mention, image from files, attach a file, new leaf, new branch.
   - The timer starts when the modifier is pressed on its own. Any other key, or releasing the modifier, cancels it, so normal shortcuts like Ctrl+C never open the menu.
