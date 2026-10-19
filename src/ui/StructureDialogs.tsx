@@ -278,9 +278,11 @@ export function StructureDialog({
           }
         >
           <p className={styles.text}>
-            {leaves > 1
-              ? `This deletes ${leaves} leaves. GitHub keeps them in the repository's history.`
-              : "GitHub keeps it in the repository's history."}
+            {tree.folder !== undefined
+              ? `This deletes ${leaves > 1 ? `${leaves} leaves` : 'it'} from the folder.`
+              : leaves > 1
+                ? `This deletes ${leaves} leaves. GitHub keeps them in the repository's history.`
+                : "GitHub keeps it in the repository's history."}
           </p>
           {linkedFrom.length > 0 && (
             <p className={controls.error}>

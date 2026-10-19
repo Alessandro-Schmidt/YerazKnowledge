@@ -68,7 +68,11 @@ export function planBatches<T extends { size: number }>(
   return batches
 }
 
-async function inParallel<T>(items: readonly T[], limit: number, run: (item: T) => Promise<void>) {
+export async function inParallel<T>(
+  items: readonly T[],
+  limit: number,
+  run: (item: T) => Promise<void>,
+) {
   let next = 0
   const worker = async () => {
     while (next < items.length) await run(items[next++]!)

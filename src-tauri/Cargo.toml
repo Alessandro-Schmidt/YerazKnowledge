@@ -16,6 +16,9 @@ tauri-build = { version = "=2.7.1", features = [] }
 tauri = { version = "=2.12.1", features = [] }
 # The token in the OS keychain: macOS Keychain, Windows Credential Manager, Secret Service.
 keyring = { version = "=3.6.3", features = ["apple-native", "windows-native", "sync-secret-service", "crypto-rust"] }
+# Families in folders (issue #64): the native folder picker, and the file list sent to the app.
+tauri-plugin-dialog = "=2.8.3"
+serde = { version = "=1.0.229", features = ["derive"] }
 
 [profile.release]
 codegen-units = 1

@@ -1,13 +1,16 @@
 import { useState, type FormEvent } from 'react'
 import { session } from '../store/session'
 import controls from './controls.module.css'
+import { FolderButton } from './FolderButton'
 import { Icon } from './icons'
+import { treeHref } from './paths'
 import styles from './TokenScreen.module.css'
 import { TopBar } from './TopBar'
 
 const NEW_TOKEN = 'https://github.com/settings/personal-access-tokens/new'
 
-export function TokenScreen() {
+/** Connect GitHub, or use a folder instead. `onDone` runs after a token is accepted. */
+export function TokenScreen({ onDone }: { onDone?: () => void }) {
   const [token, setToken] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -19,6 +22,7 @@ export function TokenScreen() {
     setError(null)
     try {
       await session.getState().signIn(token)
+      onDone?.()
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
       setBusy(false)
@@ -78,6 +82,14 @@ export function TokenScreen() {
             A Family is any repository with a <code>.yeraz.json</code> file at its root, and every
             folder or leaf at its top is a Tree. The app opens on yours next.
           </p>
+          <hr className={styles.or} />
+          <h2 className={styles.subtitle}>Or keep your notes in a folder</h2>
+          <p className={styles.lead}>
+            No GitHub account needed. Pick a folder on this computer: one that iCloud Drive,
+            Dropbox, OneDrive or a shared drive keeps in sync brings your notes to your other
+            devices too.
+          </p>
+          <FolderButton onAdded={(tree) => (location.hash = `#${treeHref(tree.repo)}`)} />
         </form>
       </main>
     </div>

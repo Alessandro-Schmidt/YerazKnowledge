@@ -35,6 +35,8 @@ export function FamilyMenu({ current }: { current?: string }) {
   const [open, setOpen] = useState(false)
   const [dialog, setDialog] = useState<'connect' | 'create' | null>(null)
   const trees = useSession((s) => s.trees)
+  const github = useSession((s) => s.token !== null)
+  const folders = useSession((s) => s.folders)
   const [, navigate] = useLocation()
   const host = useRef<HTMLDivElement>(null)
 
@@ -91,18 +93,45 @@ export function FamilyMenu({ current }: { current?: string }) {
               aria-current={t.repo.toLowerCase() === current?.toLowerCase() || undefined}
             >
               <span className={styles.name}>{t.title}</span>
-              <span className={`${controls.mono} ${styles.repo}`}>{t.repo}</span>
+              <span className={`${controls.mono} ${styles.repo}`}>{t.folder ?? t.repo}</span>
             </Link>
           ))}
           <hr />
-          <button type="button" role="menuitem" onClick={() => setDialog('connect')}>
-            <Icon name="repo" size={15} />
-            Connect repository
-          </button>
-          <button type="button" role="menuitem" onClick={() => setDialog('create')}>
-            <Icon name="plus" size={15} />
-            Create a new repository
-          </button>
+          {github ? (
+            <>
+              <button type="button" role="menuitem" onClick={() => setDialog('connect')}>
+                <Icon name="repo" size={15} />
+                Connect repository
+              </button>
+              <button type="button" role="menuitem" onClick={() => setDialog('create')}>
+                <Icon name="plus" size={15} />
+                Create a new repository
+              </button>
+            </>
+          ) : (
+            <button type="button" role="menuitem" onClick={() => navigate('/github')}>
+              <Icon name="repo" size={15} />
+              Connect GitHub
+            </button>
+          )}
+          {folders && (
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() =>
+                void session
+                  .getState()
+                  .addFolder()
+                  .then(
+                    (tree) => tree && go(tree),
+                    (e: unknown) => window.alert(e instanceof Error ? e.message : String(e)),
+                  )
+              }
+            >
+              <Icon name="folder" size={15} />
+              Use a folder
+            </button>
+          )}
           <hr />
           <button type="button" role="menuitem" onClick={() => navigate('/settings/appearance')}>
             <Icon name="contrast" size={15} />
@@ -116,10 +145,21 @@ export function FamilyMenu({ current }: { current?: string }) {
             <ViewIcon view="map" />
             Tree colours
           </button>
-          <button type="button" role="menuitem" onClick={() => void session.getState().signOut()}>
-            <Icon name="signOut" size={15} />
-            Sign out
-          </button>
+          {github && (
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() =>
+                void session
+                  .getState()
+                  .signOut()
+                  .then(() => navigate('/'))
+              }
+            >
+              <Icon name="signOut" size={15} />
+              Sign out
+            </button>
+          )}
         </div>
       )}
       {dialog === 'connect' && <ConnectDialog onClose={() => setDialog(null)} onConnected={go} />}
