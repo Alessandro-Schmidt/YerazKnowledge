@@ -35,6 +35,10 @@ Yeraz signs in with a fine-grained personal access token, kept on your device (i
 
 It works in the desktop app and in Chrome or Edge on a computer. Safari, Firefox and phone browsers can't open folders, so there Yeraz needs GitHub. A folder keeps no history: *History* is GitHub's.
 
+### Every Family together
+
+With more than one Family (repositories or folders), Yeraz opens on all of them on one map, each in its own ring. Click any leaf to read and edit it there. *All Families* in the Family menu brings that map back; to open on the last Family instead, choose *The last Family* in Settings › Views.
+
 ### Make a repository a Tree
 
 A repository is a Tree when it has a `.yeraz.json` at its root, for example `{"name": "Engineering", "color": "green"}`. Yeraz finds every such repository the token can see. *Create a new repository* on Home makes one for you. To rename a Tree, click its name in the top bar, on its Home card or in its own panel. This repository's [`knowledge-base-example/`](knowledge-base-example) folder is an example Tree.

@@ -10,7 +10,7 @@ import controls from './controls.module.css'
 import { Dialog, Field } from './Dialog'
 import styles from './FamilyMenu.module.css'
 import { Icon } from './icons'
-import { treeHref } from './paths'
+import { allHref, treeHref } from './paths'
 import { CreateTreeDialog } from './StructureDialogs'
 import { ViewIcon } from '../views/ViewSwitcher'
 
@@ -23,6 +23,27 @@ export function lastFamily(): string | null {
     return null
   }
 }
+/**
+ * What `#/` opens on this device (issue #69): every Family together (the default), or the
+ * Family last shown.
+ */
+const OPEN = 'yeraz-open'
+export type OpenOn = 'all' | 'last'
+export function openOn(): OpenOn {
+  try {
+    return localStorage.getItem(OPEN) === 'last' ? 'last' : 'all'
+  } catch {
+    return 'all'
+  }
+}
+export function saveOpenOn(choice: OpenOn) {
+  try {
+    localStorage.setItem(OPEN, choice)
+  } catch {
+    // Private windows may refuse storage; the app then opens on every Family.
+  }
+}
+
 export function rememberFamily(repo: string) {
   try {
     localStorage.setItem(LAST, repo)
@@ -31,7 +52,8 @@ export function rememberFamily(repo: string) {
   }
 }
 
-export function FamilyMenu({ current }: { current?: string }) {
+/** `current`: the Family on screen; `all`: every Family on one map is. */
+export function FamilyMenu({ current, all }: { current?: string; all?: boolean }) {
   const [open, setOpen] = useState(false)
   const [dialog, setDialog] = useState<'connect' | 'create' | null>(null)
   const trees = useSession((s) => s.trees)
@@ -85,6 +107,12 @@ export function FamilyMenu({ current }: { current?: string }) {
           <span className={`${controls.eyebrow} ${styles.heading}`} role="presentation">
             Families
           </span>
+          {trees.length > 1 && (
+            <Link href={allHref()} role="menuitem" aria-current={all || undefined}>
+              <span className={styles.name}>All Families</span>
+              <span className={`${controls.mono} ${styles.repo}`}>on one map</span>
+            </Link>
+          )}
           {trees.map((t) => (
             <Link
               key={t.repo}
