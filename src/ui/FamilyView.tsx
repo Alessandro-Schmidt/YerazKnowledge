@@ -81,6 +81,14 @@ export function FamilyView({ params }: { params: { owner: string; name: string; 
     setArrived(wanted)
     if (wanted !== null) setPeekOpen(true)
   }
+  // Choosing another view shows it (issue #65): a leaf open as a page, or the phone's sheet
+  // over the view, gives way. The selection stays.
+  const [shownView, setShownView] = useState(view)
+  if (shownView !== view) {
+    setShownView(view)
+    setExpanded(false)
+    if (phone) setPeekOpen(false)
+  }
   const peekVisible = peekOpen && selected !== null
   // A view with its own panel shows the Peek only as a full page.
   const peekShown = peekVisible && (panel !== 'own' || expanded)

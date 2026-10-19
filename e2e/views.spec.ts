@@ -100,6 +100,24 @@ for (const view of VIEW_IDS.filter((v) => v !== 'map')) {
   })
 }
 
+test('choosing a view from a leaf’s page shows the view, keeping the leaf selected', async ({
+  page,
+  graph,
+}) => {
+  const leaf = leafOf(graph)
+  await openOn(page, 'map', leaf.id)
+  const peek = page.getByRole('region', { name: /preview$/ })
+  if (!isPhone(page)) {
+    await peek.getByRole('button', { name: 'Open full page' }).click()
+    await expect(peek).toHaveAttribute('data-expanded')
+  }
+  await switcher(page).getByRole('radio', { name: 'Outline' }).click()
+  await expect(shown.outline(page)).toBeInViewport()
+  if (isPhone(page)) await expect(peek).toHaveCount(0)
+  else await expect(peek).not.toHaveAttribute('data-expanded')
+  expect(decodeURIComponent(page.url()).endsWith(`/${leaf.id}`)).toBe(true)
+})
+
 test('Columns opens a column per level down to the selection', async ({ page, graph }) => {
   test.skip(isPhone(page), 'Phones fold the parent columns into spines')
   const leaf = leafOf(graph)
