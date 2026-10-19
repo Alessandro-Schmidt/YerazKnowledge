@@ -1,5 +1,7 @@
 .explorer {
-  width: 272px;
+  position: relative;
+  /* Dragged by its right edge (ResizeHandle), kept on this device (ui/panels.ts). */
+  width: var(--explorer-w, 272px);
   flex-shrink: 0;
   display: flex;
   flex-direction: column;

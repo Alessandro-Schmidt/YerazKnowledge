@@ -34,6 +34,7 @@ import { Glyph } from '../ui/Glyph'
 import { Icon } from '../ui/icons'
 import { InlineName } from '../ui/InlineName'
 import { play } from '../ui/motion'
+import { ResizeHandle } from '../ui/ResizeHandle'
 import { PHONE } from '../ui/useMedia'
 import { treeHref } from '../ui/paths'
 import styles from './Peek.module.css'
@@ -154,6 +155,9 @@ export function Peek({
       data-docked={docked || undefined}
       aria-label={`${kind} preview`}
     >
+      {!expanded && (
+        <ResizeHandle panel={docked ? 'dock' : 'peek'} edge="left" label="Leaf panel width" />
+      )}
       <PeekHead
         {...{ kind, crumb, away, href, onSelect, expanded, onClose, sheet }}
         onExpand={motion.expand}

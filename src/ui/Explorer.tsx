@@ -9,6 +9,7 @@ import { ROOT } from '../model/tree'
 import controls from './controls.module.css'
 import styles from './Explorer.module.css'
 import { Glyph } from './Glyph'
+import { ResizeHandle } from './ResizeHandle'
 import { Icon } from './icons'
 import { parentFor, type StructureAction } from './StructureDialogs'
 
@@ -144,6 +145,7 @@ export function Explorer({
 
   return (
     <aside className={styles.explorer} aria-label="Explorer">
+      <ResizeHandle panel="explorer" edge="right" label="Explorer width" />
       <div className={styles.head}>
         <h2 className={controls.eyebrow}>Explorer</h2>
         <button

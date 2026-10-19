@@ -36,7 +36,7 @@ Read `ideas.txt` (why), `ARCHITECTURE.md` (how), `development-plan.md` (what, in
   `Canvas.tsx` (drawn views' stage: camera, selection layer), one file per view, pure layouts in `layout/`;
   Settings › Views (`ui/ViewsSettings.tsx`) and › Tree colours (`ui/TreeColours.tsx`, `.yeraz.json` `trees`)
 - `src/read/` `render.ts` (markdown-it, lazy) · `Peek.tsx` · `History.tsx` (past versions, diff, restore) · `src/ui/` App, FamilyView, FamilyMenu, Start, Explorer, TokenScreen,
-  theme (saved per device in `localStorage`, applied before paint by `index.html`), Appearance (`#/settings/appearance`),
+  theme (saved per device in `localStorage`, applied before paint by `index.html`), `panels.ts` + `ResizeHandle.tsx` (Explorer and Peek widths, per device), Appearance (`#/settings/appearance`),
   `customTheme.ts` + `ThemeEditor.tsx` (custom themes), `contrast.ts` (`readable` adjusts a failing colour)
 - `themes/` community themes (each must pass every contrast rule as written) · `src/read/colors.ts` leaf colours
 - Map rule: React draws geometry once per layout; selection, zoom level and layers are data

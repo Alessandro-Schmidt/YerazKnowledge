@@ -2,7 +2,7 @@
 // or in the view chosen on this device (views/), the Explorer on the left and the Peek on
 // the right. The app opens straight into it.
 
-import { Suspense, useCallback, useEffect, useMemo, useState } from 'react'
+import { Suspense, useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import { useLocation } from 'wouter'
 import { familyLayout, treesOf } from '../map/family'
 import { TreeMap } from '../map/TreeMap'
@@ -27,6 +27,7 @@ import { SyncStatus } from './SyncStatus'
 import { colorVar } from './theme'
 import { Divider, TopBar } from './TopBar'
 import styles from './FamilyView.module.css'
+import { widthStore, widthVars } from './panels'
 import { PHONE, useMedia } from './useMedia'
 import { Search, type Matches } from './Search'
 import { treeColor } from '../views/common'
@@ -114,15 +115,21 @@ export function FamilyView({ params }: { params: { owner: string; name: string; 
     [graph, tree],
   )
 
+  // The panels' widths, dragged by their edges and saved on this device (issue #80).
+  const widths = useSyncExternalStore(widthStore.subscribe, widthStore.get)
   const insets = phone
     ? { bottom: peekShown ? Math.round(window.innerHeight * 0.6) : 0 }
     : panel === 'dock'
-      ? { right: peekShown && !expanded ? DOCK : 0 }
-      : { right: peekShown && !expanded ? 452 : 0 }
+      ? { right: peekShown && !expanded ? widths.dock : 0 }
+      : { right: peekShown && !expanded ? widths.peek + 32 : 0 }
   const View = view === 'map' ? null : VIEW_COMPONENTS[view]
 
   return (
-    <div className={styles.page} style={{ '--tree': color } as React.CSSProperties}>
+    <div
+      className={styles.page}
+      data-panels=""
+      style={{ '--tree': color, ...widthVars(widths) } as React.CSSProperties}
+    >
       <TopBar>
         <Divider />
         <div className={styles.crumbs}>
@@ -291,9 +298,6 @@ export function FamilyView({ params }: { params: { owner: string; name: string; 
     </div>
   )
 }
-
-/** Width of the Peek docked beside the Columns (design/views/screens/03). */
-const DOCK = 640
 
 function Status({
   data,
