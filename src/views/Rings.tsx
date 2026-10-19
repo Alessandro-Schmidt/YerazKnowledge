@@ -6,12 +6,11 @@
 import { memo, useCallback, useEffect, useId, useMemo, useState, type CSSProperties } from 'react'
 import type { TreeRef } from '../github/graphql'
 import { compactWords, type Graph } from '../model/graph'
-import { session } from '../store/session'
 import controls from '../ui/controls.module.css'
 import { Glyph } from '../ui/Glyph'
 import { Icon } from '../ui/icons'
 import { Canvas, lift, svgEl } from './Canvas'
-import { topOf, treeColor, type ViewProps } from './common'
+import { plantedIn, topOf, treeColor, type ViewProps } from './common'
 import { layoutRings, type RingsLayout } from './layout/rings'
 import { ThreadCurve } from './parts'
 import styles from './Rings.module.css'
@@ -25,13 +24,10 @@ export default function Rings(props: ViewProps) {
   const [error, setError] = useState<string | null>(null)
   useEffect(() => {
     let live = true
-    session
-      .getState()
-      .planted(tree.repo)
-      .then(
-        (map) => live && setPlanted({ graph, map }),
-        (e: unknown) => live && setError(e instanceof Error ? e.message : String(e)),
-      )
+    plantedIn(tree.repo).then(
+      (map) => live && setPlanted({ graph, map }),
+      (e: unknown) => live && setError(e instanceof Error ? e.message : String(e)),
+    )
     return () => {
       live = false
     }

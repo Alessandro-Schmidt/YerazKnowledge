@@ -1,13 +1,22 @@
 // Every Family on one map (issue #69), what `#/` opens on unless this device chose the last
 // Family (Settings › Views). The map draws the merged graph (map/families.ts); a selected
 // node opens in its own Family's Peek, so reading, editing and saving work as they do there.
-// ponytail: only the radial map shows every Family; the other views, the Explorer and the
-// Tree colours stay per Family. Search picks open the result in its Family.
+// Every view of a Family shows every Family too: they get the merged graph and `allRef`, and
+// their actions go to the Family the node is in.
+// ponytail: the Explorer and Tree colours stay per Family; search picks open the result in its
+// Family.
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react'
 import { useLocation } from 'wouter'
 import type { TreeRef } from '../github/graphql'
-import { allId, familiesLayout, mergeFamilies, splitId, type FamilyGraph } from '../map/families'
+import {
+  allId,
+  allRef,
+  familiesLayout,
+  mergeFamilies,
+  splitId,
+  type FamilyGraph,
+} from '../map/families'
 import { treesOf, type FamilyLayout } from '../map/family'
 import { TreeMap } from '../map/TreeMap'
 import type { Graph } from '../model/graph'
@@ -16,6 +25,9 @@ import { preloadEditor } from '../editor/LeafEditor'
 import { Peek } from '../read/Peek'
 import { session, useSession } from '../store/session'
 import { treeColor } from '../views/common'
+import { VIEW_COMPONENTS } from '../views'
+import { PANEL } from '../views/views'
+import { useView, ViewSwitcher } from '../views/ViewSwitcher'
 import controls from './controls.module.css'
 import { ConflictBanner } from './ConflictBanner'
 import { FamilyMenu } from './FamilyMenu'
@@ -35,7 +47,12 @@ const TITLE = 'All Families'
  * The merged graph and its layout, made again only when a Family's graph or ref changes:
  * the session's data also changes while content loads and edits are saved.
  */
-let last: { families: FamilyGraph[]; merged: Graph; layout: FamilyLayout } | null = null
+let last: {
+  families: FamilyGraph[]
+  merged: Graph
+  layout: FamilyLayout
+  ref: TreeRef
+} | null = null
 function mapOf(families: FamilyGraph[]) {
   const same =
     last?.families.length === families.length &&
@@ -44,7 +61,7 @@ function mapOf(families: FamilyGraph[]) {
     )
   if (!same) {
     const merged = mergeFamilies(families, TITLE)
-    last = { families, merged, layout: familiesLayout(merged) }
+    last = { families, merged, layout: familiesLayout(merged), ref: allRef(families, TITLE) }
   }
   return last!
 }
@@ -54,6 +71,9 @@ export function AllView({ params }: { params: { owner?: string; name?: string; '
   const trees = useSession((s) => s.trees)
   const data = useSession((s) => s.data)
   const phone = useMedia(PHONE)
+  const view = useView()
+  // Phones use the Peek sheet, except Rings, whose own sheet holds the core sample.
+  const panel = phone ? (view === 'rings' ? 'own' : 'float') : PANEL[view]
   const [peekOpen, setPeekOpen] = useState(true)
   const [expanded, setExpanded] = useState(false)
   const [action, setAction] = useState<{ tree: TreeRef; action: StructureAction } | null>(null)
@@ -74,7 +94,7 @@ export function AllView({ params }: { params: { owner?: string; name?: string; '
       }),
     [trees, data],
   )
-  const { merged, layout } = useMemo(() => mapOf(families), [families])
+  const { merged, layout, ref: all } = useMemo(() => mapOf(families), [families])
 
   // The selection, in its Family: `#/all/owner/name/path`.
   const repo = params.owner && params.name ? `${params.owner}/${params.name}`.toLowerCase() : null
@@ -91,7 +111,9 @@ export function AllView({ params }: { params: { owner?: string; name?: string; '
     setArrived(selected)
     if (selected !== null) setPeekOpen(true)
   }
-  const peekShown = peekOpen && family !== undefined && path !== null
+  const peekVisible = peekOpen && family !== undefined && path !== null
+  // A view with its own panel shows the Peek only as a full page.
+  const peekShown = peekVisible && (panel !== 'own' || expanded)
 
   /** Selects a node of the Family `ref` by its own id; null clears the selection. */
   const select = useCallback(
@@ -130,9 +152,19 @@ export function AllView({ params }: { params: { owner?: string; name?: string; '
 
   const insets = phone
     ? { bottom: peekShown ? Math.round(window.innerHeight * 0.6) : 0 }
-    : { right: peekShown && !expanded ? 452 : 0 }
+    : { right: peekShown && !expanded ? (panel === 'dock' ? DOCK : 452) : 0 }
   // New leaf goes to the selection's Family, or the first one.
   const target = family ?? families[0]
+  const View = view === 'map' ? null : VIEW_COMPONENTS[view]
+
+  /** A view's action, on merged ids, as its Family's: the root's goes to `target`. */
+  const fromView = (a: StructureAction) => {
+    const of = splitId('parent' in a ? a.parent : a.id)
+    const owner = of ? families.find((f) => f.ref.repo.toLowerCase() === of.repo) : target
+    if (!owner) return
+    const id = of ? of.id : ROOT
+    setAction({ tree: owner.ref, action: 'parent' in a ? { ...a, parent: id } : { ...a, id } })
+  }
 
   return (
     <div className={styles.page}>
@@ -142,6 +174,7 @@ export function AllView({ params }: { params: { owner?: string; name?: string; '
           <h1 className={styles.title}>{TITLE}</h1>
           <FamilyMenu all />
         </div>
+        {!phone && <ViewSwitcher />}
         <Search repo={target?.ref.repo ?? ''} onMatches={setFound} />
         <div className={styles.toggles}>
           <SaveAndRefresh repos={trees.map((t) => t.repo)} />
@@ -163,6 +196,7 @@ export function AllView({ params }: { params: { owner?: string; name?: string; '
           )}
         </div>
       </TopBar>
+      {phone && <ViewSwitcher phone />}
       {trees.map((t) => (
         <ConflictBanner key={t.repo} repo={t.repo} />
       ))}
@@ -181,7 +215,25 @@ export function AllView({ params }: { params: { owner?: string; name?: string; '
       )}
       <div className={styles.body}>
         <main className={styles.main}>
-          {families.length ? (
+          {families.length && View ? (
+            <Suspense fallback={<p className={styles.placeholder} aria-busy="true" />}>
+              <View
+                key={view}
+                tree={all}
+                graph={merged}
+                selected={selected}
+                matches={lit}
+                phone={phone}
+                insets={insets}
+                onSelect={fromMap}
+                onOpen={(id) => {
+                  fromMap(id)
+                  setExpanded(true)
+                }}
+                onAction={fromView}
+              />
+            </Suspense>
+          ) : families.length ? (
             <TreeMap
               treeKey="all"
               graph={merged}
@@ -211,7 +263,7 @@ export function AllView({ params }: { params: { owner?: string; name?: string; '
               graph={family.graph}
               id={path ?? ROOT}
               expanded={expanded}
-              docked={false}
+              docked={panel === 'dock'}
               created={created === path}
               href={(id) => `#${allHref(family.ref.repo, id)}`}
               onSelect={(id) => select(family.ref, id)}
@@ -232,3 +284,6 @@ export function AllView({ params }: { params: { owner?: string; name?: string; '
     </div>
   )
 }
+
+/** Width of the Peek docked beside the Columns (as in FamilyView). */
+const DOCK = 640

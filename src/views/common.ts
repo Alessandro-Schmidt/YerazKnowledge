@@ -4,6 +4,7 @@
 
 import { useEffect, useState } from 'react'
 import type { TreeRef } from '../github/graphql'
+import { ALL, allId } from '../map/families'
 import { treesOf } from '../map/family'
 import { crumbs, type Graph, type GraphNode } from '../model/graph'
 import { firstLine } from '../model/search'
@@ -66,23 +67,42 @@ export const leavesUnder = (graph: Graph, id: string) =>
 export const degree = (graph: Graph, id: string) =>
   (graph.out.get(id)?.length ?? 0) + (graph.in.get(id)?.length ?? 0)
 
+/**
+ * Every Family's results of a session lookup by path, merged under their ids (map/families.ts):
+ * what a view asks of `ALL`, every Family together. A Family not open yet is left out.
+ */
+async function fromEvery<T>(
+  repo: string,
+  ask: (repo: string) => Promise<Map<string, T>>,
+): Promise<Map<string, T>> {
+  if (repo !== ALL) return ask(repo)
+  const out = new Map<string, T>()
+  await Promise.all(
+    session.getState().trees.map(async (t) => {
+      const found = await ask(t.repo).catch(() => new Map<string, T>())
+      for (const [path, value] of found) out.set(allId(t.repo, path), value)
+    }),
+  )
+  return out
+}
+
+/** When each leaf was planted (Growth rings), for one Family or every Family (`ALL`). */
+export const plantedIn = (repo: string) => fromEvery(repo, (r) => session.getState().planted(r))
+
 /** Every leaf's first line, from the blob cache (no request); empty until it arrives. */
 export function useFirstLines(repo: string, graph: Graph): Map<string, string> {
   const [lines, setLines] = useState<{ graph: Graph; lines: Map<string, string> } | null>(null)
   useEffect(() => {
     let live = true
-    void session
-      .getState()
-      .texts(repo)
-      .then(
-        (texts) => {
-          if (!live) return
-          const out = new Map<string, string>()
-          for (const [path, text] of texts) out.set(path, firstLine(text))
-          setLines({ graph, lines: out })
-        },
-        () => {},
-      )
+    void fromEvery(repo, (r) => session.getState().texts(r)).then(
+      (texts) => {
+        if (!live) return
+        const out = new Map<string, string>()
+        for (const [path, text] of texts) out.set(path, firstLine(text))
+        setLines({ graph, lines: out })
+      },
+      () => {},
+    )
     return () => {
       live = false
     }

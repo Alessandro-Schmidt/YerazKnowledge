@@ -4,6 +4,7 @@ import { useHashLocation } from 'wouter/use-hash-location'
 import { session, useSession } from '../store/session'
 import { Appearance } from './Appearance'
 import { treeHref, decodePath } from './paths'
+import { openOn } from './FamilyMenu'
 import { TokenScreen } from './TokenScreen'
 import { AllView } from './AllView'
 import { FamilyView } from './FamilyView'
@@ -21,8 +22,25 @@ import { ViewsSettings } from './ViewsSettings'
 //   #/settings/views                      Settings › Views (how a Family is shown)
 //   #/settings/colours                    Settings › Tree colours (in .yeraz.json)
 //   #/github                              Connect GitHub, when only folders are in use
+/**
+ * The address the app was opened at. Opening it on a Family's own address (a tab the browser
+ * restored, a bookmark) shows every Family together, as `#/` does (issue #69); an address
+ * naming a leaf still opens on it.
+ */
+let opened: string | null = typeof location === 'undefined' ? null : location.hash
+const FAMILY_ONLY = /^#\/tree\/[^/]+\/[^/]+\/?$/
+
 export function App() {
   const phase = useSession((s) => s.phase)
+
+  // Once, as the app starts signed in (a link followed through sign-in keeps its Family).
+  useEffect(() => {
+    if (phase === 'starting' || opened === null) return
+    const at = opened
+    opened = null
+    if (phase !== 'signed-in' || !FAMILY_ONLY.test(at) || location.hash !== at) return
+    if (session.getState().trees.length > 1 && openOn() === 'all') location.replace('#/all')
+  }, [phase])
 
   useEffect(() => {
     void session.getState().start()
