@@ -418,8 +418,8 @@ Any combination works: 3 bases × 4 accents × 2 fonts gives 24 themes from 9 de
 
 ### Logo and print
 
-- **The logo has no accent colour.** It is a steel Y in shades of grey, so it never changes with the accent.
-- **Light bases** use `design/brand/svg/yeraz-mark-light.svg` in the top bar: the same six faces in dark gunmetal instead of bright steel. The app icon never changes with the theme.
+- **The logo has no accent colour.** It is a steel leaf in shades of grey, so it never changes with the accent.
+- **Light bases** use `design/brand/svg/yeraz-mark-small-light.svg` in the top bar: the same leaf in dark gunmetal instead of bright steel. The app icon never changes with the theme.
 - **Printing** always uses Paper (§8).
 
 ### Custom themes

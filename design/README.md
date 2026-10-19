@@ -11,7 +11,7 @@ Everything Yeraz should look like lives in this folder. It is the source of trut
 
 Both need the owner's login. Everything needed to build the app is copied into this folder.
 
-The canvas also keeps three boards of logo explorations (15 directions). The steel Y, option K, was chosen; the others are there for reference only.
+The canvas also keeps every logo exploration. Three boards of letter marks led to the steel Y (option K), the first logo. Four more boards explored marks without a letter; the vein leaf won and replaced the Y. Its board, *Logo — the leaf*, shows the family, every size and how it is built. The others are there for reference only.
 
 ## Screens — `screens/`
 
@@ -45,41 +45,47 @@ The canvas file behind each screen (`Main` = Home, `Tree`, `Focus` = map only, `
 
 | `/_blob/` id | File |
 |---|---|
-| `58e365d56077f4d7ada6dbf63fcdda98` | `brand/svg/yeraz-icon.svg` |
-| `0b690d8ab893706a468c873d393ed3b4` | `brand/svg/yeraz-icon-small.svg` |
-| `130b9f674901f0c84ad5e0776338fd7f` | `brand/svg/yeraz-icon-bleed.svg` |
-| `f67842db732c929ea5aca88c45614a41` | `brand/svg/yeraz-mark.svg` |
-| `9eb031a2a7df1838aeed8eae0bfb6f06` | `brand/svg/yeraz-mark-mono.svg` |
-| `1a7446438282a48a692a6027a51c74ee` | `brand/svg/yeraz-mark-light.svg` |
+| `950463a31529efe511ad57eb7e129d84` | `brand/svg/yeraz-icon.svg` |
+| `e633c9d6b60b6fbc3cb27a756cde34a8` | `brand/svg/yeraz-icon-small.svg` |
+| `66b516698868b770d203fe97eb9d2f0d` | `brand/svg/yeraz-icon-bleed.svg` |
+| `58894e14d6480a5fd47622ef28c29e1e` | `brand/svg/yeraz-mark.svg` |
+| `da2e8934360072a51895099b2274886e` | `brand/svg/yeraz-mark-light.svg` |
+| `13dd484226652e44a34a092055cbb5bc` | `brand/svg/yeraz-mark-mono.svg` |
+| `5e08a8888a5320e635380ff9ad23f9f0` | `brand/svg/yeraz-mark-small.svg` |
+| `8823c5adfa9e0febbcc9b44b0b7aec59` | `brand/svg/yeraz-mark-small-light.svg` |
+
+The canvas stores a file under the hash of its content: after `draw.py` changes a master, upload it again and update its id here and in the sources.
 
 ## Brand — `brand/`
 
-The logo is a capital Y cut into six flat faces of brushed steel, lit from the upper left, on a pure black tile. It has no colour of its own, so it sits with every theme and accent. Never tint it or recolour it with CSS; use the files as they are.
+The logo is a leaf: a note. Its midrib is the note's history, the four dots along it are commits, and the veins are branches. It is brushed steel lit from the upper left, turned 45° so the tip points up and to the right, on a pure black tile. The veins, the midrib and the commit rings are cut clean through, so whatever is behind the mark shows through them. It has no colour of its own, so it sits with every theme and accent. Never tint it or recolour it with CSS; use the files as they are.
 
-| Face | On dark (`yeraz-mark`, icons) | On light (`yeraz-mark-light`) |
-|---|---|---|
-| Left arm, facing the light | `#F4F4F2` | `#7A7A76` |
-| Stem, left | `#D9D9D6` | `#62625F` |
-| Left arm, turned away | `#BEBEBB` | `#4E4E4B` |
-| Right arm, inner | `#A9A9A6` | `#3F3F3C` |
-| Stem, right | `#8C8C88` | `#2C2C2A` |
-| Right arm, in shadow | `#74746F` | `#1C1C1B` |
+| Part | On dark (`yeraz-mark`, icons) | 32 px and below (`-small`) | On light (`-light`) |
+|---|---|---|---|
+| Left face, facing the light | `#F4F4F2` | `#F7F7F5` | `#7A7A76` |
+| Right face, in shade | `#8C8C88` | `#A3A39F` | `#2C2C2A` |
+| Stem | `#A9A9A6` | `#B8B8B4` | `#4E4E4B` |
+| Commits | `#BEBEBB` | `#CFCFCB` | `#62625F` |
 
-Every face keeps at least 3.6:1 contrast with the top bar it sits on, in every base. The tile is `#000000` with a white hairline edge at 12 % opacity, so it separates from dark wallpapers.
+Every part keeps at least 3.6:1 contrast with the top bar it sits on, in every base. The tile is `#000000` with a white hairline edge at 12 % opacity, so it separates from dark wallpapers.
+
+At 32 px and below a bolder drawing takes over: two veins and two commits, thicker cuts, brighter steel. The four-commit leaf would blur there.
 
 ### Vector masters — `brand/svg/`
 
 | File | Use |
 |---|---|
 | `yeraz-icon.svg` | Desktop app icon master: a 1024 px canvas holding an 824 px rounded tile with a 185 px corner radius |
-| `yeraz-icon-small.svg` | The same letter drawn thicker, with brighter faces, for 32 px and smaller |
-| `yeraz-icon-bleed.svg` | Full-bleed black square for phones and PWA maskable icons. The OS cuts the shape, and the letter stays inside the safe zone. |
-| `yeraz-mark.svg` | The letter without a tile, for the app's top bar (22 px tall) and the README |
-| `yeraz-mark-light.svg` | The letter for light backgrounds (the Paper base): the same six faces in dark gunmetal |
-| `yeraz-mark-mono.svg` | One-colour white silhouette for the macOS menu bar, the Windows tray and one-colour print |
-| `favicon.svg` | Browser favicon (the small drawing) |
+| `yeraz-icon-small.svg` | The small drawing on the tile, for 32 px and smaller |
+| `yeraz-icon-bleed.svg` | Full-bleed black square for phones and PWA maskable icons. The OS cuts the shape; the tip and the stem stay inside the safe zone. |
+| `yeraz-mark.svg` | The leaf without a tile, for the README and anything large |
+| `yeraz-mark-light.svg` | The same for light backgrounds, in dark gunmetal |
+| `yeraz-mark-small.svg` | The small drawing without a tile: the app's top bar (24 px tall, `public/brand/`) |
+| `yeraz-mark-small-light.svg` | The same on the light Paper base |
+| `yeraz-mark-mono.svg` | One-colour white, for the macOS menu bar, the Windows tray and one-colour print |
+| `favicon.svg` | Browser favicon (the small drawing on the tile) |
 
-All of these are generated by `brand/draw.py`, which holds the letter's geometry and the shades above. To change the logo, edit `draw.py`, run it, then run `export.py`.
+All of these are generated by `brand/draw.py`, which holds the leaf's geometry and the shades above. It computes the cut-outs (with shapely), so every file is plain filled paths, with no masks or clips: every browser, icon tool and README renders them the same way. To change the logo, edit `draw.py`, run it, then run `export.py`, and copy the results where the table below says.
 
 ### Raster exports — `brand/png/`
 
@@ -95,10 +101,12 @@ Each file is rendered straight from the vector at its exact pixel size, never sc
 | `apple-touch-icon.png` | iPhone home screen (180 px; iOS rounds the corners) |
 | `favicon.ico` | Browser favicon fallback (16, 32, 48 px) |
 
+The web app ships copies of these in `public/`: `favicon.svg`, `favicon.ico`, `icons/` (the PWA and iPhone icons) and `brand/` (the top bar's two small marks). The desktop app's are in `src-tauri/icons/`, named as above, plus `icon.png` (`pwa-512.png`), `32x32.png`, `128x128.png` and `128x128@2x.png` (the 256 px icon).
+
 **To regenerate after changing the logo:**
 
 ```
-pip install cairosvg pillow
+pip install shapely cairosvg pillow
 python3 design/brand/draw.py     # the SVG masters
 python3 design/brand/export.py   # every PNG, ICO and ICNS file
 ```
