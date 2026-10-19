@@ -585,7 +585,9 @@ test.describe('cover position', () => {
       mimeType: 'image/png',
       buffer: Buffer.from(png.slice(png.indexOf(',') + 1), 'base64'),
     })
-    await page.getByRole('button', { name: 'Reposition' }).click()
+    // Reposition is in the cover's one button (with Upload and Remove).
+    await page.getByRole('button', { name: 'Change cover' }).click()
+    await page.getByRole('menuitem', { name: 'Reposition' }).click()
     const cover = page.getByRole('slider', { name: 'Cover position' })
     await expect(cover).toHaveAttribute('aria-valuenow', '50')
     const box = (await cover.boundingBox())!
@@ -619,7 +621,8 @@ test.describe('icons', () => {
     await page.goto(`./#/tree/${REPO}/${leaf.id}`)
     await signInHere(page)
     // No wait for the editor: the button appears with it, so an early pick isn't lost.
-    await page.getByRole('button', { name: /^(Add icon|Change icon)/ }).click()
+    await page.getByRole('button', { name: /^(Add icon|Change icon)$/ }).click()
+    await page.getByRole('menuitem', { name: 'Choose an emoji' }).click()
     const icons = page.getByRole('group', { name: 'Icons' })
     const search = icons.getByRole('searchbox', { name: 'Search emoji' })
     await expect(search).toBeFocused()

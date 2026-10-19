@@ -89,6 +89,8 @@ export default defineConfig(({ mode }) => ({
         },
         workbox: {
           globPatterns: ['**/*.{js,css,html,svg,ico,png,woff2}'],
+          // The flags font (ui/flags.ts) is only for systems without flags: not every install.
+          globIgnores: ['**/noto-flags.woff2'],
           manifestTransforms: [
             (entries) => ({
               manifest: entries.filter((e) => !mermaidOnly.has(e.url)),

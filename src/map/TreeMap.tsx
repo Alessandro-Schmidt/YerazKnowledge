@@ -4,6 +4,7 @@
 
 import {
   memo,
+  useEffect,
   useId,
   useLayoutEffect,
   useMemo,
@@ -43,6 +44,8 @@ export interface TreeMapProps {
   insets: Partial<Insets>
   /** Names of the layout's groups (every Family on one map): each is drawn as a named ring. */
   groupTitles?: Record<string, string>
+  /** The address of a node's image icon (`/assets/…` or https), shown in its dot. */
+  imageUrl?: (id: string, src: string) => Promise<string | null>
 }
 
 const SVG_NS = 'http://www.w3.org/2000/svg'
@@ -89,6 +92,7 @@ export function TreeMap({
   onOpen,
   insets,
   groupTitles,
+  imageUrl,
 }: TreeMapProps) {
   const stageRef = useRef<HTMLDivElement>(null)
   const svgRef = useRef<SVGSVGElement>(null)
@@ -178,6 +182,28 @@ export function TreeMap({
     }
     mark('map-painted')
   }, [family])
+
+  // Image icons: their addresses arrive after the geometry is drawn (private files come
+  // through the blob cache), and are set on the drawing, never by rendering it again.
+  useEffect(() => {
+    if (!imageUrl) return
+    let live = true
+    for (const el of svgRef.current!.querySelectorAll<SVGImageElement>('image[data-src]')) {
+      const id = el.closest('[data-id]')?.getAttribute('data-id')
+      if (id === null || id === undefined) continue
+      void imageUrl(id, el.dataset.src!).then((url) => {
+        if (!live || !url) return
+        // The node, and any copy of it the selection layer made before the address arrived.
+        for (const copy of stageRef.current?.querySelectorAll(
+          `[data-id="${CSS.escape(id)}"] image[data-src]`,
+        ) ?? [])
+          copy.setAttribute('href', url)
+      })
+    }
+    return () => {
+      live = false
+    }
+  }, [family, imageUrl])
 
   /** Node id → its threads' paths, and the Tree they are drawn in (null: between Trees). */
   const threadsOf = useMemo(() => {
@@ -375,6 +401,10 @@ export function TreeMap({
           aria-label={`Knowledge map of ${title}`}
         >
           <defs>
+            {/* Image icons fill their dot: one circle, sized to each image's own box. */}
+            <clipPath id="dot" clipPathUnits="objectBoundingBox">
+              <circle cx="0.5" cy="0.5" r="0.5" />
+            </clipPath>
             <pattern id={gridId} width="28" height="28" patternUnits="userSpaceOnUse">
               <circle className={styles.grid} cx="1.5" cy="1.5" r="1" />
             </pattern>
@@ -600,6 +630,22 @@ function LayerChips({
   )
 }
 
+/** A leaf's image icon, filling its dot (clipped to it by the map's `#dot` clip path). */
+export function MapImage({ x, y, r, src }: { x: number; y: number; r: number; src: string }) {
+  return (
+    <image
+      className={styles.iconImage}
+      data-src={src}
+      x={x - r}
+      y={y - r}
+      width={r * 2}
+      height={r * 2}
+      preserveAspectRatio="xMidYMid slice"
+      clipPath="url(#dot)"
+    />
+  )
+}
+
 /** A leaf's emoji, centred on its dot and sized to fill it. */
 export function MapIcon({ x, y, r, icon }: { x: number; y: number; r: number; icon: string }) {
   return (
@@ -652,7 +698,7 @@ const Geometry = memo(function Geometry({ layout, graph }: { layout: MapLayout; 
           data-id={n.id}
           data-kind={n.kind}
           data-deep={n.depth >= 2 ? '' : undefined}
-          data-icon={n.icon ? '' : undefined}
+          data-icon={n.icon || n.image ? '' : undefined}
           data-ghost={graph.ghosts.has(n.id) ? '' : undefined}
         >
           <circle className={styles.hit} cx={n.x} cy={n.y} r={n.r + 8} />
@@ -660,7 +706,11 @@ const Geometry = memo(function Geometry({ layout, graph }: { layout: MapLayout; 
             <circle className={styles.ring} cx={n.x} cy={n.y} r={n.r + 4} />
           )}
           <circle className={styles.dot} cx={n.x} cy={n.y} r={n.r} />
-          {n.icon && <MapIcon x={n.x} y={n.y} r={n.r} icon={n.icon} />}
+          {n.image ? (
+            <MapImage x={n.x} y={n.y} r={n.r} src={n.image} />
+          ) : (
+            n.icon && <MapIcon x={n.x} y={n.y} r={n.r} icon={n.icon} />
+          )}
           <text
             className={
               n.depth === 1 && n.kind === 'branch'

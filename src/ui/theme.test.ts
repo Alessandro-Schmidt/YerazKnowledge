@@ -111,8 +111,11 @@ describe('themeCss', () => {
   })
 
   it('maps reading fonts to the self-hosted variable families', () => {
-    expect(css).toContain("--font-reading:'Geist Variable', 'Geist', ui-sans-serif")
-    expect(css).toContain("--font-reading:'Newsreader Variable', 'Newsreader', Georgia")
+    // After the flags font, which exists only where the system has no flags (flags.ts).
+    expect(css).toContain("--font-reading:'Yeraz Flags', 'Geist Variable', 'Geist', ui-sans-serif")
+    expect(css).toContain(
+      "--font-reading:'Yeraz Flags', 'Newsreader Variable', 'Newsreader', Georgia",
+    )
   })
 })
 

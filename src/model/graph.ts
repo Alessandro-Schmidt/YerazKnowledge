@@ -13,6 +13,8 @@ export interface GraphNode {
   depth: number
   title: string
   icon: string | null
+  /** An image as the icon (line 2 `icon`: `/assets/…` or https), shown in place of an emoji. */
+  image?: string
   meta: LeafMeta | null
   /** Words in this leaf; an estimate from its size until the content arrives. */
   words: number
@@ -66,6 +68,12 @@ export interface Graph {
   stats: { leaves: number; branches: number; threads: number; words: number }
 }
 
+/** A leaf's image icon from line 2: a file of the Tree (`/…`) or an https address. */
+export function iconImage(meta: LeafMeta | null | undefined): string | null {
+  const icon = meta?.icon
+  return typeof icon === 'string' && /^(\/[^/]|https:\/\/)/.test(icon) ? icon : null
+}
+
 /** Bytes per word, for the estimate shown before content arrives (ARCHITECTURE.md §5.1). */
 const BYTES_PER_WORD = 6
 
@@ -95,6 +103,7 @@ export function buildGraph(
       depth: node.depth,
       title: node.kind === 'root' ? treeTitle : (parsed?.title ?? humanize(node.name)),
       icon: parsed?.icon ?? null,
+      ...(iconImage(parsed?.meta) && { image: iconImage(parsed?.meta)! }),
       meta: parsed?.meta ?? null,
       words,
       total: words,
