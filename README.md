@@ -37,7 +37,7 @@ It works in the desktop app and in Chrome or Edge on a computer. Safari, Firefox
 
 ### Every Family together
 
-With more than one Family (repositories or folders), Yeraz opens on all of them on one map, each in its own ring. Click any leaf to read and edit it there. *All Families* in the Family menu brings that map back; to open on the last Family instead, choose *The last Family* in Settings › Views.
+With more than one Family (repositories or folders), Yeraz opens on all of them on one map, each in its own ring, and every view (Mind map, Outline, Columns, Treemap, Graph, Growth rings, Atlas) shows them all too. Click any leaf to read and edit it there. *All Families* in the Family menu brings that map back; to open on the last Family instead, choose *The last Family* in Settings › Views.
 
 ### Make a repository a Tree
 

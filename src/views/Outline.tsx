@@ -4,6 +4,7 @@
 // where you write most. Selection is a data attribute on the rows, not a re-render.
 
 import { useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { ALL } from '../map/families'
 import { compactWords, type Graph, type GraphNode } from '../model/graph'
 import controls from '../ui/controls.module.css'
 import { Glyph } from '../ui/Glyph'
@@ -114,9 +115,11 @@ export default function Outline({
           <p className={styles.where}>
             <span className={controls.eyebrow}>Family</span>
             <span className={controls.mono}>
-              {tree.folder !== undefined
-                ? `This device · ${tree.folder}`
-                : `github.com/${tree.repo} · ${tree.branch}`}
+              {tree.repo === ALL
+                ? 'Every Family together'
+                : tree.folder !== undefined
+                  ? `This device · ${tree.folder}`
+                  : `github.com/${tree.repo} · ${tree.branch}`}
             </span>
           </p>
           <div className={styles.titleRow}>

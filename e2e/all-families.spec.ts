@@ -2,7 +2,10 @@
 // own ring; a node opens in its Family's Peek, and its edits save to its own repository.
 // Settings › Views can make this device open on the last Family instead.
 
-import { expect, familyMenu, isPhone, signIn, test } from './fixtures'
+import type { Page } from '@playwright/test'
+import { treesOf } from '../src/map/family'
+import { VIEW_IDS, VIEWS, type ViewId } from '../src/views/views'
+import { expect, familyMenu, isPhone, signIn, signInHere, test } from './fixtures'
 
 test.beforeEach(async ({ fake }) => {
   await fake.addRepo('you/art', {
@@ -51,3 +54,48 @@ test('Settings › Views can open the app on the last Family instead', async ({ 
   await page.goto('./#/')
   await expect(page).toHaveURL(/#\/all$/)
 })
+
+test('opening the app on one Family’s address still shows every Family; a leaf’s stays', async ({
+  page,
+}) => {
+  await signIn(page)
+  // A tab the browser restored, or a bookmark: a fresh load of a Family's own address.
+  await page.goto('./#/tree/you/art')
+  await page.reload()
+  await expect(page).toHaveURL(/#\/all$/)
+  await page.goto('./#/tree/you/art/Baroque/caravaggio.md')
+  await page.reload()
+  await expect(page).toHaveURL(/#\/tree\/you\/art\/Baroque\/caravaggio\.md$/)
+})
+
+/** What each view draws, enough to know it is there (as views.spec.ts). */
+const shown: Record<ViewId, (page: Page) => ReturnType<Page['locator']>> = {
+  map: (p) => p.locator('[data-map]'),
+  mind: (p) => p.getByRole('img', { name: /^Mind map of/ }),
+  outline: (p) => p.getByRole('list', { name: /outline$/ }),
+  columns: (p) => p.getByRole('list', { name: /^Inside / }).first(),
+  treemap: (p) => p.locator('[data-tile]').first(),
+  graph: (p) => p.getByRole('img', { name: 'Graph of leaves and threads' }),
+  rings: (p) => p.getByRole('img', { name: /^Growth rings of/ }),
+  atlas: (p) => p.getByRole('img', { name: /^Atlas of/ }),
+}
+
+for (const view of VIEW_IDS.filter((v) => v !== 'map')) {
+  test(`${VIEWS[view].label} shows every Family together`, async ({ page, graph }) => {
+    await page.addInitScript((v) => localStorage.setItem('yeraz-view', v), view)
+    await page.goto('./')
+    await signInHere(page)
+    await expect(page).toHaveURL(/#\/all$/)
+    await expect(shown[view](page)).toBeVisible()
+    // A leaf of one Family selected in it (`#/all/…`), beside the other Family's largest Tree.
+    await page.goto('./#/all/you/art/Baroque/caravaggio.md')
+    const main = page.locator('main')
+    const largest = treesOf(graph)
+      .map((id) => graph.nodes.get(id)!)
+      .sort((a, b) => b.total - a.total)[0]!
+    await expect(main).toContainText(/caravaggio/i)
+    // A phone's Columns show only the selection's path.
+    if (!(view === 'columns' && isPhone(page)))
+      await expect(main).toContainText(new RegExp(largest.title, 'i'))
+  })
+}

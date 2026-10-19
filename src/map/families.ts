@@ -95,3 +95,20 @@ export function mergeFamilies(families: readonly FamilyGraph[], title: string): 
 /** The map of every Family: each Family's Trees packed together, then the Families. */
 export const familiesLayout = (merged: Graph): FamilyLayout =>
   layoutFamily(merged, (tree) => splitId(tree)!.repo)
+
+/** The `repo` of every Family together: the views' Family when they show all of them. */
+export const ALL = '*'
+
+/**
+ * Every Family together as one Family for the views (views/common.ts): each Tree keeps its
+ * own Family's colour, by its merged id.
+ */
+export function allRef(families: readonly FamilyGraph[], title: string): TreeRef {
+  const trees: Record<string, string> = {}
+  for (const { ref, graph } of families)
+    for (const id of treesOf(graph)) {
+      const colour = ref.trees?.[id] ?? ref.color
+      if (colour) trees[allId(ref.repo, id)] = colour
+    }
+  return { owner: '', name: '', repo: ALL, branch: '', isPrivate: true, title, color: null, trees }
+}
