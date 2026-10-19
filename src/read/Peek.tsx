@@ -385,7 +385,8 @@ export function Peek({
                       New branch here
                     </button>
                   )}
-                  {node.kind === 'leaf' && (
+                  {/* A Tree moves under another Tree, as a branch moves (issue #81). */}
+                  {(node.kind === 'leaf' || node.kind === 'branch') && (
                     <button
                       type="button"
                       role="menuitem"
