@@ -348,6 +348,7 @@ src/
   model/    parse.ts · tree.ts (paths → hierarchy, sibling-folder rule) · embeds.ts · diff.ts (line diff)
             graph.ts (titles, word totals, threads, backlinks)
             links.ts (find and rewrite) · sha.ts (git blob SHA)
+  import/   convert.ts (notes from Obsidian, Notion, any Markdown folder → the format; scripts/import-notes.ts)
   local/    folder.ts (a Family in a folder: File System Access API, or the desktop's commands)
   sync/     pull.ts · push.ts · merge.ts · autosave.ts · assets.ts (images by SHA) · folder.ts (§5.6)
             structure.ts (new leaf, branch, branch text, move, delete as file changes) · overlay.ts
