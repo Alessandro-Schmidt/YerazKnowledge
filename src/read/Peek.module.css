@@ -13,6 +13,15 @@
   border-radius: 14px;
   box-shadow: 0 24px 60px var(--shadow);
   overflow: hidden;
+  /* Comes in from where it goes out to (ui/motion.tsx). */
+  --enter: 24px, 0;
+  animation: enter 0.26s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
+}
+@keyframes enter {
+  from {
+    opacity: 0;
+    transform: translate(var(--enter));
+  }
 }
 /* Docked beside the Columns: the last column, full height (design/views/screens/03). */
 .peek[data-docked] {
@@ -26,6 +35,7 @@
   box-shadow: none;
 }
 .peek[data-expanded] {
+  --enter: 0, 12px;
   inset: 0;
   width: auto;
   max-width: none;
@@ -443,6 +453,8 @@
   position: absolute;
   right: 0;
   bottom: calc(100% + 6px);
+  transform-origin: bottom right;
+  animation: pop 0.16s cubic-bezier(0.2, 0.7, 0.2, 1);
   z-index: 4;
   min-width: 180px;
   display: flex;
@@ -485,8 +497,10 @@
     border-radius: 18px 18px 0 0;
     border-width: 1px 0 0;
     padding-bottom: env(safe-area-inset-bottom);
+    --enter: 0, 100%;
   }
   .peek[data-expanded] {
+    --enter: 0, 24px;
     height: auto;
     top: 0;
     border-radius: 0;
@@ -609,4 +623,12 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* A menu opens from its button. */
+@keyframes pop {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
 }

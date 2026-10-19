@@ -6,9 +6,22 @@
   background: var(--panel);
   color: var(--text);
   box-shadow: 0 24px 60px var(--shadow);
+  animation: rise 0.22s cubic-bezier(0.2, 0.7, 0.2, 1);
 }
 .dialog::backdrop {
   background: color-mix(in srgb, var(--bg) 70%, transparent);
+  animation: fade 0.22s ease-out;
+}
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+}
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
 }
 
 .form {

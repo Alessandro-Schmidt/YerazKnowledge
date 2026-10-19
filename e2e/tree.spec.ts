@@ -229,6 +229,32 @@ test('on a phone, swiping the sheet up opens the full page; down goes back, then
   await expect(panel).toHaveCount(0)
 })
 
+test('on a phone, the sheet follows the finger, and scrolling its note opens the full page', async ({
+  page,
+  graph,
+}) => {
+  test.skip(!isPhone(page), 'The bottom sheet is on phones')
+  const leaf = richLeaf(graph)
+  await openTree(page)
+  await page.goto(`./#/tree/you/engineering/${leaf.id}`)
+  const panel = peek(page)
+  const handle = panel.locator('[class*="handle"]')
+  const init = { pointerType: 'touch', isPrimary: true, clientX: 200, clientY: 400 }
+  await handle.dispatchEvent('pointerdown', init)
+  await handle.dispatchEvent('pointermove', { ...init, clientY: 430 })
+  await expect(panel).toHaveCSS('transform', 'matrix(1, 0, 0, 1, 0, 30)')
+  // Too short a swipe: it settles back.
+  await handle.dispatchEvent('pointerup', { ...init, clientY: 430 })
+  await expect(panel).toHaveCSS('transform', 'none')
+  await expect(panel).not.toHaveAttribute('data-expanded')
+
+  await panel
+    .locator('[class*="scroll"]')
+    .first()
+    .evaluate((el) => el.scrollBy(0, 200))
+  await expect(panel).toHaveAttribute('data-expanded')
+})
+
 test("on a phone, a branch's More actions menu stays on screen", async ({ page, graph }) => {
   test.skip(!isPhone(page), 'Phone layout')
   const branch = [...graph.nodes.values()].find((n) => n.kind === 'branch' && n.parent !== '')!
