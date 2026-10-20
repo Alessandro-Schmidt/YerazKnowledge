@@ -469,8 +469,10 @@ test.describe('leaf styling', () => {
     const leaf = pair(graph).from.id
     await page.goto(`./#/tree/${REPO}/${leaf}`)
     await signInHere(page)
-    await page.getByLabel('Heading colour').selectOption('amber')
-    await page.getByLabel('Text colour').selectOption('blue')
+    await page.getByRole('button', { name: 'Heading colour' }).click()
+    await page.getByRole('menuitemradio', { name: 'Amber' }).click()
+    await page.getByRole('button', { name: 'Text colour' }).click()
+    await page.getByRole('menuitemradio', { name: 'Blue' }).click()
     const png = await page.evaluate(() => {
       const canvas = document.createElement('canvas')
       canvas.width = 1500
@@ -623,7 +625,7 @@ test.describe('icons', () => {
     await page.goto(`./#/tree/${REPO}/${leaf.id}`)
     await signInHere(page)
     // No wait for the editor: the button appears with it, so an early pick isn't lost.
-    await page.getByRole('button', { name: /^(Add icon|Change icon)$/ }).click()
+    await page.getByRole('button', { name: /^(Add icon|Change icon)/ }).click()
     await page.getByRole('menuitem', { name: 'Choose an emoji' }).click()
     const icons = page.getByRole('group', { name: 'Icons' })
     const search = icons.getByRole('searchbox', { name: 'Search emoji' })

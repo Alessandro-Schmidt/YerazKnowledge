@@ -17,6 +17,7 @@ import { emptyHint, hiddenTitle, newLineHint } from './emptyText'
 import { insertMenu, type InsertHost } from './insertMenu'
 import { mentions, type MentionSource } from './mentions'
 import { pasteLink } from './pasteLink'
+import { steadyCaret } from './steady'
 
 export interface EditorHandle {
   setIcon(icon: string | null): void
@@ -106,6 +107,7 @@ export default function Editor({
           mentionsFrom ? mentions(mentionsFrom) : [],
           insertMenu((kind, v) => insertRef.current?.(kind, v)),
           pasteLink,
+          steadyCaret,
           assetSource.of(async (path) => (await assetRef.current?.(path)) ?? null),
           treeFiles.of(() => filesListRef.current?.() ?? []),
           fileSizes.of((path) => sizeRef.current?.(path) ?? null),
@@ -206,6 +208,7 @@ export default function Editor({
         v.dispatch({
           changes: { from: head, insert },
           selection: { anchor: head + insert.length },
+          scrollIntoView: true,
         })
         v.focus()
       },
