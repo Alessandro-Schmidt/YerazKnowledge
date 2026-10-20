@@ -360,6 +360,8 @@ src/
             Canvas.tsx (the drawn views' stage) · MindMap · Outline · Columns · Treemap · Graph · Rings · Atlas
             layout/ (pure: mindmap, treemap, graph, rings, atlas)
   editor/   Editor.tsx · LeafEditor.tsx · livePreview.ts · metaLine.ts · IconPicker.tsx · EditableCover.tsx
+            steady.ts (on touch screens the line being written keeps its place: the text scrolls under it)
+            steady.ts (on touch screens the line being written keeps its place: the text scrolls under it)
             insertMenu.ts · mentions.ts · images.ts (scale, encode) · attach.ts (files)
             emoji.ts (every emoji, names and keywords, for the icon picker; lazy)
   read/     render.ts (markdown-it) · rich.ts (math, code, embeds) · Peek.tsx · print.css

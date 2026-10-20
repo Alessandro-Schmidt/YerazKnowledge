@@ -10,6 +10,7 @@ import { Cover } from '../read/LeafLook'
 import { mentionLink } from '../model/links'
 import { session, useSession } from '../store/session'
 import controls from '../ui/controls.module.css'
+import { Icon } from '../ui/icons'
 import { treeHref } from '../ui/paths'
 import { planBranchText } from '../sync/structure'
 import { parentFor, StructureDialog, type StructureAction } from '../ui/StructureDialogs'
@@ -136,6 +137,17 @@ export function LeafEditor({
   }
   const image = iconImage(meta)
   const closePicker = useCallback(() => setPicking(false), [])
+  /** An emoji or an image: in "Add icon", or in the icon's own menu once there is one. */
+  const iconChoices = (
+    <>
+      <button type="button" role="menuitem" onClick={() => setPicking(true)} data-icon-trigger="">
+        Choose an emoji
+      </button>
+      <button type="button" role="menuitem" onClick={() => iconFile.current?.click()}>
+        Upload an image
+      </button>
+    </>
+  )
   const assetUrl = useCallback((p: string) => session.getState().assetUrl(repo, p), [repo])
   const mentionCreated = (id: string | undefined) => {
     setAction(null)
@@ -237,35 +249,59 @@ export function LeafEditor({
               // Over the cover's lower edge; not while the cover is being moved.
               data-over-cover={meta?.cover && !repositioning ? '' : undefined}
             >
-              <button
-                type="button"
+              {/* The icon's choices open from the icon itself (owner's request). */}
+              <Menu
+                label={image ? 'Change icon (an image)' : `Change icon ${owned?.icon}`}
                 className={styles.iconButton}
-                data-icon-trigger=""
-                aria-haspopup="true"
-                aria-expanded={picking}
-                aria-label={image ? 'Change icon (an image)' : `Change icon ${owned?.icon}`}
-                onClick={() => setPicking((p) => !p)}
+                iconTrigger
+                trigger={
+                  image ? (
+                    <Cover repo={repo} src={image} className={styles.iconImage} />
+                  ) : (
+                    <span className={styles.icon}>{owned?.icon}</span>
+                  )
+                }
               >
-                {image ? (
-                  <Cover repo={repo} src={image} className={styles.iconImage} />
-                ) : (
-                  <span className={styles.icon}>{owned?.icon}</span>
-                )}
-              </button>
+                {iconChoices}
+                <span className={styles.menuLabel} role="presentation">
+                  Position
+                </span>
+                {PLACES.map(([id, label]) => (
+                  <button
+                    key={id}
+                    type="button"
+                    role="menuitemradio"
+                    aria-checked={iconPlace(meta) === id}
+                    onClick={() =>
+                      changeLook((m) => ({
+                        ...withoutPlace(m),
+                        ...(id !== 'left' && { iconPosition: id }),
+                      }))
+                    }
+                  >
+                    {label}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  role="menuitem"
+                  data-danger=""
+                  onClick={() => {
+                    changeLook(withoutImageIcon)
+                    handle.current?.setIcon(null)
+                  }}
+                >
+                  Remove icon
+                </button>
+              </Menu>
             </div>
           )}
           <LeafStyle
             meta={meta}
-            hasIcon={!!(owned?.icon || image)}
+            iconChoices={owned?.icon || image ? null : iconChoices}
             onChange={changeLook}
             onCover={() => coverPicker.current?.click()}
             onReposition={() => setRepositioning(true)}
-            onEmoji={() => setPicking(true)}
-            onIconImage={() => iconFile.current?.click()}
-            onRemoveIcon={() => {
-              changeLook(withoutImageIcon)
-              handle.current?.setIcon(null)
-            }}
           />
           {picking && (
             <IconPicker
@@ -390,26 +426,21 @@ const iconPlace = (meta: LeafMeta | null): Place =>
 
 /**
  * Icon, cover and colours: what lines 1 and 2 hold. Colours are names, so they follow
- * every theme. The icon's and the cover's choices are each one button's menu.
+ * every theme. Each is one button's menu; on a phone the buttons are icons alone.
  */
 function LeafStyle({
   meta,
-  hasIcon,
+  iconChoices,
   onChange,
   onCover,
   onReposition,
-  onEmoji,
-  onIconImage,
-  onRemoveIcon,
 }: {
   meta: LeafMeta | null
-  hasIcon: boolean
+  /** "Add icon" and its choices; null once the leaf has an icon, whose own menu has them. */
+  iconChoices: React.ReactNode
   onChange(update: (meta: LeafMeta) => LeafMeta): void
   onCover(): void
   onReposition(): void
-  onEmoji(): void
-  onIconImage(): void
-  onRemoveIcon(): void
 }) {
   const setColor = (part: 'heading' | 'text', value: string) =>
     onChange(({ color, ...rest }) => {
@@ -420,46 +451,23 @@ function LeafStyle({
     })
   return (
     <div className={styles.look}>
-      <Menu label={hasIcon ? 'Change icon' : 'Add icon'}>
-        <button type="button" role="menuitem" onClick={onEmoji} data-icon-trigger="">
-          Choose an emoji
-        </button>
-        <button type="button" role="menuitem" onClick={onIconImage}>
-          Upload an image
-        </button>
-        {hasIcon && (
-          <>
-            <span className={styles.menuLabel} role="presentation">
-              Position
-            </span>
-            {PLACES.map(([id, label]) => (
-              <button
-                key={id}
-                type="button"
-                role="menuitemradio"
-                aria-checked={iconPlace(meta) === id}
-                onClick={() =>
-                  onChange((m) => ({
-                    ...withoutPlace(m),
-                    ...(id !== 'left' && { iconPosition: id }),
-                  }))
-                }
-              >
-                {label}
-              </button>
-            ))}
-            <button type="button" role="menuitem" data-danger="" onClick={onRemoveIcon}>
-              Remove icon
-            </button>
-          </>
-        )}
-      </Menu>
+      {iconChoices && (
+        <Menu label="Add icon" icon={<Icon name="face" size={18} />}>
+          {iconChoices}
+        </Menu>
+      )}
       {meta?.cover === undefined ? (
-        <button type="button" className={controls.ghost} onClick={onCover}>
-          Add cover
+        <button
+          type="button"
+          className={`${controls.ghost} ${styles.lookButton}`}
+          aria-label="Add cover"
+          onClick={onCover}
+        >
+          <Icon name="image" size={18} />
+          <span className={styles.word}>Add cover</span>
         </button>
       ) : (
-        <Menu label="Change cover">
+        <Menu label="Change cover" icon={<Icon name="image" size={18} />}>
           <button type="button" role="menuitem" onClick={onCover}>
             Upload an image
           </button>
@@ -478,28 +486,62 @@ function LeafStyle({
           </button>
         </Menu>
       )}
-      {(['heading', 'text'] as const).map((part) => (
-        <label key={part} className={styles.color}>
-          {part === 'heading' ? 'Heading colour' : 'Text colour'}
-          <select
-            className={controls.input}
-            value={typeof meta?.color?.[part] === 'string' ? meta.color[part] : ''}
-            onChange={(e) => setColor(part, e.target.value)}
+      {(['heading', 'text'] as const).map((part) => {
+        const current = typeof meta?.color?.[part] === 'string' ? meta.color[part] : ''
+        return (
+          <Menu
+            key={part}
+            label={part === 'heading' ? 'Heading colour' : 'Text colour'}
+            icon={
+              <span className={styles.swatch} data-part={part} aria-hidden="true">
+                {part === 'heading' ? 'H' : 'T'}
+              </span>
+            }
           >
             {COLORS.map((id) => (
-              <option key={id} value={id}>
+              <button
+                key={id}
+                type="button"
+                role="menuitemradio"
+                aria-checked={current === id}
+                onClick={() => setColor(part, id)}
+              >
+                <span
+                  className={styles.dot}
+                  style={{ background: id ? `var(--c-${id})` : 'var(--text)' }}
+                  aria-hidden="true"
+                />
                 {colorName(id)}
-              </option>
+              </button>
             ))}
-          </select>
-        </label>
-      ))}
+          </Menu>
+        )
+      })}
     </div>
   )
 }
 
-/** A button whose choices open below it; a choice, a click elsewhere or Escape closes it. */
-function Menu({ label, children }: { label: string; children: React.ReactNode }) {
+/**
+ * A button whose choices open below it; a choice, a click elsewhere or Escape closes it.
+ * It shows `trigger` alone, or `icon` with the label (the label alone on a phone's screen is
+ * too much: there only the icon shows).
+ */
+function Menu({
+  label,
+  children,
+  icon,
+  trigger,
+  className,
+  iconTrigger,
+}: {
+  label: string
+  children: React.ReactNode
+  icon?: React.ReactNode
+  trigger?: React.ReactNode
+  className?: string
+  /** Marks the button for the icon picker, which stays open when it is clicked. */
+  iconTrigger?: boolean
+}) {
   const [open, setOpen] = useState(false)
   const host = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -521,12 +563,19 @@ function Menu({ label, children }: { label: string; children: React.ReactNode })
     <div ref={host} className={styles.menuHost}>
       <button
         type="button"
-        className={controls.ghost}
+        className={className ?? `${controls.ghost} ${styles.lookButton}`}
+        aria-label={label}
         aria-haspopup="menu"
         aria-expanded={open}
+        data-icon-trigger={iconTrigger ? '' : undefined}
         onClick={() => setOpen((o) => !o)}
       >
-        {label}
+        {trigger ?? (
+          <>
+            {icon}
+            <span className={styles.word}>{label}</span>
+          </>
+        )}
       </button>
       {open && (
         <div

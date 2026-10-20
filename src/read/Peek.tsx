@@ -7,6 +7,7 @@ import {
   useLayoutEffect,
   useRef,
   useState,
+  type FocusEvent,
   type MouseEvent,
   type RefObject,
   type UIEvent,
@@ -163,7 +164,7 @@ export function Peek({
         onExpand={motion.expand}
       />
 
-      <div className={styles.scroll} onScroll={motion.onScroll}>
+      <div className={styles.scroll} onScroll={motion.onScroll} onFocus={motion.onFocus}>
         <div className={styles.column}>
           <article className={styles.article}>
             {node.kind === 'leaf' && historyOf === id ? (
@@ -532,7 +533,7 @@ function shift(el: HTMLElement | null, dy: number) {
 /**
  * The Peek's motion (ui/motion.tsx): opening the full page grows it out of the floating
  * Peek or sheet, coming back slides it to its place; another leaf settles in. On a phone,
- * scrolling the sheet's note opens it to the full page.
+ * scrolling the sheet's note, or writing in it, opens it to the full page.
  */
 function usePeekMotion(
   sheet: RefObject<HTMLElement | null>,
@@ -595,7 +596,11 @@ function usePeekMotion(
     if (!expanded && e.currentTarget.scrollTop > GROW && window.matchMedia(PHONE).matches)
       expand(true)
   }
-  return { expand, onScroll }
+  const onFocus = (e: FocusEvent<HTMLElement>) => {
+    if (!expanded && window.matchMedia(PHONE).matches && e.target.closest('.cm-content'))
+      expand(true)
+  }
+  return { expand, onScroll, onFocus }
 }
 
 /** How far (px) a phone's sheet scrolls before it opens to the full page. */
@@ -665,7 +670,7 @@ function GhostPeek({
         {...{ href, onSelect, expanded, onClose, sheet }}
         onExpand={motion.expand}
       />
-      <div className={styles.scroll} onScroll={motion.onScroll}>
+      <div className={styles.scroll} onScroll={motion.onScroll} onFocus={motion.onFocus}>
         <div className={styles.column}>
           <article className={styles.article}>
             <div className={styles.titleRow}>

@@ -36,8 +36,12 @@
   /* Over the cover only the icon takes clicks, not the row (the cover's own bar may be under it). */
   pointer-events: none;
 }
-.iconRow .iconButton {
+.iconRow .menuHost {
   pointer-events: auto;
+}
+.iconRow[data-position='right'] .menu {
+  left: auto;
+  right: 0;
 }
 .iconRow[data-position='center'] {
   justify-content: center;
@@ -240,18 +244,48 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px 12px;
+  gap: 8px;
   margin: 4px 0 14px;
   font-size: 13px;
   color: var(--muted);
 }
-.color {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
+.lookButton {
+  height: 34px;
+  padding: 0 12px;
+  color: var(--text-body);
 }
-.color select {
-  width: auto;
-  min-height: 32px;
-  padding: 0 8px;
+/* A colour's button shows the colour it sets: the heading's or the text's, as chosen. */
+.swatch {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1.5px solid currentColor;
+  font-family: var(--font-ui);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+}
+.swatch[data-part='heading'] {
+  color: var(--leaf-heading, var(--tree, var(--accent)));
+}
+.swatch[data-part='text'] {
+  color: var(--leaf-text, var(--text-body));
+}
+.dot {
+  width: 12px;
+  height: 12px;
+  margin-right: 8px;
+  border-radius: 50%;
+}
+/* A phone: the buttons are their icons, so the four fit in one row. */
+@media (max-width: 640px) {
+  .look .lookButton {
+    width: 40px;
+    padding: 0;
+  }
+  .look .word {
+    display: none;
+  }
 }

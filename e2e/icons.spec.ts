@@ -1,6 +1,6 @@
-// The leaf's icon and cover, each one button (owner's request): Change icon (an emoji, an
-// image, where it sits over the cover, remove it) and Change cover (another image,
-// reposition, remove). An image icon shows on the map, in its dot. Flags are drawn even
+// The leaf's icon and cover, each one button (owner's request): the icon itself, once there
+// is one (an emoji, an image, where it sits over the cover, remove it), and Change cover
+// (another image, reposition, remove). An image icon shows on the map, in its dot. Flags are drawn even
 // where the system has none (Windows: ui/flags.ts).
 
 import type { Page } from '@playwright/test'
@@ -44,7 +44,7 @@ test.describe('icon and cover', () => {
   }) => {
     await open(page, fake)
     const chooser = page.waitForEvent('filechooser')
-    await page.getByRole('button', { name: 'Change icon', exact: true }).click()
+    await page.getByRole('button', { name: /^Change icon/ }).click()
     await page.getByRole('menuitem', { name: 'Upload an image' }).click()
     await (
       await chooser
@@ -53,7 +53,7 @@ test.describe('icon and cover', () => {
       mimeType: 'image/png',
       buffer: await png(page, 64, 64),
     })
-    await page.getByRole('button', { name: 'Change icon', exact: true }).click()
+    await page.getByRole('button', { name: /^Change icon/ }).click()
     await page.getByRole('menuitemradio', { name: 'Centre' }).click()
     await page.keyboard.press('ControlOrMeta+s')
     await expect
@@ -68,21 +68,26 @@ test.describe('icon and cover', () => {
     for (const image of await images.all()) await expect(image).toHaveAttribute('href', /^blob:/)
 
     // Remove icon takes the image and its place away.
-    await page.getByRole('button', { name: 'Change icon', exact: true }).click()
+    await page.getByRole('button', { name: /^Change icon/ }).click()
     await page.getByRole('menuitem', { name: 'Remove icon' }).click()
     await page.keyboard.press('ControlOrMeta+s')
     await expect.poll(() => saved(fake)).toBe('# Armenia\n\nMount Ararat.\n')
   })
 
-  test('the icon itself opens the picker, whose Remove icon is in sight beside the search', async ({
+  test('the icon itself opens its choices, nothing else does; Remove icon is one of them', async ({
     page,
     fake,
   }) => {
     await open(page, fake)
+    await expect(page.getByRole('button', { name: 'Add icon' })).toHaveCount(0)
     await page.getByRole('button', { name: 'Change icon 🇦🇲' }).click()
-    const picker = page.getByRole('group', { name: 'Icons' })
-    await expect(picker.getByRole('button', { name: 'Remove icon' })).toBeInViewport()
-    await picker.getByRole('button', { name: 'Remove icon' }).click()
+    const menu = page.getByRole('menu', { name: 'Change icon 🇦🇲' })
+    await expect(menu.getByRole('menuitem')).toHaveText([
+      'Choose an emoji',
+      'Upload an image',
+      'Remove icon',
+    ])
+    await menu.getByRole('menuitem', { name: 'Remove icon' }).click()
     await expect(page.getByRole('button', { name: 'Add icon' })).toBeVisible()
     await page.keyboard.press('ControlOrMeta+s')
     await expect.poll(() => saved(fake)).toBe('# Armenia\n\nMount Ararat.\n')

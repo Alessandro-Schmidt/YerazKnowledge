@@ -44,7 +44,7 @@ test('the icon picker', async ({ page, graph }) => {
   test.slow()
   await page.goto(`./#/tree/${REPO}/${firstLeaf(graph).id}`)
   await signInHere(page)
-  await page.getByRole('button', { name: /^(Add icon|Change icon)$/ }).click()
+  await page.getByRole('button', { name: /^(Add icon|Change icon)/ }).click()
   await page.getByRole('menuitem', { name: 'Choose an emoji' }).click()
   const icons = page.getByRole('group', { name: 'Icons' })
   await expect(icons.getByRole('region', { name: 'Flags' })).toBeAttached()
