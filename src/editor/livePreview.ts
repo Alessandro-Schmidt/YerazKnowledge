@@ -450,6 +450,19 @@ function embedMenu(view: EditorView, box: HTMLElement, button: HTMLElement, embe
   )
 }
 
+/** A list's bullet, in place of its `-`. */
+class BulletWidget extends WidgetType {
+  eq() {
+    return true
+  }
+  toDOM() {
+    const dot = document.createElement('span')
+    dot.className = 'cm-list-mark cm-bullet'
+    dot.textContent = '•'
+    return dot
+  }
+}
+
 /** An alert's title in place of its `[!NOTE]` marker. */
 class CalloutWidget extends WidgetType {
   constructor(readonly kind: Callout) {
@@ -853,9 +866,17 @@ function build(view: EditorView): Built {
           case 'QuoteMark':
             if (!touched(node.from, node.to)) decorations.push(hide.range(node.from, node.to))
             return
-          case 'ListMark':
-            decorations.push(mark('cm-list-mark').range(node.from, node.to))
+          case 'ListMark': {
+            // A bullet is drawn as one (`-`, `*`, `+` all alike); a task's goes with its box.
+            const bullet = /^[-*+]$/.test(state.sliceDoc(node.from, node.to))
+            const task = node.node.parent?.getChild('Task')
+            if (bullet && !task && !touched(node.from, node.to))
+              decorations.push(
+                Decoration.replace({ widget: new BulletWidget() }).range(node.from, node.to),
+              )
+            else decorations.push(mark('cm-list-mark').range(node.from, node.to))
             return
+          }
           case 'TaskMarker': {
             const checked = /x/i.test(state.sliceDoc(node.from, node.to))
             const bullet = node.node.parent?.parent?.getChild('ListMark')
