@@ -122,6 +122,9 @@
 .editor :global(.cm-list-mark) {
   color: var(--muted);
 }
+.editor :global(.cm-bullet) {
+  color: var(--text-body);
+}
 .editor :global(.cm-done) {
   color: var(--muted);
   text-decoration: line-through;

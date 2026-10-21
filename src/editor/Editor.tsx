@@ -14,6 +14,7 @@ import { mark, markNow } from '../perf'
 import styles from './Editor.module.css'
 import { assetSource, fileSizes, livePreview, treeFiles } from './livePreview'
 import { emptyHint, hiddenTitle, newLineHint } from './emptyText'
+import { formatting } from './format'
 import { insertMenu, type InsertHost } from './insertMenu'
 import { mentions, type MentionSource } from './mentions'
 import { pasteLink } from './pasteLink'
@@ -107,6 +108,7 @@ export default function Editor({
           mentionsFrom ? mentions(mentionsFrom) : [],
           insertMenu((kind, v) => insertRef.current?.(kind, v)),
           pasteLink,
+          formatting,
           steadyCaret,
           assetSource.of(async (path) => (await assetRef.current?.(path)) ?? null),
           treeFiles.of(() => filesListRef.current?.() ?? []),
