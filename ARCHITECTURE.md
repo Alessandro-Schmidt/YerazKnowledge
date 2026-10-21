@@ -224,7 +224,7 @@ Next to the radial map, a Family can be shown seven other ways (design: `design/
 - **"Show the code" turns that extension off.** Same editor, same text, no conversion.
 - **A new line says how to open the options** (issue #68, `emptyText.ts`): the empty line being written on shows, faintly, "Hold ⌘ / Ctrl to see options", or "Tap and hold, or type /" on touch. The caret is the text's colour.
 - **`@` mentions** use `@codemirror/autocomplete` over the in-memory index. Picking a leaf inserts `[Title](/path.md)`, which is displayed as a chip with the target's icon.
-- **Formatting** (`format.ts`): Ctrl/⌘+B, I, E (code), Shift+X (strike) wrap the selection in its marks or take them off; Ctrl/⌘+K makes it a link. A mark typed over a selection (`*`, `_`, `` ` ``, `~`, `[`, `(`, `"`) wraps it, which is how a phone formats. Bullets draw as bullets.
+- **Formatting** (`format.ts`): Ctrl/⌘+B, I, E (code), Shift+X (strike) wrap the selection in its marks or take them off; Ctrl/⌘+K makes it a link. A mark typed over a selection (`*`, `_`, `` ` ``, `~`, `[`, `(`, `"`) wraps it. On touch screens a bar above the keyboard (`toolbar.ts`) offers bold, italic, code, link, bullet list and to-do while the text has the focus. Bullets draw as bullets; a closed code block away from the cursor shows its language in place of its fences.
 - **Hold Ctrl/Cmd for 2 seconds** to open the insert menu: to-do list, ordered list, bullet list, mention, table, image from files, attach a file, new leaf, new branch.
   - The timer starts when the modifier is pressed on its own. Any other key, or releasing the modifier, cancels it, so normal shortcuts like Ctrl+C never open the menu.
   - Phones have no Ctrl key: a long-press or typing `/` opens the same menu.

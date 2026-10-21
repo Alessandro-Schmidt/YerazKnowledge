@@ -450,6 +450,22 @@ function embedMenu(view: EditorView, box: HTMLElement, button: HTMLElement, embe
   )
 }
 
+/** A code block's language, in place of its opening fence. */
+class FenceWidget extends WidgetType {
+  constructor(readonly language: string) {
+    super()
+  }
+  eq(other: FenceWidget) {
+    return other.language === this.language
+  }
+  toDOM() {
+    const label = document.createElement('span')
+    label.className = 'cm-fence-label'
+    label.textContent = this.language || 'code'
+    return label
+  }
+}
+
 /** A list's bullet, in place of its `-`. */
 class BulletWidget extends WidgetType {
   eq() {
@@ -895,11 +911,26 @@ function build(view: EditorView): Built {
             return
           }
           case 'FencedCode': {
+            // Away from the cursor, a closed block's fences give way to its language's name.
+            const first = state.doc.lineAt(node.from)
+            const last = state.doc.lineAt(node.to)
+            const closed =
+              node.node.getChildren('CodeMark').length === 2 && last.number > first.number
+            const plain = !closed || touched(node.from, node.to)
             for (let pos = node.from; pos <= node.to;) {
               const l = state.doc.lineAt(pos)
-              decorations.push(line('cm-code-block').range(l.from))
+              const cls =
+                !plain && l.number === last.number ? 'cm-code-block cm-fence-end' : 'cm-code-block'
+              decorations.push(line(cls).range(l.from))
               pos = l.to + 1
             }
+            if (plain) return
+            const info = node.node.getChild('CodeInfo')
+            const language = info ? state.sliceDoc(info.from, info.to).trim() : ''
+            decorations.push(
+              Decoration.replace({ widget: new FenceWidget(language) }).range(first.from, first.to),
+              hide.range(last.from, last.to),
+            )
             return
           }
           case 'HorizontalRule':
