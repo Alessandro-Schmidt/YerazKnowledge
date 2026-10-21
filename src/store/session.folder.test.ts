@@ -2,7 +2,7 @@
 
 import { setupServer } from 'msw/node'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { memoryFolder, memoryFolders } from '../../test/memoryFolder'
+import { memoryFolder, memoryFolders, type MemoryFolder } from '../../test/memoryFolder'
 import { deviceFolders, FolderError, type FolderAccess } from '../local/folder'
 import { memoryStore } from './db'
 import { createSession } from './session'
@@ -59,6 +59,31 @@ describe('a Family in a folder', () => {
     expect(data?.status === 'ready' && data.graph.nodes.get('Ideas/first.md')?.title).toBe('First')
   })
 
+  it('creates a new project folder by name, in the place the person picks', async () => {
+    const all: Record<string, MemoryFolder> = {}
+    const folders = memoryFolders(all)
+    const s = createSession({ store: memoryStore(), folders })
+    expect(await s.getState().addFolder('Work notes')).toBeNull() // cancelled
+    folders.choose('Documents')
+    const ref = (await s.getState().addFolder('  Work notes '))!
+    expect(ref).toMatchObject({ repo: '~/work-notes', title: 'Work notes', folder: 'Work notes' })
+    expect(all['Work notes']!.text('.yeraz.json')).toBe('{"name":"Work notes"}\n')
+    expect(all['Work notes']!.text('welcome.md')).toMatch(/^# 🌱 Welcome/)
+
+    // A folder already there is never taken over.
+    folders.choose('Documents')
+    await expect(s.getState().addFolder('Work notes')).rejects.toThrow(
+      "There's already a folder named “Work notes” there",
+    )
+  })
+
+  it('refuses a project name no folder can have', async () => {
+    const s = createSession({ store: memoryStore(), folders: memoryFolders({}) })
+    await expect(s.getState().addFolder('  ')).rejects.toThrow('Give the project a name.')
+    await expect(s.getState().addFolder('a/b')).rejects.toThrow("can't contain")
+    await expect(s.getState().addFolder('.notes')).rejects.toThrow("can't start with a dot")
+  })
+
   it('reads the name and colours of a folder that is a Family already', async () => {
     const folder = memoryFolder({ '.yeraz.json': '{"name":"Art","color":"amber"}' })
     const folders = memoryFolders({ art: folder })
@@ -108,6 +133,7 @@ describe('a Family in a folder', () => {
     let granted = true
     const folders: FolderAccess = {
       pick: async () => ({ name: 'Notes', handle: 'Notes' }),
+      create: async () => null,
       open: async (_, ask) => {
         if (!granted && !ask) throw new FolderError('permission', 'Allow it again.')
         granted = true
@@ -136,16 +162,16 @@ describe('a Family in a folder', () => {
 describe('a Family kept on a device without folders (phones, Safari, Firefox)', () => {
   const text = (s: string) => new TextEncoder().encode(s)
 
-  it('starts empty: a marker and a welcome leaf, kept in the browser’s storage', async () => {
+  it('starts a project by name: a marker and a welcome leaf, kept in the browser’s storage', async () => {
     const store = memoryStore()
     const s = createSession({ store, folders: deviceFolders(store, async () => null) })
     await s.getState().start()
     expect(s.getState()).toMatchObject({ folders: true, onDevice: true })
     expect(await s.getState().addFolder()).toBeNull() // the picker was cancelled
-    const ref = (await s.getState().addFolder(true))!
-    expect(ref).toMatchObject({ repo: '~/notes', title: 'Notes' })
+    const ref = (await s.getState().addFolder('Recipes'))!
+    expect(ref).toMatchObject({ repo: '~/recipes', title: 'Recipes' })
     await s.getState().open(ref.repo)
-    const data = s.getState().data['~/notes']
+    const data = s.getState().data['~/recipes']
     expect(data?.status === 'ready' && data.graph.nodes.get('welcome.md')?.title).toBe('Welcome')
   })
 

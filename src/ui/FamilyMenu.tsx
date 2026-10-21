@@ -85,11 +85,11 @@ export function FamilyMenu({ current, all }: { current?: string; all?: boolean }
     void session.getState().open(tree.repo)
     navigate(treeHref(tree.repo))
   }
-  /** A folder, or on a device without folders a copy of one (or nothing), as a new Family. */
-  const addFolder = (empty: boolean) =>
+  /** A folder, or on a device without folders a copy of one, as a new Family. */
+  const addFolder = () =>
     void session
       .getState()
-      .addFolder(empty)
+      .addFolder()
       .then(
         (tree) => tree && go(tree),
         (e: unknown) => window.alert(e instanceof Error ? e.message : String(e)),
@@ -147,22 +147,22 @@ export function FamilyMenu({ current, all }: { current?: string; all?: boolean }
               </button>
             </>
           ) : (
-            <button type="button" role="menuitem" onClick={() => navigate('/github')}>
+            <button type="button" role="menuitem" onClick={() => navigate('/welcome/github')}>
               <Icon name="repo" size={15} />
               Connect GitHub
             </button>
           )}
           {folders && (
-            <button type="button" role="menuitem" onClick={() => addFolder(false)}>
-              <Icon name="folder" size={15} />
-              {onDevice ? 'Copy in a folder' : 'Use a folder'}
-            </button>
-          )}
-          {onDevice && (
-            <button type="button" role="menuitem" onClick={() => addFolder(true)}>
-              <Icon name="plus" size={15} />
-              New Family on this device
-            </button>
+            <>
+              <button type="button" role="menuitem" onClick={() => navigate('/welcome/folder')}>
+                <Icon name="plus" size={15} />
+                {onDevice ? 'New project' : 'New project folder'}
+              </button>
+              <button type="button" role="menuitem" onClick={addFolder}>
+                <Icon name="folder" size={15} />
+                {onDevice ? 'Copy in a folder' : 'Open an existing folder'}
+              </button>
+            </>
           )}
           <hr />
           <button type="button" role="menuitem" onClick={() => navigate('/settings/appearance')}>

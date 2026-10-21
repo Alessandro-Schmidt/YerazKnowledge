@@ -51,7 +51,8 @@ test('uses a folder instead of GitHub: welcomes it, writes edits to it, reopens 
 }) => {
   await folderPicker(page)
   await page.goto('./')
-  await page.getByRole('button', { name: 'Use a folder' }).click()
+  await page.getByRole('button', { name: 'Folder', exact: true }).click()
+  await page.getByRole('button', { name: 'Open an existing folder' }).click()
   await expect(page.locator('[data-map]')).toBeVisible()
   await expect(page).toHaveURL(/#\/tree\/~\/notes$/)
   expect(await readFile(page, '.yeraz.json')).toBe('{"name":"Notes"}\n')
@@ -66,7 +67,7 @@ test('uses a folder instead of GitHub: welcomes it, writes edits to it, reopens 
   // No token screen when the app opens again.
   await page.reload()
   await expect(page.locator('[data-map]')).toBeVisible()
-  await expect(page.getByRole('heading', { name: 'Connect GitHub' })).toHaveCount(0)
+  await expect(page.getByRole('heading', { name: 'Yeraz', level: 1 })).toHaveCount(0)
 })
 
 test('opens a folder of notes made elsewhere as it is', async ({ page }) => {
@@ -76,9 +77,35 @@ test('opens a folder of notes made elsewhere as it is', async ({ page }) => {
     '.obsidian/app.json': '{}',
   })
   await page.goto('./')
-  await page.getByRole('button', { name: 'Use a folder' }).click()
+  await page.getByRole('button', { name: 'Folder', exact: true }).click()
+  await page.getByRole('button', { name: 'Open an existing folder' }).click()
   await expect(page.locator('[data-map]')).toBeVisible()
   await page.goto('./#/tree/~/notes/Ideas/first.md')
   await expect(page.getByRole('heading', { name: 'First idea' })).toBeVisible()
   expect(await readFile(page, 'welcome.md')).toBeNull()
+})
+
+test('creates a new project folder by name, where you choose', async ({ page }) => {
+  // The picker answers with the place to create it in: the origin-private file system's root.
+  await page.addInitScript(() =>
+    Object.assign(window, { showDirectoryPicker: () => navigator.storage.getDirectory() }),
+  )
+  await page.goto('./')
+  await page.getByRole('button', { name: 'Folder', exact: true }).click()
+  await page.getByLabel('Name').fill('Work notes')
+  await page.getByRole('button', { name: 'Choose where to create it…' }).click()
+  await expect(page.locator('[data-map]')).toBeVisible()
+  await expect(page).toHaveURL(/#\/tree\/~\/work-notes$/)
+  const marker = await page.evaluate(async () => {
+    const root = await navigator.storage.getDirectory()
+    const made = await root.getDirectoryHandle('Work notes')
+    return (await (await made.getFileHandle('.yeraz.json')).getFile()).text()
+  })
+  expect(marker).toBe('{"name":"Work notes"}\n')
+
+  // The same name again: that folder is there now, and isn't taken over.
+  await page.goto('./#/welcome/folder')
+  await page.getByLabel('Name').fill('Work notes')
+  await page.getByRole('button', { name: 'Choose where to create it…' }).click()
+  await expect(page.getByRole('alert')).toContainText("There's already a folder named “Work notes”")
 })

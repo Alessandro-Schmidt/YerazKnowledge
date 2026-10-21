@@ -1,11 +1,11 @@
 import { useEffect } from 'react'
-import { Redirect, Route, Router, Switch, useLocation } from 'wouter'
+import { Redirect, Route, Router, Switch } from 'wouter'
 import { useHashLocation } from 'wouter/use-hash-location'
 import { session, useSession } from '../store/session'
 import { Appearance } from './Appearance'
 import { treeHref, decodePath } from './paths'
 import { openOn } from './FamilyMenu'
-import { TokenScreen } from './TokenScreen'
+import { TokenScreen, WelcomeRoute } from './TokenScreen'
 import { AllView } from './AllView'
 import { FamilyView } from './FamilyView'
 import { Start } from './Start'
@@ -21,7 +21,8 @@ import { ViewsSettings } from './ViewsSettings'
 //   #/settings/appearance                 Settings › Appearance (system colours, fonts)
 //   #/settings/views                      Settings › Views (how a Family is shown)
 //   #/settings/colours                    Settings › Tree colours (in .yeraz.json)
-//   #/github                              Connect GitHub, when only folders are in use
+//   #/welcome[/github|/folder]            the introduction, from the Yeraz logo: connect GitHub
+//                                         or a repository, a new project folder, an existing one
 /**
  * The address the app was opened at. Opening it on a Family's own address (a tab the browser
  * restored, a bookmark) shows every Family together, as `#/` does (issue #69); an address
@@ -93,17 +94,11 @@ export function App() {
         <Route path="/settings/appearance" component={Appearance} />
         <Route path="/settings/views" component={ViewsSettings} />
         <Route path="/settings/colours" component={TreeColours} />
-        <Route path="/github" component={ConnectGitHub} />
+        <Route path="/welcome/:step?">{(params) => <WelcomeRoute step={params.step} />}</Route>
         <Route>
           <Redirect to="/" replace />
         </Route>
       </Switch>
     </Router>
   )
-}
-
-/** The token screen for someone whose Families are all in folders so far. */
-function ConnectGitHub() {
-  const [, navigate] = useLocation()
-  return <TokenScreen onDone={() => navigate('/')} />
 }
