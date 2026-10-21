@@ -42,3 +42,40 @@ test('bullets draw as bullets, the dash shown only under the cursor', async ({ p
   await page.keyboard.press('Home')
   await expect(editor).toContainText('- one')
 })
+
+test('on a phone, a bar above the keyboard formats the selection', async ({ page, fake }) => {
+  test.skip(!isPhone(page), 'The bar is for touch screens')
+  const editor = page.locator('.cm-content')
+  const bar = page.getByRole('toolbar', { name: 'Formatting' })
+  await expect(bar).toHaveCount(0)
+  await editor.getByText('Make this word strong.').click()
+  await expect(bar).toBeVisible()
+  // Just above the bottom of what is visible (the keyboard's edge on a real phone).
+  const box = (await bar.boundingBox())!
+  expect(Math.round(box.y + box.height)).toBe(page.viewportSize()!.height)
+  await page.keyboard.press('Home')
+  for (let i = 0; i < 'Make this '.length; i++) await page.keyboard.press('ArrowRight')
+  for (let i = 0; i < 'word'.length; i++) await page.keyboard.press('Shift+ArrowRight')
+  await bar.getByRole('button', { name: 'Bold' }).click()
+  await expect(editor).toBeFocused()
+  await bar.getByRole('button', { name: 'To-do' }).click()
+  await page.keyboard.press('ControlOrMeta+s')
+  await expect.poll(() => fake.repo(REPO).read(LEAF)).toContain('- [ ] Make this **word** strong.')
+})
+
+test('a closed code block shows its language in place of its fences', async ({ page, fake }) => {
+  await fake.repo(REPO).commit({
+    message: 'c',
+    additions: [
+      { path: LEAF, contents: '# Format\n\nBefore.\n\n```js\nconst x = 1\n```\n\nAfter.\n' },
+    ],
+  })
+  await page.reload()
+  const editor = page.locator('.cm-content')
+  await expect(editor.locator('.cm-fence-label')).toHaveText('js')
+  await expect(editor).not.toContainText('```')
+  await expect(editor).toContainText('const x = 1')
+  await editor.getByText('const x = 1').click()
+  await expect(editor).toContainText('```js')
+  await expect(editor.locator('.cm-fence-label')).toHaveCount(0)
+})

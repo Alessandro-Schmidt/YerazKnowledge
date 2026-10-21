@@ -194,6 +194,55 @@
 .editor :global(.cm-fence) {
   color: var(--faint);
 }
+/* A closed block away from the cursor: its language where its opening fence was, its closing
+   fence gone (livePreview.ts). */
+.editor :global(.cm-fence-label) {
+  display: block;
+  padding-top: 6px;
+  font-family: var(--font-ui);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+.editor :global(.cm-line.cm-fence-end) {
+  font-size: 1px;
+  line-height: 0;
+  padding-bottom: 8px;
+}
+
+/* The formatting bar above a touch screen's keyboard (toolbar.ts), in the page's body. */
+:global(.cm-toolbar) {
+  position: fixed;
+  z-index: 30;
+  display: flex;
+  justify-content: space-around;
+  padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--hair);
+  background: var(--panel);
+}
+:global(.cm-toolbar button) {
+  width: 44px;
+  height: 40px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 18px;
+  cursor: pointer;
+}
+:global(.cm-toolbar button[data-format='Bold']) {
+  font-weight: 700;
+}
+:global(.cm-toolbar button[data-format='Italic']) {
+  font-style: italic;
+}
+:global(.cm-toolbar button:active) {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
 .editor :global(.cm-line.cm-rule) {
   color: var(--faint);
 }

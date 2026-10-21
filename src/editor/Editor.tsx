@@ -19,6 +19,7 @@ import { insertMenu, type InsertHost } from './insertMenu'
 import { mentions, type MentionSource } from './mentions'
 import { pasteLink } from './pasteLink'
 import { steadyCaret } from './steady'
+import { toolbar } from './toolbar'
 
 export interface EditorHandle {
   setIcon(icon: string | null): void
@@ -109,6 +110,7 @@ export default function Editor({
           insertMenu((kind, v) => insertRef.current?.(kind, v)),
           pasteLink,
           formatting,
+          toolbar,
           steadyCaret,
           assetSource.of(async (path) => (await assetRef.current?.(path)) ?? null),
           treeFiles.of(() => filesListRef.current?.() ?? []),
