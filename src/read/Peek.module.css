@@ -511,6 +511,9 @@
   }
   .peek[data-expanded] {
     --enter: 0, 24px;
+    /* The whole screen (owner's request): over the top bar too. */
+    position: fixed;
+    z-index: 10;
     height: auto;
     top: 0;
     border-radius: 0;
