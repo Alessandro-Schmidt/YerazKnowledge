@@ -195,6 +195,10 @@ test('expands the Peek to a full page, comes back, and dismisses it', async ({ p
   const panel = peek(page)
   await panel.getByRole('button', { name: 'Open full page' }).click()
   await expect(panel).toHaveAttribute('data-expanded')
+  // On a phone, the whole screen: over the top bar too.
+  const { width, height } = page.viewportSize()!
+  if (isPhone(page)) expect(await panel.boundingBox()).toEqual({ x: 0, y: 0, width, height })
+  else expect((await panel.boundingBox())!.y).toBeGreaterThan(0)
   await panel.getByRole('button', { name: 'Back to the map' }).click()
   await expect(panel).not.toHaveAttribute('data-expanded')
   await panel.getByRole('button', { name: 'Dismiss' }).click()

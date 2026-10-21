@@ -26,6 +26,15 @@ test('opens on every Family together, each in its own ring', async ({ page }) =>
   await expect(await familyMenu(page)).toContainText('All Families')
 })
 
+test('the logo in the top bar leads to every Family', async ({ page }) => {
+  await signIn(page)
+  await page.goto('./#/tree/you/art/Baroque/caravaggio.md')
+  await expect(page.getByRole('heading', { name: 'Caravaggio' })).toBeVisible()
+  await page.getByRole('link', { name: 'Yeraz: all Families' }).click()
+  await expect(page).toHaveURL(/#\/all$/)
+  await expect(page.locator('[data-group]')).toHaveCount(2)
+})
+
 test('a node opens in its own Family, and its edits save there', async ({ page, fake }) => {
   test.skip(isPhone(page), 'Typing tests run on desktop engines')
   await signIn(page)
