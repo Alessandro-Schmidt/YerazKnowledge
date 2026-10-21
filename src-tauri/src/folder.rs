@@ -79,6 +79,20 @@ pub async fn pick_folder(app: tauri::AppHandle) -> Option<String> {
     Some(picked.into_path().ok()?.to_string_lossy().into_owned())
 }
 
+/// A new project's folder, `name` inside `parent`; "taken" (which the app knows) when one is
+/// there already, so a folder is never taken over. Returns its path.
+#[tauri::command]
+pub async fn new_folder(parent: String, name: String) -> Result<String, String> {
+    if Path::new(&name).components().count() != 1 {
+        return Err(format!("Not a folder name: {name}"));
+    }
+    let dir = inside(&parent, &name)?;
+    match fs::create_dir(&dir) {
+        Err(e) if e.kind() == ErrorKind::AlreadyExists => Err("taken".into()),
+        made => made.map_err(err).map(|()| dir.to_string_lossy().into_owned()),
+    }
+}
+
 #[tauri::command]
 pub async fn list_folder(root: String) -> Result<Vec<FolderFile>, String> {
     let mut out = Vec::new();

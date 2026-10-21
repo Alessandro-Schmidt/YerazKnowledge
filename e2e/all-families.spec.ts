@@ -26,11 +26,15 @@ test('opens on every Family together, each in its own ring', async ({ page }) =>
   await expect(await familyMenu(page)).toContainText('All Families')
 })
 
-test('the logo in the top bar leads to every Family', async ({ page }) => {
+test('the logo in the top bar leads to the introduction, and from there to every Family', async ({
+  page,
+}) => {
   await signIn(page)
   await page.goto('./#/tree/you/art/Baroque/caravaggio.md')
   await expect(page.getByRole('heading', { name: 'Caravaggio' })).toBeVisible()
-  await page.getByRole('link', { name: 'Yeraz: all Families' }).click()
+  await page.getByRole('link', { name: 'Yeraz', exact: true }).click()
+  await expect(page).toHaveURL(/#\/welcome$/)
+  await page.getByRole('link', { name: 'Back to your notes' }).click()
   await expect(page).toHaveURL(/#\/all$/)
   await expect(page.locator('[data-group]')).toHaveCount(2)
 })

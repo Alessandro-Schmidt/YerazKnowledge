@@ -146,7 +146,7 @@ test.describe('installable app', () => {
     await page.evaluate(() => navigator.serviceWorker.ready)
     await context.setOffline(true)
     await page.reload()
-    await expect(page.getByRole('heading', { name: 'Connect GitHub' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Yeraz', level: 1 })).toBeVisible()
     await context.setOffline(false)
   })
 })

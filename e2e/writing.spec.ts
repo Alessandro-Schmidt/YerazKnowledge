@@ -4,7 +4,7 @@
 import type { Browser, Page } from '@playwright/test'
 import type { FakeGitHub } from '../test/fake-github/fakeGitHub'
 import type { Graph } from '../src/model/graph'
-import { expect, isPhone, signInHere, test, TOKEN } from './fixtures'
+import { expect, isPhone, signInHere, test } from './fixtures'
 
 const REPO = 'you/engineering'
 
@@ -144,8 +144,7 @@ test.describe('two devices', () => {
         const phone = (await secondDevice(browser, api, baseURL!)).page
         await openEditor(laptop, leaf.id)
         await phone.goto(`./#/tree/${REPO}/${leaf.id}`)
-        await phone.getByLabel('Personal access token').fill(TOKEN)
-        await phone.getByRole('button', { name: 'Continue' }).click()
+        await signInHere(phone)
         await expect(phone.locator('.cm-content')).toBeVisible()
 
         // The phone edits the title line; the laptop edits the end, or the same title line.

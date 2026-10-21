@@ -95,6 +95,7 @@ export async function familyMenu(page: Page) {
 
 /** Signs in on whatever URL the page is at; the app then shows that route. */
 export async function signInHere(page: Page) {
+  await page.getByRole('button', { name: 'GitHub', exact: true }).click()
   await page.getByLabel('Personal access token').fill(TOKEN)
   await page.getByRole('button', { name: 'Continue' }).click()
   await page.getByRole('heading', { name: 'Connect GitHub' }).waitFor({ state: 'detached' })
