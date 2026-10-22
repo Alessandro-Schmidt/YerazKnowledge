@@ -460,9 +460,12 @@ function PeekHead({
       onPointerUp={(e) => {
         if (start.current === null) return
         const dy = e.clientY - start.current.y
-        const flick = Math.abs(dy) / Math.max(1, e.timeStamp - start.current.at) > FLICK
+        // A flick is quick, but a real movement: a twitch of a few pixels, or a tap that
+        // lands and lifts within a frame, is neither.
+        const elapsed = e.timeStamp - start.current.at
+        const flick = elapsed > 30 && Math.abs(dy) > FLICK_MIN && Math.abs(dy) / elapsed > FLICK
         start.current = null
-        const far = Math.abs(dy) > SWIPE || (flick && Math.abs(dy) > 8)
+        const far = Math.abs(dy) > SWIPE || flick
         if (dy < 0 && far && !expanded) onExpand(true)
         else if (dy > 0 && far && expanded) {
           follow(0)
@@ -552,6 +555,8 @@ function SheetStatus({ repo, branch }: { repo: string; branch: string }) {
 const SWIPE = 40
 /** How fast (px/ms) a shorter swipe must be to count: a flick. */
 const FLICK = 0.11
+/** The least (px) a flick travels. */
+const FLICK_MIN = 24
 
 /** Where a finger dragging the grip by `dy` puts the Peek: upwards, reluctantly. */
 const dragged = (dy: number) => `translateY(${dy > 0 ? dy : dy / 3}px)`

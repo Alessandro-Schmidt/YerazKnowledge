@@ -42,7 +42,8 @@ test.describe('on a phone', () => {
     const settled = await caretTop()
     for (let i = 0; i < 5; i++) {
       await page.keyboard.type('\nmore')
-      expect(Math.abs((await caretTop()) - settled)).toBeLessThan(2)
+      // The text moves under the caret in the editor's next measure frame.
+      await expect.poll(async () => Math.abs((await caretTop()) - settled)).toBeLessThan(2)
     }
     const panel = page.locator('[class*="_scroll_"]').first()
     expect(await panel.evaluate((el) => el.scrollTop)).toBeGreaterThan(0)

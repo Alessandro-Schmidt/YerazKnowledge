@@ -594,6 +594,12 @@ test.describe('cover position', () => {
     await page.getByRole('menuitem', { name: 'Reposition' }).click()
     const cover = page.getByRole('slider', { name: 'Cover position' })
     await expect(cover).toHaveAttribute('aria-valuenow', '50')
+    // The drag is measured against the photo's own size: once it has loaded. Picking
+    // Reposition may have scrolled the menu into view and the cover out of it.
+    await expect
+      .poll(() => cover.evaluate((img: HTMLImageElement) => img.naturalHeight))
+      .toBeGreaterThan(0)
+    await cover.scrollIntoViewIfNeeded()
     const box = (await cover.boundingBox())!
     await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
     await page.mouse.down()
