@@ -295,26 +295,25 @@ test('on a phone, a selected leaf or Tree sits in the room above the sheet', asy
     const bottom = sheet.y - 80
     return { top, bottom, cx: stage.x + stage.width / 2, cy: (top + bottom) / 2 }
   }
+  /** How far a box's centre is from the room's; far while the box isn't drawn yet. */
+  const offCentre = async (box: { x: number; y: number; width: number; height: number } | null) => {
+    if (!box) return Infinity
+    const { cx, cy } = await room()
+    return Math.hypot(box.x + box.width / 2 - cx, box.y + box.height / 2 - cy)
+  }
   await expect
-    .poll(async () => {
-      const dot = (await page.locator('[data-map] [data-sel]').first().boundingBox())!
-      const { cx, cy } = await room()
-      return Math.hypot(dot.x + dot.width / 2 - cx, dot.y + dot.height / 2 - cy)
-    })
+    .poll(async () => offCentre(await page.locator('[data-map] [data-sel]').first().boundingBox()))
     .toBeLessThan(40)
 
   // A Tree takes the width, as there is no room to fit it; its core is in the middle.
   const tree = treesOf(graph)[0]!
   await page.goto(`./#/tree/you/engineering/${tree}`)
   await expect
-    .poll(async () => {
-      const core = (await page
-        .locator(`[data-map] [data-tree="${tree}"] [data-core]`)
-        .first()
-        .boundingBox())!
-      const { cx, cy } = await room()
-      return Math.hypot(core.x + core.width / 2 - cx, core.y + core.height / 2 - cy)
-    })
+    .poll(async () =>
+      offCentre(
+        await page.locator(`[data-map] [data-tree="${tree}"] [data-core]`).first().boundingBox(),
+      ),
+    )
     .toBeLessThan(40)
 })
 
