@@ -6,7 +6,7 @@ import { makeFixture } from '../../test/fake-github/fixture'
 import { buildGraph, type Graph } from '../model/graph'
 import { parseLeaf } from '../model/parse'
 import { buildTree, ROOT } from '../model/tree'
-import { dotRadius, ICON_R, layoutTree, nodeAt, overlaps, threadRoute } from './layout'
+import { dotRadius, ICON_R, layoutTree, nodeAt, overlaps } from './layout'
 
 function graphOf(files: Record<string, string>, title: string): Graph {
   const model = buildTree(
@@ -88,20 +88,8 @@ describe.each(graphs)('layout invariants, %i leaves', (_, graph) => {
     expect(ranges.at(-1)![1]).toBeLessThan(2 * Math.PI)
   })
 
-  it('draws one curve per thread, routed through the common ancestor', () => {
+  it('draws one curve per thread', () => {
     expect(layout.threads).toHaveLength(graph.threads.length)
-    for (const { from, to } of graph.threads.slice(0, 200)) {
-      const route = threadRoute(graph, from, to)
-      expect(route[0]).toBe(from)
-      expect(route.at(-1)).toBe(to)
-      const ancestors = (id: string) => {
-        const chain: string[] = []
-        for (let n: string | null = id; n !== null; n = graph.nodes.get(n)!.parent) chain.push(n)
-        return chain
-      }
-      const common = ancestors(from).find((id) => ancestors(to).includes(id))
-      expect(route).toContain(common)
-    }
   })
 
   it('has one donut segment per top-level branch', () => {

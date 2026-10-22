@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { convexHull, layoutGraph } from './graph'
-import { engineering } from './testGraph'
+import { engineering, engineeringWithText } from './testGraph'
 
 describe('layoutGraph', () => {
   const graph = engineering()
@@ -20,6 +20,12 @@ describe('layoutGraph', () => {
     const cx = hubDots.reduce((s, d) => s + d.x, 0) / hubDots.length
     const cy = hubDots.reduce((s, d) => s + d.y, 0) / hubDots.length
     expect(Math.hypot(cx, cy)).toBeLessThan(40)
+  })
+
+  it('leaves the Family’s README.md out: it is not in a Tree', () => {
+    const withText = layoutGraph(engineeringWithText())
+    expect(withText.byId.has('README.md')).toBe(false)
+    expect(withText.dots).toHaveLength(layout.dots.length)
   })
 
   it('keeps Trees apart: no leaf sits closer to another Tree’s centre than to its own', () => {

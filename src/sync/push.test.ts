@@ -121,6 +121,33 @@ describe('pushTree', () => {
     expect(mutations).toHaveLength(2)
   })
 
+  it('merges an edit made before a pull brought another device’s commit, without a refusal', async () => {
+    const store = await setUp()
+    const base = await gitBlobSha(KEYCLOAK)
+    await fake.repo('you/eng').commit({
+      message: 'phone',
+      additions: [
+        {
+          path: 'identity/keycloak.md',
+          contents: KEYCLOAK.replace('Three.', 'Three, from the phone.'),
+        },
+      ],
+    })
+    await pullTree(ref, { client, store })
+    fake.resetLog()
+    const ours = KEYCLOAK.replace('One.', 'One, from the laptop.')
+    const pushed = await pushTree(
+      ref,
+      { 'identity/keycloak.md': { text: ours, base } },
+      { client, store },
+    )
+    expect(pushed.conflicts).toEqual([])
+    expect(fake.repo('you/eng').read('identity/keycloak.md')).toBe(
+      '# Keycloak\n\nOne, from the laptop.\n\nTwo.\n\nThree, from the phone.\n',
+    )
+    expect(fake.log.filter((e) => e.operation === 'mutation')).toHaveLength(1)
+  })
+
   it('keeps both versions when both devices changed the same lines', async () => {
     const store = await setUp()
     const theirs = KEYCLOAK.replace('Two.', 'Two, from the phone.')
@@ -198,7 +225,7 @@ describe('pushTree', () => {
 
 describe('createTreeRepository', () => {
   it('creates a private repository holding .yeraz.json and a welcome leaf, and no README', async () => {
-    const tree = await createTreeRepository(client, 'you', { name: 'notes', title: 'My Notes' })
+    const tree = await createTreeRepository(client, { name: 'notes', title: 'My Notes' })
     expect(tree).toMatchObject({
       repo: 'you/notes',
       branch: 'main',

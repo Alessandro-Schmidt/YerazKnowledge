@@ -479,7 +479,6 @@ function placeLabel(node: LaidNode, offset: number, radial: boolean) {
   }
 }
 
-/** The ids a thread passes through: source, ancestors up to the common one, down to target. */
 /**
  * The node at a point in layout units: the one whose dot edge is nearest, within `reach`.
  * The core is the Tree itself (ROOT). Null over empty space. Used where dots are too small
@@ -498,25 +497,4 @@ export function nodeAt(layout: MapLayout, x: number, y: number, reach: number): 
     }
   }
   return best
-}
-
-export function threadRoute(graph: Graph, from: string, to: string): string[] {
-  const up = (id: string) => {
-    const chain: string[] = []
-    for (let n: string | null = id; n !== null; n = graph.nodes.get(n)!.parent) chain.push(n)
-    return chain
-  }
-  const a = up(from)
-  const b = up(to)
-  const common = a.find((id) => b.includes(id))!
-  return [...a.slice(0, a.indexOf(common) + 1), ...b.slice(0, b.indexOf(common)).reverse()]
-}
-
-const layouts = new WeakMap<Graph, MapLayout>()
-
-/** The layout of a graph, computed once per graph object (Home and the Tree view share it). */
-export function layoutFor(graph: Graph): MapLayout {
-  let layout = layouts.get(graph)
-  if (!layout) layouts.set(graph, (layout = layoutTree(graph)))
-  return layout
 }

@@ -303,7 +303,6 @@ export async function createCommit(
  */
 export async function createTreeRepository(
   client: GitHubClient,
-  owner: string,
   input: { name: string; title: string },
 ): Promise<TreeRef> {
   const repo = await client.post<{
@@ -319,7 +318,7 @@ export async function createTreeRepository(
     description: 'A Yeraz knowledge family',
   })
   const ref: TreeRef = {
-    owner: repo.owner.login ?? owner,
+    owner: repo.owner.login,
     name: repo.name,
     repo: repo.full_name,
     branch: repo.default_branch,

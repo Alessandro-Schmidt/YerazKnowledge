@@ -1,6 +1,6 @@
 // WCAG contrast, the same rules as design/themes/check.py.
 
-export interface ContrastRule {
+interface ContrastRule {
   fg: string
   bg: string
   min: number

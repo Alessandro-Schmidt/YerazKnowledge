@@ -30,19 +30,21 @@ export interface CustomTheme {
   tokens: Record<string, string>
 }
 
-export interface Adjustment {
+interface Adjustment {
   token: string
   from: string
   to: string
 }
 
 /** The tokens a theme may set: a base's, plus the accent's text colour. */
-export const TOKEN_NAMES = [...Object.keys(themes.bases.vanta.tokens), 'on-accent']
+const TOKEN_NAMES = [...Object.keys(themes.bases.vanta.tokens), 'on-accent']
 
 const HEX = /^#[0-9A-Fa-f]{6}$/
 const TRANSLUCENT = /^rgba\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*(?:0|1|0?\.\d+)\s*\)$/
 const isColour = (value: unknown): value is string =>
   typeof value === 'string' && (HEX.test(value) || TRANSLUCENT.test(value))
+/** Tokens a contrast rule measures: contrast.ts reads #RRGGBB only, so these stay opaque. */
+const ruleTokens = new Set(CONTRAST_RULES.flatMap((r) => [r.fg, r.bg]))
 
 /** A theme from a file or its parsed JSON; throws an Error that says what is wrong. */
 export function parseTheme(input: unknown): CustomTheme {
@@ -73,7 +75,7 @@ export function parseTheme(input: unknown): CustomTheme {
     throw new Error('Tokens must be an object.')
   for (const [name, colour] of Object.entries(tokens)) {
     if (!TOKEN_NAMES.includes(name)) throw new Error(`“${name}” is an unknown token.`)
-    if (!isColour(colour))
+    if (!isColour(colour) || (ruleTokens.has(name) && !HEX.test(colour)))
       throw new Error(`“${name}” must be a colour: #RRGGBB, or rgba with four numbers.`)
   }
   return {

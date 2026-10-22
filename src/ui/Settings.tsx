@@ -15,7 +15,7 @@ const PAGES = [
   { id: 'colours', label: 'Tree colours', icon: <ViewIcon view="map" size={18} /> },
 ] as const
 
-export type SettingsPage = (typeof PAGES)[number]['id']
+type SettingsPage = (typeof PAGES)[number]['id']
 
 export function SettingsShell({ page, children }: { page: SettingsPage; children: ReactNode }) {
   const [, navigate] = useLocation()

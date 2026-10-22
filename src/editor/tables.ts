@@ -9,6 +9,7 @@ import { syntaxTree } from '@codemirror/language'
 import { Prec, StateField, type EditorState, type Range } from '@codemirror/state'
 import { Decoration, EditorView, keymap, WidgetType, type DecorationSet } from '@codemirror/view'
 import { META } from '../model/parse'
+import { escape } from '../read/files'
 import {
   addColumn,
   addRow,
@@ -28,9 +29,6 @@ import {
   shownSource,
   sourceShown,
 } from './elements'
-
-const escape = (s: string) =>
-  s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!)
 
 /** A cell's inline Markdown, drawn: code, bold, italic, strikethrough and links' text. */
 export function cellHtml(text: string): string {

@@ -36,7 +36,6 @@ export interface TreeEntry {
 
 export interface TreeListing {
   sha: string
-  etag: string | null
   entries: TreeEntry[]
   truncated: boolean
 }
@@ -56,12 +55,7 @@ export interface GitHubClient {
     branch: string,
     etag?: string | null,
   ): Promise<{ sha: string; etag: string | null } | 'not-modified'>
-  /** `'not-modified'` when `etag` still matches; that answer is free of rate limit. */
-  getTree(
-    repo: string,
-    ref: string,
-    options?: { recursive?: boolean; etag?: string | null },
-  ): Promise<TreeListing | 'not-modified'>
+  getTree(repo: string, ref: string, options?: { recursive?: boolean }): Promise<TreeListing>
   graphql<T>(
     query: string,
     variables?: Record<string, unknown>,
@@ -140,16 +134,13 @@ export function createGitHubClient({
       return { sha: (await res.text()).trim(), etag: res.headers.get('etag') }
     },
 
-    async getTree(repo, ref, { recursive = true, etag } = {}) {
+    async getTree(repo, ref, { recursive = true } = {}) {
       const res = await request(
         `/repos/${repo}/git/trees/${encodeURIComponent(ref)}${recursive ? '?recursive=1' : ''}`,
-        etag ? { headers: { 'If-None-Match': etag } } : {},
       )
-      if (res.status === 304) return 'not-modified'
       const body = (await res.json()) as { sha: string; tree: TreeEntry[]; truncated: boolean }
       return {
         sha: body.sha,
-        etag: res.headers.get('etag'),
         entries: body.tree.map(({ path, type, sha, size }) =>
           size === undefined ? { path, type, sha } : { path, type, sha, size },
         ),

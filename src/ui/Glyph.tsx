@@ -2,7 +2,7 @@ import type { GraphNode } from '../model/graph'
 import controls from './controls.module.css'
 
 /** Dot = leaf, dot with a ring = leaf with sub-leaves, ring = branch (design legend). */
-export function glyphKind(
+function glyphKind(
   node: Pick<GraphNode, 'kind' | 'children'>,
 ): 'leaf' | 'sprout' | 'branch' | 'root' {
   if (node.kind === 'leaf') return node.children.length ? 'sprout' : 'leaf'

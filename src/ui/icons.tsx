@@ -33,7 +33,7 @@ const PATHS = {
     'M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zM4 16l5-5 4 4 2-2 5 5M15.5 9.5a1 1 0 1 1 0-2 1 1 0 0 1 0 2z',
 } as const
 
-export type IconName = keyof typeof PATHS
+type IconName = keyof typeof PATHS
 
 export function Icon({ name, size = 16 }: { name: IconName; size?: number }) {
   return (

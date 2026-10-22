@@ -240,6 +240,12 @@ describe('renderLeaf', () => {
     expect(html).toContain('<p><a href="https://example.com/post" target="_blank"')
     expect(html).toContain('Read <a href="https://example.com/a" target="_blank"')
   })
+
+  it('keeps a titled link whose address is not a URL as a link', async () => {
+    const html = await renderLeaf('# T\n\n[x](https://[)\n', context)
+    expect(html).not.toContain('bookmark')
+    expect(html).toContain('<a href="https://%5B" target="_blank"')
+  })
 })
 
 describe('renderLeaf: what github.com renders', () => {

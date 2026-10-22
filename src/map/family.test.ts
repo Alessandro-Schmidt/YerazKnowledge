@@ -39,6 +39,7 @@ describe('treeGraph', () => {
     const root = tree.nodes.get(ROOT)!
     expect(root).toMatchObject({ kind: 'root', title: 'Identity', parent: null })
     expect(tree.nodes.get('Identity/oidc.md')!.parent).toBe(ROOT)
+    expect(tree.nodes.get('Identity/oidc.md')!.depth).toBe(1)
     expect(tree.threads).toEqual([{ from: 'Identity/keycloak.md', to: 'Identity/oidc.md' }])
     expect(tree.stats).toMatchObject({ leaves: 2, words: root.total })
   })
@@ -47,6 +48,7 @@ describe('treeGraph', () => {
     const tree = treeGraph(small, 'realms.md')
     expect(tree.nodes.get(ROOT)!.title).toBe('Realms')
     expect(tree.nodes.get(ROOT)!.children).toEqual(['realms/sub.md'])
+    expect(tree.nodes.get('realms/sub.md')!.depth).toBe(1)
     expect(tree.threads).toEqual([{ from: ROOT, to: 'realms/sub.md' }])
   })
 })
@@ -70,6 +72,7 @@ describe('ghost leaves on the map', () => {
     expect(tree.nodes.get('Identity/keycloak.md')!.children).toEqual([
       'Identity/keycloak/gambits.md',
     ])
+    expect(tree.nodes.get('Identity/keycloak/gambits.md')!.depth).toBe(2)
     expect(tree.threads).toEqual([
       { from: 'Identity/keycloak.md', to: 'Identity/oauth.md', ghost: true },
       { from: 'Identity/oidc.md', to: 'Identity/oauth.md', ghost: true },
