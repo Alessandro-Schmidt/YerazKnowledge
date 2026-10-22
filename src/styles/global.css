@@ -145,3 +145,12 @@ input {
     --enter: 0, 0 !important;
   }
 }
+
+/* The browser's own surfaces, from the palette: selected text, and links' underlines
+   clear of the descenders. */
+::selection {
+  background: var(--accent-soft);
+}
+a {
+  text-underline-offset: 0.15em;
+}

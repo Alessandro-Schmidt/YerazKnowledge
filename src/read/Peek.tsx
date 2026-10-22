@@ -26,7 +26,7 @@ import {
 } from '../model/graph'
 import { ROOT } from '../model/tree'
 import { mark } from '../perf'
-import { session } from '../store/session'
+import { session, useSession } from '../store/session'
 import { LeafEditor } from '../editor/LeafEditor'
 import { FAMILY_TEXT, treesOf } from '../map/family'
 import { ownPath } from '../model/parse'
@@ -36,7 +36,8 @@ import { Icon } from '../ui/icons'
 import { InlineName } from '../ui/InlineName'
 import { play } from '../ui/motion'
 import { ResizeHandle } from '../ui/ResizeHandle'
-import { PHONE } from '../ui/useMedia'
+import { PHONE, useMedia } from '../ui/useMedia'
+import { SyncStatus } from '../ui/SyncStatus'
 import { treeHref } from '../ui/paths'
 import styles from './Peek.module.css'
 import { coverPosition } from './cover'
@@ -88,6 +89,7 @@ export function Peek({
   useLayoutEffect(() => mark('peek-painted'), [id])
   const sheet = useRef<HTMLElement>(null)
   const motion = usePeekMotion(sheet, id, expanded, onExpand)
+  const phone = useMedia(PHONE)
   const ghost = graph.ghosts.get(id)
   if (ghost) {
     return (
@@ -163,6 +165,8 @@ export function Peek({
         {...{ kind, crumb, away, href, onSelect, expanded, onClose, sheet }}
         onExpand={motion.expand}
       />
+      {/* The full page covers the top bar on a phone: what the writer needs from it, here. */}
+      {expanded && phone && <SheetStatus repo={tree.repo} branch={tree.branch} />}
 
       <div className={styles.scroll} onScroll={motion.onScroll} onFocus={motion.onFocus}>
         <div className={styles.column}>
@@ -519,6 +523,27 @@ function PeekHead({
           <Icon name="close" />
         </button>
       </div>
+    </div>
+  )
+}
+
+/** On a phone the full page covers the top bar: the sync state and Save, in the sheet. */
+function SheetStatus({ repo, branch }: { repo: string; branch: string }) {
+  const unsaved = useSession((s) => {
+    const sync = s.sync[repo.toLowerCase()]
+    return !!sync && 'files' in sync && sync.files > 0 && sync.status !== 'saving'
+  })
+  return (
+    <div className={styles.sheetStatus}>
+      <SyncStatus repo={repo} branch={branch} plain />
+      <button
+        type="button"
+        className={`${controls.ghost} ${styles.sheetSave}`}
+        disabled={!unsaved}
+        onClick={() => void session.getState().flush(repo)}
+      >
+        Save
+      </button>
     </div>
   )
 }
