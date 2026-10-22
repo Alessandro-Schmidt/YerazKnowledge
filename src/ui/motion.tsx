@@ -6,20 +6,34 @@
 
 import { useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 
-export const EASE = 'cubic-bezier(0.2, 0.7, 0.2, 1)'
+/** A strong ease-out (global.css `--ease-out`): what comes or goes starts at once. */
+export const EASE = 'cubic-bezier(0.23, 1, 0.32, 1)'
+/** A strong ease-in-out (`--ease-in-out`): what moves on screen. */
+export const EASE_MOVE = 'cubic-bezier(0.77, 0, 0.175, 1)'
 /** The time most motion takes, ms: long enough to follow, short enough not to wait for. */
-export const DURATION = 240
+export const DURATION = 200
 
 const still = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? true
 
-/** Plays `keyframes` on `el`; null when there is no motion to play. */
+/**
+ * Plays `keyframes` on `el`; null when there is no motion to play. With less motion asked
+ * for, nothing moves (transforms and clips are dropped) but fades still play.
+ */
 export function play(
   el: Element | null | undefined,
   keyframes: Keyframe[],
   options: KeyframeAnimationOptions = {},
 ): Animation | null {
-  if (!el || typeof el.animate !== 'function' || still()) return null
-  return el.animate(keyframes, { duration: DURATION, easing: EASE, ...options })
+  if (!el || typeof el.animate !== 'function') return null
+  const frames = still()
+    ? keyframes.map((f) =>
+        Object.fromEntries(
+          Object.entries(f).filter(([k]) => k !== 'transform' && k !== 'clipPath'),
+        ),
+      )
+    : keyframes
+  if (frames.every((f) => Object.keys(f).length === 0)) return null
+  return el.animate(frames, { duration: DURATION, easing: EASE, ...options })
 }
 
 /** How a panel leaves: back the way it came in (its `--enter` offset), fading. */
@@ -27,8 +41,7 @@ export function leave(el: Element | null | undefined): Animation | null {
   if (!el) return null
   const from = getComputedStyle(el).getPropertyValue('--enter').trim() || '0, 8px'
   return play(el, [{}, { opacity: 0, transform: `translate(${from})` }], {
-    duration: 200,
-    easing: 'ease-in',
+    duration: 160,
     fill: 'forwards',
   })
 }
@@ -48,12 +61,14 @@ export function Presence({ show, children }: { show: boolean; children: ReactNod
     const el = box.current?.firstElementChild as HTMLElement | null | undefined
     const exit = leave(el)
     if (!el || !exit) return setGone(true)
-    // Not clickable while it goes; shown again (`show` back before the end), as it was.
+    // Not clickable while it goes; shown again before the end, it comes back from where it is.
     el.style.pointerEvents = 'none'
     exit.onfinish = () => setGone(true)
     return () => {
-      exit.cancel()
       el.style.pointerEvents = ''
+      if (exit.playState === 'finished') return exit.cancel()
+      exit.onfinish = () => exit.cancel()
+      exit.reverse()
     }
   }, [show, gone])
   if (gone && !show) return null

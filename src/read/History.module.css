@@ -51,8 +51,10 @@
   text-align: left;
   cursor: pointer;
 }
-button.version:hover {
-  background: var(--hover);
+@media (hover: hover) and (pointer: fine) {
+  button.version:hover {
+    background: var(--hover);
+  }
 }
 .version[data-deleted] {
   cursor: default;

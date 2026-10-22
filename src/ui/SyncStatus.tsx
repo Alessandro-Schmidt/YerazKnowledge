@@ -19,7 +19,9 @@ export function SyncStatus({ repo, branch }: { repo: string; branch: string }) {
   return (
     <span className={styles.status} data-state={state.status} role="status">
       <span className={styles.dot} aria-hidden="true" />
-      {label(state, isFolder(repo) ? null : branch, now, onDevice)}
+      <span key={state.status} className={styles.text}>
+        {label(state, isFolder(repo) ? null : branch, now, onDevice)}
+      </span>
     </span>
   )
 }

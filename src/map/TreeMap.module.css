@@ -29,8 +29,10 @@
 .chip[aria-pressed='false'] {
   color: var(--faint);
 }
-.chip:hover {
-  border-color: var(--muted);
+@media (hover: hover) and (pointer: fine) {
+  .chip:hover {
+    border-color: var(--muted);
+  }
 }
 
 .branchSwatch {

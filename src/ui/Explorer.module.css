@@ -10,7 +10,7 @@
   background: var(--panel);
   /* Comes in from the left, and goes out there (ui/motion.tsx). */
   --enter: -16px, 0;
-  animation: enter 0.24s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
+  animation: enter 0.22s var(--ease-out) backwards;
 }
 @keyframes enter {
   from {
@@ -74,8 +74,10 @@
   cursor: pointer;
   transition: background 0.15s;
 }
-.row:hover {
-  background: var(--hover);
+@media (hover: hover) and (pointer: fine) {
+  .row:hover {
+    background: var(--hover);
+  }
 }
 .row[aria-selected='true'] {
   background: var(--raised);

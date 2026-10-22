@@ -293,10 +293,15 @@
   background: var(--raised);
   border: 1px solid var(--hair-strong);
 }
-.editor :global(.cm-image:hover .cm-image-handle),
 .editor :global(.cm-image-handle:focus-visible),
 .editor :global(.cm-image-handle:active) {
   opacity: 1;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .editor :global(.cm-image:hover .cm-image-handle) {
+    opacity: 1;
+  }
 }
 .editor :global(.cm-image-handle:focus-visible) {
   outline: none;
@@ -378,11 +383,18 @@
   text-align: left;
   cursor: pointer;
 }
-.editor :global(.cm-insert-menu button:hover),
 .editor :global(.cm-insert-menu button:focus-visible) {
   outline: none;
   background: var(--accent-soft);
   color: var(--accent);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .editor :global(.cm-insert-menu button:hover) {
+    outline: none;
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
 }
 @media (pointer: coarse) {
   .editor :global(.cm-insert-menu button) {
@@ -424,8 +436,10 @@
   line-height: 1.4;
   cursor: text;
 }
-.editor :global(.cm-embed-bookmark:hover) {
-  border-color: var(--accent);
+@media (hover: hover) and (pointer: fine) {
+  .editor :global(.cm-embed-bookmark:hover) {
+    border-color: var(--accent);
+  }
 }
 .editor :global(.cm-embed-bookmark span) {
   overflow: hidden;
@@ -435,8 +449,10 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.editor :global(.cm-embed-bookmark span:hover) {
-  color: var(--accent);
+@media (hover: hover) and (pointer: fine) {
+  .editor :global(.cm-embed-bookmark span:hover) {
+    color: var(--accent);
+  }
 }
 .editor :global(.cm-embed-pdf iframe) {
   aspect-ratio: auto;
@@ -459,8 +475,10 @@
   line-height: 1.4;
   text-decoration: none;
 }
-.editor :global(.cm-embed-repo:hover) {
-  border-color: var(--accent);
+@media (hover: hover) and (pointer: fine) {
+  .editor :global(.cm-embed-repo:hover) {
+    border-color: var(--accent);
+  }
 }
 .editor :global(.cm-embed-repo span) {
   font-family: var(--font-mono);
@@ -503,19 +521,31 @@
   opacity: 0;
   transition: opacity 0.12s;
 }
-.editor :global(.cm-image:hover .cm-more),
-.editor :global(.cm-embed:hover .cm-more),
-.editor :global(.cm-table:hover .cm-more),
 .editor :global(.cm-table:focus-within .cm-more),
 .editor :global(.cm-more:focus-visible),
 .editor :global(.cm-tooltip .cm-more) {
   opacity: 1;
 }
-.editor :global(.cm-more:hover),
+
+@media (hover: hover) and (pointer: fine) {
+  .editor :global(.cm-image:hover .cm-more),
+  .editor :global(.cm-embed:hover .cm-more),
+  .editor :global(.cm-table:hover .cm-more) {
+    opacity: 1;
+  }
+}
 .editor :global(.cm-more:focus-visible) {
   outline: none;
   border-color: var(--accent);
   color: var(--accent);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .editor :global(.cm-more:hover) {
+    outline: none;
+    border-color: var(--accent);
+    color: var(--accent);
+  }
 }
 .editor :global(.cm-tooltip:has(> .cm-more)) {
   border: 0;
@@ -664,9 +694,11 @@
 .editor :global(.cm-details-toggle[aria-expanded='true'])::before {
   transform: rotate(90deg);
 }
-.editor :global(.cm-details-toggle:hover) {
-  background: var(--accent-soft);
-  color: var(--accent);
+@media (hover: hover) and (pointer: fine) {
+  .editor :global(.cm-details-toggle:hover) {
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
 }
 .editor :global(.cm-line.cm-details-body) {
   padding-left: 28px;

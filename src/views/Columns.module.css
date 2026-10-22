@@ -79,8 +79,10 @@
 .item[data-rich] > :first-child {
   margin-top: 5px;
 }
-.item:hover {
-  background: var(--hover);
+@media (hover: hover) and (pointer: fine) {
+  .item:hover {
+    background: var(--hover);
+  }
 }
 .item[aria-current='true'] {
   background: var(--raised);
@@ -144,9 +146,11 @@
   cursor: pointer;
   flex-shrink: 0;
 }
-.add:hover {
-  color: var(--text);
-  border-color: var(--muted);
+@media (hover: hover) and (pointer: fine) {
+  .add:hover {
+    color: var(--text);
+    border-color: var(--muted);
+  }
 }
 
 /* Phone: spines, then the last column full width. */

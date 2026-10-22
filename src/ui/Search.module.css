@@ -17,8 +17,10 @@
   font-size: 13.5px;
   cursor: text;
 }
-.box:hover {
-  border-color: var(--hair-strong);
+@media (hover: hover) and (pointer: fine) {
+  .box:hover {
+    border-color: var(--hair-strong);
+  }
 }
 .placeholder {
   flex: 1;
@@ -174,8 +176,10 @@
   text-align: left;
   cursor: pointer;
 }
-.light:hover {
-  background: var(--accent-soft);
+@media (hover: hover) and (pointer: fine) {
+  .light:hover {
+    background: var(--accent-soft);
+  }
 }
 .none {
   margin: 0;
