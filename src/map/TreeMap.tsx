@@ -143,6 +143,8 @@ export function TreeMap({
   const target = useRef<string | null>(null)
   /** The Tree core whose selection was last acted on: the one opened on isn't followed. */
   const followed = useRef<string | null>(null)
+  /** The leaf last centred on a phone's screen. */
+  const centred = useRef<string | null>(null)
   // Panel insets, as plain values so effects re-run when a panel opens or closes.
   const {
     top: insetTop = 0,
@@ -301,9 +303,13 @@ export function TreeMap({
         followed.current = selected
         target.current = selected
         // A phone's bottom sheet leaves too little room to fit a Tree above it: the Tree
-        // takes the screen's width, and the sheet covers its lower part until dismissed.
+        // takes the screen's width, its core in the middle of the room (owner's request).
         const phone = stage.clientWidth <= PHONE_WIDTH
         zoom.fit(boxOf(family, selected), padded(phone ? { ...area, bottom: 0 } : area), true)
+        if (phone) {
+          const core = family.trees.find((t) => t.id === selected)!
+          zoom.centre(core.x, core.y, padded(area))
+        }
       }
     }
     const lit = matches?.ids ?? []
@@ -345,7 +351,10 @@ export function TreeMap({
       return
     }
     const at = positionOf(family, selected)!
-    const follow = !visible(at.x, at.y)
+    // On a phone the sheet leaves little room: a newly selected leaf goes to its middle.
+    const phone = stage.clientWidth <= PHONE_WIDTH
+    const follow = (phone && centred.current !== selected) || !visible(at.x, at.y)
+    centred.current = selected
     const children = graph.nodes.get(selected)?.children ?? []
     for (const id of [selected, ...children]) add(id, els.edges.get(id), 'data-hot')
     let top = selected
