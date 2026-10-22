@@ -351,7 +351,7 @@
   font-size: 13.5px;
 }
 .mostText > span:last-child {
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--muted);
   overflow: hidden;
   text-overflow: ellipsis;

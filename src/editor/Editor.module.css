@@ -200,10 +200,8 @@
   display: block;
   padding-top: 6px;
   font-family: var(--font-ui);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
   color: var(--faint);
 }
 .editor :global(.cm-line.cm-fence-end) {
@@ -487,9 +485,7 @@
 }
 .editor :global(.cm-embed-repo em) {
   font-style: normal;
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-size: 12px;
   color: var(--accent);
 }
 .editor :global(.cm-embed-pdf a) {

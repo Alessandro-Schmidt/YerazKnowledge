@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import themes from '../../design/themes/themes.json'
 import styles from './Appearance.module.css'
 import controls from './controls.module.css'
+import { Icon } from './icons'
 import { CustomThemeEditor } from './ThemeEditor'
 import { applyCustom, savedCustom, saveCustom, type CustomTheme } from './customTheme'
 import {
@@ -177,7 +178,7 @@ export function Appearance() {
           <div className={styles.previewHead}>
             <p className={controls.eyebrow}>Preview</p>
             <span className={styles.status}>
-              ✓{' '}
+              <Icon name="check" size={13} />{' '}
               <span ref={status}>
                 {custom ? `${custom.name} · custom · contrast AA` : label(initial)}
               </span>

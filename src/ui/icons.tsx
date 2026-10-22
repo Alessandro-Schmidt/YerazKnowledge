@@ -8,6 +8,7 @@ const PATHS = {
   minus: 'M5 12h14',
   fit: 'M4 9V5h4M20 9V5h-4M4 15v4h4M20 15v4h-4',
   close: 'M6 6l12 12M18 6L6 18',
+  check: 'M5 12l4.5 4.5L19 7',
   edit: 'M4 20h4l11-11a1.5 1.5 0 0 0 0-2.1l-1.9-1.9a1.5 1.5 0 0 0-2.1 0L4 16v4zM13.5 6.5l4 4',
   trash: 'M4 7h16M9.5 7V4.5h5V7M6.5 7l1 13h9l1-13M10 11v5M14 11v5',
   expand: 'M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7',
