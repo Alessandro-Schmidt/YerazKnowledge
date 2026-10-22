@@ -4,6 +4,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import { createFakeGitHub, type FakeGitHub } from '../../test/fake-github/fakeGitHub'
 import { makeFixture } from '../../test/fake-github/fixture'
 import { fakeGitHubHandlers } from '../../test/fake-github/msw'
+import { memoryFolder, memoryFolders } from '../../test/memoryFolder'
 import { memoryStore } from './db'
 import { planBranchText, planNewLeaves } from '../sync/structure'
 import { createSession } from './session'
@@ -111,6 +112,20 @@ describe('session', () => {
     expect(again.getState().phase).toBe('signed-out')
   })
 
+  it('signing in keeps the folders', async () => {
+    const store = memoryStore()
+    const folders = memoryFolders({ Notes: memoryFolder() })
+    const s = createSession({ store, folders })
+    folders.choose('Notes')
+    await s.getState().addFolder()
+    await s.getState().signIn('good')
+    expect(s.getState().trees.map((t) => t.repo)).toEqual([
+      'friend/shared',
+      'you/engineering',
+      '~/notes',
+    ])
+  })
+
   it('applies edits at once and commits them when the autosave fires', async () => {
     const store = memoryStore()
     const s = createSession({ store, autosaveDelay: 50 })
@@ -199,6 +214,40 @@ describe('session', () => {
     )
     await vi.waitFor(() =>
       expect(second.getState().sync['you/engineering']).toEqual({ status: 'synced' }),
+    )
+  })
+
+  it('merges an offline edit with a commit made elsewhere that the reopening pull brought in', async () => {
+    const PATH = 'notes.md'
+    const v1 = '# Notes\n\nOne.\n\nTwo.\n\nThree.\n'
+    await fake.repo('you/engineering').commit({
+      message: 'Add Notes',
+      additions: [{ path: PATH, contents: v1 }],
+    })
+    const store = memoryStore()
+    const phone = createSession({ store })
+    await phone.getState().signIn('good')
+    await phone.getState().open('you/engineering')
+    fake.faults.offline = true
+    await phone
+      .getState()
+      .apply('you/engineering', [{ path: PATH, text: v1.replace('One.', 'One, from the phone.') }])
+    await phone.getState().flush('you/engineering')
+    expect(phone.getState().sync['you/engineering']).toMatchObject({ status: 'offline' })
+
+    await fake.repo('you/engineering').commit({
+      message: 'laptop',
+      additions: [{ path: PATH, contents: v1.replace('Three.', 'Three, from the laptop.') }],
+    })
+    fake.faults.offline = false
+    const again = createSession({ store })
+    await again.getState().start()
+    await again.getState().open('you/engineering')
+    await vi.waitFor(() =>
+      expect(again.getState().sync['you/engineering']).toEqual({ status: 'synced' }),
+    )
+    expect(fake.repo('you/engineering').read(PATH)).toBe(
+      '# Notes\n\nOne, from the phone.\n\nTwo.\n\nThree, from the laptop.\n',
     )
   })
 

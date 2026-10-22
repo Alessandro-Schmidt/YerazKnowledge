@@ -7,7 +7,7 @@ import { FLAGS_FONT } from './flags'
 export type BaseId = keyof typeof themes.bases
 export type AccentId = keyof typeof themes.accents
 export type FontId = keyof typeof themes.fonts
-export type Mode = 'dark' | 'light'
+type Mode = 'dark' | 'light'
 
 export interface ThemeChoice {
   base: BaseId

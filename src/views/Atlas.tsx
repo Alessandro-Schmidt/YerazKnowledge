@@ -8,7 +8,7 @@ import type { Graph } from '../model/graph'
 import controls from '../ui/controls.module.css'
 import { Icon } from '../ui/icons'
 import { Canvas, svgEl } from './Canvas'
-import { treeColor, type ViewProps } from './common'
+import { plural, treeColor, type ViewProps } from './common'
 import { layoutAtlas, type AtlasLayout } from './layout/atlas'
 import styles from './Atlas.module.css'
 
@@ -112,7 +112,7 @@ export default function Atlas({
                 <strong>{root.title.toUpperCase()}</strong>
                 <span className={styles.rule} />
                 <em>
-                  {count(layout.islands.length, 'island')}, {count(layout.peaks.length, 'peak')},{' '}
+                  {plural(layout.islands.length, 'island')}, {plural(layout.peaks.length, 'peak')},{' '}
                   {root.total.toLocaleString('en-US')} words
                 </em>
                 <span className={controls.mono}>Charted {charted} · 1 word = 1 m</span>
@@ -201,8 +201,6 @@ export default function Atlas({
     </div>
   )
 }
-
-const count = (n: number, one: string) => `${n.toLocaleString('en-US')} ${one}${n === 1 ? '' : 's'}`
 
 /** "Highest peak of Identity, with two foothills: Realms and Tokens." */
 function describe(layout: AtlasLayout, graph: Graph, id: string): string {

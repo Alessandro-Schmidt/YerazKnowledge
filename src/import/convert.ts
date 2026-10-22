@@ -11,6 +11,7 @@
 //   text, `Folder/README.md`.
 // Pure: the CLI (scripts/import-notes.ts) reads and writes the files.
 
+import { destination } from '../model/links'
 import { codeRanges, HEADING } from '../model/parse'
 import { slugify } from '../model/slug'
 
@@ -38,9 +39,6 @@ const isHidden = (path: string) => path.split('/').some((p) => p.startsWith('.')
 const dirOf = (path: string) => path.slice(0, Math.max(0, path.lastIndexOf('/')))
 const baseOf = (path: string) => path.slice(path.lastIndexOf('/') + 1)
 const stem = (name: string) => name.replace(/\.md$/i, '')
-
-/** A link destination for a path: root-relative, in angle brackets when it has spaces. */
-export const destination = (path: string) => (/[\s()<>]/.test(path) ? `</${path}>` : `/${path}`)
 
 /** `a/./b/../c` → `a/c`; null when it climbs out of the folder. */
 function normalise(path: string): string | null {

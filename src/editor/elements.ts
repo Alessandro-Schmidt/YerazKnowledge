@@ -68,8 +68,7 @@ export const typingLine = StateField.define<number | null>({
     if (tr.isUserEvent('input') || tr.isUserEvent('delete')) return line.from
     // A change made for the person (a pasted link made a bookmark) is done: it is drawn.
     if (value === null || tr.docChanged) return null
-    const at = tr.docChanged ? tr.changes.mapPos(value) : value
-    return tr.state.doc.lineAt(at).from === line.from ? line.from : null
+    return tr.state.doc.lineAt(value).from === line.from ? line.from : null
   },
 })
 

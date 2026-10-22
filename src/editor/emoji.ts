@@ -48,6 +48,18 @@ const words = (text: string) =>
     .split(/[^\p{L}\p{N}]+/u)
     .filter(Boolean)
 
+/** An emoji's name and keywords as words, folded once: a search only compares them. */
+const folded = new WeakMap<Emoji, { name: string[]; all: string[] }>()
+const wordsOf = (emoji: Emoji) => {
+  let w = folded.get(emoji)
+  if (!w) {
+    const name = words(emoji.label)
+    w = { name, all: [...name, ...emoji.tags.flatMap(words)] }
+    folded.set(emoji, w)
+  }
+  return w
+}
+
 /**
  * Emoji whose name or keywords have a word starting with every word of the query. Ranked
  * by where the query's first word is found: the name's first word, whole then started,
@@ -58,8 +70,7 @@ export function searchEmoji(query: string, list: readonly Emoji[]): Emoji[] {
   if (!wanted.length) return []
   const scored: { emoji: Emoji; score: number }[] = []
   for (const emoji of list) {
-    const name = words(emoji.label)
-    const all = [...name, ...emoji.tags.flatMap(words)]
+    const { name, all } = wordsOf(emoji)
     if (!wanted.every((w) => all.some((word) => word.startsWith(w)))) continue
     const first = wanted[0]!
     const score =

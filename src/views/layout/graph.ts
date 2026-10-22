@@ -4,7 +4,7 @@
 // hub, the Tree most threads between Trees run through, and turned so its threaded
 // leaves face the hub. Each Tree is a soft hull: a smoothed convex hull (Catmull-Rom).
 
-import { treesOf } from '../../map/family'
+import { FAMILY_TEXT, treesOf } from '../../map/family'
 import type { Box } from '../../map/layout'
 import { textWidth } from '../../map/layout'
 import type { Graph, GraphNode } from '../../model/graph'
@@ -131,7 +131,7 @@ export function smoothClosed(pts: P[]): string {
 }
 
 export function layoutGraph(graph: Graph): GraphLayout {
-  const leaves = [...graph.nodes.values()].filter((n) => n.kind === 'leaf')
+  const leaves = [...graph.nodes.values()].filter((n) => n.kind === 'leaf' && n.id !== FAMILY_TEXT)
   const treeOf = new Map<string, string>()
   for (const n of leaves) {
     let t = n

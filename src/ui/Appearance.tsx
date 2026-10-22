@@ -90,7 +90,7 @@ export function Appearance() {
   return (
     <SettingsShell page="appearance">
       <main className={styles.main}>
-        <div className={styles.choices}>
+        <div>
           <h1 className={styles.title}>Appearance</h1>
           <p className={styles.lede}>Changes apply right away on this device.</p>
 
@@ -174,7 +174,7 @@ export function Appearance() {
           <CustomThemeEditor theme={custom} current={current} onChange={chooseCustom} />
         </div>
 
-        <section className={styles.preview} aria-label="Preview">
+        <section aria-label="Preview">
           <div className={styles.previewHead}>
             <p className={controls.eyebrow}>Preview</p>
             <span className={styles.status}>

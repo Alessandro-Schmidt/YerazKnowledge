@@ -34,6 +34,13 @@ test('Ctrl/⌘+B wraps the selection, again takes it off; a typed * wraps it too
   await expect.poll(() => fake.repo(REPO).read(LEAF)).toContain('Make this *word* strong.')
 })
 
+test('Ctrl/⌘+K in the editor is the link shortcut, not Search', async ({ page }) => {
+  test.skip(isPhone(page), 'Keyboard tests run on desktop engines')
+  await page.locator('.cm-content').getByText('Make this word strong.').click()
+  await page.keyboard.press('ControlOrMeta+k')
+  await expect(page.getByRole('dialog', { name: 'Search' })).toHaveCount(0)
+})
+
 test('bullets draw as bullets, the dash shown only under the cursor', async ({ page }) => {
   const editor = page.locator('.cm-content')
   await expect(editor.locator('.cm-bullet')).toHaveCount(2)

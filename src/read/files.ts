@@ -3,7 +3,8 @@
 // is fetched only when the card is used, so a leaf with large attachments opens fast.
 
 const ENTITIES: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }
-const escape = (s: string) => s.replace(/[&<>"]/g, (c) => ENTITIES[c]!)
+/** HTML-escapes text for an attribute or element. */
+export const escape = (s: string) => s.replace(/[&<>"]/g, (c) => ENTITIES[c]!)
 
 /** `1.2 MB`, `350 KB`, `12 bytes`: one decimal under 10, whole numbers above. */
 export function formatBytes(n: number): string {

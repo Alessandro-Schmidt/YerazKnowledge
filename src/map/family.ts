@@ -64,7 +64,7 @@ export function treeGraph(family: Graph, id: string): Graph {
   const walk = (node: GraphNode) => {
     for (const child of node.children) {
       const c = family.nodes.get(child)!
-      nodes.set(child, c.parent === id ? { ...c, parent: ROOT, depth: c.depth - 1 } : c)
+      nodes.set(child, { ...c, parent: c.parent === id ? ROOT : c.parent, depth: c.depth - 1 })
       if (c.kind === 'leaf') leaves++
       else branches++
       walk(c)

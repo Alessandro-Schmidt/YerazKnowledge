@@ -7,11 +7,11 @@
 import { useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 
 /** A strong ease-out (global.css `--ease-out`): what comes or goes starts at once. */
-export const EASE = 'cubic-bezier(0.23, 1, 0.32, 1)'
+const EASE = 'cubic-bezier(0.23, 1, 0.32, 1)'
 /** A strong ease-in-out (`--ease-in-out`): what moves on screen. */
 export const EASE_MOVE = 'cubic-bezier(0.77, 0, 0.175, 1)'
 /** The time most motion takes, ms: long enough to follow, short enough not to wait for. */
-export const DURATION = 200
+const DURATION = 200
 
 const still = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? true
 

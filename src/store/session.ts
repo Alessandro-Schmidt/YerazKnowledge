@@ -38,7 +38,7 @@ import {
   type FolderFs,
 } from '../local/folder'
 import { buildGraph, type Graph } from '../model/graph'
-import type { ParsedLeaf } from '../model/parse'
+import { parseLeaf, type ParsedLeaf } from '../model/parse'
 import { gitBlobSha } from '../model/sha'
 import { slugify } from '../model/slug'
 import { buildTree } from '../model/tree'
@@ -160,17 +160,6 @@ export interface SessionState {
 const KEYS = { trees: 'session:trees', connected: 'session:connected', ignored: 'session:ignored' }
 const dirtyKey = (repo: string) => `dirty:${repo.toLowerCase()}`
 
-/** The name a `.yeraz.json` text gives, or null. */
-function nameIn(text: unknown): string | null {
-  if (typeof text !== 'string') return null
-  try {
-    const name = (JSON.parse(text) as { name?: unknown } | null)?.name
-    return typeof name === 'string' && name.trim() ? name.trim() : null
-  } catch {
-    return null
-  }
-}
-
 export function describeError(e: unknown): { message: string; kind: ErrorKind } {
   if (e instanceof FolderError) return { message: e.message, kind: e.kind }
   if (!(e instanceof GitHubError)) return { message: 'Something went wrong.', kind: 'unknown' }
@@ -259,7 +248,7 @@ export function createSession(deps: {
         ? (await folderOf(repo.toLowerCase())).read(path)
         : assetBytes(repo, sha, { client: github(), store })
     /** A name typed on this device and not committed yet wins over what GitHub last said. */
-    const pendingTitle = (key: string) => nameIn(dirty.get(key)?.[MARKER]?.text)
+    const pendingTitle = (key: string) => markerFields(dirty.get(key)?.[MARKER]?.text).title ?? null
     /** So do colours chosen here: the pending `.yeraz.json` gives the whole marker. */
     const titled = (ref: TreeRef): TreeRef => {
       const text = dirty.get(ref.repo.toLowerCase())?.[MARKER]?.text
@@ -405,7 +394,16 @@ export function createSession(deps: {
           const now = current[path]
           if (!now) continue
           if (sameContent(now.text, sent.text)) delete current[path]
-          else now.base = sent.text === null ? null : await gitBlobSha(sent.text)
+          else if (sent.text === null) now.base = null
+          else {
+            now.base = await gitBlobSha(sent.text)
+            // GitHub may have merged a text that was sent: cache it so the next merge has its base.
+            if (typeof sent.text === 'string')
+              await store.setMany([
+                [`blob:${now.base}`, sent.text],
+                [`leaf:${now.base}`, parseLeaf(sent.text)],
+              ])
+          }
         }
         await saveDirty(key)
         const committedMarker = snapshot[MARKER]?.text
@@ -470,7 +468,12 @@ export function createSession(deps: {
         try {
           const found = await discoverTrees(client)
           await tokens.set(token.trim())
-          await saveTrees(found)
+          await saveTrees(
+            mergeTrees(
+              found,
+              get().trees.filter((t) => isFolder(t.repo)),
+            ),
+          )
           set({ phase: 'signed-in', discovery: 'done' })
         } catch (e) {
           client = null
@@ -642,7 +645,7 @@ export function createSession(deps: {
         if (!/^[\w.-]+$/.test(name))
           throw new Error('Use letters, numbers, dots, dashes or underscores for the name.')
         try {
-          const tree = await createTreeRepository(github(), '', {
+          const tree = await createTreeRepository(github(), {
             name,
             title: input.title || input.name,
           })
@@ -873,7 +876,7 @@ export function createSession(deps: {
         if (!name) throw new Error('A Family needs a name.')
         await inTurn(key, async () => {
           const { text, marker } = await readMarker(repo)
-          if (nameIn(text) === name) return
+          if (markerFields(text).title === name) return
           await writeMarker(repo, text, { ...marker, name })
           await retitle(key, { title: name })
         })

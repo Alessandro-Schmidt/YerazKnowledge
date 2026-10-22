@@ -9,7 +9,7 @@ import { Compartment, EditorState } from '@codemirror/state'
 import { EditorView, keymap } from '@codemirror/view'
 import { classHighlighter } from '@lezer/highlight'
 import { useEffect, useRef } from 'react'
-import { parseLeaf, withIcon, withMeta, type LeafMeta } from '../model/parse'
+import { withIcon, withMeta, type LeafMeta } from '../model/parse'
 import { mark, markNow } from '../perf'
 import styles from './Editor.module.css'
 import { assetSource, fileSizes, livePreview, treeFiles } from './livePreview'
@@ -23,8 +23,8 @@ import { toolbar } from './toolbar'
 
 export interface EditorHandle {
   setIcon(icon: string | null): void
-  /** Changes line 2's metadata (cover, colours); other keys are kept. */
-  setMeta(update: (meta: LeafMeta) => LeafMeta): void
+  /** Writes line 2's metadata (cover, colours) as given. */
+  setMeta(meta: LeafMeta): void
   /** Inserts text at the cursor (or in place of the selection), on a line of its own when `block`, and focuses. */
   insertText(text: string, block?: boolean): void
   focus(): void
@@ -191,8 +191,7 @@ export default function Editor({
     }
     handleRef.current = {
       setIcon: (icon) => rewrite((text) => withIcon(text, icon, untitledRef.current)),
-      setMeta: (update) =>
-        rewrite((text) => withMeta(text, update(parseLeaf(text).meta ?? {}), untitledRef.current)),
+      setMeta: (meta) => rewrite((text) => withMeta(text, meta, untitledRef.current)),
       insertText(text, block) {
         const v = view.current
         if (!v) return

@@ -508,6 +508,42 @@ test.describe('leaf styling', () => {
     expect(amber).toMatch(/^#[0-9A-Fa-f]{6}$/)
     await expect(article).toHaveCSS('--leaf-heading', amber)
   })
+
+  test('Undo of a cover takes it off the header, and a later change does not write it back', async ({
+    page,
+    fake,
+    graph,
+  }) => {
+    const leaf = pair(graph).from.id
+    await page.goto(`./#/tree/${REPO}/${leaf}`)
+    await signInHere(page)
+    const png = await page.evaluate(() => {
+      const canvas = document.createElement('canvas')
+      canvas.width = 300
+      canvas.height = 100
+      canvas.getContext('2d')!.fillRect(0, 0, 300, 100)
+      return canvas.toDataURL('image/png')
+    })
+    const chooser = page.waitForEvent('filechooser')
+    await page.getByRole('button', { name: 'Add cover' }).click()
+    await (
+      await chooser
+    ).setFiles({
+      name: 'a.png',
+      mimeType: 'image/png',
+      buffer: Buffer.from(png.slice(png.indexOf(',') + 1), 'base64'),
+    })
+    await expect(page.getByRole('button', { name: 'Change cover' })).toBeVisible()
+    await page.getByRole('textbox', { name: 'Leaf text' }).click()
+    await page.keyboard.press('ControlOrMeta+z')
+    await expect(page.getByRole('button', { name: 'Add cover' })).toBeVisible()
+    await page.getByRole('button', { name: 'Heading colour' }).click()
+    await page.getByRole('menuitemradio', { name: 'Amber' }).click()
+    await page.keyboard.press('ControlOrMeta+s')
+    await expect
+      .poll(() => fake.repo(REPO).read(leaf)?.split('\n')[1])
+      .toBe('<!-- yeraz {"color":{"heading":"amber"}} -->')
+  })
 })
 
 test.describe('leaf colours', () => {

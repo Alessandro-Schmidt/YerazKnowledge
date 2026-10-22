@@ -4,7 +4,7 @@
 
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { iconImage, threadEnd, type GraphNode } from '../model/graph'
-import { parseLeaf, repairHeader, type LeafMeta } from '../model/parse'
+import { parseLeaf, parseMeta, repairHeader, type LeafMeta } from '../model/parse'
 import { leafColors } from '../read/colors'
 import { Cover } from '../read/LeafLook'
 import { mentionLink } from '../model/links'
@@ -124,7 +124,7 @@ export function LeafEditor({
   const changeLook = (update: (meta: LeafMeta) => LeafMeta) => {
     const next = update(meta ?? {})
     setLook(next)
-    handle.current?.setMeta(() => next)
+    handle.current?.setMeta(next)
   }
   const coverPicker = useRef<HTMLInputElement>(null)
   const iconFile = useRef<HTMLInputElement>(null)
@@ -218,6 +218,8 @@ export function LeafEditor({
   }, [repo])
 
   const onChange = (next: string) => {
+    // The look follows the text, so Undo of a header change shows (and keeps) the undone line 2.
+    setLook(parseMeta(secondLine(next)) ?? {})
     if (pending.current) window.clearTimeout(pending.current.timer)
     pending.current = {
       text: next,
@@ -386,6 +388,14 @@ export function LeafEditor({
       )}
     </div>
   )
+}
+
+/** Line 2 of a text, without parsing the rest of it. */
+function secondLine(text: string): string | undefined {
+  const start = text.indexOf('\n')
+  if (start < 0) return undefined
+  const end = text.indexOf('\n', start + 1)
+  return text.slice(start + 1, end < 0 ? undefined : end)
 }
 
 const COLORS = ['', ...ACCENT_IDS] as const
