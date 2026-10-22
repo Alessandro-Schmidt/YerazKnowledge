@@ -105,9 +105,12 @@
   }
 }
 .menu button[aria-checked='true']::after {
-  content: '✓';
+  content: '';
+  width: 6px;
+  height: 6px;
   margin-left: auto;
-  color: var(--accent);
+  border-radius: 50%;
+  background: var(--accent);
 }
 .menu button[data-danger] {
   color: var(--c-amber);
@@ -115,9 +118,7 @@
 .menuLabel {
   padding: 8px 10px 2px;
   color: var(--faint);
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-size: 12px;
 }
 
 .picker {

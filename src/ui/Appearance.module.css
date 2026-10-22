@@ -65,7 +65,6 @@
 }
 .railItem[aria-current='page'] {
   color: var(--text);
-  box-shadow: inset 2px 0 0 var(--accent);
   background: var(--raised);
 }
 
@@ -305,8 +304,7 @@
 }
 .kind > :first-child {
   color: var(--accent);
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
+  font-weight: 500;
   font-weight: 500;
 }
 .leaf h2 {
