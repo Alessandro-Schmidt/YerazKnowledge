@@ -42,9 +42,11 @@ export class FolderError extends Error {
 export interface FolderAccess {
   /**
    * Asks the person for a folder; null when they cancel. On the device's own storage,
-   * `empty` starts a Family with nothing in it instead.
+   * `empty` starts a Family with nothing in it instead, called `name`.
    */
-  pick(empty?: boolean): Promise<{ name: string; handle: unknown } | null>
+  pick(empty?: boolean, name?: string): Promise<{ name: string; handle: unknown } | null>
+  /** Deletes a Family's files, where they are the device's own (not a folder the person sees). */
+  discard?(handle: unknown): Promise<void>
   /** The folder's files. With `ask`, a browser may ask the person again (needs a click). */
   open(handle: unknown, ask: boolean): Promise<FolderFs>
   /** Families are kept in this browser's storage, not in folders the person can see. */
@@ -239,9 +241,9 @@ export function deviceFolders(store: KeyValueStore, choose: ChooseFiles): Folder
   const newId = () => `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`
   return {
     onDevice: true,
-    async pick(empty) {
+    async pick(empty, name) {
       const id = newId()
-      if (empty) return { name: 'Notes', handle: id }
+      if (empty) return { name: name?.trim() || 'Notes', handle: id }
       const picked = await choose()
       if (!picked?.length) return null
       // Paths from a folder start with its name; that name is the Family's.
@@ -256,6 +258,11 @@ export function deviceFolders(store: KeyValueStore, choose: ChooseFiles): Folder
       return { name: inFolder ? top[0]! : 'Notes', handle: id }
     },
     open: async (handle) => deviceFs(store, handle as string),
+    async discard(handle) {
+      const fs = deviceFs(store, handle as string)
+      for (const file of await fs.list()) await fs.remove(file.path)
+      await store.set(`device:${handle as string}`, undefined)
+    },
   }
 }
 
