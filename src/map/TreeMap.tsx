@@ -10,6 +10,7 @@ import {
   useMemo,
   useRef,
   type CSSProperties,
+  type KeyboardEvent,
   type PointerEvent,
 } from 'react'
 import { compactWords, neighbours, type Graph, type Thread } from '../model/graph'
@@ -436,12 +437,42 @@ export function TreeMap({
     tip.hidden = false
   }
 
+  // From the keyboard: the map takes the focus; arrows move the selection through the
+  // Family (each Tree, then its nodes), Enter opens the selection, Escape clears it.
+  const order = useMemo(
+    () =>
+      family.trees.flatMap((t) => [
+        t.id,
+        ...t.layout.nodes.map((n) => n.id).filter((id) => id !== t.id),
+      ]),
+    [family],
+  )
+  const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (e.target !== e.currentTarget || !order.length) return
+    const step =
+      e.key === 'ArrowRight' || e.key === 'ArrowDown'
+        ? 1
+        : e.key === 'ArrowLeft' || e.key === 'ArrowUp'
+          ? -1
+          : 0
+    if (step) {
+      const at = selected === null ? -1 : order.indexOf(selected)
+      onSelect(order[(at + step + order.length) % order.length]!)
+    } else if (e.key === 'Enter' && selected !== null) onOpen(selected)
+    else if (e.key === 'Escape' && selected !== null) onSelect(null)
+    else return
+    e.preventDefault()
+  }
+
   return (
     <div className={ui.wrap}>
       <div
         ref={stageRef}
         className={styles.stage}
         data-map=""
+        tabIndex={0}
+        aria-label={`Map of ${title}: arrow keys move between leaves, Enter opens one`}
+        onKeyDown={onKeyDown}
         onClick={(e) => {
           markNow('select')
           const touch = (e.nativeEvent as Partial<globalThis.PointerEvent>).pointerType === 'touch'

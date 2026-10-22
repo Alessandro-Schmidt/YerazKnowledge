@@ -3,7 +3,8 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  flex: 0 1 420px;
+  flex: 1 1 200px;
+  max-width: 420px;
   /* Wide enough for its icon, a word and its key; narrower windows show the icon alone. */
   min-width: 150px;
   height: 36px;

@@ -561,3 +561,25 @@ test('signs out from the Family menu', async ({ page }) => {
   await page.reload()
   await expect(page.getByRole('heading', { name: 'Connect GitHub' })).toBeVisible()
 })
+
+test('the map works from the keyboard: arrows move the selection, Enter opens, Escape clears', async ({
+  page,
+}) => {
+  test.skip(isPhone(page), 'Keyboard tests run on desktop engines')
+  await openTree(page)
+  const map = page.locator('[data-map]')
+  await map.focus()
+  await page.keyboard.press('ArrowRight')
+  await expect(page).toHaveURL(/#\/tree\/you\/engineering\/.+/)
+  const first = page.url()
+  await page.keyboard.press('ArrowRight')
+  await expect(page).not.toHaveURL(first)
+  await page.keyboard.press('ArrowLeft')
+  await expect(page).toHaveURL(first)
+  await page.keyboard.press('Enter')
+  await expect(peek(page)).toHaveAttribute('data-expanded')
+  await page.getByRole('button', { name: 'Back to the map' }).click()
+  await map.focus()
+  await page.keyboard.press('Escape')
+  await expect(page).toHaveURL(/#\/tree\/you\/engineering$/)
+})

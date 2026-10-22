@@ -3,6 +3,10 @@
    hover and zoom level are data attributes set without React renders. */
 
 /* The Tree map's stage holds the map and the selection layer; gestures land here. */
+.stage:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
 .stage {
   position: absolute;
   inset: 0;

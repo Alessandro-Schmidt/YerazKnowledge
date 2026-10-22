@@ -308,3 +308,16 @@
     transform: scale(0.96);
   }
 }
+
+/* With a mouse, the look's controls wait until the header is hovered or focused: the
+   title comes first. The row keeps its place, so nothing moves. */
+@media (hover: hover) and (pointer: fine) {
+  .look {
+    opacity: 0;
+    transition: opacity 160ms var(--ease-out);
+  }
+  .header:hover .look,
+  .header:focus-within .look {
+    opacity: 1;
+  }
+}
