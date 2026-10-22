@@ -1,5 +1,6 @@
 import AxeBuilder from '@axe-core/playwright'
 import type { Page } from '@playwright/test'
+import { treesOf } from '../src/map/family'
 import type { Graph } from '../src/model/graph'
 import { expect, familyMenu, isPhone, signIn, signInHere, test } from './fixtures'
 
@@ -276,6 +277,45 @@ test('on a phone, the sheet follows the finger, and scrolling its note opens the
     .first()
     .evaluate((el) => el.scrollBy(0, 200))
   await expect(panel).toHaveAttribute('data-expanded')
+})
+
+test('on a phone, a selected leaf or Tree sits in the room above the sheet', async ({
+  page,
+  graph,
+}) => {
+  test.skip(!isPhone(page), 'The bottom sheet is on phones')
+  const leaf = richLeaf(graph)
+  await openTree(page)
+  await page.goto(`./#/tree/you/engineering/${leaf.id}`)
+  /** The middle of what the sheet and the map's controls leave free, and its edges. */
+  const room = async () => {
+    const stage = (await page.locator('[data-map]').boundingBox())!
+    const sheet = (await peek(page).boundingBox())!
+    const top = stage.y + 64
+    const bottom = sheet.y - 80
+    return { top, bottom, cx: stage.x + stage.width / 2, cy: (top + bottom) / 2 }
+  }
+  await expect
+    .poll(async () => {
+      const dot = (await page.locator('[data-map] [data-sel]').first().boundingBox())!
+      const { cx, cy } = await room()
+      return Math.hypot(dot.x + dot.width / 2 - cx, dot.y + dot.height / 2 - cy)
+    })
+    .toBeLessThan(40)
+
+  // A Tree takes the width, as there is no room to fit it; its core is in the middle.
+  const tree = treesOf(graph)[0]!
+  await page.goto(`./#/tree/you/engineering/${tree}`)
+  await expect
+    .poll(async () => {
+      const core = (await page
+        .locator(`[data-map] [data-tree="${tree}"] [data-core]`)
+        .first()
+        .boundingBox())!
+      const { cx, cy } = await room()
+      return Math.hypot(core.x + core.width / 2 - cx, core.y + core.height / 2 - cy)
+    })
+    .toBeLessThan(40)
 })
 
 test("on a phone, a branch's More actions menu stays on screen", async ({ page, graph }) => {
