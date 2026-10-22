@@ -322,8 +322,10 @@
   text-align: left;
   cursor: pointer;
 }
-.routes button:hover {
-  background: var(--hover);
+@media (hover: hover) and (pointer: fine) {
+  .routes button:hover {
+    background: var(--hover);
+  }
 }
 .routes button > span:last-child {
   margin-left: auto;

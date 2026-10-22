@@ -78,8 +78,10 @@
   font-size: 12.5px;
   cursor: pointer;
 }
-.tool:hover {
-  background: var(--hover);
+@media (hover: hover) and (pointer: fine) {
+  .tool:hover {
+    background: var(--hover);
+  }
 }
 .grow {
   flex: 1;
@@ -124,8 +126,10 @@
   font-size: 12.5px;
   cursor: pointer;
 }
-.order select:hover {
-  background: var(--hover);
+@media (hover: hover) and (pointer: fine) {
+  .order select:hover {
+    background: var(--hover);
+  }
 }
 .order svg {
   position: absolute;
@@ -147,9 +151,11 @@
   border-radius: 9px;
   transition: background 0.15s;
 }
-.treeRow:hover,
-.row:hover {
-  background: var(--hover);
+@media (hover: hover) and (pointer: fine) {
+  .treeRow:hover,
+  .row:hover {
+    background: var(--hover);
+  }
 }
 .treeRow[data-on],
 .row[data-on] {
@@ -325,8 +331,10 @@
   text-align: left;
   cursor: pointer;
 }
-.mostRow:hover {
-  background: var(--hover);
+@media (hover: hover) and (pointer: fine) {
+  .mostRow:hover {
+    background: var(--hover);
+  }
 }
 .mostRow[aria-current='true'] {
   background: var(--raised);

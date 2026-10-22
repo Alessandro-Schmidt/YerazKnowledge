@@ -12,8 +12,10 @@
   cursor: pointer;
   flex-shrink: 0;
 }
-.iconButton:hover {
-  background: var(--hover);
+@media (hover: hover) and (pointer: fine) {
+  .iconButton:hover {
+    background: var(--hover);
+  }
 }
 .iconButton:disabled {
   opacity: 0.4;
@@ -38,8 +40,10 @@
   font-size: 13px;
   cursor: pointer;
 }
-.ghost:hover {
-  background: var(--hover);
+@media (hover: hover) and (pointer: fine) {
+  .ghost:hover {
+    background: var(--hover);
+  }
 }
 
 .primary {
@@ -57,8 +61,10 @@
   font-size: 13px;
   cursor: pointer;
 }
-.primary:hover {
-  filter: brightness(1.08);
+@media (hover: hover) and (pointer: fine) {
+  .primary:hover {
+    filter: brightness(1.08);
+  }
 }
 .primary:disabled {
   opacity: 0.6;
@@ -156,4 +162,16 @@
   color: var(--muted);
   font-size: 12px;
   line-height: 1.55;
+}
+
+/* A press is felt at once: the button gives a little under the finger. */
+.primary,
+.ghost,
+.iconButton {
+  transition: transform 160ms var(--ease-out);
+}
+.primary:active:not(:disabled),
+.ghost:active:not(:disabled),
+.iconButton:active:not(:disabled) {
+  transform: scale(0.97);
 }

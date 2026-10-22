@@ -35,9 +35,11 @@
   cursor: pointer;
   flex-shrink: 0;
 }
-.tab:hover {
-  background: var(--hover);
-  color: var(--text);
+@media (hover: hover) and (pointer: fine) {
+  .tab:hover {
+    background: var(--hover);
+    color: var(--text);
+  }
 }
 .tab[aria-checked='true'] {
   background: var(--raised);

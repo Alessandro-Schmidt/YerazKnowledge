@@ -150,8 +150,10 @@
   text-align: left;
   cursor: pointer;
 }
-.cardThread:hover {
-  background: var(--hover);
+@media (hover: hover) and (pointer: fine) {
+  .cardThread:hover {
+    background: var(--hover);
+  }
 }
 .cardThread > span:last-child {
   margin-left: auto;

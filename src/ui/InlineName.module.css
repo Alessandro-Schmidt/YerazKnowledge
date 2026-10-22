@@ -17,9 +17,11 @@
   text-overflow: ellipsis;
   cursor: text;
 }
-.name:hover {
-  background: var(--hover);
-  box-shadow: 0 0 0 5px var(--hover);
+@media (hover: hover) and (pointer: fine) {
+  .name:hover {
+    background: var(--hover);
+    box-shadow: 0 0 0 5px var(--hover);
+  }
 }
 .name:focus-visible {
   outline: none;

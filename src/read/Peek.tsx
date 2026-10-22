@@ -436,8 +436,9 @@ function PeekHead({
 } & Pick<PeekProps, 'href' | 'onSelect' | 'expanded' | 'onExpand' | 'onClose'>) {
   // On a touch screen the handle and head are a grip: swipe up to open the full page,
   // down to come back to the map, or, from the sheet, to dismiss it. The Peek follows the
-  // finger (upwards reluctantly), and settles back when the swipe is too short.
-  const start = useRef<number | null>(null)
+  // finger (upwards reluctantly), and settles back when the swipe is too short and too slow:
+  // a quick flick counts whatever its length.
+  const start = useRef<{ y: number; at: number } | null>(null)
   const follow = (dy: number) => shift(sheet.current, dy)
   const settle = (dy: number) => {
     shift(sheet.current, 0)
@@ -447,20 +448,22 @@ function PeekHead({
     <div
       className={styles.grip}
       onPointerDown={(e) => {
-        if (e.pointerType !== 'mouse') start.current = e.clientY
+        if (e.pointerType !== 'mouse') start.current = { y: e.clientY, at: e.timeStamp }
       }}
       onPointerMove={(e) => {
-        if (start.current !== null) follow(e.clientY - start.current)
+        if (start.current !== null) follow(e.clientY - start.current.y)
       }}
       onPointerUp={(e) => {
         if (start.current === null) return
-        const dy = e.clientY - start.current
+        const dy = e.clientY - start.current.y
+        const flick = Math.abs(dy) / Math.max(1, e.timeStamp - start.current.at) > FLICK
         start.current = null
-        if (dy < -SWIPE && !expanded) onExpand(true)
-        else if (dy > SWIPE && expanded) {
+        const far = Math.abs(dy) > SWIPE || (flick && Math.abs(dy) > 8)
+        if (dy < 0 && far && !expanded) onExpand(true)
+        else if (dy > 0 && far && expanded) {
           follow(0)
           onExpand(false)
-        } else if (dy > SWIPE) onClose()
+        } else if (dy > 0 && far) onClose()
         else settle(dy)
       }}
       onPointerCancel={() => {
@@ -522,6 +525,8 @@ function PeekHead({
 
 /** How far (px) a swipe on the Peek's grip travels before it counts. */
 const SWIPE = 40
+/** How fast (px/ms) a shorter swipe must be to count: a flick. */
+const FLICK = 0.11
 
 /** Where a finger dragging the grip by `dy` puts the Peek: upwards, reluctantly. */
 const dragged = (dy: number) => `translateY(${dy > 0 ? dy : dy / 3}px)`
@@ -567,7 +572,7 @@ function usePeekMotion(
             { clipPath: `inset(${inset.map((n) => `${Math.max(0, n)}px`).join(' ')} round 14px)` },
             { clipPath: 'inset(0 round 0)' },
           ],
-          { duration: 320 },
+          { duration: 260 },
         )
       } else
         play(
@@ -579,14 +584,11 @@ function usePeekMotion(
             },
             {},
           ],
-          { duration: 320 },
+          { duration: 260 },
         )
     } else if (was.id !== id)
-      play(
-        el.querySelector(`.${styles.column}`),
-        [{ opacity: 0, transform: 'translateY(8px)' }, {}],
-        { duration: 200 },
-      )
+      // Selected hundreds of times a day: the barest settle, no movement.
+      play(el.querySelector(`.${styles.column}`), [{ opacity: 0.6 }, {}], { duration: 100 })
   }, [sheet, id, expanded])
   const expand = (to: boolean) => {
     before.current = sheet.current?.getBoundingClientRect() ?? null

@@ -433,8 +433,10 @@
   text-align: left;
   cursor: pointer;
 }
-.threads button:hover {
-  background: var(--hover);
+@media (hover: hover) and (pointer: fine) {
+  .threads button:hover {
+    background: var(--hover);
+  }
 }
 .threads button > span:last-child {
   margin-left: auto;

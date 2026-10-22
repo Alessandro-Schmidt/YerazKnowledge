@@ -15,7 +15,7 @@ import {
 import { compactWords, neighbours, type Graph, type Thread } from '../model/graph'
 import { ROOT } from '../model/tree'
 import { mark, markNow } from '../perf'
-import { play } from '../ui/motion'
+import { EASE_MOVE, play } from '../ui/motion'
 import controls from '../ui/controls.module.css'
 import { Icon } from '../ui/icons'
 import { familyNodeAt, positionOf, type FamilyLayout, type PlacedTree } from './family'
@@ -82,7 +82,7 @@ const treeTransform = (t: PlacedTree) => `translate(${t.x} ${t.y})`
 /** Ids in `positions` of a Tree's core (its id is the Tree's). */
 const CORE = '\0core:'
 /** How many nodes at most glide to a new layout. */
-const GLIDES = 600
+const GLIDES = 200
 /** Every node and core of the Family, in Family coordinates. */
 function positions(family: FamilyLayout) {
   const at = new Map<string, { x: number; y: number }>()
@@ -226,10 +226,13 @@ export function TreeMap({
     // Past this many, the frames cost more than the motion tells: the change just appears.
     if (glides.length + fresh.length > GLIDES) return
     for (const [el, dx, dy] of glides)
-      play(el, [{ transform: `translate(${dx}px, ${dy}px)` }, {}], { duration: 450 })
-    for (const el of fresh) play(el, [{ opacity: 0 }, {}], { duration: 450 })
+      play(el, [{ transform: `translate(${dx}px, ${dy}px)` }, {}], {
+        duration: 300,
+        easing: EASE_MOVE,
+      })
+    for (const el of fresh) play(el, [{ opacity: 0 }, {}], { duration: 300 })
     for (const lines of svgRef.current!.querySelectorAll('[data-lines]'))
-      play(lines, [{ opacity: 0 }, { opacity: 0 }, {}], { duration: 450 })
+      play(lines, [{ opacity: 0 }, { opacity: 0 }, {}], { duration: 300 })
   }, [family, treeKey])
 
   // Image icons: their addresses arrive after the geometry is drawn (private files come

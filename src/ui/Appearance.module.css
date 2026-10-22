@@ -17,8 +17,10 @@
   color: inherit;
   text-decoration: none;
 }
-.crumbs a:hover {
-  color: var(--text);
+@media (hover: hover) and (pointer: fine) {
+  .crumbs a:hover {
+    color: var(--text);
+  }
 }
 .crumbs [aria-current] {
   color: var(--text);
@@ -55,9 +57,11 @@
   color: var(--muted);
   text-decoration: none;
 }
-.railItem:hover {
-  background: var(--hover);
-  color: var(--text);
+@media (hover: hover) and (pointer: fine) {
+  .railItem:hover {
+    background: var(--hover);
+    color: var(--text);
+  }
 }
 .railItem[aria-current='page'] {
   color: var(--text);
@@ -450,8 +454,10 @@
   font-size: 13px;
   cursor: pointer;
 }
-.communityTheme:hover {
-  background: var(--hover);
+@media (hover: hover) and (pointer: fine) {
+  .communityTheme:hover {
+    background: var(--hover);
+  }
 }
 .swatches {
   display: inline-flex;
