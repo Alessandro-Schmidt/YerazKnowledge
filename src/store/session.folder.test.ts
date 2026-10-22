@@ -178,3 +178,36 @@ describe('a Family kept on a device without folders (phones, Safari, Firefox)', 
     expect(await again.getState().textOf(ref.repo, 'Ideas/first.md')).toBe('# First\n\nMore.\n')
   })
 })
+
+describe('removing a Family', () => {
+  it('starts a named Family on the device, and deletes it on removal', async () => {
+    const store = memoryStore()
+    const folders = deviceFolders(store, async () => null)
+    const s = createSession({ store, folders })
+    await s.getState().start()
+    const ref = (await s.getState().addFolder(true, ' Recipes '))!
+    expect(ref).toMatchObject({ repo: '~/recipes', title: 'Recipes' })
+    const handle = await store.get<string>('folder:~/recipes')
+    expect(await store.get(`device:${handle}`)).toBeTruthy()
+
+    await s.getState().removeTree('~/recipes')
+    expect(s.getState().trees).toEqual([])
+    expect(s.getState().phase).toBe('signed-out')
+    expect(await store.get('folder:~/recipes')).toBeUndefined()
+    expect(await store.get(`device:${handle}`)).toBeUndefined()
+    expect(await store.get(`device:${handle}:.yeraz.json`)).toBeFalsy()
+  })
+
+  it('forgets a folder on the disk without touching its files', async () => {
+    const store = memoryStore()
+    const notes = memoryFolder()
+    const folders = memoryFolders({ Notes: notes })
+    const s = createSession({ store, folders })
+    await s.getState().start()
+    folders.choose('Notes')
+    await s.getState().addFolder()
+    await s.getState().removeTree('~/notes')
+    expect(s.getState().trees).toEqual([])
+    expect(notes.text('.yeraz.json')).toBe('{"name":"Notes"}\n')
+  })
+})

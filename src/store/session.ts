@@ -96,9 +96,15 @@ export interface SessionState {
   /**
    * Asks for a folder on this device and adds it as a Family; null when the person cancels.
    * A folder without `.yeraz.json` gets one (and a welcome leaf, when it has no leaves).
-   * With `empty`, a Family kept on the device starts with nothing but those.
+   * With `empty`, a Family kept on the device starts with nothing but those, called `title`.
    */
-  addFolder(empty?: boolean): Promise<TreeRef | null>
+  addFolder(empty?: boolean, title?: string): Promise<TreeRef | null>
+  /**
+   * Takes a Family off this device: a repository stays on GitHub (and isn't found again until
+   * connected by hand), a folder stays on the disk, a Family in the device's own storage is
+   * deleted. Pending edits are dropped.
+   */
+  removeTree(repo: string): Promise<void>
   /** Asks the person again for access to a Family's folder (from a click), then opens it. */
   allowFolder(repo: string): Promise<void>
   /** Creates a private repository holding a new Tree. Throws a message on failure. */
@@ -151,7 +157,7 @@ export interface SessionState {
   dismissConflict(repo: string): void
 }
 
-const KEYS = { trees: 'session:trees', connected: 'session:connected' }
+const KEYS = { trees: 'session:trees', connected: 'session:connected', ignored: 'session:ignored' }
 const dirtyKey = (repo: string) => `dirty:${repo.toLowerCase()}`
 
 /** The name a `.yeraz.json` text gives, or null. */
@@ -233,6 +239,8 @@ export function createSession(deps: {
       return (client ??= createGitHubClient({ token, api: api() }))
     }
     const connected = async () => (await store.get<string[]>(KEYS.connected)) ?? []
+    /** Repositories taken off this device: discovery leaves them out until connected again. */
+    const ignored = async () => (await store.get<string[]>(KEYS.ignored)) ?? []
     /** A folder Family's files. With `ask`, the browser may ask for access again (on a click). */
     const folderOf = async (key: string, ask = false) => {
       let fs = opened.get(key)
@@ -500,7 +508,10 @@ export function createSession(deps: {
         if (!get().token) return set({ discovery: 'done' })
         set({ discovery: 'loading' })
         try {
-          const found = await discoverTrees(github())
+          const out = new Set((await ignored()).map((r) => r.toLowerCase()))
+          const found = (await discoverTrees(github())).filter(
+            (t) => !out.has(t.repo.toLowerCase()),
+          )
           const extra = get().trees.filter((t) => found.every((f) => f.repo !== t.repo))
           const keep = new Set((await connected()).map((r) => r.toLowerCase()))
           await saveTrees(
@@ -530,18 +541,56 @@ export function createSession(deps: {
         }
         if (!tree)
           throw new Error(`${name} isn't a Yeraz Family yet: add a .yeraz.json file at its root.`)
+        const key = tree.repo.toLowerCase()
         await store.set(KEYS.connected, [...new Set([...(await connected()), tree.repo])])
+        await store.set(
+          KEYS.ignored,
+          (await ignored()).filter((r) => r.toLowerCase() !== key),
+        )
         await saveTrees(mergeTrees(get().trees, [tree]))
         return tree
       },
 
-      async addFolder(empty) {
+      async removeTree(repo) {
+        const key = repo.toLowerCase()
+        autosaves.get(key)?.dispose()
+        autosaves.delete(key)
+        dirty.delete(key)
+        pulls.delete(key)
+        bases.delete(key)
+        opened.delete(key)
+        await store.set(dirtyKey(key), undefined)
+        if (isFolder(repo)) {
+          const handle = await store.get<unknown>(`folder:${key}`)
+          if (handle !== undefined) await deps.folders?.discard?.(handle)
+          await store.set(`folder:${key}`, undefined)
+        } else {
+          await store.set(
+            KEYS.connected,
+            (await connected()).filter((r) => r.toLowerCase() !== key),
+          )
+          await store.set(KEYS.ignored, [...new Set([...(await ignored()), repo])])
+        }
+        const trees = get().trees.filter((t) => t.repo.toLowerCase() !== key)
+        const data = { ...get().data }
+        const sync = { ...get().sync }
+        delete data[key]
+        delete sync[key]
+        set({ data, sync })
+        await saveTrees(trees)
+        if (!trees.length && !get().token) {
+          await store.set(KEYS.trees, undefined)
+          set({ phase: 'signed-out' })
+        }
+      },
+
+      async addFolder(empty, title) {
         const access = deps.folders
         if (!access)
           throw new Error(
             "This browser can't open folders. Use Chrome or Edge on a computer, or the desktop app.",
           )
-        const picked = await access.pick(empty)
+        const picked = await access.pick(empty, title)
         if (!picked) return null
         const fs = await access.open(picked.handle, true)
         const files = await fs.list()

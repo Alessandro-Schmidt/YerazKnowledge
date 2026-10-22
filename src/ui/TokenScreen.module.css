@@ -41,6 +41,11 @@
   font-weight: 600;
 }
 
+/* The GitHub part of the card is the form; the card's gap still spaces its children. */
+.form {
+  display: contents;
+}
+
 .or {
   width: 100%;
   margin: 4px 0;

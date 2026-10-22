@@ -8,26 +8,31 @@ import { useState } from 'react'
 import type { TreeRef } from '../github/graphql'
 import { session, useSession } from '../store/session'
 import controls from './controls.module.css'
+import { NewFamilyDialog } from './FamilyMenu'
 import { Icon } from './icons'
 
 export function FolderButton({ onAdded }: { onAdded(tree: TreeRef): void }) {
   const can = useSession((s) => s.folders)
   const onDevice = useSession((s) => s.onDevice)
   const [error, setError] = useState<string | null>(null)
+  const [naming, setNaming] = useState(false)
   if (!can)
     return (
       <p className={controls.hint}>
         This browser can't open folders. Use Chrome or Edge on a computer, or the desktop app.
       </p>
     )
-  const add = async (empty: boolean) => {
+  const add = async (empty: boolean, name?: string) => {
     setError(null)
     try {
-      const tree = await session.getState().addFolder(empty)
-      if (tree) onAdded(tree)
+      await start(empty, name)
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
     }
+  }
+  const start = async (empty: boolean, name?: string) => {
+    const tree = await session.getState().addFolder(empty, name)
+    if (tree) onAdded(tree)
   }
   return (
     <>
@@ -36,10 +41,13 @@ export function FolderButton({ onAdded }: { onAdded(tree: TreeRef): void }) {
         {onDevice ? 'Copy in a folder' : 'Use a folder'}
       </button>
       {onDevice && (
-        <button type="button" className={controls.ghost} onClick={() => void add(true)}>
+        <button type="button" className={controls.ghost} onClick={() => setNaming(true)}>
           <Icon name="plus" />
           Start on this device
         </button>
+      )}
+      {naming && (
+        <NewFamilyDialog onClose={() => setNaming(false)} onName={(name) => start(true, name)} />
       )}
       {error && (
         <p className={controls.error} role="alert">

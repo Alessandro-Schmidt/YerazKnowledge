@@ -1,11 +1,11 @@
 // A formatting bar above the keyboard on touch screens (owner's request), where there is no
-// Ctrl: bold, italic, code, a link, a bullet list, a to-do. It appears while the text has the
+// Ctrl: bold, italic, code, a link, a bullet list, a to-do, indent and outdent (no Tab key). It appears while the text has the
 // focus, just above the keyboard (the visual viewport's bottom edge), and keeps the focus in
 // the text when tapped, so the keyboard stays. Elsewhere the shortcuts (format.ts) do this.
 
 import { EditorView, ViewPlugin } from '@codemirror/view'
 import { isTouch } from '../ui/platform'
-import { link, toggleWrap } from './format'
+import { indentCommand, link, outdentCommand, toggleWrap } from './format'
 import { listChange } from './insertMenu'
 
 const ITEMS: { label: string; text: string; run: (view: EditorView) => void }[] = [
@@ -15,6 +15,8 @@ const ITEMS: { label: string; text: string; run: (view: EditorView) => void }[] 
   { label: 'Link', text: '', run: (v) => v.dispatch(link(v.state)) },
   { label: 'Bullet list', text: '•', run: (v) => v.dispatch(listChange(v.state, 'bullet')) },
   { label: 'To-do', text: '☐', run: (v) => v.dispatch(listChange(v.state, 'todo')) },
+  { label: 'Indent', text: '⇥', run: (v) => void indentCommand(v) },
+  { label: 'Outdent', text: '⇤', run: (v) => void outdentCommand(v) },
 ]
 
 /** A chain link, the bar's only icon that no letter or sign draws. */

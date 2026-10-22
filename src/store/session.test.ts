@@ -569,3 +569,25 @@ describe('planted dates', () => {
     expect(Date.now() - Date.parse(again.get('c.md')!)).toBeLessThan(60_000)
   })
 })
+
+describe('removing a repository', () => {
+  it('stops showing it, keeps it off until connected again, and leaves GitHub as it was', async () => {
+    const store = memoryStore()
+    const s = createSession({ store })
+    await s.getState().signIn('good')
+    await s.getState().discover()
+    const before = s.getState().trees.map((t) => t.repo)
+    expect(before).toContain('you/engineering')
+
+    await s.getState().removeTree('you/engineering')
+    expect(s.getState().trees.map((t) => t.repo)).not.toContain('you/engineering')
+    await s.getState().discover()
+    expect(s.getState().trees.map((t) => t.repo)).not.toContain('you/engineering')
+    expect(fake.repo('you/engineering')).toBeTruthy()
+
+    await s.getState().connect('you/engineering')
+    expect(s.getState().trees.map((t) => t.repo)).toContain('you/engineering')
+    await s.getState().discover()
+    expect(s.getState().trees.map((t) => t.repo)).toContain('you/engineering')
+  })
+})

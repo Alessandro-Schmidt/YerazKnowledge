@@ -1,7 +1,7 @@
 // The editor (ARCHITECTURE.md §7): CodeMirror 6 editing the leaf's Markdown text directly.
 // Nothing is converted; the document in the editor is the file. Loaded on first use.
 
-import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands'
+import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
 import { syntaxHighlighting } from '@codemirror/language'
 import { languages } from '@codemirror/language-data'
@@ -98,7 +98,7 @@ export default function Editor({
         doc: initial,
         extensions: [
           history(),
-          keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab]),
+          keymap.of([...defaultKeymap, ...historyKeymap]),
           markdown({ base: markdownLanguage, codeLanguages: languages }),
           syntaxHighlighting(classHighlighter),
           EditorView.lineWrapping,

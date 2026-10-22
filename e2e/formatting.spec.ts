@@ -79,3 +79,31 @@ test('a closed code block shows its language in place of its fences', async ({ p
   await expect(editor).toContainText('```js')
   await expect(editor.locator('.cm-fence-label')).toHaveCount(0)
 })
+
+test('Tab nests a list item under the one above, Shift+Tab brings it out', async ({
+  page,
+  fake,
+}) => {
+  test.skip(isPhone(page), 'Keyboard tests run on desktop engines')
+  const editor = page.locator('.cm-content')
+  await editor.getByText('two').click()
+  await page.keyboard.press('Tab')
+  await page.keyboard.press('ControlOrMeta+s')
+  await expect.poll(() => fake.repo(REPO).read(LEAF)).toContain('- one\n  - two\n')
+  await page.keyboard.press('Shift+Tab')
+  await page.keyboard.press('ControlOrMeta+s')
+  await expect.poll(() => fake.repo(REPO).read(LEAF)).toContain('- one\n- two\n')
+})
+
+test('on a phone, the bar indents and outdents a list item', async ({ page, fake }) => {
+  test.skip(!isPhone(page), 'The bar is for touch screens')
+  const editor = page.locator('.cm-content')
+  const bar = page.getByRole('toolbar', { name: 'Formatting' })
+  await editor.getByText('two').click()
+  await bar.getByRole('button', { name: 'Indent' }).click()
+  await page.keyboard.press('ControlOrMeta+s')
+  await expect.poll(() => fake.repo(REPO).read(LEAF)).toContain('- one\n  - two\n')
+  await bar.getByRole('button', { name: 'Outdent' }).click()
+  await page.keyboard.press('ControlOrMeta+s')
+  await expect.poll(() => fake.repo(REPO).read(LEAF)).toContain('- one\n- two\n')
+})
