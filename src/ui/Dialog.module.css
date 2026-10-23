@@ -6,6 +6,7 @@
   background: var(--panel);
   color: var(--text);
   box-shadow: 0 24px 60px var(--shadow);
+  overscroll-behavior: contain;
   animation: rise 0.22s var(--ease-out);
 }
 .dialog::backdrop {
@@ -90,6 +91,7 @@
 .list {
   max-height: 260px;
   overflow: auto;
+  overscroll-behavior: contain;
   margin: 0;
   padding: 4px;
   list-style: none;

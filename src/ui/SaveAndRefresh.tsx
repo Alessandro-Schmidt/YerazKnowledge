@@ -6,6 +6,7 @@ import { session, useSession } from '../store/session'
 import controls from './controls.module.css'
 import styles from './FamilyView.module.css'
 import { Icon } from './icons'
+import { isMac } from './platform'
 
 export function SaveAndRefresh({ repos }: { repos: readonly string[] }) {
   const keys = repos.map((r) => r.toLowerCase())
@@ -22,7 +23,7 @@ export function SaveAndRefresh({ repos }: { repos: readonly string[] }) {
         type="button"
         className={`${controls.iconButton} ${styles.save}`}
         aria-label="Save now"
-        title="Save now (Ctrl+S)"
+        title={`Save now (${isMac ? '⌘S' : 'Ctrl+S'})`}
         disabled={!unsaved}
         data-unsaved={unsaved || undefined}
         onClick={() => void Promise.all(repos.map((r) => session.getState().flush(r)))}

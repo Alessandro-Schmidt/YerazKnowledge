@@ -89,7 +89,7 @@ export function Appearance() {
 
   return (
     <SettingsShell page="appearance">
-      <main className={styles.main}>
+      <main id="main" tabIndex={-1} className={styles.main}>
         <div>
           <h1 className={styles.title}>Appearance</h1>
           <p className={styles.lede}>Changes apply right away on this device.</p>
@@ -179,7 +179,7 @@ export function Appearance() {
             <p className={controls.eyebrow}>Preview</p>
             <span className={styles.status}>
               <Icon name="check" size={13} />{' '}
-              <span ref={status}>
+              <span ref={status} role="status">
                 {custom ? `${custom.name} · custom · contrast AA` : label(initial)}
               </span>
             </span>

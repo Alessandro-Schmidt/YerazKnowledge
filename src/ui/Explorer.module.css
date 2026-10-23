@@ -56,6 +56,7 @@
   position: absolute;
   inset: 0;
   overflow: auto;
+  overscroll-behavior: contain;
   padding: 0 8px 12px;
   display: flex;
   flex-direction: column;
@@ -67,6 +68,9 @@
   align-items: center;
   gap: 8px;
   min-height: 32px;
+  /* Rows off screen are not laid out until they scroll near (a 1,000-leaf Tree). */
+  content-visibility: auto;
+  contain-intrinsic-block-size: auto 32px;
   padding-right: 8px;
   border-radius: 7px;
   font-size: 13.5px;
@@ -125,6 +129,7 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
   padding: 12px;
+  padding-bottom: calc(12px + env(safe-area-inset-bottom));
   border-top: 1px solid var(--hair);
 }
 .foot button {
@@ -143,5 +148,6 @@
   }
   .row {
     min-height: 44px;
+    contain-intrinsic-block-size: auto 44px;
   }
 }

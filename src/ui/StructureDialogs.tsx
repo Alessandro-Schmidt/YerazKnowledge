@@ -122,6 +122,8 @@ export function StructureDialog({
             <Field label="Titles" hint={`One per line. ${where(graph, action.parent)}`}>
               <textarea
                 className={`${controls.input} ${styles.lines}`}
+                name="titles"
+                autoComplete="off"
                 autoFocus
                 required
                 rows={6}
@@ -133,6 +135,8 @@ export function StructureDialog({
             <Field label="Title" hint={where(graph, action.parent)}>
               <input
                 className={controls.input}
+                name="title"
+                autoComplete="off"
                 autoFocus
                 required
                 value={name}
@@ -181,6 +185,8 @@ export function StructureDialog({
           >
             <input
               className={controls.input}
+              name="name"
+              autoComplete="off"
               autoFocus
               required
               value={name}
@@ -193,6 +199,8 @@ export function StructureDialog({
           >
             <input
               className={controls.input}
+              name="first"
+              autoComplete="off"
               placeholder="Untitled"
               value={first}
               onChange={(e) => setFirst(e.target.value)}
@@ -282,8 +290,8 @@ export function StructureDialog({
             {tree.folder !== undefined
               ? `This deletes ${leaves > 1 ? `${leaves} leaves` : 'it'} from the folder.`
               : leaves > 1
-                ? `This deletes ${leaves} leaves. GitHub keeps them in the repository's history.`
-                : "GitHub keeps it in the repository's history."}
+                ? `This deletes ${leaves} leaves. GitHub keeps them in the repository’s history.`
+                : 'GitHub keeps it in the repository’s history.'}
           </p>
           {linkedFrom.length > 0 && (
             <p className={controls.error}>
@@ -338,6 +346,8 @@ export function CreateTreeDialog({
       <Field label="Family name">
         <input
           className={controls.input}
+          name="title"
+          autoComplete="off"
           autoFocus
           required
           value={title}
@@ -350,6 +360,8 @@ export function CreateTreeDialog({
       >
         <input
           className={`${controls.input} ${controls.mono}`}
+          name="repo"
+          autoComplete="off"
           required
           value={repoName}
           onChange={(e) => {

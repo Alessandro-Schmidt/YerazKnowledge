@@ -15,6 +15,7 @@ import { treeHref } from '../ui/paths'
 import { planBranchText } from '../sync/structure'
 import { parentFor, StructureDialog, type StructureAction } from '../ui/StructureDialogs'
 import { ACCENT_IDS } from '../ui/theme'
+import { focusFirst, menuKeys } from '../ui/menuKeys'
 import { attach, attachmentMarkdown } from './attach'
 import type { EditorHandle } from './Editor'
 import styles from './LeafEditor.module.css'
@@ -258,7 +259,13 @@ export function LeafEditor({
                 iconTrigger
                 trigger={
                   image ? (
-                    <Cover repo={repo} src={image} className={styles.iconImage} />
+                    <Cover
+                      repo={repo}
+                      src={image}
+                      className={styles.iconImage}
+                      loading="lazy"
+                      fetchPriority="auto"
+                    />
                   ) : (
                     <span className={styles.icon}>{owned?.icon}</span>
                   )
@@ -554,8 +561,10 @@ function Menu({
 }) {
   const [open, setOpen] = useState(false)
   const host = useRef<HTMLDivElement>(null)
+  const list = useRef<HTMLDivElement>(null)
   useEffect(() => {
     if (!open) return
+    focusFirst(list.current)
     const close = (e: Event) => {
       if (
         e instanceof KeyboardEvent ? e.key === 'Escape' : !host.current?.contains(e.target as Node)
@@ -589,10 +598,12 @@ function Menu({
       </button>
       {open && (
         <div
+          ref={list}
           className={`${controls.panel} ${styles.menu}`}
           role="menu"
           aria-label={label}
           onClick={() => setOpen(false)}
+          onKeyDown={menuKeys}
         >
           {children}
         </div>

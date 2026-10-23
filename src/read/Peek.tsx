@@ -38,6 +38,7 @@ import { play } from '../ui/motion'
 import { ResizeHandle } from '../ui/ResizeHandle'
 import { PHONE, useMedia } from '../ui/useMedia'
 import { SyncStatus } from '../ui/SyncStatus'
+import { focusFirst, menuKeys } from '../ui/menuKeys'
 import { treeHref } from '../ui/paths'
 import styles from './Peek.module.css'
 import { coverPosition } from './cover'
@@ -83,6 +84,27 @@ export function Peek({
   onWritten,
 }: PeekProps) {
   const [menu, setMenu] = useState(false)
+  const menuHost = useRef<HTMLDivElement>(null)
+  const menuList = useRef<HTMLDivElement>(null)
+  // The ⋯ menu: its first item takes the focus; a click elsewhere or Escape closes it.
+  useEffect(() => {
+    if (!menu) return
+    focusFirst(menuList.current)
+    const close = (e: Event) => {
+      if (
+        e instanceof KeyboardEvent
+          ? e.key === 'Escape'
+          : !menuHost.current?.contains(e.target as Node)
+      )
+        setMenu(false)
+    }
+    document.addEventListener('pointerdown', close)
+    document.addEventListener('keydown', close)
+    return () => {
+      document.removeEventListener('pointerdown', close)
+      document.removeEventListener('keydown', close)
+    }
+  }, [menu])
   const [source, setSource] = useState(false)
   /** The leaf whose history is shown in place of its editor. */
   const [historyOf, setHistoryOf] = useState<string | null>(null)
@@ -254,15 +276,15 @@ export function Peek({
                 </h3>
                 <div className={styles.kids}>
                   {children.map((child) => (
-                    <button
+                    <a
                       key={child}
-                      type="button"
+                      href={href(child)}
                       className={styles.kid}
-                      onClick={() => onSelect(child)}
+                      onClick={openHere(onSelect, child)}
                     >
                       <Glyph node={graph.nodes.get(child)!} />
                       {named(child)}
-                    </button>
+                    </a>
                   ))}
                 </div>
               </div>
@@ -275,6 +297,7 @@ export function Peek({
                 prefix="@ "
                 named={named}
                 where={where}
+                href={href}
                 onSelect={onSelect}
               />
             )}
@@ -285,6 +308,7 @@ export function Peek({
                 incoming
                 named={named}
                 where={where}
+                href={href}
                 onSelect={onSelect}
               />
             )}
@@ -326,7 +350,7 @@ export function Peek({
             </button>
           )}
           {node.kind !== 'root' && (
-            <div className={styles.menuHost}>
+            <div ref={menuHost} className={styles.menuHost}>
               <button
                 type="button"
                 className={controls.iconButton}
@@ -338,7 +362,13 @@ export function Peek({
                 <Icon name="more" />
               </button>
               {menu && (
-                <div className={styles.menu} role="menu" onClick={() => setMenu(false)}>
+                <div
+                  ref={menuList}
+                  className={styles.menu}
+                  role="menu"
+                  onClick={() => setMenu(false)}
+                  onKeyDown={menuKeys}
+                >
                   {node.kind === 'leaf' && (
                     <button
                       type="button"
@@ -418,6 +448,13 @@ export function Peek({
   )
 }
 
+/** A plain click opens it here; others (a new tab) follow the link. */
+const openHere = (onSelect: (id: string) => void, id: string) => (e: MouseEvent) => {
+  if (e.button || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return
+  e.preventDefault()
+  onSelect(id)
+}
+
 const count = (n: number, one: string, many = `${one}s`) =>
   `${n.toLocaleString('en-US')} ${n === 1 ? one : many}`
 
@@ -494,15 +531,7 @@ function PeekHead({
             crumb.map((n, i) => (
               <Fragment key={n.id}>
                 {i > 0 && ' / '}
-                <a
-                  href={href(n.id)}
-                  onClick={(e) => {
-                    // A plain click opens it here; others (a new tab) follow the link.
-                    if (e.button || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return
-                    e.preventDefault()
-                    onSelect(n.id)
-                  }}
-                >
+                <a href={href(n.id)} onClick={openHere(onSelect, n.id)}>
                   {n.title}
                 </a>
               </Fragment>
@@ -733,6 +762,7 @@ function GhostPeek({
               incoming
               named={named}
               where={where}
+              href={href}
               onSelect={onSelect}
             />
           </article>
@@ -752,6 +782,7 @@ function ThreadList({
   incoming = false,
   named,
   where,
+  href,
   onSelect,
 }: {
   title: string
@@ -760,6 +791,7 @@ function ThreadList({
   incoming?: boolean
   named(id: string): string
   where(id: string): string
+  href(id: string): string
   onSelect(id: string): void
 }) {
   return (
@@ -767,7 +799,7 @@ function ThreadList({
       <h3 className={controls.eyebrow}>{title}</h3>
       <div className={styles.threads}>
         {ids.map((id) => (
-          <button key={id} type="button" className={styles.thread} onClick={() => onSelect(id)}>
+          <a key={id} href={href(id)} className={styles.thread} onClick={openHere(onSelect, id)}>
             <svg width="18" height="10" viewBox="0 0 18 10" aria-hidden="true">
               <path
                 d={incoming ? 'M17 9C12 9 11 1 1 1' : 'M1 9C6 9 7 1 17 1'}
@@ -779,7 +811,7 @@ function ThreadList({
               {named(id)}
             </span>
             <span className={`${controls.mono} ${styles.threadWhere}`}>{where(id)}</span>
-          </button>
+          </a>
         ))}
       </div>
     </div>

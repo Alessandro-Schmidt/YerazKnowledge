@@ -143,7 +143,7 @@ test('Settings › Views chooses how a Family is shown', async ({ page }) => {
   await page.goto('./#/settings/views')
   await signInHere(page)
   await page.getByRole('radio', { name: /^Treemap/ }).check()
-  await page.getByRole('button', { name: 'Done' }).click()
+  await page.getByRole('link', { name: 'Done' }).click()
   await expect(shown.treemap(page)).toBeVisible()
   await expect(switcher(page).getByRole('radio', { name: 'Treemap' })).toBeChecked()
 })

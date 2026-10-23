@@ -43,6 +43,10 @@
     color: var(--text);
   }
 }
+/* The bar clips what scrolls sideways: the ring stays inside the tab. */
+.bar .tab:focus-visible {
+  outline-offset: -2px;
+}
 .tab[aria-checked='true'] {
   background: var(--raised);
   color: var(--text);

@@ -23,7 +23,7 @@ export function TreeColours() {
 
   return (
     <SettingsShell page="colours">
-      <main className={`${styles.main} ${own.single}`}>
+      <main id="main" tabIndex={-1} className={`${styles.main} ${own.single}`}>
         <div>
           <h1 className={styles.title}>Tree colours</h1>
           <p className={styles.lede}>

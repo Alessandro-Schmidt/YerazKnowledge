@@ -72,11 +72,12 @@
   flex: 1;
   min-width: 0;
   overflow: auto;
+  overscroll-behavior: contain;
   display: grid;
   grid-template-columns: minmax(0, 620px) minmax(0, 350px);
   gap: 40px;
   align-content: start;
-  padding: 40px 40px 64px;
+  padding: 40px 40px calc(64px + env(safe-area-inset-bottom));
 }
 
 .title {
@@ -407,7 +408,7 @@
     white-space: nowrap;
   }
   .main {
-    padding: 24px 16px 48px;
+    padding: 24px 16px calc(48px + env(safe-area-inset-bottom));
   }
   .bases,
   .fonts {

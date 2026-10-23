@@ -471,6 +471,7 @@ export function TreeMap({
         className={styles.stage}
         data-map=""
         tabIndex={0}
+        role="group"
         aria-label={`Map of ${title}: arrow keys move between leaves, Enter opens one`}
         onKeyDown={onKeyDown}
         onClick={(e) => {
@@ -713,7 +714,7 @@ function LayerChips({
         <button
           type="button"
           className={ui.chip}
-          aria-label={`Clear matches for “${matches.query}”`}
+          aria-label={`Matches · ${matches.ids.length}: clear matches for “${matches.query}”`}
           onClick={onClearMatches}
         >
           <Icon name="search" size={14} />

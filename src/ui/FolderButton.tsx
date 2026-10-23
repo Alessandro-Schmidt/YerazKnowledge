@@ -19,7 +19,7 @@ export function FolderButton({ onAdded }: { onAdded(tree: TreeRef): void }) {
   if (!can)
     return (
       <p className={controls.hint}>
-        This browser can't open folders. Use Chrome or Edge on a computer, or the desktop app.
+        This browser can’t open folders. Use Chrome or Edge on a computer, or the desktop app.
       </p>
     )
   const add = async (empty: boolean, name?: string) => {

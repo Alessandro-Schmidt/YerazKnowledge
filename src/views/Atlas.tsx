@@ -97,7 +97,7 @@ export default function Atlas({
           return p && n
             ? {
                 title: p.label.text,
-                meta: `▲ ${n.words.toLocaleString('en-US')} m · ${graph.nodes.get(p.island)!.title}`,
+                meta: `▲ ${n.words.toLocaleString('en-US')}\u00a0m · ${graph.nodes.get(p.island)!.title}`,
               }
             : null
         }}
@@ -115,7 +115,7 @@ export default function Atlas({
                   {plural(layout.islands.length, 'island')}, {plural(layout.peaks.length, 'peak')},{' '}
                   {root.total.toLocaleString('en-US')} words
                 </em>
-                <span className={controls.mono}>Charted {charted} · 1 word = 1 m</span>
+                <span className={controls.mono}>Charted {charted} · 1 word = 1&nbsp;m</span>
               </div>
             </div>
           )
@@ -167,7 +167,7 @@ export default function Atlas({
           <div className={styles.cardHead}>
             {node.icon && <span aria-hidden="true">{node.icon}</span>}
             <strong>{node.title}</strong>
-            <span className={controls.mono}>▲ {node.words.toLocaleString('en-US')} m</span>
+            <span className={controls.mono}>▲ {node.words.toLocaleString('en-US')}&nbsp;m</span>
           </div>
           <em className={styles.cardNote}>{describe(layout, graph, peak.id)}</em>
           {ends.length > 0 && (

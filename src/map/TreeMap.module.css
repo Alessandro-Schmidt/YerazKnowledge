@@ -123,6 +123,8 @@
   flex-direction: column;
   gap: 4px;
   min-width: 220px;
+  max-width: 280px;
+  overflow-wrap: anywhere;
   padding: 12px 16px;
   border: 1px solid var(--hair-strong);
   border-radius: 10px;

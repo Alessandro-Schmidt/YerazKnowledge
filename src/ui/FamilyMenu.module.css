@@ -11,8 +11,9 @@
   animation: pop 0.16s var(--ease-out);
   z-index: 20;
   width: 280px;
-  max-height: calc(100vh - 80px);
+  max-height: calc(100dvh - 80px);
   overflow: auto;
+  overscroll-behavior: contain;
   display: flex;
   flex-direction: column;
   padding: 4px;
@@ -52,7 +53,8 @@
   background: var(--raised);
   box-shadow: inset 2px 0 0 var(--tree, var(--accent));
 }
-.menu button {
+.menu button,
+.menu .muted {
   color: var(--muted);
 }
 
@@ -86,7 +88,7 @@
     position: fixed;
     left: 8px;
     right: 8px;
-    top: 60px;
+    top: calc(60px + env(safe-area-inset-top));
     width: auto;
   }
   .menu a,
@@ -99,6 +101,6 @@
 @keyframes pop {
   from {
     opacity: 0;
-    transform: scale(0.96);
+    transform: scale(var(--pop, 0.96));
   }
 }

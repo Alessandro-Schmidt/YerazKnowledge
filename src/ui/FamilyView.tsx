@@ -225,7 +225,7 @@ export function FamilyView({ params }: { params: { owner: string; name: string; 
             />
           )}
         </Presence>
-        <main className={styles.main}>
+        <main id="main" tabIndex={-1} className={styles.main}>
           {graph && tree && View ? (
             <Suspense fallback={<p className={styles.placeholder} aria-busy="true" />}>
               <View
@@ -313,7 +313,7 @@ function Status({
   if (data.status === 'loading') {
     return (
       <span role="status">
-        {data.total > 0 ? `Loading ${data.fetched}/${data.total} leaves` : 'Loading…'}
+        {data.total > 0 ? `Loading ${data.fetched}/${data.total} leaves…` : 'Loading…'}
       </span>
     )
   }

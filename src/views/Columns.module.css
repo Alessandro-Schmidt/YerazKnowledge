@@ -55,6 +55,10 @@
   padding: 0 8px;
   list-style: none;
 }
+.items li {
+  content-visibility: auto;
+  contain-intrinsic-block-size: auto 38px;
+}
 
 .item {
   width: 100%;
@@ -191,6 +195,7 @@
 .wrap[data-phone] .column {
   flex: 1 1 auto;
   border-right: 0;
+  padding-bottom: env(safe-area-inset-bottom);
   background: var(--bg);
 }
 .wrap[data-phone] .item {

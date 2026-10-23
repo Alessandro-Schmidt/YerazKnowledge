@@ -61,6 +61,8 @@ export function InlineName({
         aria-label={label}
         aria-invalid={error ? true : undefined}
         aria-describedby={error ? errorId : undefined}
+        name="name"
+        autoComplete="off"
         autoFocus
         spellCheck={false}
         size={Math.max(4, draft.length + 1)}

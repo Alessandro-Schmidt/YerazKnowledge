@@ -163,17 +163,17 @@ test('clicking a node opens the Peek with its title, sub-leaves and threads', as
   const subLeaves = panel
     .getByRole('heading', { name: 'Sub-leaves' })
     .locator('..')
-    .getByRole('button')
+    .getByRole('link')
   await expect(subLeaves).toHaveCount(leaf.children.length)
   const out = panel
     .getByRole('heading', { name: /Threads out/ })
     .locator('..')
-    .getByRole('button')
+    .getByRole('link')
   await expect(out).toHaveCount(graph.out.get(leaf.id)!.length)
   const into = panel
     .getByRole('heading', { name: /Threads in/ })
     .locator('..')
-    .getByRole('button')
+    .getByRole('link')
   await expect(into).toHaveCount(graph.in.get(leaf.id)!.length)
   await expect(panel.locator('.cm-mention').first()).toBeVisible()
 
