@@ -120,6 +120,8 @@
   line-height: 1;
 }
 .cardTitle strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
   font-size: 17px;
   font-weight: 600;
 }
@@ -154,6 +156,12 @@
   .cardThread:hover {
     background: var(--hover);
   }
+}
+.cardThread > span:first-of-type {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .cardThread > span:last-child {
   margin-left: auto;

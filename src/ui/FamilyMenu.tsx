@@ -11,6 +11,7 @@ import controls from './controls.module.css'
 import { Dialog, Field } from './Dialog'
 import styles from './FamilyMenu.module.css'
 import { Icon } from './icons'
+import { focusFirst, menuKeys } from './menuKeys'
 import { isFolder } from '../local/folder'
 import { allHref, treeHref } from './paths'
 import { CreateTreeDialog } from './StructureDialogs'
@@ -69,10 +70,12 @@ export function FamilyMenu({ current, all }: { current?: string; all?: boolean }
   const onDevice = useSession((s) => s.onDevice)
   const [, navigate] = useLocation()
   const host = useRef<HTMLDivElement>(null)
+  const menu = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (!open) return
     void session.getState().discover()
+    focusFirst(menu.current)
     const close = (e: Event) => {
       if (
         e instanceof KeyboardEvent ? e.key === 'Escape' : !host.current?.contains(e.target as Node)
@@ -120,10 +123,12 @@ export function FamilyMenu({ current, all }: { current?: string; all?: boolean }
       </button>
       {open && (
         <div
+          ref={menu}
           className={styles.menu}
           role="menu"
           aria-label="Families"
           onClick={() => setOpen(false)}
+          onKeyDown={menuKeys}
         >
           <span className={`${controls.eyebrow} ${styles.heading}`} role="presentation">
             Families
@@ -171,10 +176,10 @@ export function FamilyMenu({ current, all }: { current?: string; all?: boolean }
               </button>
             </>
           ) : (
-            <button type="button" role="menuitem" onClick={() => navigate('/github')}>
+            <Link href="/github" role="menuitem" className={styles.muted}>
               <Icon name="repo" size={15} />
               Connect GitHub
-            </button>
+            </Link>
           )}
           {folders && (
             <button type="button" role="menuitem" onClick={() => addFolder(false)}>
@@ -189,18 +194,18 @@ export function FamilyMenu({ current, all }: { current?: string; all?: boolean }
             </button>
           )}
           <hr />
-          <button type="button" role="menuitem" onClick={() => navigate('/settings/appearance')}>
+          <Link href="/settings/appearance" role="menuitem" className={styles.muted}>
             <Icon name="contrast" size={15} />
             Appearance
-          </button>
-          <button type="button" role="menuitem" onClick={() => navigate('/settings/views')}>
+          </Link>
+          <Link href="/settings/views" role="menuitem" className={styles.muted}>
             <ViewIcon view="treemap" />
             Views
-          </button>
-          <button type="button" role="menuitem" onClick={() => navigate('/settings/colours')}>
+          </Link>
+          <Link href="/settings/colours" role="menuitem" className={styles.muted}>
             <ViewIcon view="map" />
             Tree colours
-          </button>
+          </Link>
           {github && (
             <button
               type="button"
@@ -271,10 +276,12 @@ export function NewFamilyDialog({
     >
       <Field
         label="Name"
-        hint="Kept in this browser's storage on this device; copy it to a folder or a repository later."
+        hint="Kept in this browser’s storage on this device; copy it to a folder or a repository later."
       >
         <input
           className={controls.input}
+          name="name"
+          autoComplete="off"
           autoFocus
           required
           value={value}
@@ -310,9 +317,11 @@ function RenameFamilyDialog({ tree, onClose }: { tree: TreeRef; onClose(): void 
         }
       }}
     >
-      <Field label="Name" hint="Written to the Family's .yeraz.json; files keep their names.">
+      <Field label="Name" hint="Written to the Family’s .yeraz.json; files keep their names.">
         <input
           className={controls.input}
+          name="name"
+          autoComplete="off"
           autoFocus
           required
           value={value}
@@ -408,6 +417,8 @@ export function ConnectDialog({
       <Field label="Repository" hint="A repository with a .yeraz.json file at its root.">
         <input
           className={`${controls.input} ${controls.mono}`}
+          name="repo"
+          autoComplete="off"
           placeholder="owner/name"
           autoFocus
           required

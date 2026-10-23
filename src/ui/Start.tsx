@@ -44,7 +44,7 @@ export function Start() {
           <FamilyMenu />
         </div>
       </TopBar>
-      <main className={styles.main}>
+      <main id="main" tabIndex={-1} className={styles.main}>
         {looking ? (
           <p className={styles.placeholder} aria-busy="true">
             Looking for your notes…

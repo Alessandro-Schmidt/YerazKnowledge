@@ -56,6 +56,7 @@ export function EditableCover({
           e.currentTarget.setPointerCapture(e.pointerId)
           drag.current = { from: e.clientY, y }
         }}
+        onPointerCancel={() => (drag.current = null)}
         onPointerMove={(e) => {
           const start = drag.current
           if (!start) return

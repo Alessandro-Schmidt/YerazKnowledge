@@ -188,6 +188,8 @@ function Editor({
         <span className={styles.note}>Name</span>
         <input
           className={controls.input}
+          name="name"
+          autoComplete="off"
           value={theme.name}
           maxLength={60}
           onChange={(e) => onChange({ ...theme, name: e.target.value })}

@@ -44,8 +44,8 @@ export function Search({ repo, onMatches }: { repo: string; onMatches(m: Matches
         onClick={() => setOpen(true)}
       >
         <Icon name="search" size={16} />
-        <span className={styles.placeholder}>Search leaves, branches, trees</span>
-        <kbd className={styles.key}>{isMac ? '⌘K' : 'Ctrl K'}</kbd>
+        <span className={styles.placeholder}>Search leaves, branches, trees…</span>
+        <kbd className={styles.key}>{isMac ? '⌘K' : 'Ctrl K'}</kbd>
       </button>
       {open && <SearchDialog repo={repo} onMatches={onMatches} onClose={() => setOpen(false)} />}
     </>
@@ -152,12 +152,15 @@ function SearchDialog({
         <input
           autoFocus
           className={styles.input}
+          name="q"
+          autoComplete="off"
+          enterKeyHint="search"
           role="combobox"
           aria-label="Search titles and text"
           aria-expanded={results.length > 0}
           aria-controls={listId}
           aria-activedescendant={current >= 0 ? `${listId}-${current}` : undefined}
-          placeholder="Search leaves, branches, trees"
+          placeholder="Search leaves, branches, trees…"
           value={query}
           onChange={(e) => {
             setQuery(e.target.value)

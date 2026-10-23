@@ -21,6 +21,21 @@ function mockServiceWorker(): Plugin {
   }
 }
 
+// The browser's chrome in the app's colour from the first paint; ui/theme.ts then keeps this
+// tag on the saved theme. The value is the theme's, so no colour is written in the source.
+function themeColor(): Plugin {
+  return {
+    name: 'yeraz:theme-color',
+    transformIndexHtml: () => [
+      {
+        tag: 'meta',
+        attrs: { name: 'theme-color', content: themes.bases.vanta.tokens.top },
+        injectTo: 'head',
+      },
+    ],
+  }
+}
+
 /** The app icons' version, in their addresses: the leaf (PR #78) replaced the Y. */
 const ICONS = 'leaf'
 
@@ -55,6 +70,7 @@ export default defineConfig(({ mode }) => ({
   base: './',
   plugins: [
     react(),
+    themeColor(),
     mode === 'fake' && mockServiceWorker(),
     mermaidChunks(),
     // Installable, and the app shell works offline; data is offline already in IndexedDB

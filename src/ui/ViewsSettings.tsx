@@ -20,7 +20,7 @@ export function ViewsSettings() {
   const [opening, setOpening] = useState(openOn)
   return (
     <SettingsShell page="views">
-      <main className={`${styles.main} ${own.single}`}>
+      <main id="main" tabIndex={-1} className={`${styles.main} ${own.single}`}>
         <div>
           <h1 className={styles.title}>Views</h1>
           <p className={styles.lede}>

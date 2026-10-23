@@ -33,7 +33,7 @@ export async function attach(
   const tooLarge = (bytes: number) => {
     if (bytes <= MAX_BYTES) return false
     host.tell(
-      `${file.name} is ${megabytes(bytes)} MB. GitHub doesn't accept files over 100 MB, so it can't be added to the Tree.`,
+      `${file.name} is ${megabytes(bytes)}\u00a0MB. GitHub doesn’t accept files over 100\u00a0MB, so it can’t be added to the Tree.`,
     )
     return true
   }
@@ -50,7 +50,7 @@ export async function attach(
   if (
     size > WARN_BYTES &&
     !host.ask(
-      `${file.name} is ${megabytes(size)} MB. Large files make the repository slow to download. Add it anyway?`,
+      `${file.name} is ${megabytes(size)}\u00a0MB. Large files make the repository slow to download. Add it anyway?`,
     )
   )
     return null

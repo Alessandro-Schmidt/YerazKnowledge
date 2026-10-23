@@ -10,7 +10,7 @@ import { ROOT } from '../model/tree'
 import controls from '../ui/controls.module.css'
 import { Glyph } from '../ui/Glyph'
 import { Icon } from '../ui/icons'
-import { plural, topOf, treeColor, useFirstLines, type ViewProps } from './common'
+import { enterOpens, plural, topOf, treeColor, useFirstLines, type ViewProps } from './common'
 import styles from './Columns.module.css'
 
 interface Column {
@@ -134,6 +134,7 @@ export default function Columns({
                         style={style}
                         onClick={() => onSelect(n.id)}
                         onDoubleClick={() => onOpen(n.id)}
+                        onKeyDown={enterOpens(on, () => onOpen(n.id))}
                       >
                         <Glyph node={n.parent === ROOT ? { kind: 'branch', children: [] } : n} />
                         <span className={styles.itemText}>

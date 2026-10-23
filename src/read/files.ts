@@ -8,13 +8,13 @@ export const escape = (s: string) => s.replace(/[&<>"]/g, (c) => ENTITIES[c]!)
 
 /** `1.2 MB`, `350 KB`, `12 bytes`: one decimal under 10, whole numbers above. */
 export function formatBytes(n: number): string {
-  if (n < 1024) return `${n} ${n === 1 ? 'byte' : 'bytes'}`
+  if (n < 1024) return `${n}\u00a0${n === 1 ? 'byte' : 'bytes'}`
   const units = ['KB', 'MB', 'GB']
   let value = n / 1024
   let unit = 0
   for (; value >= 1024 && unit < units.length - 1; unit++) value /= 1024
   const shown = value < 10 ? value.toFixed(1).replace(/\.0$/, '') : String(Math.round(value))
-  return `${shown} ${units[unit]}`
+  return `${shown}\u00a0${units[unit]}`
 }
 
 /** The extension in capitals (`XLSX`), or `File` without one. */

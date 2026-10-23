@@ -126,7 +126,7 @@ test.describe('attaching files', () => {
     )
     await expect(page.locator('.cm-content .file-card')).toContainText('totals.csv')
     expect(messages).toEqual([
-      "film.mov is 101.0 MB. GitHub doesn't accept files over 100 MB, so it can't be added to the Tree.",
+      'film.mov is 101.0\u00a0MB. GitHub doesn’t accept files over 100\u00a0MB, so it can’t be added to the Tree.',
     ])
 
     fake.resetLog()

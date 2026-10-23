@@ -182,9 +182,9 @@ describe('renderLeaf', () => {
     )
     expect(html).toContain(
       '<p><button type="button" class="file-card" data-asset-file="assets/2026-10-17-q3-report.xlsx" ' +
-        'aria-label="Download Q3 &lt;report&gt;.xlsx, XLSX · 1.2 MB">' +
+        'aria-label="Download Q3 &lt;report&gt;.xlsx, XLSX · 1.2\u00a0MB">' +
         '<strong>Q3 &lt;report&gt;.xlsx</strong><span>2026-10-17-q3-report.xlsx</span>' +
-        '<em>XLSX · 1.2 MB</em></button></p>',
+        '<em>XLSX · 1.2\u00a0MB</em></button></p>',
     )
     expect(html).toContain(
       'aria-label="Download Makefile, File"><strong>Makefile</strong><em>File</em></button></p>',

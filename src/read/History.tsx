@@ -199,7 +199,7 @@ export function History({
       ) : (
         versions && (
           <p className={styles.note}>
-            History follows the file's path: versions from before a move aren't listed.
+            History follows the file’s path: versions from before a move aren’t listed.
           </p>
         )
       )}

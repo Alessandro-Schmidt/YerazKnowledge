@@ -92,7 +92,7 @@ test('the saved theme is on <html> before the first paint', async ({ page, conte
 
 test('Done returns to the Family', async ({ page }) => {
   await openAppearance(page)
-  await page.getByRole('button', { name: 'Done' }).click()
+  await page.getByRole('link', { name: 'Done' }).click()
   await expect(page.getByRole('heading', { name: 'Engineering', level: 1 })).toBeVisible()
 })
 

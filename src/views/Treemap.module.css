@@ -36,6 +36,11 @@
   text-overflow: ellipsis;
   cursor: pointer;
 }
+@media (hover: hover) and (pointer: fine) {
+  .groupName:hover {
+    color: var(--text);
+  }
+}
 .groupMeta {
   margin-left: auto;
   font-size: 11px;

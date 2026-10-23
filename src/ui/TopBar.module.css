@@ -5,9 +5,34 @@
   min-height: 57px;
   padding: 10px 16px;
   padding-top: max(10px, env(safe-area-inset-top));
+  padding-left: max(16px, env(safe-area-inset-left));
+  padding-right: max(16px, env(safe-area-inset-right));
   border-bottom: 1px solid var(--hair);
   background: var(--top);
   flex-shrink: 0;
+}
+
+/* Keyboard users' first stop: hidden until it has focus (controls.visuallyHidden). */
+.skip {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.skip:focus-visible {
+  z-index: 30;
+  width: auto;
+  height: auto;
+  padding: 8px 12px;
+  clip: auto;
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text);
+  text-decoration: none;
 }
 
 .brand {
@@ -51,7 +76,7 @@
 @media (max-width: 640px) {
   .top {
     gap: 10px;
-    padding-left: 12px;
-    padding-right: 12px;
+    padding-left: max(12px, env(safe-area-inset-left));
+    padding-right: max(12px, env(safe-area-inset-right));
   }
 }

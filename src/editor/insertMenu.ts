@@ -164,6 +164,7 @@ const triggers = ViewPlugin.define((view) => {
     ],
     [view.contentDOM, 'touchmove', cancelPress],
     [view.contentDOM, 'touchend', cancelPress],
+    [view.contentDOM, 'touchcancel', cancelPress],
   ]
   for (const [target, type, fn] of listeners) target.addEventListener(type, fn)
   return {

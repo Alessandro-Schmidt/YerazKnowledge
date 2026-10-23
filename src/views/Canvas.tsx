@@ -153,6 +153,16 @@ export function Canvas({
         ref={stageRef}
         className={`${map.stage} ${styles.stage}`}
         data-canvas=""
+        tabIndex={0}
+        role="group"
+        aria-label={`${label.split(' of ')[0]} view`}
+        onKeyDown={(e) => {
+          if (e.target !== e.currentTarget || selected === null) return
+          if (e.key === 'Escape') onSelect(null)
+          else if (e.key === 'Enter') onOpen(selected)
+          else return
+          e.preventDefault()
+        }}
         onClick={(e) => {
           markNow('select')
           const id = idAt(e.target)

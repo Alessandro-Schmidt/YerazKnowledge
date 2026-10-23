@@ -284,6 +284,8 @@
   line-height: 1;
 }
 .cardHead strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
   font-size: 15px;
   font-weight: 600;
 }
@@ -326,6 +328,12 @@
   .routes button:hover {
     background: var(--hover);
   }
+}
+.routes button > span:nth-child(2) {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .routes button > span:last-child {
   margin-left: auto;

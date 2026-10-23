@@ -130,12 +130,7 @@ export default function MindMap({
               <span className={ui.threadSwatch} />
               Threads of the selection
             </button>
-            <button
-              type="button"
-              className={ui.chip}
-              aria-pressed={all}
-              onClick={() => setAll((a) => !a)}
-            >
+            <button type="button" className={ui.chip} onClick={() => setAll((a) => !a)}>
               {all ? 'Collapse' : 'Expand all'}
             </button>
           </div>

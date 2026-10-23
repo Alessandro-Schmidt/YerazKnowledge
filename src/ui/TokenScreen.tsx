@@ -33,7 +33,7 @@ export function TokenScreen({ onDone }: { onDone?: () => void }) {
   return (
     <div className={styles.page}>
       <TopBar />
-      <main className={styles.main}>
+      <main id="main" tabIndex={-1} className={styles.main}>
         <div className={styles.card}>
           {/* The folder's dialog below is a form too: one never sits inside the other. */}
           <form className={styles.form} onSubmit={submit}>
@@ -63,6 +63,7 @@ export function TokenScreen({ onDone }: { onDone?: () => void }) {
               <input
                 className={`${controls.input} ${controls.mono}`}
                 type="password"
+                name="token"
                 autoComplete="off"
                 spellCheck={false}
                 placeholder="github_pat_…"
@@ -92,7 +93,7 @@ export function TokenScreen({ onDone }: { onDone?: () => void }) {
           </h2>
           <p className={styles.lead}>
             {onDevice
-              ? "No GitHub account needed. This browser can't keep a folder open, so Yeraz keeps your notes in its own storage here: start empty, or copy in a folder of notes. The folder itself isn't changed."
+              ? 'No GitHub account needed. This browser can’t keep a folder open, so Yeraz keeps your notes in its own storage here: start empty, or copy in a folder of notes. The folder itself isn’t changed.'
               : 'No GitHub account needed. Pick a folder on this computer: one that iCloud Drive, Dropbox, OneDrive or a shared drive keeps in sync brings your notes to your other devices too.'}
           </p>
           <FolderButton onAdded={(tree) => (location.hash = `#${treeHref(tree.repo)}`)} />

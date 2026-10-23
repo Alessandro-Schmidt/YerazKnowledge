@@ -331,6 +331,7 @@
 }
 .editor :global(.cm-tooltip-autocomplete > ul) {
   max-height: 280px;
+  overscroll-behavior: contain;
   font-family: var(--font-ui);
 }
 .editor :global(.cm-tooltip-autocomplete > ul > li) {
@@ -689,6 +690,11 @@
 }
 .editor :global(.cm-details-toggle[aria-expanded='true'])::before {
   transform: rotate(90deg);
+}
+@media (prefers-reduced-motion: reduce) {
+  .editor :global(.cm-details-toggle)::before {
+    transition: none;
+  }
 }
 @media (hover: hover) and (pointer: fine) {
   .editor :global(.cm-details-toggle:hover) {

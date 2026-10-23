@@ -391,6 +391,7 @@ class EmbedWidget extends WidgetType {
       el.src = `https://www.youtube-nocookie.com/embed/${embed.id}${embed.start ? `?start=${embed.start}` : ''}`
       el.setAttribute('allow', 'encrypted-media; picture-in-picture; fullscreen')
       el.setAttribute('referrerpolicy', 'strict-origin-when-cross-origin')
+      el.setAttribute('loading', 'lazy')
     } else {
       if (el instanceof HTMLVideoElement) {
         el.controls = true
