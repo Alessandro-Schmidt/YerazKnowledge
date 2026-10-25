@@ -38,6 +38,7 @@ import {
   type FolderFs,
 } from '../local/folder'
 import { buildGraph, type Graph } from '../model/graph'
+import { markNow } from '../perf'
 import { parseLeaf, type ParsedLeaf } from '../model/parse'
 import { gitBlobSha } from '../model/sha'
 import { slugify } from '../model/slug'
@@ -353,11 +354,9 @@ export function createSession(deps: {
       const base = bases.get(key)
       if (!base) return
       const { entries, leaves } = overlay(base.entries, base.leaves, dirty.get(key) ?? {})
-      setData(key, {
-        status: 'ready',
-        graph: buildGraph(buildTree(entries), leaves, pendingTitle(key) ?? base.ref.title),
-        offline: base.offline,
-      })
+      const graph = buildGraph(buildTree(entries), leaves, pendingTitle(key) ?? base.ref.title)
+      markNow('graph-built')
+      setData(key, { status: 'ready', graph, offline: base.offline })
     }
 
     const pendingState = (key: string): SyncState => {
@@ -681,13 +680,13 @@ export function createSession(deps: {
             const edits = await loadDirty(key)
             setData(key, { status: 'loading', graph: previous, fetched: 0, total: 0 })
             const onProgress = (p: PullProgress) => {
-              if (p.stage === 'structure' && (p.missing > 0 || !previous)) {
-                setData(key, {
-                  status: 'loading',
-                  graph: buildGraph(p.model, new Map(), title),
-                  fetched: 0,
-                  total: p.missing,
-                })
+              // The structure alone is worth drawing while content is fetched; with every
+              // leaf cached the content follows within the moment, and a map drawn from the
+              // structure would be laid out and mounted only to be replaced.
+              if (p.stage === 'structure' && p.missing > 0) {
+                const graph = buildGraph(p.model, new Map(), title)
+                markNow('graph-built')
+                setData(key, { status: 'loading', graph, fetched: 0, total: p.missing })
               } else if (p.stage === 'content') {
                 set((s) => {
                   const current = s.data[key]

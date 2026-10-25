@@ -24,6 +24,8 @@ export function mark(name: 'map-painted' | 'peek-painted' | 'editor-painted'): v
  * Marks this moment: an input arriving, before any work (the start of an interaction), or
  * the end of synchronous work, such as a keystroke applied to the editor's text and DOM.
  */
-export function markNow(name: 'select' | 'tree-open' | 'keystroke' | 'keystroke-done'): void {
+export function markNow(
+  name: 'select' | 'tree-open' | 'keystroke' | 'keystroke-done' | 'graph-built' | 'layout-done',
+): void {
   if (import.meta.env.VITE_E2E === '1') performance.mark(`yeraz:${name}`)
 }

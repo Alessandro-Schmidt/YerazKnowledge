@@ -68,7 +68,11 @@ export function FamilyView({ params }: { params: { owner: string; name: string; 
   }, [repo])
 
   const graph = data?.graph ?? null
-  const family = useMemo(() => (graph ? familyLayout(graph) : null), [graph])
+  const family = useMemo(() => {
+    const laid = graph ? familyLayout(graph) : null
+    markNow('layout-done')
+    return laid
+  }, [graph])
   // No path: nothing selected. An empty path (`/tree/o/n/`): the Family itself.
   const wanted = params['*'] === undefined ? null : decodePath(params['*'])
   const selected =
