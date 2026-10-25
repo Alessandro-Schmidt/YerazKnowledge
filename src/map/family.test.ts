@@ -3,7 +3,7 @@ import { makeFixture } from '../../test/fake-github/fixture'
 import { buildGraph, type Graph } from '../model/graph'
 import { parseLeaf } from '../model/parse'
 import { buildTree, ROOT } from '../model/tree'
-import { familyLayout, familyNodeAt, positionOf, treeGraph, treesOf } from './family'
+import { familyLayout, familyNodeAt, layoutFamily, positionOf, treeGraph, treesOf } from './family'
 
 function graphOf(files: Record<string, string>, title = 'Family'): Graph {
   const model = buildTree(
@@ -182,5 +182,34 @@ describe.each([300, 1000])('a %i-leaf Family', (leaves) => {
     expect(inside + family.between.length).toBe(graph.threads.length)
     expect(family.between.length).toBeGreaterThan(0)
     for (const t of family.between) expect(t.d).not.toMatch(/NaN|Infinity/)
+  })
+})
+
+const engineering = () =>
+  graphOf(makeFixture({ name: 'Engineering', leaves: 60, threads: 80, seed: 3 }).files)
+
+describe('a Tree laid out again', () => {
+  it('keeps its layout and graph when nothing in it changed, so the map need not redraw it', () => {
+    const a = layoutFamily(engineering())
+    const b = layoutFamily(engineering())
+    expect(b.trees.map((t) => t.layout)).toEqual(a.trees.map((t) => t.layout))
+    for (const [i, t] of b.trees.entries()) {
+      expect(t.layout).toBe(a.trees[i]!.layout)
+      expect(t.graph).toBe(a.trees[i]!.graph)
+    }
+  })
+
+  it('lays out only the Tree whose words changed', () => {
+    const before = layoutFamily(engineering())
+    const graph = engineering()
+    const leaf = [...graph.nodes.values()].find((n) => n.kind === 'leaf' && n.parent !== ROOT)!
+    graph.nodes.set(leaf.id, { ...leaf, words: leaf.words + 500 })
+    const after = layoutFamily(graph)
+    const changed = after.treeOf.get(leaf.id)!.id
+    for (const t of after.trees) {
+      const was = before.trees.find((b) => b.id === t.id)!
+      if (t.id === changed) expect(t.layout).not.toBe(was.layout)
+      else expect(t.layout).toBe(was.layout)
+    }
   })
 })

@@ -7,7 +7,10 @@ import { treesOf } from '../src/map/family'
 import { VIEW_IDS, VIEWS, type ViewId } from '../src/views/views'
 import { expect, familyMenu, isPhone, signIn, signInHere, test } from './fixtures'
 
-test.beforeEach(async ({ fake }) => {
+test.beforeEach(async ({ fake, page }) => {
+  // A phone opens on the last Family unless this device chose every Family (tested below).
+  if (isPhone(page) && !test.info().title.startsWith('a phone opens'))
+    await page.addInitScript(() => localStorage.setItem('yeraz-open', 'all'))
   await fake.addRepo('you/art', {
     '.yeraz.json': '{"name":"Art"}\n',
     'Baroque/caravaggio.md': '# Caravaggio\n\nLight and dark.\n',
@@ -108,3 +111,11 @@ for (const view of VIEW_IDS.filter((v) => v !== 'map')) {
       await expect(main).toContainText(new RegExp(largest.title, 'i'))
   })
 }
+
+test('a phone opens on the last Family, every Family being a tap away', async ({ page }) => {
+  test.skip(!isPhone(page), 'The phone default')
+  await signIn(page)
+  await expect(page).toHaveURL(/#\/tree\/you\//)
+  await page.getByRole('link', { name: 'Yeraz: all Families' }).click()
+  await expect(page).toHaveURL(/#\/all$/)
+})

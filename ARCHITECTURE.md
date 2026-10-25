@@ -126,6 +126,7 @@ The map is **progressive**: it renders right after step 1 using only paths and b
 After sign-in, one GraphQL query lists the user's repositories and checks each for the marker file (`object(expression:"HEAD:.yeraz.json")`). Every repository that has it is a Family. No device needs to be told which Families exist.
 
 - **The app opens straight into a Family** (`#/` goes to the one last shown on this device, kept in `localStorage`, or the first one found): every Tree on the map at once, ready to click, edit and create in. There is no "open" step.
+- A phone opens on the last Family by default and a computer on every Family together (Settings › Views changes either): drawing every Family at once is what makes a big map slow on a phone.
 - The list is refreshed when the Family menu (beside the Family's name) is opened, not on every start, so reopening the app stays one request (§11). The same menu switches Family, and holds the secondary paths: "Connect repository", "Create a new repository", Appearance, sign out. For the Family on screen it also holds **Rename Family** and **Remove Family**: removing takes the Family off this device only (a repository stays on GitHub and is left out of discovery, `session:ignored`, until connected by hand again; a folder stays on the disk; a Family in the device's own storage is deleted).
 - **A new Tree is a new folder or leaf at the top of the Family** (New tree, or New leaf with nothing selected): an ordinary structure edit (`sync/structure.ts`), committed like any other.
 
@@ -306,7 +307,7 @@ Every image a user sees should be sharp on any screen, including 2× and 3× dis
 | Open a Tree for the first time (1,000 leaves) | Structure < 1 s, all content < 5 s | One tree request. About 10 GraphQL blob requests, run three at a time. The map renders from paths before content arrives. |
 | Pan and zoom | 60 fps at 2,000 nodes | One `transform` write per frame. No React renders. Labels hidden by a zoom-level class. |
 | Select a leaf | < 50 ms to highlight and open the Peek | Precomputed adjacency. Class toggles only. The editor's chunk is preloaded when a Tree opens; the leaf's text follows from the blob cache. |
-| Typing | < 16 ms per keystroke in a 10,000-line leaf | CodeMirror renders only visible lines. No conversion. Local writes debounced. |
+| Typing | < 16 ms per keystroke in a 10,000-line leaf | CodeMirror renders only visible lines. No conversion. Local writes debounced. A save lays out only the Tree that changed: the others keep their layout and the map does not redraw them (`map/family.ts`). |
 | Saving | 1 request per commit | `createCommitOnBranch` with every changed file. |
 | First load JavaScript | < 200 KB gzipped | Editor, KaTeX, `markdown-it` and language parsers are separate chunks loaded on first use. |
 | Rate limit in normal use | ≈ 0 | 304s are free. Blobs are never fetched twice. |

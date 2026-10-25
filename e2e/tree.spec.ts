@@ -531,9 +531,10 @@ test('connects a repository by name', async ({ page, fake }) => {
   await expect(page.getByRole('heading', { name: 'Art History', level: 1 })).toBeVisible()
   await (await familyMenu(page)).getByRole('menuitem', { name: /^Engineering/ }).click()
   await expect(page).toHaveURL(/#\/tree\/you\/engineering$/)
-  // With two Families, the app reopens on both together (issue #69; all-families.spec.ts).
+  // With two Families, a computer reopens on both together (issue #69; all-families.spec.ts);
+  // a phone on the Family it was in last.
   await page.goto('./')
-  await expect(page).toHaveURL(/#\/all$/)
+  await expect(page).toHaveURL(isPhone(page) ? /#\/tree\/you\/engineering$/ : /#\/all$/)
 })
 
 test('the Family view, its menu and the Peek have no accessibility violations', async ({
