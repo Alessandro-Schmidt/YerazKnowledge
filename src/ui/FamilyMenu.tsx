@@ -11,6 +11,7 @@ import controls from './controls.module.css'
 import { Dialog, Field } from './Dialog'
 import styles from './FamilyMenu.module.css'
 import { Icon } from './icons'
+import { PHONE } from './useMedia'
 import { focusFirst, menuKeys } from './menuKeys'
 import { isFolder } from '../local/folder'
 import { allHref, treeHref } from './paths'
@@ -27,16 +28,19 @@ export function lastFamily(): string | null {
   }
 }
 /**
- * What `#/` opens on this device (issue #69): every Family together (the default), or the
- * Family last shown.
+ * What `#/` opens on this device (issue #69): every Family together, or the Family last
+ * shown. The default is every Family on a computer and the last Family on a phone, where
+ * drawing every Family at once is what makes a big map slow.
  */
 const OPEN = 'yeraz-open'
 export type OpenOn = 'all' | 'last'
 export function openOn(): OpenOn {
+  const fallback: OpenOn = matchMedia(PHONE).matches ? 'last' : 'all'
   try {
-    return localStorage.getItem(OPEN) === 'last' ? 'last' : 'all'
+    const saved = localStorage.getItem(OPEN)
+    return saved === 'last' || saved === 'all' ? saved : fallback
   } catch {
-    return 'all'
+    return fallback
   }
 }
 export function saveOpenOn(choice: OpenOn) {
