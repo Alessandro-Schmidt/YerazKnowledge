@@ -303,7 +303,7 @@ Every image a user sees should be sharp on any screen, including 2× and 3× dis
 
 | Hot path | Budget | How the design meets it |
 |---|---|---|
-| Reopen a cached Tree (1,000 leaves) | Map painted < 800 ms on a mid laptop, < 1.5 s on a mid phone | App shell from the service worker. Index and layout inputs from IndexedDB. One conditional request, normally a free 304. |
+| Reopen a cached Tree (1,000 leaves) | Map painted < 800 ms on a mid laptop, < 1.5 s on a mid phone | App shell from the service worker. Index and layout inputs from IndexedDB. One conditional request, normally a free 304. With every leaf cached the map is built once, from the content (no structure-only pass first), and the deep nodes' labels, hidden at the fit's zoom anyway, are mounted after the first paint. |
 | Open a Tree for the first time (1,000 leaves) | Structure < 1 s, all content < 5 s | One tree request. About 10 GraphQL blob requests, run three at a time. The map renders from paths before content arrives. |
 | Pan and zoom | 60 fps at 2,000 nodes | One `transform` write per frame. No React renders. Labels hidden by a zoom-level class. |
 | Select a leaf | < 50 ms to highlight and open the Peek | Precomputed adjacency. Class toggles only. The editor's chunk is preloaded when a Tree opens; the leaf's text follows from the blob cache. |

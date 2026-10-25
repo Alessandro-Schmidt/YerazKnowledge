@@ -9,6 +9,7 @@ import {
   useLayoutEffect,
   useMemo,
   useRef,
+  useState,
   type CSSProperties,
   type KeyboardEvent,
   type PointerEvent,
@@ -174,6 +175,17 @@ export function TreeMap({
     followed.current = selected
     zoom.fit(family.bounds, padded(fitArea()))
   }, [treeKey, family, zoom, area, selected])
+
+  // The deep nodes' labels are mounted after the first paint, in idle time: at a Family's
+  // fit the zoom is far, where they are hidden, and they are a quarter of the mount.
+  const [labels, setLabels] = useState(false)
+  useEffect(() => {
+    if (labels) return
+    const idle = window.requestIdleCallback ?? ((cb: () => void) => window.setTimeout(cb, 50))
+    const cancel = window.cancelIdleCallback ?? window.clearTimeout
+    const handle = idle(() => setLabels(true))
+    return () => cancel(handle)
+  }, [labels, family])
 
   // Elements by id, collected once per render of the geometry.
   const elements = useRef({
@@ -383,7 +395,7 @@ export function TreeMap({
     halo.setAttribute('class', styles.halo!)
     layer(tree).append(halo)
     if (follow) zoom.centre(at.x, at.y, area)
-  }, [selected, matches, graph, family, threadsOf, zoom, area, treeColors])
+  }, [selected, matches, graph, family, threadsOf, zoom, area, treeColors, labels])
 
   /** The node a pointer event is on: a dot, or a Tree's core (the Tree's id). */
   const idAt = (target: EventTarget): string | undefined => {
@@ -507,7 +519,7 @@ export function TreeMap({
           </defs>
           <rect width="100%" height="100%" fill={`url(#${CSS.escape(gridId)})`} />
           <g ref={cameraRef} className={styles.camera}>
-            <Family family={family} colors={treeColors} groupTitles={groupTitles} />
+            <Family family={family} colors={treeColors} groupTitles={groupTitles} labels={labels} />
           </g>
         </svg>
         {/* The selection layer: its own composited layer, so selecting never repaints the map. */}
@@ -602,10 +614,13 @@ const Family = memo(function Family({
   family,
   colors,
   groupTitles = {},
+  labels,
 }: {
   family: FamilyLayout
   colors: Record<string, string>
   groupTitles?: Record<string, string> | undefined
+  /** Whether the deep nodes' labels are drawn yet (TreeMap mounts them after the first paint). */
+  labels: boolean
 }) {
   return (
     <>
@@ -639,7 +654,7 @@ const Family = memo(function Family({
           transform={treeTransform(t)}
           style={colors[t.id] ? ({ '--tree': colors[t.id] } as CSSProperties) : undefined}
         >
-          <Geometry layout={t.layout} graph={t.graph} />
+          <Geometry layout={t.layout} graph={t.graph} labels={labels} />
           <text className={fam.name} y={t.name.y} fontSize={t.name.size}>
             {t.graph.nodes.get(ROOT)!.title}
           </text>
@@ -755,7 +770,15 @@ export function MapIcon({ x, y, r, icon }: { x: number; y: number; r: number; ic
 }
 
 /** The map's geometry. Rendered once per layout; memoised so selection never touches it. */
-const Geometry = memo(function Geometry({ layout, graph }: { layout: MapLayout; graph: Graph }) {
+const Geometry = memo(function Geometry({
+  layout,
+  graph,
+  labels,
+}: {
+  layout: MapLayout
+  graph: Graph
+  labels: boolean
+}) {
   const root = graph.nodes.get(ROOT)!
   return (
     <>
@@ -810,22 +833,24 @@ const Geometry = memo(function Geometry({ layout, graph }: { layout: MapLayout; 
           ) : (
             n.icon && <MapIcon x={n.x} y={n.y} r={n.r} icon={n.icon} />
           )}
-          <text
-            className={
-              n.depth === 1 && n.kind === 'branch'
-                ? `${styles.label} ${styles.branchLabel}`
-                : styles.label
-            }
-            x={n.labelX}
-            y={n.labelY}
-            textAnchor={n.anchor}
-            dy={n.labelRotate ? '0.32em' : undefined}
-            transform={
-              n.labelRotate ? `rotate(${n.labelRotate} ${n.labelX} ${n.labelY})` : undefined
-            }
-          >
-            {n.label}
-          </text>
+          {(labels || n.depth < 2) && (
+            <text
+              className={
+                n.depth === 1 && n.kind === 'branch'
+                  ? `${styles.label} ${styles.branchLabel}`
+                  : styles.label
+              }
+              x={n.labelX}
+              y={n.labelY}
+              textAnchor={n.anchor}
+              dy={n.labelRotate ? '0.32em' : undefined}
+              transform={
+                n.labelRotate ? `rotate(${n.labelRotate} ${n.labelX} ${n.labelY})` : undefined
+              }
+            >
+              {n.label}
+            </text>
+          )}
         </g>
       ))}
       <g className={styles.core} data-core="" data-id={ROOT}>

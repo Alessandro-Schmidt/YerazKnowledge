@@ -583,3 +583,16 @@ test('the map works from the keyboard: arrows move the selection, Enter opens, E
   await page.keyboard.press('Escape')
   await expect(page).toHaveURL(/#\/tree\/you\/engineering$/)
 })
+
+test('the deep leaves’ labels follow the first paint, and the selection shows one', async ({
+  page,
+  graph,
+}) => {
+  test.skip(isPhone(page), 'Desktop engines')
+  await openTree(page)
+  const deep = [...graph.nodes.values()].find((n) => n.kind === 'leaf' && n.depth >= 2)!
+  const node = page.locator(`[data-map] [data-node][data-id="${deep.id}"]`).first()
+  await expect(node.locator('text')).toHaveText(deep.title)
+  await page.goto(`./#/tree/you/engineering/${deep.id}`)
+  await expect(page.locator('[data-map] [data-sel] text')).toHaveText(deep.title)
+})
