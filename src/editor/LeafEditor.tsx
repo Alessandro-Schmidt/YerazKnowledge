@@ -81,6 +81,14 @@ export function LeafEditor({
         return n ? asLeaf(n) : null
       },
       open: (id) => openRef.current(id),
+      here: () => path,
+      // Dragged text dropped on a chip: at the end of that leaf, as a paragraph of its own.
+      append: async (id, text) => {
+        const { getState } = session
+        const current = await getState().textOf(repo, id)
+        const joined = `${current.replace(/\s+$/, '')}\n\n${text.trim()}\n`
+        await getState().apply(repo, [{ path: id, text: joined }])
+      },
       tree: (other) => {
         const t = session.getState().trees.find((t) => t.repo.toLowerCase() === other.toLowerCase())
         return t ? { title: t.title, href: `#${treeHref(t.repo)}` } : null

@@ -86,7 +86,7 @@ export class FakeRepo {
 
   constructor(
     readonly owner: string,
-    readonly name: string,
+    public name: string,
     public isPrivate = true,
     public description: string | null = null,
   ) {}

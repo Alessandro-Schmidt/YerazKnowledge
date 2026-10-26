@@ -106,6 +106,7 @@ export function treeGraph(family: Graph, id: string): Graph {
     in: new Map(),
     external: [],
     ghosts,
+    hidden: [],
     stats: { leaves, branches, threads: threads.length, words: top.total },
   }
 }

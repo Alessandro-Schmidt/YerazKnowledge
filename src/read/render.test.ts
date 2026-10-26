@@ -169,6 +169,18 @@ describe('renderLeaf', () => {
     expect(html).toContain('<a href="https://youtu.be/dQw4w9WgXcQ"')
   })
 
+  it('embeds a list item that is only a link, keeping the list (owner keeps notes as lists)', async () => {
+    const html = await renderLeaf(
+      '# T\n\n- https://youtu.be/dQw4w9WgXcQ\n- $x^2$ and [a link](https://youtu.be/dQw4w9WgXcQ) in a sentence\n',
+      context,
+    )
+    expect(html).toMatch(
+      /<li>\s*<div class="embed video"><iframe src="https:\/\/www.youtube-nocookie.com\/embed\/dQw4w9WgXcQ"/,
+    )
+    expect(html).toMatch(/<li>\s*<span class="katex">/)
+    expect(html).toContain('<a href="https://youtu.be/dQw4w9WgXcQ" target="_blank"')
+  })
+
   it('shows any other file in assets/ as a card that downloads it, with its type and size', async () => {
     const html = await renderLeaf(
       [

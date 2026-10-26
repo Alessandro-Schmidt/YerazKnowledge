@@ -4,7 +4,7 @@ import { createHold, HOLD_MS, listChange, type ListKind } from './insertMenu'
 
 const key = (k: string, repeat = false) => ({ key: k, repeat })
 
-describe('createHold: Ctrl/Cmd held alone for 2 s opens the menu', () => {
+describe('createHold: Ctrl/Cmd held alone for 1 s opens the menu', () => {
   beforeEach(() => vi.useFakeTimers())
   afterEach(() => vi.useRealTimers())
 
@@ -13,7 +13,7 @@ describe('createHold: Ctrl/Cmd held alone for 2 s opens the menu', () => {
     return { fire, hold: createHold(fire) }
   }
 
-  it('fires at 2.0 s, not at 1.9 s', () => {
+  it('fires at 1.0 s, not at 0.9 s', () => {
     const { fire, hold } = setup()
     hold.down(key('Control'))
     vi.advanceTimersByTime(HOLD_MS - 100)
@@ -25,9 +25,9 @@ describe('createHold: Ctrl/Cmd held alone for 2 s opens the menu', () => {
   it('works with Cmd (Meta) too, and ignores the auto-repeat of the held key', () => {
     const { fire, hold } = setup()
     hold.down(key('Meta'))
-    vi.advanceTimersByTime(1000)
+    vi.advanceTimersByTime(HOLD_MS / 2)
     hold.down(key('Meta', true))
-    vi.advanceTimersByTime(1000)
+    vi.advanceTimersByTime(HOLD_MS / 2)
     expect(fire).toHaveBeenCalledOnce()
   })
 
@@ -42,7 +42,7 @@ describe('createHold: Ctrl/Cmd held alone for 2 s opens the menu', () => {
   it('releasing the modifier cancels', () => {
     const { fire, hold } = setup()
     hold.down(key('Control'))
-    vi.advanceTimersByTime(1500)
+    vi.advanceTimersByTime(HOLD_MS * 0.75)
     hold.up()
     vi.advanceTimersByTime(5000)
     expect(fire).not.toHaveBeenCalled()

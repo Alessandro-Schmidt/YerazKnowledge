@@ -35,6 +35,15 @@
   border-radius: 0;
   box-shadow: none;
 }
+/* Kept open beside the selection (FamilyView's stack): a column of it, not floating. */
+.peek[data-stacked] {
+  position: relative;
+  inset: auto;
+  height: 100%;
+  flex: 0 1 var(--peek-w, 420px);
+  min-width: 300px;
+  max-width: none;
+}
 .peek[data-expanded] {
   --enter: 0, 12px;
   inset: 0;
@@ -88,6 +97,14 @@
 .crumb a:focus-visible {
   color: var(--accent);
   text-decoration: underline;
+}
+/* Copies the path from the Family's root: small, beside the breadcrumb. */
+.copy {
+  width: 28px;
+  height: 28px;
+}
+.copy[aria-label='Copied'] {
+  color: var(--accent);
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -336,6 +353,15 @@
   margin: 0 8px 0 0;
   accent-color: var(--accent);
   vertical-align: -2px;
+}
+/* A done item reads as done, its chips included, as in the editor. */
+.content :global(.task:has(input:checked)) {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+.content :global(.task:has(input:checked)) a {
+  text-decoration: line-through;
+  opacity: 0.55;
 }
 .content img {
   display: block;

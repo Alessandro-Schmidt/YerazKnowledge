@@ -62,6 +62,45 @@ test.describe('mentions', () => {
   })
 })
 
+test.describe('dragging text onto a chip', () => {
+  test.skip(({ isMobile }) => isMobile, 'Dragging runs on desktop engines')
+
+  test('moves it to the end of that leaf, as a paragraph, and out of this one', async ({
+    page,
+    fake,
+  }) => {
+    await fake.repo(REPO).commit({
+      message: 'drag',
+      additions: [
+        {
+          path: 'from.md',
+          contents: '# From\n\nSee [Target](/target.md).\n\nMove me.\n\nStays.\n',
+        },
+        { path: 'target.md', contents: '# Target\n\nAlready here.\n' },
+      ],
+    })
+    await page.goto(`./#/tree/${REPO}/from.md`)
+    await signInHere(page)
+    const editor = page.locator('.cm-content')
+    await editor.getByText('Move me.').click()
+    await page.keyboard.press('Home')
+    await page.keyboard.press('Shift+End')
+    // The drop, as the browser delivers one from a drag of the selection.
+    await page.locator('.cm-mention[data-path="target.md"]').evaluate((chip) => {
+      const dataTransfer = new DataTransfer()
+      dataTransfer.setData('text/plain', 'Move me.')
+      chip.dispatchEvent(new DragEvent('drop', { dataTransfer, bubbles: true, cancelable: true }))
+    })
+    await expect(editor).not.toContainText('Move me.')
+    await expect(editor).toContainText('Stays.')
+    await page.keyboard.press('ControlOrMeta+s')
+    await expect
+      .poll(() => fake.repo(REPO).read('target.md'))
+      .toBe('# Target\n\nAlready here.\n\nMove me.\n')
+    expect(fake.repo(REPO).read('from.md')).toBe('# From\n\nSee [Target](/target.md).\n\nStays.\n')
+  })
+})
+
 test.describe('insert menu', () => {
   test.skip(({ isMobile }) => isMobile, 'Ctrl/Cmd runs on desktop engines')
 
@@ -74,12 +113,12 @@ test.describe('insert menu', () => {
     await page.keyboard.press('ControlOrMeta+End')
   })
 
-  test('holding Ctrl/Cmd for 1.9 s shows nothing; at 2.0 s the menu opens', async ({ page }) => {
+  test('holding Ctrl/Cmd for 0.9 s shows nothing; at 1.0 s the menu opens', async ({ page }) => {
     const menu = page.getByRole('menu', { name: 'Insert' })
     // Time moves only when the test says so: the map beside the editor makes real time uneven.
     await page.clock.pauseAt(Date.now() + 1000)
     await page.keyboard.down('Control')
-    await page.clock.runFor(1900)
+    await page.clock.runFor(900)
     await expect(menu).toHaveCount(0)
     await page.clock.runFor(100)
     await expect(menu).toBeVisible()
@@ -102,7 +141,7 @@ test.describe('insert menu', () => {
   test('a to-do list item, and a new leaf with a mention to it', async ({ page, fake, graph }) => {
     const hold = async () => {
       await page.keyboard.down('Control')
-      await page.clock.runFor(2000)
+      await page.clock.runFor(1000)
       await page.keyboard.up('Control')
     }
     await page.keyboard.press('Enter')
@@ -365,6 +404,11 @@ test.describe('embeds', () => {
     '',
     '[The talk](https://www.youtube.com/watch?v=dQw4w9WgXcQ)',
     '',
+    'Kept as a list (owner’s notes are):',
+    '',
+    '- https://youtu.be/dQw4w9WgXcQ',
+    '- $x^2$',
+    '',
   ].join('\n')
 
   test.beforeEach(async ({ fake }) => {
@@ -385,7 +429,7 @@ test.describe('embeds', () => {
     await page.goto(`./#/tree/${REPO}/embeds.md`)
     await signInHere(page)
     const body = page.getByRole('region', { name: 'Leaf preview' })
-    await expect(body.locator('.katex')).toHaveCount(1)
+    await expect(body.locator('.katex')).toHaveCount(2)
     await expect(body.getByText('it costs $5 and $10.')).toBeVisible()
     await expect(body.locator('.cm-code-block .tok-keyword').first()).toHaveText('const')
     await expect(body.locator('.cm-embed-pdf iframe')).toHaveAttribute('src', /^blob:/)
@@ -406,14 +450,16 @@ test.describe('embeds', () => {
     await page.goto(`./#/tree/${REPO}/embeds.md`)
     await signInHere(page)
     const editor = page.locator('.cm-content')
-    await expect(editor.locator('.cm-math .katex')).toHaveCount(1)
-    await expect(editor.locator('.cm-embed-youtube iframe')).toHaveCount(1)
+    await expect(editor.locator('.cm-math .katex')).toHaveCount(2)
+    // The paragraph's player, and the list item's, which keeps its bullet.
+    await expect(editor.locator('.cm-embed-youtube iframe')).toHaveCount(2)
+    await expect(editor.locator('.cm-line:has(.cm-embed-youtube) .cm-bullet')).toHaveCount(1)
     await expect(editor.locator('.cm-embed-video video')).toHaveAttribute('src', /^blob:/)
     // Writing elsewhere on its line keeps the math drawn (issue #68); clicking it shows its source.
     await editor.getByText('Euler').click()
-    await expect(editor.locator('.cm-math .katex')).toHaveCount(1)
-    await editor.locator('.cm-math').click()
-    await expect(editor.locator('.cm-math')).toHaveCount(0)
+    await expect(editor.locator('.cm-math .katex')).toHaveCount(2)
+    await editor.locator('.cm-math').first().click()
+    await expect(editor.locator('.cm-math')).toHaveCount(1)
     await expect(editor).toContainText('$e^{i\\pi} + 1 = 0$')
   })
 })

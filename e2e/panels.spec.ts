@@ -56,3 +56,47 @@ test('the Explorer and the Peek resize by their edges, and keep their widths', a
   await page.getByRole('separator', { name: 'Leaf panel width' }).dblclick()
   await expect.poll(() => width(peek)).toBe(420)
 })
+
+test('Keep open holds a leaf beside the next one picked; both are edited at once', async ({
+  page,
+  graph,
+  fake,
+}) => {
+  await page.setViewportSize({ width: 1600, height: 900 })
+  const leaves = [...graph.nodes.values()]
+    .filter((n) => n.kind === 'leaf' && n.parent !== '')
+    .sort((a, b) => a.id.localeCompare(b.id))
+  const [first, second] = [leaves[0]!, leaves[1]!]
+  await page.goto(`./#/tree/you/engineering/${first.id}`)
+  await signInHere(page)
+  const peeks = page.getByRole('region', { name: 'Leaf preview' })
+  await expect(peeks).toHaveCount(1)
+  await peeks.getByRole('button', { name: 'Keep open' }).click()
+  // The same leaf is not shown twice; picking another opens it beside the kept one.
+  await expect(peeks).toHaveCount(1)
+  await page.getByRole('treeitem', { name: new RegExp(second.title) }).click()
+  await expect(peeks).toHaveCount(2)
+  await expect(peeks.nth(0).getByRole('heading', { level: 2 })).toHaveText(first.title)
+  await expect(peeks.nth(1).getByRole('heading', { level: 2 })).toHaveText(second.title)
+  const left = (await peeks.nth(0).boundingBox())!
+  const right = (await peeks.nth(1).boundingBox())!
+  expect(left.x + left.width).toBeLessThanOrEqual(right.x)
+
+  // Written in both, saved from both.
+  for (const [i, word] of [
+    [0, 'Kept.'],
+    [1, 'Picked.'],
+  ] as const) {
+    await peeks.nth(i).locator('.cm-content').click()
+    await page.keyboard.press('ControlOrMeta+End')
+    await page.keyboard.type(`\n${word}`)
+  }
+  await page.keyboard.press('ControlOrMeta+s')
+  await expect.poll(() => fake.repo('you/engineering').read(first.id)).toContain('Kept.')
+  await expect.poll(() => fake.repo('you/engineering').read(second.id)).toContain('Picked.')
+
+  // Closing the kept one leaves the selection alone.
+  await peeks.nth(0).getByRole('button', { name: 'Dismiss' }).click()
+  await expect(peeks).toHaveCount(1)
+  await expect(peeks.getByRole('heading', { level: 2 })).toHaveText(second.title)
+})

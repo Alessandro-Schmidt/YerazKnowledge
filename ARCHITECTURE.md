@@ -62,7 +62,7 @@ These rules are the only thing that must stay stable across versions. Tests lock
 |---|---|
 | A leaf is a `.md` file. **Line 1 is the title.** | `# Keycloak` |
 | An emoji at the start of the title is the leaf's icon. | `# 🔐 Keycloak` |
-| Optional **line 2** is a metadata comment: cover and the part of it that shows (`coverPosition`, percent from the top, centred when absent), an image icon (`icon`: `/assets/…` or an https address, in place of the title's emoji; shown on the map in its dot), where the icon sits over the cover (`iconPosition`: `center` or `right`, left when absent), colours. It is invisible when GitHub renders the file. Colours are **named** (`green`, `amber`, `blue`, `violet`…), so they adapt to every theme (§13). | `<!-- yeraz {"cover":"https://…","coverPosition":30,"color":{"heading":"amber"}} -->` |
+| Optional **line 2** is a metadata comment: cover and the part of it that shows (`coverPosition`, percent from the top, centred when absent), an image icon (`icon`: `/assets/…` or an https address, in place of the title's emoji; shown on the map in its dot), where the icon sits over the cover (`iconPosition`: `center` or `right`, left when absent), colours. It is invisible when GitHub renders the file. Colours are **named** (`green`, `amber`, `blue`, `violet`…), so they adapt to every theme (§13). `"hidden": true` takes the leaf off the map and out of the Explorer, searches and threads, with everything under it (in a branch's `README.md`, the branch or Tree); Settings › Hidden lists them and shows one again. | `<!-- yeraz {"cover":"https://…","coverPosition":30,"color":{"heading":"amber"}} -->` |
 | A leaf's sub-leaves and sub-branches live in a **sibling folder with the same name**. | `identity/keycloak.md` + `identity/keycloak/realms.md` |
 | A branch is a folder with no sibling `.md` file of the same name. Its name is the folder name, kept as typed. Git stores no empty folders, so a new branch is created with its first leaf. | `AI Agents/` |
 | A branch's **text** is the `README.md` in its folder (that name exactly, case included), which GitHub shows under the folder's files. It is not a leaf: no node, no words in the totals, and its line 1 doesn't rename the branch. Its look is the branch's, as a leaf's is its own: line 1's leading emoji is the branch's icon, and line 2 gives its cover, image icon and colours (a Tree's icon shows on its core). A folder holding only its `README.md` is still a branch. The root's `README.md`, and one in a leaf's sibling folder, stay ordinary leaves. Links in a branch's text are threads from the branch; a link to it is a thread to the branch. | `AI Agents/README.md` |
@@ -224,9 +224,11 @@ Next to the radial map, a Family can be shown seven other ways (design: `design/
 - **Images resize by their sides** (issue #27): dragging either side inwards makes the image smaller, outwards bigger, both sides moving so it stays centred, from 10% up to the column. The width is written into the image's title once, on release (`imageResize`); the end handle is also a slider (arrows by 5%, Home, End).
 - **"Show the code" turns that extension off.** Same editor, same text, no conversion.
 - **A new line says how to open the options** (issue #68, `emptyText.ts`): the empty line being written on shows, faintly, "Hold ⌘ / Ctrl to see options", or "Tap and hold, or type /" on touch. The caret is the text's colour.
-- **`@` mentions** use `@codemirror/autocomplete` over the in-memory index. Picking a leaf inserts `[Title](/path.md)`, which is displayed as a chip with the target's icon.
+- **`@` mentions** use `@codemirror/autocomplete` over the in-memory index. Picking a leaf inserts `[Title](/path.md)`, which is displayed as a chip with the target's icon. A name no leaf has is offered last as *New leaf “…”*: the link names the leaf beside the one being written, a ghost until it is written.
+- **Dragging selected text onto a chip** moves it to the end of that leaf, as a paragraph of its own, and its lines leave this one (`mentions.ts`, `dropOnChips`); dropped anywhere else it moves within the text, as the browser does.
 - **Formatting** (`format.ts`): Ctrl/⌘+B, I, E (code), Shift+X (strike) wrap the selection in its marks or take them off; Ctrl/⌘+K makes it a link. A mark typed over a selection (`*`, `_`, `` ` ``, `~`, `[`, `(`, `"`) wraps it. On touch screens a bar above the keyboard (`toolbar.ts`) offers bold, italic, code, link, bullet list and to-do while the text has the focus. Bullets draw as bullets; a closed code block away from the cursor shows its language in place of its fences.
-- **Hold Ctrl/Cmd for 2 seconds** to open the insert menu: to-do list, ordered list, bullet list, mention, table, image from files, attach a file, new leaf, new branch.
+- **Hold Ctrl/Cmd for one second** to open the insert menu: to-do list, ordered list, bullet list, mention, table, image from files, attach a file, new leaf, new branch.
+- **Embeds in lists:** a list item that is only a YouTube link, or a link to a PDF or video in `assets/`, plays in place like a paragraph of one link (the item keeps its bullet); math and code work in items too.
   - The timer starts when the modifier is pressed on its own. Any other key, or releasing the modifier, cancels it, so normal shortcuts like Ctrl+C never open the menu.
   - Phones have no Ctrl key: a long-press or typing `/` opens the same menu.
 - **Pasting a URL** (one http(s) address, into a plain paragraph) inserts it as it is and offers *Keep as link* or *Bookmark*. A bookmark rewrites it as `[Title](url)` in a paragraph of its own; the title comes from the URL's last path segment, or its site, since the browser can't fetch other sites' pages. Typing, moving away or Escape keeps the link.
@@ -238,7 +240,8 @@ Next to the radial map, a Family can be shown seven other ways (design: `design/
 
 ## 8. Read view and PDF
 
-- A leaf is edited wherever it is shown (issue #17): the floating Peek, its full page and the phone's sheet all hold the editor (`editor/LeafEditor.tsx`), live preview on, with no separate Edit step. The Peek adds the leaf's metadata chips, sub-leaves and threads below it, and "Show Markdown" in its More actions menu. Old `#/edit/…` links redirect to the leaf in its Family.
+- A leaf is edited wherever it is shown (issue #17): the floating Peek, its full page and the phone's sheet all hold the editor (`editor/LeafEditor.tsx`), live preview on, with no separate Edit step. The Peek adds the leaf's metadata chips, sub-leaves and threads below it, and "Show Markdown", "Hide" (line 2 `hidden`, §4) and more in its More actions menu; a button after its breadcrumb copies the node's path from the Family's root. Old `#/edit/…` links redirect to the leaf in its Family.
+- **Several leaves at once** (owner's request): *Keep open* in a floating Peek's head holds that leaf in a column of its own beside whatever is selected next, each column its own editor (`FamilyView.tsx`, `pinned`); the same leaf is never shown twice, and the full page covers the columns. Not on phones, nor in views with a docked or own panel.
 - The read view is the HTML `markdown-it` makes of a leaf (plus task lists and KaTeX). It is what a leaf prints as.
 - **PDF export** uses a print stylesheet and `window.print()` on the read view.
   - Video embeds print as a thumbnail with a link.
@@ -371,7 +374,8 @@ src/
             LeafLook.tsx (cover, colours) · cover.ts (cover position) · files.ts (file cards)
   ui/       App.tsx (routes) · Start.tsx (`#/`) · AllView.tsx (`#/all`) · TopBar.tsx · TokenScreen.tsx
             FamilyView.tsx (Explorer | map or a view | Peek) · FamilyMenu.tsx · Explorer.tsx · Appearance.tsx
-            Settings.tsx (the settings frame) · ViewsSettings.tsx · TreeColours.tsx
+            Settings.tsx (the settings frame) · ViewsSettings.tsx · TreeColours.tsx · Hidden.tsx
+  example/  files.ts (CLAUDE.md for AI agents, and the example Family, seeded into new Families)
             theme.ts (turns design/themes/themes.json into CSS, applies it)
             motion.tsx (exits, growing and settling: Web Animations; entrances are CSS)
   store/    token.ts (the token: IndexedDB on the web, the OS keychain on desktop)

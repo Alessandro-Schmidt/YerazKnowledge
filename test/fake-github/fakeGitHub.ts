@@ -7,6 +7,7 @@
 //                   Commit.blame(path:),
 //                   viewer.repositories (discovery), createCommitOnBranch
 //   POST /user/repos
+//   PATCH /repos/{o}/{r}                                 rename (name only)
 // plus a request log and fault switches. Error messages copy GitHub's where known;
 // the nightly contract test against real GitHub keeps them honest.
 
@@ -31,7 +32,7 @@ export interface LogEntry {
   method: string
   path: string
   status: number
-  kind: 'head' | 'tree' | 'blob' | 'graphql' | 'create-repo' | 'unknown'
+  kind: 'head' | 'tree' | 'blob' | 'graphql' | 'create-repo' | 'rename-repo' | 'unknown'
   /** GraphQL only. */
   operation?: 'query' | 'mutation'
   /** Number of blob texts returned. */
@@ -324,6 +325,44 @@ export function createFakeGitHub(options: { login?: string; tokens?: string[] } 
       name,
       full_name: repo.nameWithOwner,
       owner: { login, type: 'User' },
+      private: repo.isPrivate,
+      description: repo.description,
+      html_url: `https://github.com/${repo.nameWithOwner}`,
+      url: `${API}/repos/${repo.nameWithOwner}`,
+      default_branch: repo.defaultBranch,
+    })
+  }
+
+  /** PATCH /repos/{owner}/{name} with `name`: the repository is known by its new name from then on. */
+  function renameRepo(owner: string, name: string, req: FakeRequest): FakeResponse {
+    const repo = repos.get(key(owner, name))
+    if (!repo) return restError(404, 'Not Found')
+    let input: { name?: unknown }
+    try {
+      input = JSON.parse(req.body ?? '{}')
+    } catch {
+      return restError(400, 'Problems parsing JSON')
+    }
+    const next = typeof input.name === 'string' ? input.name.replace(/[^A-Za-z0-9._-]/g, '-') : ''
+    if (!next) return restError(422, 'Validation Failed')
+    if (next.toLowerCase() !== name.toLowerCase() && repos.has(key(owner, next)))
+      return restError(422, 'Validation Failed', {
+        errors: [
+          {
+            resource: 'Repository',
+            code: 'custom',
+            field: 'name',
+            message: 'name already exists on this account',
+          },
+        ],
+      })
+    repos.delete(key(owner, name))
+    repo.name = next
+    repos.set(key(owner, next), repo)
+    return json(200, {
+      name: next,
+      full_name: repo.nameWithOwner,
+      owner: { login: repo.owner, type: 'User' },
       private: repo.isPrivate,
       description: repo.description,
       html_url: `https://github.com/${repo.nameWithOwner}`,
@@ -643,18 +682,21 @@ export function createFakeGitHub(options: { login?: string; tokens?: string[] } 
     const tree = url.pathname.match(/^\/repos\/([^/]+)\/([^/]+)\/git\/trees\/(.+)$/)
     const head = url.pathname.match(/^\/repos\/([^/]+)\/([^/]+)\/commits\/([^/]+)$/)
     const blob = url.pathname.match(/^\/repos\/([^/]+)\/([^/]+)\/git\/blobs\/([0-9a-f]{40})$/)
+    const repoPath = url.pathname.match(/^\/repos\/([^/]+)\/([^/]+)$/)
     const kind: LogEntry['kind'] =
-      method === 'GET' && head
-        ? 'head'
-        : method === 'GET' && tree
-          ? 'tree'
-          : method === 'GET' && blob
-            ? 'blob'
-            : method === 'POST' && url.pathname === '/graphql'
-              ? 'graphql'
-              : method === 'POST' && url.pathname === '/user/repos'
-                ? 'create-repo'
-                : 'unknown'
+      method === 'PATCH' && repoPath
+        ? 'rename-repo'
+        : method === 'GET' && head
+          ? 'head'
+          : method === 'GET' && tree
+            ? 'tree'
+            : method === 'GET' && blob
+              ? 'blob'
+              : method === 'POST' && url.pathname === '/graphql'
+                ? 'graphql'
+                : method === 'POST' && url.pathname === '/user/repos'
+                  ? 'create-repo'
+                  : 'unknown'
     const entry: LogEntry = { method, path: url.pathname + url.search, status: 0, kind, blobs: 0 }
     log.push(entry)
 
@@ -701,6 +743,11 @@ export function createFakeGitHub(options: { login?: string; tokens?: string[] } 
       }
     } else if (kind === 'create-repo') {
       response = auth ? await createRepo(request) : restError(401, 'Requires authentication')
+    } else if (kind === 'rename-repo') {
+      const [, owner, name] = repoPath!
+      response = auth
+        ? renameRepo(owner!, name!, request)
+        : restError(401, 'Requires authentication')
     } else {
       response = restError(404, 'Not Found')
     }

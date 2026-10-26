@@ -65,6 +65,18 @@
   background: var(--bg);
 }
 
+/* Leaves kept open beside the selected one (owner's request), each a column. */
+.stack {
+  position: absolute;
+  z-index: 3;
+  top: 16px;
+  right: 16px;
+  bottom: 16px;
+  display: flex;
+  gap: 12px;
+  max-width: calc(100% - 32px);
+}
+
 .placeholder {
   position: absolute;
   inset: 0;

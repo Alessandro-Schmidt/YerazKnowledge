@@ -555,6 +555,28 @@ describe('POST /user/repos', () => {
   })
 })
 
+describe('PATCH /repos/{owner}/{name}', () => {
+  it('renames a repository: known by its new name, refusing a taken one, needing a token', async () => {
+    await fake.addRepo('you/notes', { 'a.md': '# A\n' })
+    await fake.addRepo('you/taken')
+    const res = await request(fake, 'PATCH', '/repos/you/notes', { body: { name: 'journal' } })
+    expect(res.status).toBe(200)
+    expect(JSON.parse(res.body!)).toMatchObject({ name: 'journal', full_name: 'you/journal' })
+    expect(fake.repo('you/journal').read('a.md')).toBe('# A\n')
+    expect(() => fake.repo('you/notes')).toThrow()
+    expect(
+      (await request(fake, 'PATCH', '/repos/you/journal', { body: { name: 'taken' } })).status,
+    ).toBe(422)
+    expect(
+      (await request(fake, 'PATCH', '/repos/you/journal', { body: { name: 'x' }, token: null }))
+        .status,
+    ).toBe(401)
+    expect((await request(fake, 'PATCH', '/repos/you/gone', { body: { name: 'x' } })).status).toBe(
+      404,
+    )
+  })
+})
+
 describe('faults and protocol', () => {
   it('fails as a network error when offline, and logs the attempt', async () => {
     fake.faults.offline = true
