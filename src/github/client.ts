@@ -15,6 +15,8 @@ export type GitHubErrorKind =
   | 'graphql'
   /** A commit was refused because the branch moved: another device committed first. */
   | 'stale'
+  /** GitHub refused the request itself (422: a repository name already taken); its message says why. */
+  | 'refused'
 
 export class GitHubError extends Error {
   constructor(
@@ -49,6 +51,8 @@ export interface GraphQLErrorInfo {
 export interface GitHubClient {
   /** POST to a REST path; answers the parsed JSON. */
   post<T>(path: string, body: unknown): Promise<T>
+  /** PATCH to a REST path (renaming a repository); answers the parsed JSON. */
+  patch<T>(path: string, body: unknown): Promise<T>
   /** The branch's head commit SHA; `'not-modified'` when `etag` still matches (free of rate limit). */
   getHead(
     repo: string,
@@ -92,8 +96,14 @@ export function createGitHubClient({
     }
     if (res.ok || res.status === 304) return res
 
-    const body = (await res.json().catch(() => ({}))) as { message?: string }
-    const message = body.message ?? `GitHub answered ${res.status}`
+    const body = (await res.json().catch(() => ({}))) as {
+      message?: string
+      errors?: { message?: string }[]
+    }
+    const message =
+      (res.status === 422 && body.errors?.find((e) => e.message)?.message) ||
+      body.message ||
+      `GitHub answered ${res.status}`
     const limited =
       (res.status === 403 || res.status === 429) &&
       (res.headers.get('x-ratelimit-remaining') === '0' ||
@@ -107,9 +117,11 @@ export function createGitHubClient({
           ? 'not-found'
           : res.status === 409
             ? 'empty'
-            : res.status >= 500
-              ? 'server'
-              : 'auth' // 403 without a rate limit: the token lacks access
+            : res.status === 422
+              ? 'refused'
+              : res.status >= 500
+                ? 'server'
+                : 'auth' // 403 without a rate limit: the token lacks access
     throw new GitHubError(kind, message, res.status)
   }
 
@@ -117,6 +129,15 @@ export function createGitHubClient({
     async post<T>(path: string, body: unknown) {
       const res = await request(path, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      return (await res.json()) as T
+    },
+
+    async patch<T>(path: string, body: unknown) {
+      const res = await request(path, {
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       })

@@ -22,17 +22,22 @@ export function FolderButton({ onAdded }: { onAdded(tree: TreeRef): void }) {
         This browser can’t open folders. Use Chrome or Edge on a computer, or the desktop app.
       </p>
     )
-  const add = async (empty: boolean, name?: string) => {
+  const add = async (empty: boolean, name?: string, seed?: Record<string, string>) => {
     setError(null)
     try {
-      await start(empty, name)
+      await start(empty, name, seed)
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
     }
   }
-  const start = async (empty: boolean, name?: string) => {
-    const tree = await session.getState().addFolder(empty, name)
+  const start = async (empty: boolean, name?: string, seed?: Record<string, string>) => {
+    const tree = await session.getState().addFolder(empty, name, seed)
     if (tree) onAdded(tree)
+  }
+  // A first look (owner's request): the example Family, kept like any other, to change or delete.
+  const example = async () => {
+    const { EXAMPLE_FILES, EXAMPLE_NAME } = await import('../example/files')
+    await add(onDevice, EXAMPLE_NAME, EXAMPLE_FILES)
   }
   return (
     <>
@@ -46,6 +51,19 @@ export function FolderButton({ onAdded }: { onAdded(tree: TreeRef): void }) {
           Start on this device
         </button>
       )}
+      <button
+        type="button"
+        className={controls.ghost}
+        title={
+          onDevice
+            ? 'A few example notes, kept on this device'
+            : 'A few example notes, written into an empty folder you pick'
+        }
+        onClick={() => void example()}
+      >
+        <Icon name="face" />
+        Try an example
+      </button>
       {naming && (
         <NewFamilyDialog onClose={() => setNaming(false)} onName={(name) => start(true, name)} />
       )}

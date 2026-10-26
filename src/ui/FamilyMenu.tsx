@@ -62,9 +62,9 @@ export function rememberFamily(repo: string) {
 /** `current`: the Family on screen; `all`: every Family on one map is. */
 export function FamilyMenu({ current, all }: { current?: string; all?: boolean }) {
   const [open, setOpen] = useState(false)
-  const [dialog, setDialog] = useState<'connect' | 'create' | 'new' | 'rename' | 'remove' | null>(
-    null,
-  )
+  const [dialog, setDialog] = useState<
+    'connect' | 'create' | 'new' | 'rename' | 'remove' | 'publish' | null
+  >(null)
   const here = useSession((s) =>
     s.trees.find((t) => t.repo.toLowerCase() === current?.toLowerCase()),
   )
@@ -165,6 +165,19 @@ export function FamilyMenu({ current, all }: { current?: string; all?: boolean }
                 <Icon name="trash" size={15} />
                 Remove Family
               </button>
+              {/* A folder Family goes to GitHub to be tracked there (owner's request). */}
+              {isFolder(here.repo) &&
+                (github ? (
+                  <button type="button" role="menuitem" onClick={() => setDialog('publish')}>
+                    <Icon name="repo" size={15} />
+                    Push to GitHub…
+                  </button>
+                ) : (
+                  <Link href="/github" role="menuitem">
+                    <Icon name="repo" size={15} />
+                    Push to GitHub… (connect first)
+                  </Link>
+                ))}
             </>
           )}
           <hr />
@@ -210,6 +223,10 @@ export function FamilyMenu({ current, all }: { current?: string; all?: boolean }
             <ViewIcon view="map" />
             Tree colours
           </Link>
+          <Link href="/settings/hidden" role="menuitem" className={styles.muted}>
+            <Icon name="eyeOff" size={15} />
+            Hidden
+          </Link>
           {github && (
             <button
               type="button"
@@ -231,7 +248,14 @@ export function FamilyMenu({ current, all }: { current?: string; all?: boolean }
       {dialog === 'create' && <CreateTreeDialog onClose={() => setDialog(null)} onCreated={go} />}
       {dialog === 'new' && <NewFamilyDialog onClose={() => setDialog(null)} onName={startFamily} />}
       {dialog === 'rename' && here && (
-        <RenameFamilyDialog tree={here} onClose={() => setDialog(null)} />
+        <RenameFamilyDialog
+          tree={here}
+          onClose={() => setDialog(null)}
+          onRenamed={(tree) => navigate(all ? allHref() : treeHref(tree.repo), { replace: true })}
+        />
+      )}
+      {dialog === 'publish' && here && (
+        <PublishDialog tree={here} onClose={() => setDialog(null)} onPublished={go} />
       )}
       {dialog === 'remove' && here && (
         <RemoveFamilyDialog
@@ -297,11 +321,25 @@ export function NewFamilyDialog({
   )
 }
 
-/** Renames the Family on screen (also done by clicking its name in the top bar). */
-function RenameFamilyDialog({ tree, onClose }: { tree: TreeRef; onClose(): void }) {
+/**
+ * Renames the Family on screen (also done by clicking its name in the top bar), and, for a
+ * repository, its name on GitHub too when that field is changed (owner's request).
+ */
+function RenameFamilyDialog({
+  tree,
+  onClose,
+  onRenamed,
+}: {
+  tree: TreeRef
+  onClose(): void
+  /** The repository was renamed: the Family's address changed. */
+  onRenamed(tree: TreeRef): void
+}) {
   const [value, setValue] = useState(tree.title)
+  const [repo, setRepo] = useState(tree.name)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const folder = isFolder(tree.repo)
   return (
     <Dialog
       title="Rename Family"
@@ -314,6 +352,12 @@ function RenameFamilyDialog({ tree, onClose }: { tree: TreeRef; onClose(): void 
         setError(null)
         try {
           await session.getState().renameTree(tree.repo, value)
+          if (!folder && repo.trim() !== tree.name) {
+            const renamed = await session.getState().renameRepository(tree.repo, repo)
+            onClose()
+            onRenamed(renamed)
+            return
+          }
           onClose()
         } catch (e) {
           setError(e instanceof Error ? e.message : String(e))
@@ -333,6 +377,85 @@ function RenameFamilyDialog({ tree, onClose }: { tree: TreeRef; onClose(): void 
           onFocus={(e) => e.target.select()}
         />
       </Field>
+      {!folder && (
+        <Field
+          label="Repository"
+          hint={`Renames ${tree.repo} on GitHub as well, once the pending edits are committed. GitHub keeps the old address pointing at it.`}
+        >
+          <input
+            className={`${controls.input} ${controls.mono}`}
+            name="repo"
+            autoComplete="off"
+            required
+            value={repo}
+            onChange={(e) => setRepo(e.target.value)}
+          />
+        </Field>
+      )}
+    </Dialog>
+  )
+}
+
+/** Pushes a folder Family to a new private repository, and shows the repository in its place. */
+function PublishDialog({
+  tree,
+  onClose,
+  onPublished,
+}: {
+  tree: TreeRef
+  onClose(): void
+  onPublished(tree: TreeRef): void
+}) {
+  const onDevice = useSession((s) => s.onDevice)
+  const [name, setName] = useState(() =>
+    tree.title
+      .normalize('NFKD')
+      .replace(/[̀-ͯ]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, ''),
+  )
+  const [error, setError] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+  return (
+    <Dialog
+      title={`Push ${tree.title} to GitHub`}
+      submit="Push"
+      busy={busy}
+      error={error}
+      onClose={onClose}
+      onSubmit={async () => {
+        setBusy(true)
+        setError(null)
+        try {
+          const next = await session.getState().publishFolder(tree.repo, name)
+          onClose()
+          onPublished(next)
+        } catch (e) {
+          setError(e instanceof Error ? e.message : String(e))
+          setBusy(false)
+        }
+      }}
+    >
+      <Field
+        label="Repository"
+        hint="A new private repository on your GitHub account, with every file, in one commit."
+      >
+        <input
+          className={`${controls.input} ${controls.mono}`}
+          name="repo"
+          autoComplete="off"
+          autoFocus
+          required
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+        />
+      </Field>
+      <p className={controls.hint}>
+        {onDevice
+          ? 'Yeraz then shows the repository instead, and the copy on this device is deleted: GitHub holds the notes.'
+          : `Yeraz then shows the repository instead. The folder ${tree.folder ?? ''} stays on this computer as it is.`}
+      </p>
     </Dialog>
   )
 }

@@ -235,6 +235,63 @@ describe('ghost leaves: links to leaves not written yet', () => {
   })
 })
 
+describe('hidden nodes (line 2 `"hidden": true`)', () => {
+  const hiddenFiles: Record<string, string> = {
+    '.yeraz.json': '{"name":"Engineering"}',
+    'identity/keycloak.md':
+      '# 🔐 Keycloak\n<!-- yeraz {"hidden":true} -->\n\nUses [OAuth](/identity/oauth.md).\n',
+    'identity/keycloak/realms.md': '# Realms\n\nSee [OAuth](/identity/oauth.md).\n',
+    'identity/oauth.md':
+      '# OAuth 2.0\n\nSee [Keycloak](/identity/keycloak.md) and [Realms](/identity/keycloak/realms.md).\n',
+    'archive/README.md': '# 📦 Old\n<!-- yeraz {"hidden":true} -->\n',
+    'archive/2019.md': '# 2019\n\nWords words.\n',
+    'ai-agents/prompting.md': '# Prompting\n\nThree words here.\n',
+  }
+  const graph = () => {
+    const model = buildTree(
+      Object.entries(hiddenFiles).map(([path, text]) => ({
+        path,
+        type: 'blob' as const,
+        sha: path,
+        size: text.length,
+      })),
+    )
+    const leaves = new Map(
+      Object.keys(hiddenFiles)
+        .filter((p) => p.endsWith('.md'))
+        .map((p) => [p, parseLeaf(hiddenFiles[p]!)]),
+    )
+    return buildGraph(model, leaves, 'Engineering')
+  }
+
+  it('leaves the graph with everything under it, and is listed to be shown again', () => {
+    const g = graph()
+    expect([...g.nodes.keys()].sort()).toEqual([
+      '',
+      'ai-agents',
+      'ai-agents/prompting.md',
+      'identity',
+      'identity/oauth.md',
+    ])
+    expect(g.nodes.get('identity')!.children).toEqual(['identity/oauth.md'])
+    expect(g.hidden).toEqual([
+      { id: 'archive', kind: 'branch', title: 'Archive', icon: '📦' },
+      { id: 'identity/keycloak.md', kind: 'leaf', title: 'Keycloak', icon: '🔐' },
+    ])
+    const words =
+      g.nodes.get('identity/oauth.md')!.words + g.nodes.get('ai-agents/prompting.md')!.words
+    expect(g.stats).toMatchObject({ leaves: 2, branches: 2, words })
+    expect(g.nodes.get('')!.total).toBe(words)
+  })
+
+  it('makes no thread from or to a hidden leaf, and no ghost for a link to one', () => {
+    const g = graph()
+    expect(g.threads).toEqual([])
+    expect(g.out.get('identity/oauth.md')).toBeUndefined()
+    expect(g.ghosts.size).toBe(0)
+  })
+})
+
 describe('neighbours and crumbs', () => {
   it('keeps the parent, children and thread ends bright', () => {
     expect([...neighbours(graphOf(), 'identity/keycloak.md')].sort()).toEqual([

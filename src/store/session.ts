@@ -15,8 +15,10 @@ import {
 } from '../github/client'
 import { githubApi } from '../github/endpoint'
 import {
+  createRepository,
   createTreeRepository,
   discoverTrees,
+  renameRepository,
   fetchHistory,
   fetchPlanted,
   lookupTree,
@@ -37,12 +39,13 @@ import {
   type FolderAccess,
   type FolderFs,
 } from '../local/folder'
-import { buildGraph, type Graph } from '../model/graph'
+import { AGENTS_FILE, AGENTS_TEXT } from '../example/files'
+import { buildGraph, humanize, type Graph } from '../model/graph'
 import { markNow } from '../perf'
-import { parseLeaf, type ParsedLeaf } from '../model/parse'
+import { parseLeaf, parseMeta, withMeta, type ParsedLeaf } from '../model/parse'
 import { gitBlobSha } from '../model/sha'
 import { slugify } from '../model/slug'
-import { buildTree } from '../model/tree'
+import { branchText, buildTree } from '../model/tree'
 import { assetBytes, mimeOf } from '../sync/assets'
 import { createAutosave, type Autosave } from '../sync/autosave'
 import { pullFolder, pushFolder } from '../sync/folder'
@@ -96,10 +99,15 @@ export interface SessionState {
   connect(repo: string): Promise<TreeRef>
   /**
    * Asks for a folder on this device and adds it as a Family; null when the person cancels.
-   * A folder without `.yeraz.json` gets one (and a welcome leaf, when it has no leaves).
-   * With `empty`, a Family kept on the device starts with nothing but those, called `title`.
+   * A folder without `.yeraz.json` gets one (and a welcome leaf and `CLAUDE.md`, when it has
+   * no leaves; `seed` files instead, when given: the example Family). With `empty`, a Family
+   * kept on the device starts with nothing but those, called `title`.
    */
-  addFolder(empty?: boolean, title?: string): Promise<TreeRef | null>
+  addFolder(
+    empty?: boolean,
+    title?: string,
+    seed?: Readonly<Record<string, string>>,
+  ): Promise<TreeRef | null>
   /**
    * Takes a Family off this device: a repository stays on GitHub (and isn't found again until
    * connected by hand), a folder stays on the disk, a Family in the device's own storage is
@@ -146,10 +154,26 @@ export interface SessionState {
   /** Renames a Tree: the name in its `.yeraz.json`, committed by the autosave. Throws a message. */
   renameTree(repo: string, title: string): Promise<void>
   /**
+   * Renames the repository itself on GitHub (owner's request), after committing what is
+   * pending; this device then knows the Family by its new name. Throws a message.
+   */
+  renameRepository(repo: string, name: string): Promise<TreeRef>
+  /**
+   * Pushes a Family kept in a folder to a new private repository of that name (owner's
+   * request), every file in one commit, and shows the repository in its place: the folder
+   * stays on the disk as it is; a Family in the device's own storage is deleted. Throws a message.
+   */
+  publishFolder(repo: string, name: string): Promise<TreeRef>
+  /**
    * Colours a Family (`color`) or one of its Trees (`tree`), by colour name; null goes back
    * to the theme accent (the Family's colour, for a Tree). Written to `.yeraz.json`.
    */
   setColor(repo: string, color: string | null, tree?: string): Promise<void>
+  /**
+   * Hides a leaf or a branch (a Tree too) with everything under it, or shows it again: line 2
+   * `hidden` of the leaf, or of the branch's README.md, which is written when it has none.
+   */
+  setHidden(repo: string, id: string, hidden: boolean): Promise<void>
   /** Commits a Tree's pending edits now. */
   flush(repo: string): Promise<void>
   /** Commits every Tree's pending edits now (app hidden, Ctrl/Cmd+S, back online). */
@@ -173,6 +197,7 @@ export function describeError(e: unknown): { message: string; kind: ErrorKind } 
     server: 'GitHub had a problem answering. Try again.',
     graphql: e.message,
     stale: e.message,
+    refused: e.message,
   }
   return { message: messages[e.kind], kind: e.kind }
 }
@@ -341,6 +366,23 @@ export function createSession(deps: {
       await writeMarker(repo, text, next)
       const fields = markerFields(JSON.stringify(next))
       await retitle(key, { color: fields.color ?? null, trees: fields.trees ?? {} })
+    }
+
+    /** Drops what this session holds of a Family in memory, and its pending edits. */
+    const forget = async (key: string) => {
+      autosaves.get(key)?.dispose()
+      autosaves.delete(key)
+      dirty.delete(key)
+      pulls.delete(key)
+      bases.delete(key)
+      opened.delete(key)
+      histories.clear()
+      const data = { ...get().data }
+      const sync = { ...get().sync }
+      delete data[key]
+      delete sync[key]
+      set({ data, sync })
+      await store.set(dirtyKey(key), undefined)
     }
 
     const loadDirty = async (key: string) => {
@@ -555,13 +597,7 @@ export function createSession(deps: {
 
       async removeTree(repo) {
         const key = repo.toLowerCase()
-        autosaves.get(key)?.dispose()
-        autosaves.delete(key)
-        dirty.delete(key)
-        pulls.delete(key)
-        bases.delete(key)
-        opened.delete(key)
-        await store.set(dirtyKey(key), undefined)
+        await forget(key)
         if (isFolder(repo)) {
           const handle = await store.get<unknown>(`folder:${key}`)
           if (handle !== undefined) await deps.folders?.discard?.(handle)
@@ -574,11 +610,6 @@ export function createSession(deps: {
           await store.set(KEYS.ignored, [...new Set([...(await ignored()), repo])])
         }
         const trees = get().trees.filter((t) => t.repo.toLowerCase() !== key)
-        const data = { ...get().data }
-        const sync = { ...get().sync }
-        delete data[key]
-        delete sync[key]
-        set({ data, sync })
         await saveTrees(trees)
         if (!trees.length && !get().token) {
           await store.set(KEYS.trees, undefined)
@@ -586,7 +617,7 @@ export function createSession(deps: {
         }
       },
 
-      async addFolder(empty, title) {
+      async addFolder(empty, title, seed) {
         const access = deps.folders
         if (!access)
           throw new Error(
@@ -603,7 +634,10 @@ export function createSession(deps: {
         else {
           await fs.write(MARKER, encoder.encode(`${JSON.stringify({ name: picked.name })}\n`))
           if (!files.some((f) => f.path.endsWith('.md')))
-            await fs.write('welcome.md', encoder.encode(FOLDER_WELCOME))
+            for (const [path, text] of Object.entries(
+              seed ?? { 'welcome.md': FOLDER_WELCOME, [AGENTS_FILE]: AGENTS_TEXT },
+            ))
+              await fs.write(path, encoder.encode(text))
         }
         const taken = new Set(get().trees.map((t) => t.repo.toLowerCase()))
         const slug = slugify(picked.name)
@@ -884,6 +918,90 @@ export function createSession(deps: {
       async setColor(repo, color, tree) {
         const key = repo.toLowerCase()
         await inTurn(key, () => colour(repo, color, tree))
+      },
+
+      async renameRepository(repo, name) {
+        const key = repo.toLowerCase()
+        const ref = get().trees.find((t) => t.repo.toLowerCase() === key)
+        if (!ref || isFolder(key)) throw new Error('Only a repository on GitHub can be renamed.')
+        const clean = name.trim().replace(/\s+/g, '-')
+        if (!/^[\w.-]+$/.test(clean))
+          throw new Error('Use letters, numbers, dots, dashes or underscores for the name.')
+        if (clean === ref.name) return ref
+        // Nothing may stay under the old name: what is pending is committed first.
+        await get().flush(repo)
+        if (count(key)) throw new Error('Save your edits first: they could not be committed.')
+        let next: TreeRef
+        try {
+          next = await renameRepository(github(), ref, clean)
+        } catch (e) {
+          const { message, kind } = describeError(e)
+          const hint =
+            kind === 'auth'
+              ? ' Renaming needs a token with Administration: Read and write on this repository.'
+              : ''
+          throw new Error(message + hint, { cause: e })
+        }
+        await forget(key)
+        const listing = await store.get<CachedListing>(`tree:${ref.repo}`)
+        await store.setMany([
+          [`tree:${next.repo}`, listing],
+          [`tree:${ref.repo}`, undefined],
+        ])
+        await store.set(KEYS.connected, [
+          ...new Set([...(await connected()).filter((r) => r.toLowerCase() !== key), next.repo]),
+        ])
+        await saveTrees(get().trees.map((t) => (t.repo.toLowerCase() === key ? next : t)))
+        return next
+      },
+
+      async publishFolder(repo, name) {
+        const key = repo.toLowerCase()
+        const ref = get().trees.find((t) => t.repo.toLowerCase() === key)
+        if (!ref || !isFolder(key)) throw new Error('Only a Family in a folder can be pushed.')
+        if (!get().token) throw new Error('Connect GitHub first: the Family menu has it.')
+        const clean = name.trim().replace(/\s+/g, '-')
+        if (!/^[\w.-]+$/.test(clean))
+          throw new Error('Use letters, numbers, dots, dashes or underscores for the name.')
+        await get().flush(repo)
+        if (count(key)) throw new Error('Save your edits first: they could not be written.')
+        const fs = await folderOf(key)
+        const files = await Promise.all(
+          (await fs.list()).map(async (f) => ({ path: f.path, text: await fs.read(f.path) })),
+        )
+        let next: TreeRef
+        try {
+          next = await createRepository(github(), clean, ref.title, files, {
+            headline: `Start ${ref.title}`,
+            body: 'Pushed from a folder by Yeraz.',
+          })
+        } catch (e) {
+          const { message, kind } = describeError(e)
+          const hint =
+            kind === 'auth'
+              ? ' Creating repositories needs a token with Administration: Read and write on all repositories.'
+              : ''
+          throw new Error(message + hint, { cause: e })
+        }
+        next = { ...next, color: ref.color, trees: ref.trees ?? {} }
+        await saveTrees(mergeTrees([next], get().trees))
+        await get().removeTree(repo)
+        return next
+      },
+
+      async setHidden(repo, id, hidden) {
+        const key = repo.toLowerCase()
+        await pulls.get(key)
+        const graph = get().data[key]?.graph
+        const node = graph?.nodes.get(id) ?? graph?.hidden.find((h) => h.id === id)
+        if (!graph || !node) throw new Error("This leaf isn't in the Family.")
+        const path = node.kind === 'leaf' ? id : branchText(id)
+        const text = get().files(repo).includes(path) ? await get().textOf(repo, path) : ''
+        const meta = { ...(parseMeta(text.split(/\r\n|\r|\n/)[1]) ?? {}) }
+        if (hidden) meta.hidden = true
+        else delete meta.hidden
+        const name = id.slice(id.lastIndexOf('/') + 1)
+        await get().apply(repo, [{ path, text: withMeta(text, meta, humanize(name)) }])
       },
 
       async flush(repo) {

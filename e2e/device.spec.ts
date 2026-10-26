@@ -75,3 +75,11 @@ test('starts a Family with a name of its own, and deletes it from the device on 
   await page.reload()
   await expect(page.getByRole('heading', { name: 'Connect GitHub' })).toBeVisible()
 })
+
+test('Try an example starts the example Family on the device', async ({ page }) => {
+  await page.goto('./')
+  await page.getByRole('button', { name: 'Try an example' }).click()
+  await expect(page).toHaveURL(/#\/tree\/~\/example$/)
+  await page.goto('./#/tree/~/example/Welcome.md')
+  await expect(page.locator('.cm-content')).toContainText('This is an example Family')
+})

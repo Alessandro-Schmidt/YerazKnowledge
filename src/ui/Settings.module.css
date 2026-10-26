@@ -78,6 +78,12 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* Settings › Hidden: where the hidden node is, after its name. */
+.rowPath {
+  margin-left: 10px;
+  font-size: 11px;
+  color: var(--muted);
+}
 .swatches {
   display: flex;
   gap: 6px;

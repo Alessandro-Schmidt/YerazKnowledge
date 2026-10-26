@@ -10,6 +10,7 @@ import { AllView } from './AllView'
 import { FamilyView } from './FamilyView'
 import { Start } from './Start'
 import { TreeColours } from './TreeColours'
+import { Hidden } from './Hidden'
 import { ViewsSettings } from './ViewsSettings'
 
 // Routes live in the URL hash (GitHub Pages can't rewrite paths):
@@ -21,6 +22,7 @@ import { ViewsSettings } from './ViewsSettings'
 //   #/settings/appearance                 Settings › Appearance (system colours, fonts)
 //   #/settings/views                      Settings › Views (how a Family is shown)
 //   #/settings/colours                    Settings › Tree colours (in .yeraz.json)
+//   #/settings/hidden                     Settings › Hidden (leaves and branches hidden from the map)
 //   #/github                              Connect GitHub, when only folders are in use
 /**
  * The address the app was opened at. Opening it on a Family's own address (a tab the browser
@@ -93,6 +95,7 @@ export function App() {
         <Route path="/settings/appearance" component={Appearance} />
         <Route path="/settings/views" component={ViewsSettings} />
         <Route path="/settings/colours" component={TreeColours} />
+        <Route path="/settings/hidden" component={Hidden} />
         <Route path="/github" component={ConnectGitHub} />
         <Route>
           <Redirect to="/" replace />

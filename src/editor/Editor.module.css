@@ -30,18 +30,25 @@
 .editor :global(.cm-content ::selection) {
   background: var(--accent-soft) !important;
 }
-/* An empty text says how to write it: an arrow, then the words, in italic. */
+/* An empty text says how to write it: an arrow, then the words, in italic. The words stay
+   after the arrow when a narrow panel wraps them (owner's request). */
 .editor :global(.cm-hint),
 .editor :global(.cm-line-hint) {
   color: var(--faint);
   font-style: italic;
+}
+.editor :global(.cm-hint) {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  max-width: 100%;
 }
 .editor :global(.cm-line-hint) {
   pointer-events: none;
   user-select: none;
 }
 .editor :global(.cm-hint-arrow) {
-  margin-right: 6px;
+  flex: none;
   color: var(--accent);
   font-style: normal;
 }
@@ -116,6 +123,11 @@
 .editor :global([data-href]) {
   cursor: pointer;
 }
+/* Dragged text held over a chip goes to that leaf when dropped. */
+.editor :global(.cm-mention[data-drop]) {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
 .editor :global(.cm-mention[data-before])::before {
   content: attr(data-before);
 }
@@ -128,6 +140,12 @@
 .editor :global(.cm-done) {
   color: var(--muted);
   text-decoration: line-through;
+}
+/* A chip's own background covers the line it inherits: it draws its own, dimmed. */
+.editor :global(.cm-done .cm-mention),
+.editor :global(.cm-done .cm-link) {
+  text-decoration: line-through;
+  opacity: 0.55;
 }
 .editor :global(.cm-task) {
   margin: 0 8px 0 0;
@@ -354,7 +372,7 @@
   font-weight: 600;
 }
 
-/* The insert menu (hold Ctrl/Cmd for 2 s, or / and long-press on touch screens). */
+/* The insert menu (hold Ctrl/Cmd for 1 s, or / and long-press on touch screens). */
 .editor :global(.cm-tooltip:has(.cm-insert-menu)) {
   border: 0;
   background: none;

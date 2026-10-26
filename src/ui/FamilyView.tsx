@@ -52,6 +52,9 @@ export function FamilyView({ params }: { params: { owner: string; name: string; 
   const [action, setAction] = useState<StructureAction | null>(null)
   /** A leaf just created here: it opens ready to write. */
   const [created, setCreated] = useState<string | null>(null)
+  /** Nodes kept open beside the selection, each in its own column (owner's request). */
+  const [pinned, setPinned] = useState<string[]>([])
+  const unpin = (id: string) => setPinned((p) => p.filter((x) => x !== id))
   /** What the last search found: the map's Matches layer. */
   const [found, setFound] = useState<Matches | null>(null)
   const lit = found?.ids[key]
@@ -62,6 +65,7 @@ export function FamilyView({ params }: { params: { owner: string; name: string; 
 
   useEffect(() => {
     markNow('tree-open')
+    setPinned([])
     rememberFamily(repo)
     void session.getState().open(repo)
     preloadEditor()
@@ -97,6 +101,12 @@ export function FamilyView({ params }: { params: { owner: string; name: string; 
   const peekVisible = peekOpen && selected !== null
   // A view with its own panel shows the Peek only as a full page.
   const peekShown = peekVisible && (panel !== 'own' || expanded)
+  // The pinned columns: beside a floating Peek on a computer, never twice the selection.
+  const stack =
+    phone || panel !== 'float' || expanded
+      ? []
+      : pinned.filter((id) => id !== selected && graph?.nodes.has(id))
+  const stackShown = stack.length > 0 && !expanded
 
   const select = useCallback(
     (id: string | null) => {
@@ -121,11 +131,12 @@ export function FamilyView({ params }: { params: { owner: string; name: string; 
 
   // The panels' widths, dragged by their edges and saved on this device (issue #80).
   const widths = useSyncExternalStore(widthStore.subscribe, widthStore.get)
+  const columns = (peekShown && !expanded ? 1 : 0) + stack.length
   const insets = phone
     ? { bottom: peekShown ? Math.round(window.innerHeight * 0.6) : 0 }
     : panel === 'dock'
       ? { right: peekShown && !expanded ? widths.dock : 0 }
-      : { right: peekShown && !expanded ? widths.peek + 32 : 0 }
+      : { right: columns ? columns * widths.peek + 32 + (columns - 1) * 12 : 0 }
   const View = view === 'map' ? null : VIEW_COMPONENTS[view]
 
   return (
@@ -270,28 +281,60 @@ export function FamilyView({ params }: { params: { owner: string; name: string; 
           ) : (
             <Placeholder data={data} repo={repo} />
           )}
-          <Presence show={!!(graph && tree && peekShown)}>
-            {graph && tree && peekShown && (
-              <Peek
-                tree={tree}
-                graph={graph}
-                id={selected!}
-                expanded={expanded}
-                docked={panel === 'dock'}
-                created={created === selected}
-                href={href}
-                onSelect={select}
-                onExpand={setExpanded}
-                onClose={() => {
-                  setPeekOpen(false)
-                  setExpanded(false)
-                }}
-                onAction={setAction}
-                onWritten={(id) => {
-                  select(id)
-                  setCreated(id)
-                }}
-              />
+          <Presence show={!!(graph && tree && (peekShown || stackShown))}>
+            {graph && tree && (peekShown || stackShown) && (
+              <div className={stackShown ? styles.stack : undefined}>
+                {stack.map((id) => (
+                  <Peek
+                    key={id}
+                    tree={tree}
+                    graph={graph}
+                    id={id}
+                    expanded={false}
+                    pinned
+                    href={href}
+                    onSelect={select}
+                    onExpand={() => {
+                      select(id)
+                      setExpanded(true)
+                    }}
+                    onClose={() => unpin(id)}
+                    onAction={setAction}
+                    onWritten={(written) => {
+                      select(written)
+                      setCreated(written)
+                    }}
+                  />
+                ))}
+                {peekShown && (
+                  <Peek
+                    tree={tree}
+                    graph={graph}
+                    id={selected!}
+                    expanded={expanded}
+                    docked={panel === 'dock'}
+                    created={created === selected}
+                    pinned={stackShown}
+                    onPin={
+                      phone || panel !== 'float'
+                        ? undefined
+                        : (id) => setPinned((p) => (p.includes(id) ? p : [...p, id]))
+                    }
+                    href={href}
+                    onSelect={select}
+                    onExpand={setExpanded}
+                    onClose={() => {
+                      setPeekOpen(false)
+                      setExpanded(false)
+                    }}
+                    onAction={setAction}
+                    onWritten={(id) => {
+                      select(id)
+                      setCreated(id)
+                    }}
+                  />
+                )}
+              </div>
             )}
           </Presence>
           {graph && view === 'map' && !explorerOpen && !peekVisible && !phone && (

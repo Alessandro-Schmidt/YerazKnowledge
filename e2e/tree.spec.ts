@@ -207,7 +207,12 @@ test('expands the Peek to a full page, comes back, and dismisses it', async ({ p
   await expect(page.locator('[data-map]')).toHaveAttribute('data-focus')
 })
 
-test('the Peek’s breadcrumbs open the places above the leaf', async ({ page, graph }) => {
+test('the Peek’s breadcrumbs open the places above the leaf', async ({
+  page,
+  graph,
+  context,
+  browserName,
+}) => {
   // A sub-leaf two places below the Family: its Tree, then its parent leaf.
   const leaf = [...graph.nodes.values()]
     .filter((n) => n.kind === 'leaf' && n.parent && graph.nodes.get(n.parent)!.parent)
@@ -217,6 +222,12 @@ test('the Peek’s breadcrumbs open the places above the leaf', async ({ page, g
   await page.goto(`./#/tree/you/engineering/${leaf.id}`)
   const crumbs = peek(page).getByRole('navigation', { name: 'Breadcrumb' })
   await expect(crumbs.getByRole('link').first()).toHaveText(graph.nodes.get('')!.title)
+  // Beside them, a button copies the leaf's path from the Family's root (owner's request).
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']).catch(() => undefined)
+  await peek(page).getByRole('button', { name: 'Copy path' }).click()
+  await expect(peek(page).getByRole('button', { name: 'Copied' })).toBeVisible()
+  if (browserName === 'chromium')
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(`/${leaf.id}`)
   await crumbs.getByRole('link', { name: parent.title, exact: true }).click()
   await expect(peek(page).getByRole('heading', { level: 2 })).toHaveText(parent.title)
   await peek(page).getByRole('navigation', { name: 'Breadcrumb' }).getByRole('link').first().click()

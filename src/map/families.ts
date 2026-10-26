@@ -89,7 +89,7 @@ export function mergeFamilies(families: readonly FamilyGraph[], title: string): 
     loaded: true,
     sha: null,
   })
-  return { nodes, threads, out, in: into, external: [], ghosts, stats }
+  return { nodes, threads, out, in: into, external: [], ghosts, hidden: [], stats }
 }
 
 /** The map of every Family: each Family's Trees packed together, then the Families. */

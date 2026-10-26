@@ -12,7 +12,7 @@ test('renames the Family from its menu: the name changes everywhere, written to 
   await signIn(page)
   await (await familyMenu(page)).getByRole('menuitem', { name: 'Rename Family' }).click()
   const dialog = page.getByRole('dialog', { name: 'Rename Family' })
-  await dialog.getByLabel('Name').fill('Platform')
+  await dialog.getByLabel(/^Name/).fill('Platform')
   await dialog.getByRole('button', { name: 'Rename' }).click()
   await expect(dialog).toHaveCount(0)
   await expect(page.getByRole('heading', { level: 1 })).toContainText('Platform')
@@ -42,4 +42,28 @@ test('removes the Family from this device: GitHub keeps it, and it is not found 
   await page.getByPlaceholder('owner/name').fill(REPO)
   await page.getByRole('button', { name: 'Connect', exact: true }).click()
   await expect(page).toHaveURL(/#\/tree\/you\/engineering$/)
+})
+
+test('renames the repository on GitHub from the same dialog: the Family moves with it', async ({
+  page,
+  fake,
+}) => {
+  await signIn(page)
+  await page.goto(`./#/tree/${REPO}`)
+  await (await familyMenu(page)).getByRole('menuitem', { name: 'Rename Family' }).click()
+  const dialog = page.getByRole('dialog', { name: 'Rename Family' })
+  await dialog.getByLabel('Repository').fill('platform')
+  await dialog.getByRole('button', { name: 'Rename' }).click()
+  await expect(dialog).toHaveCount(0)
+  await expect(page).toHaveURL(/#\/tree\/you\/platform$/)
+  expect(fake.repo('you/platform').read('.yeraz.json')).toContain('Engineering')
+  await expect(page.locator('[data-map]')).toBeVisible()
+  await expect(await familyMenu(page)).toContainText('you/platform')
+  await page.keyboard.press('Escape')
+  // A taken name is refused with GitHub's words, and nothing moves.
+  await fake.addRepo('you/taken')
+  await (await familyMenu(page)).getByRole('menuitem', { name: 'Rename Family' }).click()
+  await dialog.getByLabel('Repository').fill('taken')
+  await dialog.getByRole('button', { name: 'Rename' }).click()
+  await expect(dialog.getByRole('alert')).toContainText('name already exists')
 })

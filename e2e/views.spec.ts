@@ -200,7 +200,7 @@ for (const view of VIEW_IDS.filter((v) => v !== 'map')) {
 test('the Views and Tree colours settings have no accessibility violations', async ({ page }) => {
   await page.goto('./#/settings/views')
   await signInHere(page)
-  for (const settings of ['views', 'colours']) {
+  for (const settings of ['views', 'colours', 'hidden']) {
     await page.goto(`./#/settings/${settings}`)
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
     const found = (await new AxeBuilder({ page }).analyze()).violations

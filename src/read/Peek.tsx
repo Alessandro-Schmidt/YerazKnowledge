@@ -59,6 +59,10 @@ export interface PeekProps {
   docked?: boolean
   /** The leaf was just created: its editor takes the focus, to write below the title. */
   created?: boolean
+  /** Kept open beside the selection (owner's request: several leaves edited at once). */
+  pinned?: boolean
+  /** Keeps this node open beside whatever is selected next; the head shows the button. */
+  onPin?(id: string): void
   href(id: string): string
   onSelect(id: string): void
   onExpand(expanded: boolean): void
@@ -76,6 +80,8 @@ export function Peek({
   expanded,
   docked,
   created,
+  pinned,
+  onPin,
   href,
   onSelect,
   onExpand,
@@ -178,6 +184,7 @@ export function Peek({
       className={styles.peek}
       data-expanded={expanded || undefined}
       data-docked={docked || undefined}
+      data-stacked={pinned || undefined}
       aria-label={`${kind} preview`}
     >
       {!expanded && (
@@ -185,6 +192,8 @@ export function Peek({
       )}
       <PeekHead
         {...{ kind, crumb, away, href, onSelect, expanded, onClose, sheet }}
+        copy={node.kind === 'root' ? null : `/${id}${node.kind === 'branch' ? '/' : ''}`}
+        onPin={onPin && node.kind !== 'root' && !expanded && !docked ? () => onPin(id) : undefined}
         onExpand={motion.expand}
       />
       {/* The full page covers the top bar on a phone: what the writer needs from it, here. */}
@@ -430,6 +439,17 @@ export function Peek({
                       Move…
                     </button>
                   )}
+                  {/* Off the map with everything under it; Settings › Hidden shows it again. */}
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      onClose()
+                      void session.getState().setHidden(tree.repo, id, true)
+                    }}
+                  >
+                    Hide
+                  </button>
                   <button
                     type="button"
                     role="menuitem"
@@ -462,6 +482,8 @@ function PeekHead({
   kind,
   crumb,
   away = null,
+  copy = null,
+  onPin,
   href,
   onSelect,
   expanded,
@@ -473,6 +495,10 @@ function PeekHead({
   /** The places above, each a link to it; or a line of text, linking `away` when given. */
   crumb: string | GraphNode[]
   away?: string | null
+  /** The node's path from the Family's root, copied by a button after the breadcrumb (owner's request). */
+  copy?: string | null
+  /** Keeps the node open beside the next selection; no button without it. */
+  onPin?: (() => void) | undefined
   sheet: RefObject<HTMLElement | null>
 } & Pick<PeekProps, 'href' | 'onSelect' | 'expanded' | 'onExpand' | 'onClose'>) {
   // On a touch screen the handle and head are a grip: swipe up to open the full page,
@@ -480,6 +506,12 @@ function PeekHead({
   // finger (upwards reluctantly), and settles back when the swipe is too short and too slow:
   // a quick flick counts whatever its length.
   const start = useRef<{ y: number; at: number } | null>(null)
+  const [copied, setCopied] = useState(false)
+  useEffect(() => {
+    if (!copied) return
+    const timer = setTimeout(() => setCopied(false), 1500)
+    return () => clearTimeout(timer)
+  }, [copied])
   const follow = (dy: number) => shift(sheet.current, dy)
   const settle = (dy: number) => {
     shift(sheet.current, 0)
@@ -538,6 +570,30 @@ function PeekHead({
             ))
           )}
         </nav>
+        {copy && (
+          <button
+            type="button"
+            className={`${controls.iconButton} ${styles.copy}`}
+            aria-label={copied ? 'Copied' : 'Copy path'}
+            title={copy}
+            onClick={() => {
+              void navigator.clipboard?.writeText(copy).then(() => setCopied(true))
+            }}
+          >
+            <Icon name={copied ? 'check' : 'copy'} size={15} />
+          </button>
+        )}
+        {onPin && (
+          <button
+            type="button"
+            className={controls.iconButton}
+            aria-label="Keep open"
+            title="Keep this open beside the next leaf you pick"
+            onClick={onPin}
+          >
+            <Icon name="pin" size={16} />
+          </button>
+        )}
         <button
           type="button"
           className={controls.iconButton}

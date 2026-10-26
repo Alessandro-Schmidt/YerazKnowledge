@@ -46,7 +46,9 @@ Yeraz signs in with a fine-grained personal access token, kept on your device (i
 
 *Use a folder* on the first screen (or in the Family menu) keeps a Family in a folder on your computer instead: no account, no token. Pick one that iCloud Drive, Dropbox, OneDrive or a shared drive keeps in sync, and your other devices see the same notes. Edits are written to the folder a couple of seconds after you stop typing; when another device changed the same leaf meanwhile, the two versions are merged, or both kept. The files follow the same format as a repository, so the folder can become one later.
 
-It works in the desktop app and in Chrome or Edge on a computer. Safari, Firefox and phone browsers can't open folders, so there Yeraz needs GitHub. A folder keeps no history: *History* is GitHub's.
+It works in the desktop app and in Chrome or Edge on a computer. Safari, Firefox and phone browsers can't open folders, so there Yeraz keeps the Family in the browser's own storage. A folder keeps no history: *History* is GitHub's. When you want it tracked, *Push to GitHub* in the Family menu makes a private repository of it, every file in one commit, and shows the repository in its place.
+
+*Try an example* on the first screen writes a small example Family to look around in: a few leaves with threads, tasks, a video, maths and code, and a `CLAUDE.md` that tells an AI agent such as Claude Code how notes are kept here. Every new Family gets that `CLAUDE.md` too.
 
 ### Bring your notes from another app
 

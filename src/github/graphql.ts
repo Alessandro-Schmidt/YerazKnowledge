@@ -3,6 +3,7 @@
 // createCommitOnBranch (§5.2).
 // Creating a repository is the one REST write.
 
+import { AGENTS_FILE, AGENTS_TEXT } from '../example/files'
 import { GitHubError, type GitHubClient } from './client'
 
 export interface TreeRef {
@@ -305,14 +306,41 @@ export async function createTreeRepository(
   client: GitHubClient,
   input: { name: string; title: string },
 ): Promise<TreeRef> {
-  const repo = await client.post<{
-    name: string
-    full_name: string
-    private: boolean
-    default_branch: string
-    owner: { login: string }
-  }>('/user/repos', {
-    name: input.name,
+  const title = input.title.trim() || input.name
+  return createRepository(
+    client,
+    input.name,
+    title,
+    [
+      { path: '.yeraz.json', text: `${JSON.stringify({ name: title })}\n` },
+      { path: 'welcome.md', text: WELCOME },
+      { path: AGENTS_FILE, text: AGENTS_TEXT },
+    ],
+    { headline: `Start ${title}`, body: 'Created by Yeraz.' },
+  )
+}
+
+interface RepositoryJson {
+  name: string
+  full_name: string
+  private: boolean
+  default_branch: string
+  owner: { login: string }
+}
+
+/**
+ * A new private repository holding `files` in one commit (a Family pushed from a folder,
+ * owner's request). GitHub's own README goes unless the files bring one.
+ */
+export async function createRepository(
+  client: GitHubClient,
+  name: string,
+  title: string,
+  files: readonly FileWrite[],
+  message: { headline: string; body?: string },
+): Promise<TreeRef> {
+  const repo = await client.post<RepositoryJson>('/user/repos', {
+    name,
     private: true,
     auto_init: true,
     description: 'A Yeraz knowledge family',
@@ -323,24 +351,27 @@ export async function createTreeRepository(
     repo: repo.full_name,
     branch: repo.default_branch,
     isPrivate: repo.private,
-    title: input.title.trim() || repo.name,
+    title,
     color: null,
   }
   const head = await client.getHead(ref.repo, ref.branch)
   if (head === 'not-modified')
     throw new GitHubError('graphql', 'Unexpected 304 for a new repository')
-  await createCommit(
-    client,
-    ref,
-    head.sha,
-    [
-      { path: '.yeraz.json', text: `${JSON.stringify({ name: ref.title })}\n` },
-      { path: 'welcome.md', text: WELCOME },
-      { path: 'README.md', text: null },
-    ],
-    { headline: `Start ${ref.title}`, body: 'Created by Yeraz.' },
-  )
+  const readme = files.some((f) => f.path === 'README.md')
+    ? []
+    : [{ path: 'README.md', text: null }]
+  await createCommit(client, ref, head.sha, [...files, ...readme], message)
   return ref
+}
+
+/** Renames a repository on GitHub (its name only; GitHub redirects the old one). */
+export async function renameRepository(
+  client: GitHubClient,
+  ref: TreeRef,
+  name: string,
+): Promise<TreeRef> {
+  const repo = await client.patch<RepositoryJson>(`/repos/${ref.repo}`, { name })
+  return { ...ref, owner: repo.owner.login, name: repo.name, repo: repo.full_name }
 }
 
 const WELCOME = `# 🌱 Welcome
