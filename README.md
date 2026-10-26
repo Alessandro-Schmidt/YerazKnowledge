@@ -58,6 +58,12 @@ npm run import -- ~/Obsidian/Vault ~/Notes/Vault --name "My notes"
 
 Notion's ids leave the file names, `[[wikilinks]]` and relative links become threads, attachments move to `assets/`, and each note gets its title on line 1. The source isn't touched. Open the new folder with *Use a folder*, or push it to a GitHub repository. With [Claude Code](https://claude.com/claude-code) in this repository, asking it to *import my Obsidian vault* runs the same steps (`.claude/skills/import-notes/`).
 
+Without a clone, the standalone skill in [`skills/yeraz-import/`](skills/yeraz-import/) does the same from one Node script, reads Logseq graphs and OneNote's HTML or MHT exports too, and gives every page an emoji icon that says what it is about (Claude chooses them from an inventory of the pages):
+
+```sh
+npx skills add Alessandro-Schmidt/YerazKnowledge --skill yeraz-import
+```
+
 ### Every Family together
 
 With more than one Family (repositories or folders), Yeraz opens on all of them on one map, each in its own ring, and every view (Mind map, Outline, Columns, Treemap, Graph, Growth rings, Atlas) shows them all too. Click any leaf to read and edit it there. *All Families* in the Family menu brings that map back; to open on the last Family instead, choose *The last Family* in Settings › Views.

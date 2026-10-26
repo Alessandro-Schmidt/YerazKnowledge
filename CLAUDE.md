@@ -10,7 +10,8 @@ Read `ideas.txt` (why), `ARCHITECTURE.md` (how), `development-plan.md` (what, in
 - `npm test` — Vitest (unit + integration); `npm run e2e` — Playwright on the production build
 - `npm run typecheck` · `npm run lint` · `npm run format` · `npm run build` · `npm run size`
 - `npm run fixture -- --leaves 1000 --threads 1500 --seed 7` — write a fixture Tree to `fixtures-out/`
-- `npm run import -- <source> <new folder> [--name …]` — notes from Obsidian, Notion or any Markdown folder as a new Family (`src/import/convert.ts`, issue #39)
+- `npm run import -- <source> <new folder> [--name …]` — notes from Obsidian, Notion or any Markdown folder as a new Family (`src/import/convert.ts`, issue #39);
+  `skills/yeraz-import/convert.mjs` is the standalone copy (no clone needed: Logseq, Bear, OneNote HTML/MHT too, an emoji on every title), tested by `test/yeraz-import.test.ts`
 - `npm run perf` — budget tests on the 1,000-leaf fixture, laptop and 4× throttled phone (§7.4)
 - `npm run visual` — the app in the states of `design/screens/01–07` and every view of `design/views/`, with the design's Trees, into `visual-review/`
 - Visual snapshots (`e2e/visual.spec.ts`) run on demand in Playwright's Linux image: `gh workflow run snapshots.yml`
