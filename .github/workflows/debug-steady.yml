@@ -1,6 +1,7 @@
 name: Debug steady
 on:
-  workflow_dispatch:
+  push:
+    branches: [ci-debug]
 jobs:
   steady:
     runs-on: ubuntu-24.04
