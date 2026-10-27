@@ -48,6 +48,15 @@ Yeraz signs in with a fine-grained personal access token, kept on your device (i
 
 It works in the desktop app and in Chrome or Edge on a computer. Safari, Firefox and phone browsers can't open folders, so there Yeraz keeps the Family in the browser's own storage. A folder keeps no history: *History* is GitHub's. When you want it tracked, *Push to GitHub* in the Family menu makes a private repository of it, every file in one commit, and shows the repository in its place.
 
+### Notes shared with other people
+
+There is no backend to share through, and none is needed: the notes are files, and whatever already shares files shares them.
+
+- **A repository** anyone you add as a collaborator can open in Yeraz with their own token. Each person's edits are committed on their own device; when two people change the same leaf, the second commit is refused by GitHub, the app pulls, merges the two versions three ways and commits again, and a line both of them changed is kept in both versions. *History* shows who changed what.
+- **A folder** that a shared service keeps in sync (a Dropbox or OneDrive shared folder, a Google Drive folder on the desktop, a network drive or any other file system the computer can mount) works the same way for the people it is shared with: Yeraz only reads and writes the folder, and the service carries the files. Another person's change to the same leaf is merged in the same way when the folder is next read.
+
+Edits are not live between people, as in a shared document: each person sees the others' changes when their device next pulls or reads the folder.
+
 *Try an example* on the first screen writes a small example Family to look around in: a few leaves with threads, tasks, a video, maths and code, and a `CLAUDE.md` that tells an AI agent such as Claude Code how notes are kept here. Every new Family gets that `CLAUDE.md` too.
 
 ### Bring your notes from another app
