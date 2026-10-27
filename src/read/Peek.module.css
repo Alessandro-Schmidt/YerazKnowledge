@@ -98,7 +98,7 @@
   color: var(--accent);
   text-decoration: underline;
 }
-/* Copies the path from the Family's root: small, beside the breadcrumb. */
+/* Copies the path from the Family's root: small, beside the path in the foot. */
 .copy {
   width: 28px;
   height: 28px;
