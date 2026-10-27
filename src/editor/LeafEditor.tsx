@@ -94,7 +94,7 @@ export function LeafEditor({
         return t ? { title: t.title, href: `#${treeHref(t.repo)}` } : null
       },
     }
-  }, [path])
+  }, [path, repo])
 
   // Insert menu items handled here. A new leaf or branch also gets a mention.
   const [action, setAction] = useState<StructureAction | null>(null)
