@@ -108,8 +108,8 @@ function RingsView({
       selected={node?.kind === 'leaf' ? node.id : null}
       onAsOf={(m) => setAsOf(m === lastMonth ? null : m)}
       onPlay={() => {
-        setAsOf(0)
-        setPlaying(true)
+        if (!playing) setAsOf(0)
+        setPlaying(!playing)
       }}
       onSelect={onSelect}
       onOpen={onOpen}
@@ -295,6 +295,7 @@ function Panel({
   phone: boolean
   selected: string | null
   onAsOf(month: number): void
+  /** Starts the playback, or stops it while it plays. */
   onPlay(): void
   onSelect(id: string): void
   onOpen(id: string): void
@@ -366,12 +367,16 @@ function Panel({
           <button
             type="button"
             className={styles.play}
-            aria-label="Grow the rings, month by month"
-            disabled={playing || months.length < 2}
+            aria-label={playing ? 'Stop growing the rings' : 'Grow the rings, month by month'}
+            disabled={months.length < 2}
             onClick={onPlay}
           >
             <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
-              <path d="M3 1.5v9l7.5-4.5z" />
+              {playing ? (
+                <rect x="2" y="2" width="8" height="8" rx="1" />
+              ) : (
+                <path d="M3 1.5v9l7.5-4.5z" />
+              )}
             </svg>
           </button>
         </div>
@@ -512,6 +517,7 @@ function CoreSample({
     <svg
       className={styles.core}
       viewBox={`-6 -6 ${W + 20} 60`}
+      role="img"
       aria-label="Core sample, one band per month"
     >
       <defs>
@@ -525,6 +531,7 @@ function CoreSample({
             key={s.i}
             className={styles.segment}
             data-later={s.i > asOf || undefined}
+            aria-hidden="true"
             onClick={() => onPick(s.i)}
           >
             <title>{s.m.long}</title>

@@ -54,7 +54,8 @@ export function embedOf(paragraph: string): Embed | null {
   if (own && /\.pdf$/i.test(own)) return { kind: 'pdf', path: own, title }
   if (own && /\.(mp4|webm)$/i.test(own)) return { kind: 'video', path: own, title }
   if (own?.startsWith('assets/')) return { kind: 'file', path: own, title }
-  if (title && /^https?:\/\/[^/\s]/i.test(url) && !linkTarget(url))
+  // An address `new URL` rejects stays a plain link too: the card can't shorten it.
+  if (title && /^https?:\/\/[^/\s]/i.test(url) && !linkTarget(url) && parses(url))
     return { kind: 'bookmark', url, title }
   return null
 }
@@ -91,6 +92,16 @@ const decode = (s: string) => {
     return decodeURIComponent(s)
   } catch {
     return s
+  }
+}
+
+/** Whether `new URL` accepts it (older webviews lack URL.canParse). */
+function parses(url: string): boolean {
+  try {
+    new URL(url)
+    return true
+  } catch {
+    return false
   }
 }
 

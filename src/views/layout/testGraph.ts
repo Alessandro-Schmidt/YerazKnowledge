@@ -24,3 +24,13 @@ export function graphOf(files: Record<string, string | Uint8Array>, title = 'Fam
 /** Engineering: Backend, Identity (Keycloak with Realms and Tokens), Cloud, Data… */
 export const engineering = (): Graph =>
   graphOf(designTrees().find((t) => t.repo.endsWith('/engineering'))!.files, 'Engineering')
+
+/** Engineering with a root README.md: the Family's text, a leaf that is not a Tree. */
+export const engineeringWithText = (): Graph =>
+  graphOf(
+    {
+      ...designTrees().find((t) => t.repo.endsWith('/engineering'))!.files,
+      'README.md': '# Engineering\n\nStart at [Keycloak](/Identity/keycloak.md).\n',
+    },
+    'Engineering',
+  )

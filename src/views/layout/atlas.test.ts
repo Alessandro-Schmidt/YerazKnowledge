@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { layoutAtlas, SEA } from './atlas'
-import { engineering } from './testGraph'
+import { engineering, engineeringWithText } from './testGraph'
 
 describe('layoutAtlas', () => {
   const graph = engineering()
@@ -42,5 +42,11 @@ describe('layoutAtlas', () => {
 
   it('is the same every time', () => {
     expect(layoutAtlas(graph).islands[0]!.coast).toBe(atlas.islands[0]!.coast)
+  })
+
+  it('leaves the Family’s README.md out: it is not in a Tree', () => {
+    const withText = layoutAtlas(engineeringWithText())
+    expect(withText.byId.has('README.md')).toBe(false)
+    expect(withText.peaks).toHaveLength(atlas.peaks.length)
   })
 })

@@ -49,7 +49,10 @@ class Hint extends WidgetType {
     const [before, key, after] = hintParts(isTouch(), isMac)
     const kbd = document.createElement('kbd')
     kbd.textContent = key
-    hint.append(arrow, before, kbd, after)
+    // The words are one block after the arrow: a narrow panel wraps them, never under it.
+    const words = document.createElement('span')
+    words.append(before, kbd, after)
+    hint.append(arrow, words)
     return hint
   }
   // Clicks reach the editor, which puts the cursor there to write.

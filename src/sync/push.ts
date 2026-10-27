@@ -46,8 +46,16 @@ export async function pushTree(
   let listing =
     (await store.get<CachedListing>(`tree:${ref.repo}`)) ??
     (await freshListing(client, store, ref)).listing
-  let changes: FileChange[] = Object.entries(dirty).map(([path, f]) => ({ path, text: f.text }))
-  let conflicts: string[] = []
+  // Edits made on an older version than the listing (a pull came in between): merged
+  // before GitHub sees them, or their commit would overwrite the pulled lines.
+  let { changes, conflicts } = Object.entries(dirty).some(
+    ([path, f]) => f.base !== shaAt(listing, path),
+  )
+    ? await merge(client, store, ref, dirty, listing, now())
+    : {
+        changes: Object.entries(dirty).map(([path, f]): FileChange => ({ path, text: f.text })),
+        conflicts: [] as string[],
+      }
 
   for (let attempt = 0; attempt < ATTEMPTS; attempt++) {
     const exists = new Set(listing.entries.filter((e) => e.type === 'blob').map((e) => e.path))
@@ -69,6 +77,9 @@ export async function pushTree(
     'GitHub kept changing while saving. Your edits are kept on this device.',
   )
 }
+
+const shaAt = (listing: CachedListing, path: string) =>
+  listing.entries.find((e) => e.path === path && e.type === 'blob')?.sha ?? null
 
 /** Our changes reconciled with what is on GitHub now, always from the original edits. */
 async function merge(

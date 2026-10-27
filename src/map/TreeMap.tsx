@@ -9,13 +9,15 @@ import {
   useLayoutEffect,
   useMemo,
   useRef,
+  useState,
   type CSSProperties,
+  type KeyboardEvent,
   type PointerEvent,
 } from 'react'
 import { compactWords, neighbours, type Graph, type Thread } from '../model/graph'
 import { ROOT } from '../model/tree'
 import { mark, markNow } from '../perf'
-import { play } from '../ui/motion'
+import { EASE_MOVE, play } from '../ui/motion'
 import controls from '../ui/controls.module.css'
 import { Icon } from '../ui/icons'
 import { familyNodeAt, positionOf, type FamilyLayout, type PlacedTree } from './family'
@@ -82,7 +84,7 @@ const treeTransform = (t: PlacedTree) => `translate(${t.x} ${t.y})`
 /** Ids in `positions` of a Tree's core (its id is the Tree's). */
 const CORE = '\0core:'
 /** How many nodes at most glide to a new layout. */
-const GLIDES = 600
+const GLIDES = 200
 /** Every node and core of the Family, in Family coordinates. */
 function positions(family: FamilyLayout) {
   const at = new Map<string, { x: number; y: number }>()
@@ -143,6 +145,8 @@ export function TreeMap({
   const target = useRef<string | null>(null)
   /** The Tree core whose selection was last acted on: the one opened on isn't followed. */
   const followed = useRef<string | null>(null)
+  /** The leaf last centred on a phone's screen. */
+  const centred = useRef<string | null>(null)
   // Panel insets, as plain values so effects re-run when a panel opens or closes.
   const {
     top: insetTop = 0,
@@ -171,6 +175,17 @@ export function TreeMap({
     followed.current = selected
     zoom.fit(family.bounds, padded(fitArea()))
   }, [treeKey, family, zoom, area, selected])
+
+  // The deep nodes' labels are mounted after the first paint, in idle time: at a Family's
+  // fit the zoom is far, where they are hidden, and they are a quarter of the mount.
+  const [labels, setLabels] = useState(false)
+  useEffect(() => {
+    if (labels) return
+    const idle = window.requestIdleCallback ?? ((cb: () => void) => window.setTimeout(cb, 50))
+    const cancel = window.cancelIdleCallback ?? window.clearTimeout
+    const handle = idle(() => setLabels(true))
+    return () => cancel(handle)
+  }, [labels, family])
 
   // Elements by id, collected once per render of the geometry.
   const elements = useRef({
@@ -224,10 +239,13 @@ export function TreeMap({
     // Past this many, the frames cost more than the motion tells: the change just appears.
     if (glides.length + fresh.length > GLIDES) return
     for (const [el, dx, dy] of glides)
-      play(el, [{ transform: `translate(${dx}px, ${dy}px)` }, {}], { duration: 450 })
-    for (const el of fresh) play(el, [{ opacity: 0 }, {}], { duration: 450 })
+      play(el, [{ transform: `translate(${dx}px, ${dy}px)` }, {}], {
+        duration: 300,
+        easing: EASE_MOVE,
+      })
+    for (const el of fresh) play(el, [{ opacity: 0 }, {}], { duration: 300 })
     for (const lines of svgRef.current!.querySelectorAll('[data-lines]'))
-      play(lines, [{ opacity: 0 }, { opacity: 0 }, {}], { duration: 450 })
+      play(lines, [{ opacity: 0 }, { opacity: 0 }, {}], { duration: 300 })
   }, [family, treeKey])
 
   // Image icons: their addresses arrive after the geometry is drawn (private files come
@@ -301,9 +319,13 @@ export function TreeMap({
         followed.current = selected
         target.current = selected
         // A phone's bottom sheet leaves too little room to fit a Tree above it: the Tree
-        // takes the screen's width, and the sheet covers its lower part until dismissed.
+        // takes the screen's width, its core in the middle of the room (owner's request).
         const phone = stage.clientWidth <= PHONE_WIDTH
         zoom.fit(boxOf(family, selected), padded(phone ? { ...area, bottom: 0 } : area), true)
+        if (phone) {
+          const core = family.trees.find((t) => t.id === selected)!
+          zoom.centre(core.x, core.y, padded(area))
+        }
       }
     }
     const lit = matches?.ids ?? []
@@ -345,7 +367,10 @@ export function TreeMap({
       return
     }
     const at = positionOf(family, selected)!
-    const follow = !visible(at.x, at.y)
+    // On a phone the sheet leaves little room: a newly selected leaf goes to its middle.
+    const phone = stage.clientWidth <= PHONE_WIDTH
+    const follow = (phone && centred.current !== selected) || !visible(at.x, at.y)
+    centred.current = selected
     const children = graph.nodes.get(selected)?.children ?? []
     for (const id of [selected, ...children]) add(id, els.edges.get(id), 'data-hot')
     let top = selected
@@ -370,7 +395,7 @@ export function TreeMap({
     halo.setAttribute('class', styles.halo!)
     layer(tree).append(halo)
     if (follow) zoom.centre(at.x, at.y, area)
-  }, [selected, matches, graph, family, threadsOf, zoom, area, treeColors])
+  }, [selected, matches, graph, family, threadsOf, zoom, area, treeColors, labels])
 
   /** The node a pointer event is on: a dot, or a Tree's core (the Tree's id). */
   const idAt = (target: EventTarget): string | undefined => {
@@ -424,12 +449,43 @@ export function TreeMap({
     tip.hidden = false
   }
 
+  // From the keyboard: the map takes the focus; arrows move the selection through the
+  // Family (each Tree, then its nodes), Enter opens the selection, Escape clears it.
+  const order = useMemo(
+    () =>
+      family.trees.flatMap((t) => [
+        t.id,
+        ...t.layout.nodes.map((n) => n.id).filter((id) => id !== t.id),
+      ]),
+    [family],
+  )
+  const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (e.target !== e.currentTarget || !order.length) return
+    const step =
+      e.key === 'ArrowRight' || e.key === 'ArrowDown'
+        ? 1
+        : e.key === 'ArrowLeft' || e.key === 'ArrowUp'
+          ? -1
+          : 0
+    if (step) {
+      const at = selected === null ? -1 : order.indexOf(selected)
+      onSelect(order[(at + step + order.length) % order.length]!)
+    } else if (e.key === 'Enter' && selected !== null) onOpen(selected)
+    else if (e.key === 'Escape' && selected !== null) onSelect(null)
+    else return
+    e.preventDefault()
+  }
+
   return (
     <div className={ui.wrap}>
       <div
         ref={stageRef}
         className={styles.stage}
         data-map=""
+        tabIndex={0}
+        role="group"
+        aria-label={`Map of ${title}: arrow keys move between leaves, Enter opens one`}
+        onKeyDown={onKeyDown}
         onClick={(e) => {
           markNow('select')
           const touch = (e.nativeEvent as Partial<globalThis.PointerEvent>).pointerType === 'touch'
@@ -463,7 +519,7 @@ export function TreeMap({
           </defs>
           <rect width="100%" height="100%" fill={`url(#${CSS.escape(gridId)})`} />
           <g ref={cameraRef} className={styles.camera}>
-            <Family family={family} colors={treeColors} groupTitles={groupTitles} />
+            <Family family={family} colors={treeColors} groupTitles={groupTitles} labels={labels} />
           </g>
         </svg>
         {/* The selection layer: its own composited layer, so selecting never repaints the map. */}
@@ -558,10 +614,13 @@ const Family = memo(function Family({
   family,
   colors,
   groupTitles = {},
+  labels,
 }: {
   family: FamilyLayout
   colors: Record<string, string>
   groupTitles?: Record<string, string> | undefined
+  /** Whether the deep nodes' labels are drawn yet (TreeMap mounts them after the first paint). */
+  labels: boolean
 }) {
   return (
     <>
@@ -595,7 +654,7 @@ const Family = memo(function Family({
           transform={treeTransform(t)}
           style={colors[t.id] ? ({ '--tree': colors[t.id] } as CSSProperties) : undefined}
         >
-          <Geometry layout={t.layout} graph={t.graph} />
+          <Geometry layout={t.layout} graph={t.graph} labels={labels} />
           <text className={fam.name} y={t.name.y} fontSize={t.name.size}>
             {t.graph.nodes.get(ROOT)!.title}
           </text>
@@ -670,7 +729,7 @@ function LayerChips({
         <button
           type="button"
           className={ui.chip}
-          aria-label={`Clear matches for “${matches.query}”`}
+          aria-label={`Matches · ${matches.ids.length}: clear matches for “${matches.query}”`}
           onClick={onClearMatches}
         >
           <Icon name="search" size={14} />
@@ -711,7 +770,15 @@ export function MapIcon({ x, y, r, icon }: { x: number; y: number; r: number; ic
 }
 
 /** The map's geometry. Rendered once per layout; memoised so selection never touches it. */
-const Geometry = memo(function Geometry({ layout, graph }: { layout: MapLayout; graph: Graph }) {
+const Geometry = memo(function Geometry({
+  layout,
+  graph,
+  labels,
+}: {
+  layout: MapLayout
+  graph: Graph
+  labels: boolean
+}) {
   const root = graph.nodes.get(ROOT)!
   return (
     <>
@@ -766,22 +833,24 @@ const Geometry = memo(function Geometry({ layout, graph }: { layout: MapLayout; 
           ) : (
             n.icon && <MapIcon x={n.x} y={n.y} r={n.r} icon={n.icon} />
           )}
-          <text
-            className={
-              n.depth === 1 && n.kind === 'branch'
-                ? `${styles.label} ${styles.branchLabel}`
-                : styles.label
-            }
-            x={n.labelX}
-            y={n.labelY}
-            textAnchor={n.anchor}
-            dy={n.labelRotate ? '0.32em' : undefined}
-            transform={
-              n.labelRotate ? `rotate(${n.labelRotate} ${n.labelX} ${n.labelY})` : undefined
-            }
-          >
-            {n.label}
-          </text>
+          {(labels || n.depth < 2) && (
+            <text
+              className={
+                n.depth === 1 && n.kind === 'branch'
+                  ? `${styles.label} ${styles.branchLabel}`
+                  : styles.label
+              }
+              x={n.labelX}
+              y={n.labelY}
+              textAnchor={n.anchor}
+              dy={n.labelRotate ? '0.32em' : undefined}
+              transform={
+                n.labelRotate ? `rotate(${n.labelRotate} ${n.labelX} ${n.labelY})` : undefined
+              }
+            >
+              {n.label}
+            </text>
+          )}
         </g>
       ))}
       <g className={styles.core} data-core="" data-id={ROOT}>

@@ -30,18 +30,25 @@
 .editor :global(.cm-content ::selection) {
   background: var(--accent-soft) !important;
 }
-/* An empty text says how to write it: an arrow, then the words, in italic. */
+/* An empty text says how to write it: an arrow, then the words, in italic. The words stay
+   after the arrow when a narrow panel wraps them (owner's request). */
 .editor :global(.cm-hint),
 .editor :global(.cm-line-hint) {
   color: var(--faint);
   font-style: italic;
+}
+.editor :global(.cm-hint) {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  max-width: 100%;
 }
 .editor :global(.cm-line-hint) {
   pointer-events: none;
   user-select: none;
 }
 .editor :global(.cm-hint-arrow) {
-  margin-right: 6px;
+  flex: none;
   color: var(--accent);
   font-style: normal;
 }
@@ -116,6 +123,11 @@
 .editor :global([data-href]) {
   cursor: pointer;
 }
+/* Dragged text held over a chip goes to that leaf when dropped. */
+.editor :global(.cm-mention[data-drop]) {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
 .editor :global(.cm-mention[data-before])::before {
   content: attr(data-before);
 }
@@ -128,6 +140,12 @@
 .editor :global(.cm-done) {
   color: var(--muted);
   text-decoration: line-through;
+}
+/* A chip's own background covers the line it inherits: it draws its own, dimmed. */
+.editor :global(.cm-done .cm-mention),
+.editor :global(.cm-done .cm-link) {
+  text-decoration: line-through;
+  opacity: 0.55;
 }
 .editor :global(.cm-task) {
   margin: 0 8px 0 0;
@@ -200,10 +218,8 @@
   display: block;
   padding-top: 6px;
   font-family: var(--font-ui);
-  font-size: 10.5px;
+  font-size: 12px;
   font-weight: 500;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
   color: var(--faint);
 }
 .editor :global(.cm-line.cm-fence-end) {
@@ -293,10 +309,15 @@
   background: var(--raised);
   border: 1px solid var(--hair-strong);
 }
-.editor :global(.cm-image:hover .cm-image-handle),
 .editor :global(.cm-image-handle:focus-visible),
 .editor :global(.cm-image-handle:active) {
   opacity: 1;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .editor :global(.cm-image:hover .cm-image-handle) {
+    opacity: 1;
+  }
 }
 .editor :global(.cm-image-handle:focus-visible) {
   outline: none;
@@ -328,6 +349,7 @@
 }
 .editor :global(.cm-tooltip-autocomplete > ul) {
   max-height: 280px;
+  overscroll-behavior: contain;
   font-family: var(--font-ui);
 }
 .editor :global(.cm-tooltip-autocomplete > ul > li) {
@@ -350,7 +372,7 @@
   font-weight: 600;
 }
 
-/* The insert menu (hold Ctrl/Cmd for 2 s, or / and long-press on touch screens). */
+/* The insert menu (hold Ctrl/Cmd for 1 s, or / and long-press on touch screens). */
 .editor :global(.cm-tooltip:has(.cm-insert-menu)) {
   border: 0;
   background: none;
@@ -378,11 +400,18 @@
   text-align: left;
   cursor: pointer;
 }
-.editor :global(.cm-insert-menu button:hover),
 .editor :global(.cm-insert-menu button:focus-visible) {
   outline: none;
   background: var(--accent-soft);
   color: var(--accent);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .editor :global(.cm-insert-menu button:hover) {
+    outline: none;
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
 }
 @media (pointer: coarse) {
   .editor :global(.cm-insert-menu button) {
@@ -424,8 +453,10 @@
   line-height: 1.4;
   cursor: text;
 }
-.editor :global(.cm-embed-bookmark:hover) {
-  border-color: var(--accent);
+@media (hover: hover) and (pointer: fine) {
+  .editor :global(.cm-embed-bookmark:hover) {
+    border-color: var(--accent);
+  }
 }
 .editor :global(.cm-embed-bookmark span) {
   overflow: hidden;
@@ -435,8 +466,10 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.editor :global(.cm-embed-bookmark span:hover) {
-  color: var(--accent);
+@media (hover: hover) and (pointer: fine) {
+  .editor :global(.cm-embed-bookmark span:hover) {
+    color: var(--accent);
+  }
 }
 .editor :global(.cm-embed-pdf iframe) {
   aspect-ratio: auto;
@@ -459,8 +492,10 @@
   line-height: 1.4;
   text-decoration: none;
 }
-.editor :global(.cm-embed-repo:hover) {
-  border-color: var(--accent);
+@media (hover: hover) and (pointer: fine) {
+  .editor :global(.cm-embed-repo:hover) {
+    border-color: var(--accent);
+  }
 }
 .editor :global(.cm-embed-repo span) {
   font-family: var(--font-mono);
@@ -469,9 +504,7 @@
 }
 .editor :global(.cm-embed-repo em) {
   font-style: normal;
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-size: 12px;
   color: var(--accent);
 }
 .editor :global(.cm-embed-pdf a) {
@@ -503,19 +536,31 @@
   opacity: 0;
   transition: opacity 0.12s;
 }
-.editor :global(.cm-image:hover .cm-more),
-.editor :global(.cm-embed:hover .cm-more),
-.editor :global(.cm-table:hover .cm-more),
 .editor :global(.cm-table:focus-within .cm-more),
 .editor :global(.cm-more:focus-visible),
 .editor :global(.cm-tooltip .cm-more) {
   opacity: 1;
 }
-.editor :global(.cm-more:hover),
+
+@media (hover: hover) and (pointer: fine) {
+  .editor :global(.cm-image:hover .cm-more),
+  .editor :global(.cm-embed:hover .cm-more),
+  .editor :global(.cm-table:hover .cm-more) {
+    opacity: 1;
+  }
+}
 .editor :global(.cm-more:focus-visible) {
   outline: none;
   border-color: var(--accent);
   color: var(--accent);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .editor :global(.cm-more:hover) {
+    outline: none;
+    border-color: var(--accent);
+    color: var(--accent);
+  }
 }
 .editor :global(.cm-tooltip:has(> .cm-more)) {
   border: 0;
@@ -664,9 +709,16 @@
 .editor :global(.cm-details-toggle[aria-expanded='true'])::before {
   transform: rotate(90deg);
 }
-.editor :global(.cm-details-toggle:hover) {
-  background: var(--accent-soft);
-  color: var(--accent);
+@media (prefers-reduced-motion: reduce) {
+  .editor :global(.cm-details-toggle)::before {
+    transition: none;
+  }
+}
+@media (hover: hover) and (pointer: fine) {
+  .editor :global(.cm-details-toggle:hover) {
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
 }
 .editor :global(.cm-line.cm-details-body) {
   padding-left: 28px;

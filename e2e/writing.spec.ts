@@ -382,8 +382,10 @@ test('creates a new repository from the Family menu, and opens on it', async ({ 
   await page.getByRole('dialog').getByRole('button', { name: 'Create repository' }).click()
   await expect(page).toHaveURL(/#\/tree\/you\/reading-notes$/)
   await expect(page.getByRole('heading', { name: 'Reading Notes', level: 1 })).toBeVisible()
-  // Its welcome leaf is its first Tree.
+  // Its welcome leaf is its first Tree; the notes for AI agents (CLAUDE.md) another.
   await expect(page.locator('[data-map] > svg [data-tree="welcome.md"]')).toBeAttached()
+  await expect(page.locator('[data-map] > svg [data-tree="CLAUDE.md"]')).toBeAttached()
+  expect(fake.repo('you/reading-notes').read('CLAUDE.md')).toMatch(/^# 🤖 Notes for AI agents/)
   expect(fake.repo('you/reading-notes').isPrivate).toBe(true)
 })
 

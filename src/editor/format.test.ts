@@ -1,6 +1,6 @@
 import { EditorState, type TransactionSpec } from '@codemirror/state'
 import { describe, expect, it } from 'vitest'
-import { link, toggleWrap } from './format'
+import { indentList, link, toggleWrap } from './format'
 
 /** `doc` with `[` `]` marking the selection, after the change; the new selection marked too. */
 function apply(doc: string, change: (state: EditorState) => TransactionSpec) {
@@ -37,5 +37,34 @@ describe('link', () => {
   it('makes the selection a link and puts the cursor where the address goes', () => {
     expect(apply('see [this] now', link)).toBe('see [this]([]) now')
     expect(apply('see [] now', link)).toBe('see [[]]() now')
+  })
+})
+
+describe('indentList', () => {
+  const at = (doc: string) => {
+    const head = doc.indexOf('|')
+    return EditorState.create({ doc: doc.replace('|', ''), selection: { anchor: head } })
+  }
+  const after = (doc: string, dir: 1 | -1) => {
+    const state = at(doc)
+    const spec = indentList(state, dir)
+    return spec && state.update(spec).state.doc.toString()
+  }
+
+  it('nests a bullet under the item above, as wide as its marker', () => {
+    expect(after('- a\n- b|', 1)).toBe('- a\n  - b')
+    expect(after('1. a\n2. b|', 1)).toBe('1. a\n   2. b')
+    expect(after('- a\n  - b\n  - c|', 1)).toBe('- a\n  - b\n    - c')
+  })
+
+  it('brings an item back out to the item above it, then to the margin', () => {
+    expect(after('- a\n  - b|', -1)).toBe('- a\n- b')
+    expect(after('1. a\n   - b\n     - c|', -1)).toBe('1. a\n   - b\n   - c')
+    expect(after('- a|', -1)).toBeNull()
+  })
+
+  it('leaves lines that are not list items to the editor', () => {
+    expect(after('plain|', 1)).toBeNull()
+    expect(after('# Title|\n- a', 1)).toBeNull()
   })
 })

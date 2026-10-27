@@ -64,6 +64,13 @@ export function useZoom(
     optionsRef.current = options
   })
 
+  // A glide (an animated move) transitions the cameras for 460 ms; a gesture ends it early.
+  const glide = useRef(0)
+  const settle = useCallback(() => {
+    window.clearTimeout(glide.current)
+    for (const c of [cameraRef.current, mirrorRef?.current]) if (c) delete c.dataset.animate
+  }, [cameraRef, mirrorRef])
+
   // A layout effect, so the behaviour exists before callers' layout effects fit the map.
   useLayoutEffect(() => {
     const svg = svgRef.current
@@ -74,6 +81,9 @@ export function useZoom(
     let far: boolean | null = null
     const z = d3zoom<HTMLElement | SVGSVGElement, unknown>()
       .scaleExtent([optionsRef.current.min, optionsRef.current.max])
+      .on('start', (event: { sourceEvent: unknown }) => {
+        if (event.sourceEvent) settle()
+      })
       .on(
         'zoom',
         (event: { transform: { x: number; y: number; k: number }; sourceEvent: unknown }) => {
@@ -99,7 +109,7 @@ export function useZoom(
       select(svg).on('.zoom', null)
       behaviour.current = null
     }
-  }, [svgRef, cameraRef, mirrorRef])
+  }, [svgRef, cameraRef, mirrorRef, settle])
 
   const area = useCallback(
     (insets: Partial<Insets> = {}) => {
@@ -125,15 +135,13 @@ export function useZoom(
       const z = behaviour.current
       if (!svg || !camera || !z) return
       if (animate) {
-        for (const c of [cameraRef.current, mirrorRef?.current]) {
-          if (!c) continue
-          c.dataset.animate = ''
-          window.setTimeout(() => delete c.dataset.animate, 460)
-        }
+        settle()
+        for (const c of [cameraRef.current, mirrorRef?.current]) if (c) c.dataset.animate = ''
+        glide.current = window.setTimeout(settle, 460)
       }
       select(svg).call(z.transform, zoomIdentity.translate(x, y).scale(k))
     },
-    [svgRef, cameraRef, mirrorRef],
+    [svgRef, cameraRef, mirrorRef, settle],
   )
 
   const current = useCallback(() => {

@@ -1,4 +1,4 @@
-// The insert menu (ARCHITECTURE.md §7): hold Ctrl/Cmd for 2 seconds while writing. The
+// The insert menu (ARCHITECTURE.md §7): hold Ctrl/Cmd for one second while writing. The
 // timer starts when the modifier is pressed on its own; any other key, or releasing it,
 // cancels, so shortcuts like Ctrl+C never open the menu. Touch screens have no Ctrl key:
 // typing / (after a space or at the start of a line) or a long press opens the same menu.
@@ -15,7 +15,7 @@ import { EditorView, showTooltip, ViewPlugin, type Tooltip } from '@codemirror/v
 import { menu } from './menu'
 import { insertTable } from './tables'
 
-export const HOLD_MS = 2000
+export const HOLD_MS = 1000
 const LONG_PRESS_MS = 600
 
 export type ListKind = 'todo' | 'ordered' | 'bullet'
@@ -164,6 +164,7 @@ const triggers = ViewPlugin.define((view) => {
     ],
     [view.contentDOM, 'touchmove', cancelPress],
     [view.contentDOM, 'touchend', cancelPress],
+    [view.contentDOM, 'touchcancel', cancelPress],
   ]
   for (const [target, type, fn] of listeners) target.addEventListener(type, fn)
   return {

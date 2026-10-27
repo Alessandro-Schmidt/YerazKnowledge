@@ -13,6 +13,23 @@ beforeAll(() => server.listen({ onUnhandledRequest: 'error' }))
 afterAll(() => server.close())
 
 describe('a Family in a folder', () => {
+  it('seeds the example Family when asked, in place of the welcome leaf', async () => {
+    const example = memoryFolder()
+    const folders = memoryFolders({ Example: example })
+    const s = createSession({ store: memoryStore(), folders })
+    await s.getState().start()
+    folders.choose('Example')
+    const { EXAMPLE_FILES } = await import('../example/files')
+    const ref = (await s.getState().addFolder(undefined, EXAMPLE_FILES))!
+    expect(example.text('Welcome.md')).toMatch(/^# 🌱 Welcome/)
+    expect(example.text('welcome.md')).toBeUndefined()
+    await s.getState().open(ref.repo)
+    const data = s.getState().data[ref.repo]
+    expect(data?.status === 'ready' && data.graph.stats).toMatchObject({ leaves: 4, branches: 2 })
+    // Its links reach their leaves, bar the one meant as a ghost.
+    expect(data?.status === 'ready' && [...data.graph.ghosts.keys()]).toEqual(['Ideas.md'])
+  })
+
   it('adds a folder without a token: marks it, welcomes it, and opens it', async () => {
     const store = memoryStore()
     const notes = memoryFolder()
@@ -28,11 +45,12 @@ describe('a Family in a folder', () => {
     expect(s.getState().phase).toBe('signed-in')
     expect(notes.text('.yeraz.json')).toBe('{"name":"Notes"}\n')
     expect(notes.text('welcome.md')).toMatch(/^# 🌱 Welcome/)
+    expect(notes.text('CLAUDE.md')).toMatch(/^# 🤖 Notes for AI agents/)
 
     await s.getState().open(ref.repo)
     const data = s.getState().data['~/notes']
     expect(data?.status).toBe('ready')
-    expect(data?.status === 'ready' && data.graph.stats.leaves).toBe(1)
+    expect(data?.status === 'ready' && data.graph.stats.leaves).toBe(2)
 
     // Reopening the app: still in, with the folder, and no GitHub.
     const again = createSession({ store, folders })
@@ -202,5 +220,38 @@ describe('a Family kept on a device without folders (phones, Safari, Firefox)', 
     await again.getState().start()
     await again.getState().open(ref.repo)
     expect(await again.getState().textOf(ref.repo, 'Ideas/first.md')).toBe('# First\n\nMore.\n')
+  })
+})
+
+describe('removing a Family', () => {
+  it('starts a named Family on the device, and deletes it on removal', async () => {
+    const store = memoryStore()
+    const folders = deviceFolders(store, async () => null)
+    const s = createSession({ store, folders })
+    await s.getState().start()
+    const ref = (await s.getState().addFolder(' Recipes '))!
+    expect(ref).toMatchObject({ repo: '~/recipes', title: 'Recipes' })
+    const handle = await store.get<string>('folder:~/recipes')
+    expect(await store.get(`device:${handle}`)).toBeTruthy()
+
+    await s.getState().removeTree('~/recipes')
+    expect(s.getState().trees).toEqual([])
+    expect(s.getState().phase).toBe('signed-out')
+    expect(await store.get('folder:~/recipes')).toBeUndefined()
+    expect(await store.get(`device:${handle}`)).toBeUndefined()
+    expect(await store.get(`device:${handle}:.yeraz.json`)).toBeFalsy()
+  })
+
+  it('forgets a folder on the disk without touching its files', async () => {
+    const store = memoryStore()
+    const notes = memoryFolder()
+    const folders = memoryFolders({ Notes: notes })
+    const s = createSession({ store, folders })
+    await s.getState().start()
+    folders.choose('Notes')
+    await s.getState().addFolder()
+    await s.getState().removeTree('~/notes')
+    expect(s.getState().trees).toEqual([])
+    expect(notes.text('.yeraz.json')).toBe('{"name":"Notes"}\n')
   })
 })

@@ -29,3 +29,17 @@
   background: var(--c-amber);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--c-amber) 25%, transparent);
 }
+
+/* A new state fades in, instead of its words swapping. */
+.text {
+  min-width: 0;
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  animation: fade 0.16s var(--ease-out);
+}
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+}

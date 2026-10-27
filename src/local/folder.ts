@@ -48,6 +48,8 @@ export interface FolderAccess {
    * storage, a new empty Family named `name`.
    */
   create(name: string): Promise<{ name: string; handle: unknown } | null>
+  /** Deletes a Family's files, where they are the device's own (not a folder the person sees). */
+  discard?(handle: unknown): Promise<void>
   /** The folder's files. With `ask`, a browser may ask the person again (needs a click). */
   open(handle: unknown, ask: boolean): Promise<FolderFs>
   /** Families are kept in this browser's storage, not in folders the person can see. */
@@ -294,6 +296,11 @@ export function deviceFolders(store: KeyValueStore, choose: ChooseFiles): Folder
       return { name: inFolder ? top[0]! : 'Notes', handle: id }
     },
     open: async (handle) => deviceFs(store, handle as string),
+    async discard(handle) {
+      const fs = deviceFs(store, handle as string)
+      for (const file of await fs.list()) await fs.remove(file.path)
+      await store.set(`device:${handle as string}`, undefined)
+    },
   }
 }
 

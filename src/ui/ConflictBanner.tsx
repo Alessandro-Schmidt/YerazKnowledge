@@ -12,7 +12,7 @@ export function ConflictBanner({ repo }: { repo: string }) {
   return (
     <div className={styles.banner} role="alert">
       <p>
-        Another device changed the same lines. GitHub's version stays in place, and yours is saved
+        Another device changed the same lines. GitHub’s version stays in place, and yours is saved
         as{' '}
         {state.copies.map((copy, i) => (
           <span key={copy}>

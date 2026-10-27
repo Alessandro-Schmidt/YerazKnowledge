@@ -6,7 +6,7 @@ import { createRoot } from 'react-dom/client'
 import { session } from './store/session'
 import { App } from './ui/App'
 import { ErrorBoundary } from './ui/ErrorBoundary'
-import { applyCustom, savedCustom } from './ui/customTheme'
+import { applyCustom, saveCustom, savedCustom } from './ui/customTheme'
 import { installFlags } from './ui/flags'
 import { installTheme, savedTheme } from './ui/theme'
 
@@ -14,7 +14,10 @@ installTheme(savedTheme())
 // Only the map zooms (global.css): Safari's own page pinch is refused here too. The map's
 // pinch is made of touch events, so it still works.
 document.addEventListener('gesturestart', (e) => e.preventDefault())
-applyCustom(savedCustom())
+// A saved theme that no longer parses would still flash its CSS at every load (index.html).
+const custom = savedCustom()
+if (!custom) saveCustom(null)
+applyCustom(custom)
 installFlags()
 
 // `npm run dev:fake` answers every GitHub request from the in-memory fake and signs in

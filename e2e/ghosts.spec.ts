@@ -30,18 +30,18 @@ test('a link to a leaf not written yet is a ghost on the map and in the Peek', a
 
   // Threads out names it as not written yet; it opens its own Peek.
   const leaf = page.getByRole('region', { name: 'Leaf preview' })
-  const out = leaf.getByRole('button', { name: /Oauth.*Not written yet/ })
+  const out = leaf.getByRole('link', { name: /Oauth.*Not written yet/ })
   await expect(out).toBeVisible()
   await out.click()
   const ghost = page.getByRole('region', { name: 'Leaf not written yet' })
   await expect(ghost.getByRole('heading', { name: 'Oauth', level: 2 })).toBeVisible()
-  await expect(ghost.getByRole('button', { name: /Keycloak/ })).toBeVisible()
-  await expect(ghost.getByRole('button', { name: /OIDC/ })).toBeVisible()
+  await expect(ghost.getByRole('link', { name: /Keycloak/ })).toBeVisible()
+  await expect(ghost.getByRole('link', { name: /OIDC/ })).toBeVisible()
   await expect(ghost.getByRole('button', { name: 'Write this leaf' })).toBeVisible()
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
 
   // A linker opens from there; the ghost's dot on the map opens it again.
-  await ghost.getByRole('button', { name: /OIDC/ }).click()
+  await ghost.getByRole('link', { name: /OIDC/ }).click()
   await expect(page.getByRole('region', { name: 'Leaf preview' })).toBeVisible()
   await map(page).locator(`[data-node][data-id="${GHOST}"]`).dispatchEvent('click')
   await expect(ghost).toBeVisible()

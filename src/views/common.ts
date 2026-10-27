@@ -2,7 +2,7 @@
 // view the Family's Trees play the part the design gives to a Tree's branches: the top
 // groups (design/views/README.md), each in its own colour.
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type KeyboardEvent } from 'react'
 import type { TreeRef } from '../github/graphql'
 import { ALL, allId } from '../map/families'
 import { treesOf } from '../map/family'
@@ -115,4 +115,11 @@ const EMPTY = new Map<string, string>()
 export const placeOf = (graph: Graph, id: string) => crumbs(graph, id).join(' / ')
 
 export const plural = (n: number, one: string, many = `${one}s`) =>
-  `${n.toLocaleString('en-US')} ${n === 1 ? one : many}`
+  `${n.toLocaleString('en-US')}\u00a0${n === 1 ? one : many}`
+
+/** For a row's button: a click selects, a double-click opens; Enter on the selected row opens too. */
+export const enterOpens = (on: boolean, open: () => void) => (e: KeyboardEvent) => {
+  if (!on || e.key !== 'Enter') return
+  e.preventDefault()
+  open()
+}

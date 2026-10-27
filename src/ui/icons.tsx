@@ -8,9 +8,16 @@ const PATHS = {
   minus: 'M5 12h14',
   fit: 'M4 9V5h4M20 9V5h-4M4 15v4h4M20 15v4h-4',
   close: 'M6 6l12 12M18 6L6 18',
+  check: 'M5 12l4.5 4.5L19 7',
+  edit: 'M4 20h4l11-11a1.5 1.5 0 0 0 0-2.1l-1.9-1.9a1.5 1.5 0 0 0-2.1 0L4 16v4zM13.5 6.5l4 4',
+  trash: 'M4 7h16M9.5 7V4.5h5V7M6.5 7l1 13h9l1-13M10 11v5M14 11v5',
   expand: 'M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7',
   collapse: 'M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7',
   arrowRight: 'M5 12h14M13 6l6 6-6 6',
+  pin: 'M9 4h6l-.8 6 2.8 2.5V14H7v-1.5L9.8 10zM12 14v6',
+  eyeOff:
+    'M3 3l18 18M10.6 10.6a2 2 0 0 0 2.8 2.8M9.9 5.1A9.8 9.8 0 0 1 12 4.9c4.5 0 8 3.4 9.5 7.1a10.6 10.6 0 0 1-2.9 4M6.6 6.6C4.7 7.9 3.3 9.8 2.5 12c1.5 3.7 5 7.1 9.5 7.1 1.6 0 3.1-.4 4.4-1.1',
+  copy: 'M9 9.5a1.5 1.5 0 0 1 1.5-1.5h8a1.5 1.5 0 0 1 1.5 1.5v8a1.5 1.5 0 0 1-1.5 1.5h-8A1.5 1.5 0 0 1 9 17.5zM15 8V5.5A1.5 1.5 0 0 0 13.5 4h-8A1.5 1.5 0 0 0 4 5.5v8A1.5 1.5 0 0 0 5.5 15H8',
   panelLeft:
     'M5.5 4.5h13a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2v-11a2 2 0 0 1 2-2zM9.5 4.5v15',
   panelRight:
@@ -30,7 +37,7 @@ const PATHS = {
     'M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zM4 16l5-5 4 4 2-2 5 5M15.5 9.5a1 1 0 1 1 0-2 1 1 0 0 1 0 2z',
 } as const
 
-export type IconName = keyof typeof PATHS
+type IconName = keyof typeof PATHS
 
 export function Icon({ name, size = 16 }: { name: IconName; size?: number }) {
   return (

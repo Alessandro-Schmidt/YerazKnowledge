@@ -13,7 +13,7 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, { error: E
   render() {
     if (!this.state.error) return this.props.children
     return (
-      <main className={styles.main}>
+      <main id="main" tabIndex={-1} className={styles.main}>
         <div className={styles.card} role="alert">
           <h1 className={styles.title}>Something went wrong</h1>
           <p className={styles.lead}>

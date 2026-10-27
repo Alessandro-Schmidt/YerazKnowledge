@@ -11,6 +11,7 @@ import { Glyph } from '../ui/Glyph'
 import { Icon } from '../ui/icons'
 import {
   degree,
+  enterOpens,
   leavesUnder,
   placeOf,
   plural,
@@ -221,6 +222,7 @@ export default function Outline({
                       className={styles.treeName}
                       onClick={() => onSelect(node.id)}
                       onDoubleClick={() => onOpen(node.id)}
+                      onKeyDown={enterOpens(selected === node.id, () => onOpen(node.id))}
                     >
                       {node.icon && <span aria-hidden="true">{node.icon} </span>}
                       {node.title}
@@ -256,6 +258,7 @@ export default function Outline({
                       className={styles.name}
                       onClick={() => onSelect(node.id)}
                       onDoubleClick={() => onOpen(node.id)}
+                      onKeyDown={enterOpens(selected === node.id, () => onOpen(node.id))}
                     >
                       {node.icon && <span aria-hidden="true">{node.icon} </span>}
                       {node.title}

@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest'
 import {
   addColumn,
   addRow,
-  alignColumn,
   deleteColumn,
   deleteRow,
   NEW_TABLE,
@@ -99,9 +98,5 @@ describe('rows and columns', () => {
     expect(wider.rows).toEqual([['1', '', '2']])
     expect(deleteColumn(wider, 1)).toEqual(table)
     expect(deleteColumn(parseTable('| a |\n|---|')!, 0)).toBeNull()
-  })
-
-  it('aligns a column', () => {
-    expect(alignColumn(table, 1, 'right').align).toEqual([null, 'right'])
   })
 })

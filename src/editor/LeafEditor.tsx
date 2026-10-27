@@ -4,7 +4,7 @@
 
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { iconImage, threadEnd, type GraphNode } from '../model/graph'
-import { parseLeaf, repairHeader, type LeafMeta } from '../model/parse'
+import { parseLeaf, parseMeta, repairHeader, type LeafMeta } from '../model/parse'
 import { leafColors } from '../read/colors'
 import { Cover } from '../read/LeafLook'
 import { mentionLink } from '../model/links'
@@ -15,6 +15,7 @@ import { treeHref } from '../ui/paths'
 import { planBranchText } from '../sync/structure'
 import { parentFor, StructureDialog, type StructureAction } from '../ui/StructureDialogs'
 import { ACCENT_IDS } from '../ui/theme'
+import { focusFirst, menuKeys } from '../ui/menuKeys'
 import { attach, attachmentMarkdown } from './attach'
 import type { EditorHandle } from './Editor'
 import styles from './LeafEditor.module.css'
@@ -80,6 +81,14 @@ export function LeafEditor({
         return n ? asLeaf(n) : null
       },
       open: (id) => openRef.current(id),
+      here: () => path,
+      // Dragged text dropped on a chip: at the end of that leaf, as a paragraph of its own.
+      append: async (id, text) => {
+        const { getState } = session
+        const current = await getState().textOf(repo, id)
+        const joined = `${current.replace(/\s+$/, '')}\n\n${text.trim()}\n`
+        await getState().apply(repo, [{ path: id, text: joined }])
+      },
       tree: (other) => {
         const t = session.getState().trees.find((t) => t.repo.toLowerCase() === other.toLowerCase())
         return t ? { title: t.title, href: `#${treeHref(t.repo)}` } : null
@@ -124,7 +133,7 @@ export function LeafEditor({
   const changeLook = (update: (meta: LeafMeta) => LeafMeta) => {
     const next = update(meta ?? {})
     setLook(next)
-    handle.current?.setMeta(() => next)
+    handle.current?.setMeta(next)
   }
   const coverPicker = useRef<HTMLInputElement>(null)
   const iconFile = useRef<HTMLInputElement>(null)
@@ -218,6 +227,8 @@ export function LeafEditor({
   }, [repo])
 
   const onChange = (next: string) => {
+    // The look follows the text, so Undo of a header change shows (and keeps) the undone line 2.
+    setLook(parseMeta(secondLine(next)) ?? {})
     if (pending.current) window.clearTimeout(pending.current.timer)
     pending.current = {
       text: next,
@@ -256,7 +267,13 @@ export function LeafEditor({
                 iconTrigger
                 trigger={
                   image ? (
-                    <Cover repo={repo} src={image} className={styles.iconImage} />
+                    <Cover
+                      repo={repo}
+                      src={image}
+                      className={styles.iconImage}
+                      loading="lazy"
+                      fetchPriority="auto"
+                    />
                   ) : (
                     <span className={styles.icon}>{owned?.icon}</span>
                   )
@@ -386,6 +403,14 @@ export function LeafEditor({
       )}
     </div>
   )
+}
+
+/** Line 2 of a text, without parsing the rest of it. */
+function secondLine(text: string): string | undefined {
+  const start = text.indexOf('\n')
+  if (start < 0) return undefined
+  const end = text.indexOf('\n', start + 1)
+  return text.slice(start + 1, end < 0 ? undefined : end)
 }
 
 const COLORS = ['', ...ACCENT_IDS] as const
@@ -544,8 +569,10 @@ function Menu({
 }) {
   const [open, setOpen] = useState(false)
   const host = useRef<HTMLDivElement>(null)
+  const list = useRef<HTMLDivElement>(null)
   useEffect(() => {
     if (!open) return
+    focusFirst(list.current)
     const close = (e: Event) => {
       if (
         e instanceof KeyboardEvent ? e.key === 'Escape' : !host.current?.contains(e.target as Node)
@@ -579,10 +606,12 @@ function Menu({
       </button>
       {open && (
         <div
+          ref={list}
           className={`${controls.panel} ${styles.menu}`}
           role="menu"
           aria-label={label}
           onClick={() => setOpen(false)}
+          onKeyDown={menuKeys}
         >
           {children}
         </div>

@@ -11,8 +11,16 @@ import { openOn, saveOpenOn, type OpenOn } from './FamilyMenu'
 import { SettingsShell } from './Settings'
 
 const OPENINGS: { id: OpenOn; label: string; note: string }[] = [
-  { id: 'all', label: 'All Families', note: 'Every Family on one map, each in its own ring.' },
-  { id: 'last', label: 'The last Family', note: 'The Family you were in last, on its own.' },
+  {
+    id: 'all',
+    label: 'All Families',
+    note: 'Every Family on one map, each in its own ring. The usual choice on a computer.',
+  },
+  {
+    id: 'last',
+    label: 'The last Family',
+    note: 'The Family you were in last, on its own. The usual choice on a phone: quicker.',
+  },
 ]
 
 export function ViewsSettings() {
@@ -20,7 +28,7 @@ export function ViewsSettings() {
   const [opening, setOpening] = useState(openOn)
   return (
     <SettingsShell page="views">
-      <main className={`${styles.main} ${own.single}`}>
+      <main id="main" tabIndex={-1} className={`${styles.main} ${own.single}`}>
         <div>
           <h1 className={styles.title}>Views</h1>
           <p className={styles.lede}>

@@ -35,7 +35,7 @@ export function Cover({
   return (
     <img
       alt=""
-      loading="lazy"
+      fetchPriority="high"
       decoding="async"
       {...img}
       src={shown}

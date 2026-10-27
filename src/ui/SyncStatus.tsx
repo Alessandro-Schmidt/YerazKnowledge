@@ -4,7 +4,16 @@ import { useSession, type SyncState } from '../store/session'
 import styles from './SyncStatus.module.css'
 
 /** "Synced", "Unsaved edits · auto-push in 1:24", "Saving…", "Offline" or "Conflict". A folder is saved in seconds: no countdown. */
-export function SyncStatus({ repo, branch }: { repo: string; branch: string }) {
+/** `plain`: a second copy (the phone's sheet), not another live region. */
+export function SyncStatus({
+  repo,
+  branch,
+  plain,
+}: {
+  repo: string
+  branch: string
+  plain?: boolean
+}) {
   const state = useSession((s) => s.sync[repo.toLowerCase()])
   const onDevice = useSession((s) => s.onDevice)
   const [now, setNow] = useState(() => Date.now())
@@ -17,9 +26,11 @@ export function SyncStatus({ repo, branch }: { repo: string; branch: string }) {
 
   if (!state) return null
   return (
-    <span className={styles.status} data-state={state.status} role="status">
+    <span className={styles.status} data-state={state.status} role={plain ? undefined : 'status'}>
       <span className={styles.dot} aria-hidden="true" />
-      {label(state, isFolder(repo) ? null : branch, now, onDevice)}
+      <span key={state.status} className={styles.text}>
+        {label(state, isFolder(repo) ? null : branch, now, onDevice)}
+      </span>
     </span>
   )
 }

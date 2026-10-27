@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { ownPath, parseLeaf, repairHeader, withIcon, withMeta } from './parse'
+import { ownPath, parseLeaf, prose, repairHeader, withIcon, withMeta } from './parse'
 
 describe('title and icon', () => {
   it('reads the title from line 1', () => {
@@ -139,6 +139,15 @@ describe('links', () => {
 
   it('treats an unclosed fence as code until the end', () => {
     expect(parseLeaf('# T\n\n```\n[no](/a.md)\n').links).toEqual([])
+  })
+
+  it('blanks many code spans and fences in one pass, offsets unchanged', () => {
+    const text = `# T\n\n${'`[no](/x.md)` [a](/a.md) '.repeat(500)}\n\`\`\`\n[no](/f.md)\n\`\`\`\n[b](/b.md)\n`
+    const out = prose(text)
+    expect(out).toHaveLength(text.length)
+    expect(out).not.toContain('x.md')
+    expect(out).not.toContain('f.md')
+    expect(parseLeaf(text).links.map((l) => l.path)).toEqual(['a.md', 'b.md'])
   })
 
   it('handles brackets inside link text and links across lines', () => {
