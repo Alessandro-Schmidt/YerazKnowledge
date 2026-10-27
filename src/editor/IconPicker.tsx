@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import controls from '../ui/controls.module.css'
+import { isTouch } from '../ui/platform'
 import { GROUPS, loadEmoji, searchEmoji, type Emoji } from './emoji'
 import styles from './LeafEditor.module.css'
 
@@ -70,10 +71,12 @@ export function IconPicker({
       <div className={styles.pickerTop}>
         <input
           type="search"
+          name="q"
+          autoComplete="off"
           className={`${controls.input} ${styles.emojiSearch}`}
-          placeholder="Search emoji"
+          placeholder="Search emoji…"
           aria-label="Search emoji"
-          autoFocus
+          autoFocus={!isTouch()}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={(e) => {

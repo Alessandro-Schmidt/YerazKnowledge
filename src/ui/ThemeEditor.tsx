@@ -3,7 +3,7 @@ import { slugify } from '../model/slug'
 import styles from './Appearance.module.css'
 import controls from './controls.module.css'
 import { parseTheme, resolveCustom, themeFrom, type CustomTheme } from './customTheme'
-import { resolveTokens, type ThemeChoice } from './theme'
+import { ACCENT_IDS, resolveTokens, type AccentId, type ThemeChoice } from './theme'
 
 // Settings › Appearance › Custom theme (ARCHITECTURE.md §13, development-plan.md After
 // launch): start from the current theme, import a file, or pick a community theme from
@@ -172,7 +172,9 @@ function Editor({
   const named = resolveTokens(theme.base, 'green')
   const asked = (name: string) =>
     name === 'accent'
-      ? (resolveCustom({ ...theme, tokens: {} }).tokens.accent ?? theme.accent)
+      ? (ACCENT_IDS as string[]).includes(theme.accent)
+        ? resolveTokens(theme.base, theme.accent as AccentId).accent
+        : theme.accent
       : (theme.tokens[name] ?? named[name]!)
   const set = (name: string, value: string) =>
     onChange(
@@ -186,6 +188,8 @@ function Editor({
         <span className={styles.note}>Name</span>
         <input
           className={controls.input}
+          name="name"
+          autoComplete="off"
           value={theme.name}
           maxLength={60}
           onChange={(e) => onChange({ ...theme, name: e.target.value })}

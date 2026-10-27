@@ -113,15 +113,17 @@ export function rich(md: MarkdownIt, highlight: typeof import('@lezer/highlight'
     return `<pre><code class="language-${escape(lang(token.info))}">${html}</code></pre>\n`
   }
 
-  // A paragraph that is only a link becomes a player, a repository card or a bookmark;
-  // not in a footnote, where a link alone is the usual source.
+  // A paragraph that is only a link, or a list item of one, becomes a player, a repository
+  // card or a bookmark; not in a footnote, where a link alone is the usual source.
   md.core.ruler.push('embeds', (state) => {
     const tokens = state.tokens
     let footnote = 0
     for (let i = tokens.length - 2; i > 0; i--) {
       if (tokens[i]!.type === 'footnote_close') footnote++
       if (tokens[i]!.type === 'footnote_open') footnote--
-      if (footnote || tokens[i - 1]!.type !== 'paragraph_open' || tokens[i - 1]!.hidden) continue
+      if (footnote || tokens[i - 1]!.type !== 'paragraph_open') continue
+      // A tight list's paragraphs are hidden; an item that is only a link embeds all the same.
+      if (tokens[i - 1]!.hidden && tokens[i - 2]?.type !== 'list_item_open') continue
       const embed = tokens[i]!.type === 'inline' ? embedOf(tokens[i]!.content) : null
       if (!embed) continue
       const block = new state.Token('html_block', '', 0)

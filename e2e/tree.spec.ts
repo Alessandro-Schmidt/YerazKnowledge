@@ -1,5 +1,6 @@
 import AxeBuilder from '@axe-core/playwright'
 import type { Page } from '@playwright/test'
+import { treesOf } from '../src/map/family'
 import type { Graph } from '../src/model/graph'
 import { expect, familyMenu, isPhone, signIn, signInHere, test } from './fixtures'
 
@@ -162,17 +163,17 @@ test('clicking a node opens the Peek with its title, sub-leaves and threads', as
   const subLeaves = panel
     .getByRole('heading', { name: 'Sub-leaves' })
     .locator('..')
-    .getByRole('button')
+    .getByRole('link')
   await expect(subLeaves).toHaveCount(leaf.children.length)
   const out = panel
     .getByRole('heading', { name: /Threads out/ })
     .locator('..')
-    .getByRole('button')
+    .getByRole('link')
   await expect(out).toHaveCount(graph.out.get(leaf.id)!.length)
   const into = panel
     .getByRole('heading', { name: /Threads in/ })
     .locator('..')
-    .getByRole('button')
+    .getByRole('link')
   await expect(into).toHaveCount(graph.in.get(leaf.id)!.length)
   await expect(panel.locator('.cm-mention').first()).toBeVisible()
 
@@ -206,7 +207,12 @@ test('expands the Peek to a full page, comes back, and dismisses it', async ({ p
   await expect(page.locator('[data-map]')).toHaveAttribute('data-focus')
 })
 
-test('the Peek’s breadcrumbs open the places above the leaf', async ({ page, graph }) => {
+test('the Peek’s breadcrumbs open the places above the leaf', async ({
+  page,
+  graph,
+  context,
+  browserName,
+}) => {
   // A sub-leaf two places below the Family: its Tree, then its parent leaf.
   const leaf = [...graph.nodes.values()]
     .filter((n) => n.kind === 'leaf' && n.parent && graph.nodes.get(n.parent)!.parent)
@@ -216,6 +222,12 @@ test('the Peek’s breadcrumbs open the places above the leaf', async ({ page, g
   await page.goto(`./#/tree/you/engineering/${leaf.id}`)
   const crumbs = peek(page).getByRole('navigation', { name: 'Breadcrumb' })
   await expect(crumbs.getByRole('link').first()).toHaveText(graph.nodes.get('')!.title)
+  // Beside them, a button copies the leaf's path from the Family's root (owner's request).
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']).catch(() => undefined)
+  await peek(page).getByRole('button', { name: 'Copy path' }).click()
+  await expect(peek(page).getByRole('button', { name: 'Copied' })).toBeVisible()
+  if (browserName === 'chromium')
+    expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(`/${leaf.id}`)
   await crumbs.getByRole('link', { name: parent.title, exact: true }).click()
   await expect(peek(page).getByRole('heading', { level: 2 })).toHaveText(parent.title)
   await peek(page).getByRole('navigation', { name: 'Breadcrumb' }).getByRole('link').first().click()
@@ -276,6 +288,44 @@ test('on a phone, the sheet follows the finger, and scrolling its note opens the
     .first()
     .evaluate((el) => el.scrollBy(0, 200))
   await expect(panel).toHaveAttribute('data-expanded')
+})
+
+test('on a phone, a selected leaf or Tree sits in the room above the sheet', async ({
+  page,
+  graph,
+}) => {
+  test.skip(!isPhone(page), 'The bottom sheet is on phones')
+  const leaf = richLeaf(graph)
+  await openTree(page)
+  await page.goto(`./#/tree/you/engineering/${leaf.id}`)
+  /** The middle of what the sheet and the map's controls leave free, and its edges. */
+  const room = async () => {
+    const stage = (await page.locator('[data-map]').boundingBox())!
+    const sheet = (await peek(page).boundingBox())!
+    const top = stage.y + 64
+    const bottom = sheet.y - 80
+    return { top, bottom, cx: stage.x + stage.width / 2, cy: (top + bottom) / 2 }
+  }
+  /** How far a box's centre is from the room's; far while the box isn't drawn yet. */
+  const offCentre = async (box: { x: number; y: number; width: number; height: number } | null) => {
+    if (!box) return Infinity
+    const { cx, cy } = await room()
+    return Math.hypot(box.x + box.width / 2 - cx, box.y + box.height / 2 - cy)
+  }
+  await expect
+    .poll(async () => offCentre(await page.locator('[data-map] [data-sel]').first().boundingBox()))
+    .toBeLessThan(40)
+
+  // A Tree takes the width, as there is no room to fit it; its core is in the middle.
+  const tree = treesOf(graph)[0]!
+  await page.goto(`./#/tree/you/engineering/${tree}`)
+  await expect
+    .poll(async () =>
+      offCentre(
+        await page.locator(`[data-map] [data-tree="${tree}"] [data-core]`).first().boundingBox(),
+      ),
+    )
+    .toBeLessThan(40)
 })
 
 test("on a phone, a branch's More actions menu stays on screen", async ({ page, graph }) => {
@@ -492,9 +542,10 @@ test('connects a repository by name', async ({ page, fake }) => {
   await expect(page.getByRole('heading', { name: 'Art History', level: 1 })).toBeVisible()
   await (await familyMenu(page)).getByRole('menuitem', { name: /^Engineering/ }).click()
   await expect(page).toHaveURL(/#\/tree\/you\/engineering$/)
-  // With two Families, the app reopens on both together (issue #69; all-families.spec.ts).
+  // With two Families, a computer reopens on both together (issue #69; all-families.spec.ts);
+  // a phone on the Family it was in last.
   await page.goto('./')
-  await expect(page).toHaveURL(/#\/all$/)
+  await expect(page).toHaveURL(isPhone(page) ? /#\/tree\/you\/engineering$/ : /#\/all$/)
 })
 
 test('the Family view, its menu and the Peek have no accessibility violations', async ({
@@ -535,4 +586,39 @@ test('signs out from the Family menu', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Yeraz', level: 1 })).toBeVisible()
   await page.reload()
   await expect(page.getByRole('heading', { name: 'Yeraz', level: 1 })).toBeVisible()
+})
+
+test('the map works from the keyboard: arrows move the selection, Enter opens, Escape clears', async ({
+  page,
+}) => {
+  test.skip(isPhone(page), 'Keyboard tests run on desktop engines')
+  await openTree(page)
+  const map = page.locator('[data-map]')
+  await map.focus()
+  await page.keyboard.press('ArrowRight')
+  await expect(page).toHaveURL(/#\/tree\/you\/engineering\/.+/)
+  const first = page.url()
+  await page.keyboard.press('ArrowRight')
+  await expect(page).not.toHaveURL(first)
+  await page.keyboard.press('ArrowLeft')
+  await expect(page).toHaveURL(first)
+  await page.keyboard.press('Enter')
+  await expect(peek(page)).toHaveAttribute('data-expanded')
+  await page.getByRole('button', { name: 'Back to the map' }).click()
+  await map.focus()
+  await page.keyboard.press('Escape')
+  await expect(page).toHaveURL(/#\/tree\/you\/engineering$/)
+})
+
+test('the deep leaves’ labels follow the first paint, and the selection shows one', async ({
+  page,
+  graph,
+}) => {
+  test.skip(isPhone(page), 'Desktop engines')
+  await openTree(page)
+  const deep = [...graph.nodes.values()].find((n) => n.kind === 'leaf' && n.depth >= 2)!
+  const node = page.locator(`[data-map] [data-node][data-id="${deep.id}"]`).first()
+  await expect(node.locator('text')).toHaveText(deep.title)
+  await page.goto(`./#/tree/you/engineering/${deep.id}`)
+  await expect(page.locator('[data-map] [data-sel] text')).toHaveText(deep.title)
 })

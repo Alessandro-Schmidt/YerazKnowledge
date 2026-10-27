@@ -4,6 +4,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import { createFakeGitHub, type FakeGitHub } from '../../test/fake-github/fakeGitHub'
 import { makeFixture } from '../../test/fake-github/fixture'
 import { fakeGitHubHandlers } from '../../test/fake-github/msw'
+import { memoryFolder, memoryFolders } from '../../test/memoryFolder'
 import { memoryStore } from './db'
 import { planBranchText, planNewLeaves } from '../sync/structure'
 import { createSession } from './session'
@@ -111,6 +112,20 @@ describe('session', () => {
     expect(again.getState().phase).toBe('signed-out')
   })
 
+  it('signing in keeps the folders', async () => {
+    const store = memoryStore()
+    const folders = memoryFolders({ Notes: memoryFolder() })
+    const s = createSession({ store, folders })
+    folders.choose('Notes')
+    await s.getState().addFolder()
+    await s.getState().signIn('good')
+    expect(s.getState().trees.map((t) => t.repo)).toEqual([
+      'friend/shared',
+      'you/engineering',
+      '~/notes',
+    ])
+  })
+
   it('applies edits at once and commits them when the autosave fires', async () => {
     const store = memoryStore()
     const s = createSession({ store, autosaveDelay: 50 })
@@ -199,6 +214,40 @@ describe('session', () => {
     )
     await vi.waitFor(() =>
       expect(second.getState().sync['you/engineering']).toEqual({ status: 'synced' }),
+    )
+  })
+
+  it('merges an offline edit with a commit made elsewhere that the reopening pull brought in', async () => {
+    const PATH = 'notes.md'
+    const v1 = '# Notes\n\nOne.\n\nTwo.\n\nThree.\n'
+    await fake.repo('you/engineering').commit({
+      message: 'Add Notes',
+      additions: [{ path: PATH, contents: v1 }],
+    })
+    const store = memoryStore()
+    const phone = createSession({ store })
+    await phone.getState().signIn('good')
+    await phone.getState().open('you/engineering')
+    fake.faults.offline = true
+    await phone
+      .getState()
+      .apply('you/engineering', [{ path: PATH, text: v1.replace('One.', 'One, from the phone.') }])
+    await phone.getState().flush('you/engineering')
+    expect(phone.getState().sync['you/engineering']).toMatchObject({ status: 'offline' })
+
+    await fake.repo('you/engineering').commit({
+      message: 'laptop',
+      additions: [{ path: PATH, contents: v1.replace('Three.', 'Three, from the laptop.') }],
+    })
+    fake.faults.offline = false
+    const again = createSession({ store })
+    await again.getState().start()
+    await again.getState().open('you/engineering')
+    await vi.waitFor(() =>
+      expect(again.getState().sync['you/engineering']).toEqual({ status: 'synced' }),
+    )
+    expect(fake.repo('you/engineering').read(PATH)).toBe(
+      '# Notes\n\nOne, from the phone.\n\nTwo.\n\nThree, from the laptop.\n',
     )
   })
 
@@ -543,6 +592,44 @@ describe('Family and Tree colours', () => {
   })
 })
 
+describe('hiding a leaf or a branch', () => {
+  it('writes line 2 of the leaf, or of the branch’s README.md, and the graph leaves it out', async () => {
+    await fake.addRepo('you/notes', {
+      '.yeraz.json': '{"name":"Notes"}\n',
+      'Identity/keycloak.md':
+        '# 🔐 Keycloak\n<!-- yeraz {"color":{"heading":"amber"}} -->\n\nText.\n',
+      'Identity/oauth.md': '# OAuth\n\nSee [Keycloak](/Identity/keycloak.md).\n',
+      'Old/2019.md': '# 2019\n',
+    })
+    const s = createSession({ store: memoryStore(), autosaveDelay: 60_000 })
+    await s.getState().signIn('good')
+    await s.getState().open('you/notes')
+    const graph = () => s.getState().data['you/notes']!.graph!
+    await s.getState().setHidden('you/notes', 'Identity/keycloak.md', true)
+    await s.getState().setHidden('you/notes', 'Old', true)
+    expect([...graph().nodes.keys()].sort()).toEqual(['', 'Identity', 'Identity/oauth.md'])
+    expect(graph().hidden.map((h) => h.id)).toEqual(['Identity/keycloak.md', 'Old'])
+    expect(graph().threads).toEqual([])
+    await s.getState().flush('you/notes')
+    expect(fake.repo('you/notes').read('Identity/keycloak.md')).toBe(
+      '# 🔐 Keycloak\n<!-- yeraz {"color":{"heading":"amber"},"hidden":true} -->\n\nText.\n',
+    )
+    expect(fake.repo('you/notes').read('Old/README.md')).toBe(
+      '# Old\n<!-- yeraz {"hidden":true} -->\n\n',
+    )
+    // Shown again: the key goes, and line 2 with it when nothing else is in it.
+    await s.getState().setHidden('you/notes', 'Identity/keycloak.md', false)
+    await s.getState().setHidden('you/notes', 'Old', false)
+    expect(graph().hidden).toEqual([])
+    expect(graph().nodes.has('Old/2019.md')).toBe(true)
+    await s.getState().flush('you/notes')
+    expect(fake.repo('you/notes').read('Identity/keycloak.md')).toBe(
+      '# 🔐 Keycloak\n<!-- yeraz {"color":{"heading":"amber"}} -->\n\nText.\n',
+    )
+    expect(fake.repo('you/notes').read('Old/README.md')).toBe('# Old\n\n')
+  })
+})
+
 describe('planted dates', () => {
   it('dates each leaf by blame once, then from the device; a new leaf is planted now', async () => {
     const repo = await fake.addRepo('you/notes', {
@@ -567,5 +654,116 @@ describe('planted dates', () => {
     const again = await s.getState().planted('you/notes')
     expect(fake.log).toHaveLength(0)
     expect(Date.now() - Date.parse(again.get('c.md')!)).toBeLessThan(60_000)
+  })
+})
+
+describe('renaming the repository on GitHub', () => {
+  it('commits what is pending, renames, and knows the Family by its new name from then on', async () => {
+    await fake.addRepo('you/notes', { '.yeraz.json': '{"name":"Notes"}\n', 'a.md': '# A\n' })
+    const store = memoryStore()
+    const s = createSession({ store, autosaveDelay: 60_000 })
+    await s.getState().signIn('good')
+    await s.getState().connect('you/notes')
+    await s.getState().open('you/notes')
+    await s.getState().apply('you/notes', [{ path: 'a.md', text: '# A\n\nMore.\n' }])
+    const next = await s.getState().renameRepository('you/notes', 'journal')
+    expect(next).toMatchObject({ repo: 'you/journal', name: 'journal', title: 'Notes' })
+    expect(s.getState().trees.map((t) => t.repo)).toContain('you/journal')
+    expect(s.getState().trees.map((t) => t.repo)).not.toContain('you/notes')
+    expect(fake.repo('you/journal').read('a.md')).toBe('# A\n\nMore.\n')
+    expect(s.getState().sync['you/notes']).toBeUndefined()
+    // It opens under its new name without downloading again, and edits commit there.
+    fake.resetLog()
+    await s.getState().open('you/journal')
+    expect(fake.log.filter((e) => e.kind === 'blob' || e.blobs > 0)).toHaveLength(0)
+    expect(s.getState().data['you/journal']?.status).toBe('ready')
+    await s.getState().apply('you/journal', [{ path: 'b.md', text: '# B\n' }])
+    await s.getState().flush('you/journal')
+    expect(fake.repo('you/journal').read('b.md')).toBe('# B\n')
+    // Discovery agrees, and the rename survives a restart.
+    await s.getState().discover()
+    expect(s.getState().trees.map((t) => t.repo)).toContain('you/journal')
+    const again = createSession({ store })
+    await again.getState().start()
+    expect(again.getState().trees.map((t) => t.repo)).toContain('you/journal')
+    expect(again.getState().trees.map((t) => t.repo)).not.toContain('you/notes')
+  })
+
+  it('refuses a folder Family, a bad name, and says what a refusal needs', async () => {
+    const s = createSession({ store: memoryStore() })
+    await s.getState().signIn('good')
+    await expect(s.getState().renameRepository('you/engineering', 'a b/c')).rejects.toThrow(
+      'letters, numbers',
+    )
+    await fake.addRepo('you/taken')
+    await s.getState().open('you/engineering')
+    await expect(s.getState().renameRepository('you/engineering', 'taken')).rejects.toThrow(
+      'name already exists on this account',
+    )
+  })
+})
+
+describe('pushing a folder Family to GitHub', () => {
+  it('creates a private repository with every file, and shows it in the folder’s place', async () => {
+    const notes = memoryFolder({
+      '.yeraz.json': '{"name":"Notes","color":"amber"}\n',
+      'Ideas/first.md': '# First\n\nSee [Second](/Ideas/second.md).\n',
+      'Ideas/second.md': '# Second\n',
+      'assets/pic.png': 'PNG',
+      '.obsidian/app.json': '{}',
+    })
+    const folders = memoryFolders({ Notes: notes })
+    const s = createSession({ store: memoryStore(), folders, autosaveDelay: 60_000 })
+    await s.getState().start()
+    folders.choose('Notes')
+    const folder = (await s.getState().addFolder())!
+    await s.getState().open(folder.repo)
+    await s.getState().apply(folder.repo, [{ path: 'Ideas/second.md', text: '# Second\n\nTwo.\n' }])
+    await expect(s.getState().publishFolder(folder.repo, 'notes')).rejects.toThrow(
+      'Connect GitHub first',
+    )
+    await s.getState().signIn('good')
+    const next = await s.getState().publishFolder(folder.repo, 'notes')
+    expect(next).toMatchObject({
+      repo: 'you/notes',
+      title: 'Notes',
+      color: 'amber',
+      isPrivate: true,
+    })
+    const repo = fake.repo('you/notes')
+    expect(repo.read('Ideas/second.md')).toBe('# Second\n\nTwo.\n')
+    expect(repo.read('.yeraz.json')).toBe('{"name":"Notes","color":"amber"}\n')
+    expect(repo.read('assets/pic.png')).toBe('PNG')
+    expect(repo.read('.obsidian/app.json')).toBeUndefined()
+    expect(repo.read('README.md')).toBeUndefined()
+    expect(repo.head?.message).toContain('Pushed from a folder by Yeraz.')
+    // The folder stays as it was; the Family on this device is the repository now.
+    expect(notes.text('Ideas/first.md')).toBe('# First\n\nSee [Second](/Ideas/second.md).\n')
+    expect(s.getState().trees.map((t) => t.repo)).toContain('you/notes')
+    expect(s.getState().trees.map((t) => t.repo)).not.toContain(folder.repo)
+    await s.getState().open('you/notes')
+    expect(s.getState().data['you/notes']?.graph?.stats.leaves).toBe(2)
+  })
+})
+
+describe('removing a repository', () => {
+  it('stops showing it, keeps it off until connected again, and leaves GitHub as it was', async () => {
+    const store = memoryStore()
+    const s = createSession({ store })
+    await s.getState().signIn('good')
+    await s.getState().discover()
+    const before = s.getState().trees.map((t) => t.repo)
+    expect(before).toContain('you/engineering')
+
+    await s.getState().removeTree('you/engineering')
+    expect(s.getState().trees.map((t) => t.repo)).not.toContain('you/engineering')
+    await s.getState().discover()
+    expect(s.getState().trees.map((t) => t.repo)).not.toContain('you/engineering')
+    expect(fake.repo('you/engineering')).toBeTruthy()
+
+    await s.getState().connect('you/engineering')
+    expect(s.getState().trees.map((t) => t.repo)).toContain('you/engineering')
+    await s.getState().discover()
+    expect(s.getState().trees.map((t) => t.repo)).toContain('you/engineering')
   })
 })

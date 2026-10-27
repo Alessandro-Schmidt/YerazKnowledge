@@ -78,8 +78,10 @@
   font-size: 12.5px;
   cursor: pointer;
 }
-.tool:hover {
-  background: var(--hover);
+@media (hover: hover) and (pointer: fine) {
+  .tool:hover {
+    background: var(--hover);
+  }
 }
 .grow {
   flex: 1;
@@ -118,14 +120,16 @@
   padding: 0 24px 0 10px;
   border: 0;
   border-radius: 8px;
-  background: transparent;
-  color: inherit;
+  background-color: var(--panel);
+  color: var(--text);
   font: inherit;
   font-size: 12.5px;
   cursor: pointer;
 }
-.order select:hover {
-  background: var(--hover);
+@media (hover: hover) and (pointer: fine) {
+  .order select:hover {
+    background: var(--hover);
+  }
 }
 .order svg {
   position: absolute;
@@ -147,9 +151,11 @@
   border-radius: 9px;
   transition: background 0.15s;
 }
-.treeRow:hover,
-.row:hover {
-  background: var(--hover);
+@media (hover: hover) and (pointer: fine) {
+  .treeRow:hover,
+  .row:hover {
+    background: var(--hover);
+  }
 }
 .treeRow[data-on],
 .row[data-on] {
@@ -207,6 +213,8 @@
 
 .row {
   padding: 0 12px 0 calc(30px + 30px * var(--level, 0));
+  content-visibility: auto;
+  contain-intrinsic-block-size: auto 40px;
 }
 .line {
   display: flex;
@@ -285,8 +293,18 @@
   color: var(--faint);
   cursor: pointer;
 }
+@media (hover: hover) and (pointer: fine) {
+  .chev:hover {
+    color: var(--text);
+  }
+}
 .chev svg {
   transition: transform 0.15s;
+}
+@media (prefers-reduced-motion: reduce) {
+  .chev svg {
+    transition: none;
+  }
 }
 .chev[aria-expanded='true'] svg {
   transform: rotate(90deg);
@@ -325,8 +343,10 @@
   text-align: left;
   cursor: pointer;
 }
-.mostRow:hover {
-  background: var(--hover);
+@media (hover: hover) and (pointer: fine) {
+  .mostRow:hover {
+    background: var(--hover);
+  }
 }
 .mostRow[aria-current='true'] {
   background: var(--raised);
@@ -343,7 +363,7 @@
   font-size: 13.5px;
 }
 .mostText > span:last-child {
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--muted);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -375,6 +395,12 @@
   display: flex;
   justify-content: space-between;
   font-size: 13px;
+}
+.barLabel span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .barLabel span:last-child {
   font-size: 11px;

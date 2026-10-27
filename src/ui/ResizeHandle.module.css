@@ -27,10 +27,15 @@
 .edge[data-edge='left']::after {
   left: 0;
 }
-.edge:hover::after,
 .edge:focus-visible::after,
 .edge[data-dragging]::after {
   background: var(--accent);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .edge:hover::after {
+    background: var(--accent);
+  }
 }
 .edge:focus-visible {
   outline: none;

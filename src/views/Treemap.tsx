@@ -15,7 +15,7 @@ import ui from '../map/TreeMap.module.css'
 import controls from '../ui/controls.module.css'
 import { Glyph } from '../ui/Glyph'
 import { Icon } from '../ui/icons'
-import { degree, plural, treeColor, useFirstLines, type ViewProps } from './common'
+import { degree, enterOpens, plural, treeColor, useFirstLines, type ViewProps } from './common'
 import { layoutTreemap, type SizeBy } from './layout/treemap'
 import styles from './Treemap.module.css'
 
@@ -147,6 +147,7 @@ export default function Treemap({
           g.tiles.map((t) => {
             const n = graph.nodes.get(t.id)!
             const small = t.h < 46 || t.w < 70
+            const tiny = t.h < 12 || t.w < 12
             const within = t.within ? graph.nodes.get(t.within)?.title : null
             const first = t.h > 92 && t.w > 170 ? lines.get(t.id) : undefined
             return (
@@ -157,6 +158,8 @@ export default function Treemap({
                 data-tile=""
                 data-id={t.id}
                 data-small={small || undefined}
+                tabIndex={tiny ? -1 : undefined}
+                aria-hidden={tiny || undefined}
                 style={
                   {
                     left: t.x,
@@ -169,6 +172,7 @@ export default function Treemap({
                 }
                 onClick={() => onSelect(t.id)}
                 onDoubleClick={() => onOpen(t.id)}
+                onKeyDown={enterOpens(selected === t.id, () => onOpen(t.id))}
               >
                 <span className={styles.title}>
                   {n.icon ? `${n.icon} ` : ''}

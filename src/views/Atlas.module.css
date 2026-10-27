@@ -79,7 +79,7 @@
 .islandName .islandSub {
   font-family: var(--font-mono);
   font-style: normal;
-  font-size: 9.5px;
+  font-size: 11px;
   letter-spacing: 1px;
   fill: var(--muted);
 }
@@ -114,7 +114,7 @@
 }
 .height {
   font-family: var(--font-mono);
-  font-size: 9.5px;
+  font-size: 11px;
   fill: var(--muted);
 }
 
@@ -215,7 +215,7 @@
   text-align: center;
 }
 .cartouche > div > span:first-child {
-  font-size: 9.5px;
+  font-size: 11px;
   letter-spacing: 0.3em;
 }
 .cartouche strong {
@@ -238,7 +238,7 @@
   color: var(--text-body);
 }
 .cartouche > div > span:last-child {
-  font-size: 9.5px;
+  font-size: 11px;
   color: var(--muted);
 }
 
@@ -284,12 +284,14 @@
   line-height: 1;
 }
 .cardHead strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
   font-size: 15px;
   font-weight: 600;
 }
 .cardHead > span:last-child {
   margin-left: auto;
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--tree, var(--accent));
 }
 .cardNote {
@@ -306,7 +308,7 @@
   border-top: 1px solid var(--hair);
 }
 .routes > span {
-  font-size: 9.5px;
+  font-size: 11px;
   margin-bottom: 4px;
 }
 .routes button {
@@ -322,12 +324,20 @@
   text-align: left;
   cursor: pointer;
 }
-.routes button:hover {
-  background: var(--hover);
+@media (hover: hover) and (pointer: fine) {
+  .routes button:hover {
+    background: var(--hover);
+  }
+}
+.routes button > span:nth-child(2) {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .routes button > span:last-child {
   margin-left: auto;
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--muted);
 }
 .routeSwatch {

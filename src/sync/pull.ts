@@ -87,26 +87,22 @@ async function listTree(
   commit: string,
 ): Promise<{ sha: string; entries: TreeEntry[] }> {
   const listing = await client.getTree(repo, commit)
-  if (listing === 'not-modified') throw new Error('A tree listed by SHA never answers 304')
   if (!listing.truncated) return listing
 
   const entries: TreeEntry[] = []
   const walk = async (sha: string, prefix: string): Promise<void> => {
     const sub = await client.getTree(repo, sha, { recursive: true })
-    if (sub === 'not-modified') return
     if (!sub.truncated) {
       entries.push(...sub.entries.map((e) => ({ ...e, path: prefix + e.path })))
       return
     }
     const flat = await client.getTree(repo, sha, { recursive: false })
-    if (flat === 'not-modified') return
     for (const e of flat.entries) {
       entries.push({ ...e, path: prefix + e.path })
       if (e.type === 'tree') await walk(e.sha, `${prefix}${e.path}/`)
     }
   }
   const root = await client.getTree(repo, commit, { recursive: false })
-  if (root === 'not-modified') throw new Error('A tree listed by SHA never answers 304')
   for (const e of root.entries) {
     entries.push(e)
     if (e.type === 'tree') await walk(e.sha, `${e.path}/`)

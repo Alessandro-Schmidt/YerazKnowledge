@@ -2,7 +2,7 @@
 // the rail of pages, which becomes a row of tabs on phones.
 
 import type { ReactNode } from 'react'
-import { Link, useLocation } from 'wouter'
+import { Link } from 'wouter'
 import styles from './Appearance.module.css'
 import controls from './controls.module.css'
 import { Icon } from './icons'
@@ -13,12 +13,12 @@ const PAGES = [
   { id: 'appearance', label: 'Appearance', icon: <Icon name="contrast" size={18} /> },
   { id: 'views', label: 'Views', icon: <ViewIcon view="treemap" size={18} /> },
   { id: 'colours', label: 'Tree colours', icon: <ViewIcon view="map" size={18} /> },
+  { id: 'hidden', label: 'Hidden', icon: <Icon name="eyeOff" size={18} /> },
 ] as const
 
-export type SettingsPage = (typeof PAGES)[number]['id']
+type SettingsPage = (typeof PAGES)[number]['id']
 
 export function SettingsShell({ page, children }: { page: SettingsPage; children: ReactNode }) {
-  const [, navigate] = useLocation()
   return (
     <div className={styles.page}>
       <TopBar>
@@ -28,13 +28,9 @@ export function SettingsShell({ page, children }: { page: SettingsPage; children
           <Icon name="chevronRight" size={14} />
           <span aria-current="page">Settings</span>
         </nav>
-        <button
-          type="button"
-          className={`${controls.ghost} ${styles.done}`}
-          onClick={() => navigate('/')}
-        >
+        <Link href="/" className={`${controls.ghost} ${styles.done}`}>
           Done
-        </button>
+        </Link>
       </TopBar>
       <div className={styles.body}>
         <nav className={styles.rail} aria-label="Settings">

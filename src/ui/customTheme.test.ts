@@ -53,6 +53,15 @@ describe('parseTheme (the format in ARCHITECTURE.md §13)', () => {
       parseTheme({ ...midnight, tokens: { grid: 'rgba(255,255,255,0.05)' } }).tokens.grid,
     ).toBe('rgba(255,255,255,0.05)')
   })
+
+  it('keeps every token a contrast rule measures opaque, so readable() never sees NaN', () => {
+    for (const r of CONTRAST_RULES)
+      for (const name of [r.fg, r.bg].filter((n) => n !== 'accent'))
+        expect(
+          () => parseTheme({ ...midnight, tokens: { [name]: 'rgba(3,3,3,0.9)' } }),
+          name,
+        ).toThrow('colour')
+  })
 })
 
 describe('resolveCustom', () => {

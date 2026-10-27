@@ -10,7 +10,8 @@ Read `ideas.txt` (why), `ARCHITECTURE.md` (how), `development-plan.md` (what, in
 - `npm test` — Vitest (unit + integration); `npm run e2e` — Playwright on the production build
 - `npm run typecheck` · `npm run lint` · `npm run format` · `npm run build` · `npm run size`
 - `npm run fixture -- --leaves 1000 --threads 1500 --seed 7` — write a fixture Tree to `fixtures-out/`
-- `npm run import -- <source> <new folder> [--name …]` — notes from Obsidian, Notion or any Markdown folder as a new Family (`src/import/convert.ts`, issue #39)
+- `npm run import -- <source> <new folder> [--name …]` — notes from Obsidian, Notion or any Markdown folder as a new Family (`src/import/convert.ts`, issue #39);
+  `skills/yeraz-import/convert.mjs` is the standalone copy (no clone needed: Logseq, Bear, OneNote HTML/MHT too, an emoji on every title), tested by `test/yeraz-import.test.ts`
 - `npm run perf` — budget tests on the 1,000-leaf fixture, laptop and 4× throttled phone (§7.4)
 - `npm run visual` — the app in the states of `design/screens/01–07` and every view of `design/views/`, with the design's Trees, into `visual-review/`
 - Visual snapshots (`e2e/visual.spec.ts`) run on demand in Playwright's Linux image: `gh workflow run snapshots.yml`
@@ -37,7 +38,8 @@ Read `ideas.txt` (why), `ARCHITECTURE.md` (how), `development-plan.md` (what, in
   Settings › Views (`ui/ViewsSettings.tsx`) and › Tree colours (`ui/TreeColours.tsx`, `.yeraz.json` `trees`)
 - `src/read/` `render.ts` (markdown-it, lazy) · `Peek.tsx` · `History.tsx` (past versions, diff, restore) · `src/ui/` App, FamilyView, FamilyMenu, Start, Explorer, TokenScreen,
   theme (saved per device in `localStorage`, applied before paint by `index.html`), `panels.ts` + `ResizeHandle.tsx` (Explorer and Peek widths, per device), Appearance (`#/settings/appearance`),
-  `customTheme.ts` + `ThemeEditor.tsx` (custom themes), `contrast.ts` (`readable` adjusts a failing colour)
+  `customTheme.ts` + `ThemeEditor.tsx` (custom themes), `contrast.ts` (`readable` adjusts a failing colour), `Hidden.tsx` (Settings › Hidden)
+- `src/example/files.ts` `CLAUDE.md` for AI agents (in every new Family) and the example Family (*Try an example*)
 - `themes/` community themes (each must pass every contrast rule as written) · `src/read/colors.ts` leaf colours
 - Map rule: React draws geometry once per layout; selection, zoom level and layers are data
   attributes or the selection layer, never a React render of the map
@@ -63,7 +65,8 @@ Read `ideas.txt` (why), `ARCHITECTURE.md` (how), `development-plan.md` (what, in
 
 - [ ] A leaf is a `.md` file; line 1 is the title (`# 🔐 Keycloak`, leading emoji = icon)
 - [ ] Optional line 2: `<!-- yeraz {...} -->` metadata; colours are names (`"amber"`), not hex; `coverPosition` is % from the top;
-  `icon` is an image icon (`/assets/…` or https, instead of the title's emoji); `iconPosition` is `center` or `right`
+  `icon` is an image icon (`/assets/…` or https, instead of the title's emoji); `iconPosition` is `center` or `right`;
+  `hidden: true` takes the leaf (or, in a README.md, the branch or Tree) off the map with everything under it (Settings › Hidden shows it again)
 - [ ] Sub-leaves live in a sibling folder with the same name (`keycloak.md` + `keycloak/`)
 - [ ] A branch is a folder without a same-named `.md`; its name is the folder name, as typed
 - [ ] A branch's text is `README.md` in its folder (exact name): not a leaf, never renames the branch, but its

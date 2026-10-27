@@ -56,7 +56,8 @@ function splitIcon(heading: string): { icon: string | null; title: string | null
   return { icon, title: title || null }
 }
 
-function parseMeta(line: string | undefined): LeafMeta | null {
+/** Line 2's metadata, or null when the line isn't the comment (or its JSON is broken). */
+export function parseMeta(line: string | undefined): LeafMeta | null {
   const json = line && META.exec(line)?.[1]
   if (!json) return null
   try {
@@ -135,12 +136,16 @@ export function codeRanges(text: string): [number, number][] {
   return ranges.sort((a, b) => a[0] - b[0])
 }
 
-/** `text` with the given ranges replaced by spaces, so offsets stay the same. */
+/** `text` with the given (sorted) ranges replaced by spaces, so offsets stay the same. */
 function blank(text: string, ranges: [number, number][]): string {
-  let out = text
-  for (const [start, end] of ranges)
-    out = out.slice(0, start) + ' '.repeat(end - start) + out.slice(end)
-  return out
+  const out: string[] = []
+  let last = 0
+  for (const [start, end] of ranges) {
+    out.push(text.slice(last, start), ' '.repeat(end - start))
+    last = end
+  }
+  out.push(text.slice(last))
+  return out.join('')
 }
 
 /** The text with code blanked out, offsets unchanged. */

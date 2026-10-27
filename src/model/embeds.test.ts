@@ -92,6 +92,9 @@ describe('embedOf: a paragraph that is only a link becomes an embed', () => {
     expect(embedOf('[](https://example.com/post)')).toBeNull()
     expect(embedOf('[Baroque](https://github.com/you/art/blob/main/baroque.md)')).toBeNull()
     expect(embedOf('[Mail](mailto:me@example.com)')).toBeNull()
+    // An address that isn't a URL stays a link, instead of a card that can't be drawn.
+    expect(embedOf('[x](https://[)')).toBeNull()
+    expect(embedOf('[Docs](https://a:b:c)')).toBeNull()
   })
 
   it('leaves links inside sentences, and other links, as links', () => {

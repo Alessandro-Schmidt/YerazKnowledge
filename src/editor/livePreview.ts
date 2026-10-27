@@ -391,6 +391,7 @@ class EmbedWidget extends WidgetType {
       el.src = `https://www.youtube-nocookie.com/embed/${embed.id}${embed.start ? `?start=${embed.start}` : ''}`
       el.setAttribute('allow', 'encrypted-media; picture-in-picture; fullscreen')
       el.setAttribute('referrerpolicy', 'strict-origin-when-cross-origin')
+      el.setAttribute('loading', 'lazy')
     } else {
       if (el instanceof HTMLVideoElement) {
         el.controls = true
@@ -984,12 +985,17 @@ function richRanges(
       const l = state.doc.lineAt(pos)
       pos = l.to + 1
       if (l.number === 1 || !l.text.trim() || inCode(l.from)) continue
+      // A paragraph of one link, or a list item of one (owner's request: notes kept as
+      // lists embed too); the item keeps its bullet.
+      const item = /^\s*(?:[-*+]|\d+[.)])\s+(?!\[[ xX]\]\s)/.exec(l.text)
       const alone =
-        state.doc.line(l.number - 1).text.trim() === '' &&
-        (l.number === state.doc.lines || state.doc.line(l.number + 1).text.trim() === '')
+        !!item ||
+        (state.doc.line(l.number - 1).text.trim() === '' &&
+          (l.number === state.doc.lines || state.doc.line(l.number + 1).text.trim() === ''))
+      const start = l.from + (item?.[0].length ?? 0)
       const embed =
         alone && !beingTyped(state, l.from, l.to) && !sourceShown(state, l.from, l.to)
-          ? embedOf(l.text)
+          ? embedOf(l.text.slice(start - l.from))
           : null
       if (embed) {
         const tree =
@@ -1005,7 +1011,7 @@ function richRanges(
               tree,
               tracks,
             ),
-          }).range(l.from, l.to),
+          }).range(start, l.to),
         )
         continue
       }

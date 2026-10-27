@@ -22,6 +22,14 @@ const firstLeaf = (graph: Graph) =>
     .filter((n) => n.kind === 'leaf')
     .sort((a, b) => a.id.localeCompare(b.id))[0]!
 
+test('the skip link is the first stop, and lands on the main region', async ({ page }) => {
+  await page.goto('./')
+  await page.keyboard.press('Tab')
+  await expect(page.getByRole('link', { name: 'Skip to content' })).toBeFocused()
+  await page.keyboard.press('Enter')
+  await expect(page.locator('#main')).toBeFocused()
+})
+
 test('search', async ({ page }) => {
   await signIn(page)
   await page.getByRole('button', { name: /Search leaves, branches, trees/ }).click()

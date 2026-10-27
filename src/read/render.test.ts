@@ -169,6 +169,18 @@ describe('renderLeaf', () => {
     expect(html).toContain('<a href="https://youtu.be/dQw4w9WgXcQ"')
   })
 
+  it('embeds a list item that is only a link, keeping the list (owner keeps notes as lists)', async () => {
+    const html = await renderLeaf(
+      '# T\n\n- https://youtu.be/dQw4w9WgXcQ\n- $x^2$ and [a link](https://youtu.be/dQw4w9WgXcQ) in a sentence\n',
+      context,
+    )
+    expect(html).toMatch(
+      /<li>\s*<div class="embed video"><iframe src="https:\/\/www.youtube-nocookie.com\/embed\/dQw4w9WgXcQ"/,
+    )
+    expect(html).toMatch(/<li>\s*<span class="katex">/)
+    expect(html).toContain('<a href="https://youtu.be/dQw4w9WgXcQ" target="_blank"')
+  })
+
   it('shows any other file in assets/ as a card that downloads it, with its type and size', async () => {
     const html = await renderLeaf(
       [
@@ -182,9 +194,9 @@ describe('renderLeaf', () => {
     )
     expect(html).toContain(
       '<p><button type="button" class="file-card" data-asset-file="assets/2026-10-17-q3-report.xlsx" ' +
-        'aria-label="Download Q3 &lt;report&gt;.xlsx, XLSX · 1.2 MB">' +
+        'aria-label="Download Q3 &lt;report&gt;.xlsx, XLSX · 1.2\u00a0MB">' +
         '<strong>Q3 &lt;report&gt;.xlsx</strong><span>2026-10-17-q3-report.xlsx</span>' +
-        '<em>XLSX · 1.2 MB</em></button></p>',
+        '<em>XLSX · 1.2\u00a0MB</em></button></p>',
     )
     expect(html).toContain(
       'aria-label="Download Makefile, File"><strong>Makefile</strong><em>File</em></button></p>',
@@ -239,6 +251,12 @@ describe('renderLeaf', () => {
     )
     expect(html).toContain('<p><a href="https://example.com/post" target="_blank"')
     expect(html).toContain('Read <a href="https://example.com/a" target="_blank"')
+  })
+
+  it('keeps a titled link whose address is not a URL as a link', async () => {
+    const html = await renderLeaf('# T\n\n[x](https://[)\n', context)
+    expect(html).not.toContain('bookmark')
+    expect(html).toContain('<a href="https://%5B" target="_blank"')
   })
 })
 

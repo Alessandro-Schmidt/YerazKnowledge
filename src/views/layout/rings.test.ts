@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { layoutRings, PITH, R } from './rings'
-import { engineering } from './testGraph'
+import { engineering, engineeringWithText } from './testGraph'
 
 const graph = engineering()
 const leaves = [...graph.nodes.values()].filter((n) => n.kind === 'leaf')
@@ -55,5 +55,11 @@ describe('layoutRings', () => {
 
   it('is the same every time', () => {
     expect(layoutRings(graph, planted, now).bark).toEqual(layout.bark)
+  })
+
+  it('leaves the Family’s README.md out: it is not in a Tree', () => {
+    const withText = layoutRings(engineeringWithText(), planted, now)
+    expect(withText.byId.has('README.md')).toBe(false)
+    expect(withText.dots).toHaveLength(layout.dots.length)
   })
 })

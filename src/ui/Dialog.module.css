@@ -6,11 +6,12 @@
   background: var(--panel);
   color: var(--text);
   box-shadow: 0 24px 60px var(--shadow);
-  animation: rise 0.22s cubic-bezier(0.2, 0.7, 0.2, 1);
+  overscroll-behavior: contain;
+  animation: rise 0.22s var(--ease-out);
 }
 .dialog::backdrop {
   background: color-mix(in srgb, var(--bg) 70%, transparent);
-  animation: fade 0.22s ease-out;
+  animation: fade 0.22s var(--ease-out);
 }
 @keyframes rise {
   from {
@@ -90,6 +91,7 @@
 .list {
   max-height: 260px;
   overflow: auto;
+  overscroll-behavior: contain;
   margin: 0;
   padding: 4px;
   list-style: none;
@@ -107,8 +109,10 @@
   font-size: 13px;
   cursor: pointer;
 }
-.list label:hover {
-  background: var(--hover);
+@media (hover: hover) and (pointer: fine) {
+  .list label:hover {
+    background: var(--hover);
+  }
 }
 .list input {
   accent-color: var(--accent);
@@ -123,4 +127,10 @@
 .text code {
   font-family: var(--font-mono);
   font-size: 12px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dialog {
+    animation-name: fade;
+  }
 }

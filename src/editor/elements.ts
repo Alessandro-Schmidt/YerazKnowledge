@@ -68,8 +68,7 @@ export const typingLine = StateField.define<number | null>({
     if (tr.isUserEvent('input') || tr.isUserEvent('delete')) return line.from
     // A change made for the person (a pasted link made a bookmark) is done: it is drawn.
     if (value === null || tr.docChanged) return null
-    const at = tr.docChanged ? tr.changes.mapPos(value) : value
-    return tr.state.doc.lineAt(at).from === line.from ? line.from : null
+    return tr.state.doc.lineAt(value).from === line.from ? line.from : null
   },
 })
 
@@ -290,18 +289,21 @@ function linkForm(view: EditorView, from: number) {
   const form = document.createElement('form')
   form.className = 'cm-link-form'
   form.setAttribute('aria-label', 'Edit link')
-  const field = (label: string, value: string) => {
+  const field = (label: string, name: string, value: string) => {
     const wrap = document.createElement('label')
     const input = document.createElement('input')
     wrap.textContent = label
+    input.name = name
+    input.autocomplete = 'off'
     input.value = value
     input.spellcheck = false
     wrap.append(input)
     form.append(wrap)
     return input
   }
-  const text = field('Text', parts.text)
-  const url = field('Address', parts.url)
+  const text = field('Text', 'text', parts.text)
+  const url = field('Address', 'href', parts.url)
+  url.inputMode = 'url'
   const buttons = document.createElement('div')
   const save = document.createElement('button')
   const cancel = document.createElement('button')
@@ -451,6 +453,7 @@ const longPress = ViewPlugin.define((view) => {
   view.contentDOM.addEventListener('touchstart', start, { passive: true })
   view.contentDOM.addEventListener('touchmove', cancel)
   view.contentDOM.addEventListener('touchend', cancel)
+  view.contentDOM.addEventListener('touchcancel', cancel)
   view.contentDOM.addEventListener('contextmenu', block)
   return {
     destroy() {
@@ -458,6 +461,7 @@ const longPress = ViewPlugin.define((view) => {
       view.contentDOM.removeEventListener('touchstart', start)
       view.contentDOM.removeEventListener('touchmove', cancel)
       view.contentDOM.removeEventListener('touchend', cancel)
+      view.contentDOM.removeEventListener('touchcancel', cancel)
       view.contentDOM.removeEventListener('contextmenu', block)
     },
   }

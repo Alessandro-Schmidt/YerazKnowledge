@@ -21,8 +21,10 @@
   font-size: 13px;
   cursor: pointer;
 }
-.iconButton:hover {
-  background: var(--hover);
+@media (hover: hover) and (pointer: fine) {
+  .iconButton:hover {
+    background: var(--hover);
+  }
 }
 
 .icon {
@@ -42,6 +44,7 @@
 .iconRow[data-position='right'] .menu {
   left: auto;
   right: 0;
+  transform-origin: top right;
 }
 .iconRow[data-position='center'] {
   justify-content: center;
@@ -74,6 +77,8 @@
   z-index: 6;
   top: calc(100% + 6px);
   left: 0;
+  transform-origin: top left;
+  animation: pop 0.16s var(--ease-out);
   min-width: 190px;
   display: flex;
   flex-direction: column;
@@ -94,13 +99,18 @@
   font-size: 13px;
   cursor: pointer;
 }
-.menu button:hover {
-  background: var(--hover);
+@media (hover: hover) and (pointer: fine) {
+  .menu button:hover {
+    background: var(--hover);
+  }
 }
 .menu button[aria-checked='true']::after {
-  content: '✓';
+  content: '';
+  width: 6px;
+  height: 6px;
   margin-left: auto;
-  color: var(--accent);
+  border-radius: 50%;
+  background: var(--accent);
 }
 .menu button[data-danger] {
   color: var(--c-amber);
@@ -108,9 +118,7 @@
 .menuLabel {
   padding: 8px 10px 2px;
   color: var(--faint);
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-size: 12px;
 }
 
 .picker {
@@ -118,6 +126,8 @@
   z-index: 5;
   top: calc(100% + 6px);
   left: 0;
+  transform-origin: top left;
+  animation: pop 0.16s var(--ease-out);
   width: 352px;
   max-width: calc(100vw - 32px);
   display: flex;
@@ -174,8 +184,10 @@
   font-size: 20px;
   cursor: pointer;
 }
-.emoji:hover {
-  background: var(--hover);
+@media (hover: hover) and (pointer: fine) {
+  .emoji:hover {
+    background: var(--hover);
+  }
 }
 
 .removeIcon {
@@ -287,5 +299,26 @@
   }
   .look .word {
     display: none;
+  }
+}
+
+/* A menu opens from its button (as the Family menu and the Peek's). */
+@keyframes pop {
+  from {
+    opacity: 0;
+    transform: scale(var(--pop, 0.96));
+  }
+}
+
+/* With a mouse, the look's controls wait until the header is hovered or focused: the
+   title comes first. The row keeps its place, so nothing moves. */
+@media (hover: hover) and (pointer: fine) {
+  .look {
+    opacity: 0;
+    transition: opacity 160ms var(--ease-out);
+  }
+  .header:hover .look,
+  .header:focus-within .look {
+    opacity: 1;
   }
 }

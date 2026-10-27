@@ -14,7 +14,8 @@
 
 .title {
   /* No overflow clipping here: the rename field's outline and message reach past it.
-     The name itself is cut with an ellipsis (InlineName). */
+     The name itself is cut with an ellipsis (InlineName). It keeps its width before the
+     search box does: it says where you are. */
   min-width: 0;
   margin: 0;
   font-size: 14px;
@@ -62,6 +63,18 @@
   min-width: 0;
   overflow: hidden;
   background: var(--bg);
+}
+
+/* Leaves kept open beside the selected one (owner's request), each a column. */
+.stack {
+  position: absolute;
+  z-index: 3;
+  top: 16px;
+  right: 16px;
+  bottom: 16px;
+  display: flex;
+  gap: 12px;
+  max-width: calc(100% - 32px);
 }
 
 .placeholder {
@@ -142,6 +155,13 @@
   }
   .newLeafText {
     display: none;
+  }
+}
+
+@media (min-width: 641px) {
+  .title {
+    flex-shrink: 0;
+    max-width: min(260px, 22vw);
   }
 }
 

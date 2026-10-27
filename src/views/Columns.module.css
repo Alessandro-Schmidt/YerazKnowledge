@@ -40,7 +40,7 @@
 }
 .sub {
   flex-shrink: 0;
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--faint);
 }
 
@@ -54,6 +54,10 @@
   margin: 0;
   padding: 0 8px;
   list-style: none;
+}
+.items li {
+  content-visibility: auto;
+  contain-intrinsic-block-size: auto 38px;
 }
 
 .item {
@@ -79,8 +83,10 @@
 .item[data-rich] > :first-child {
   margin-top: 5px;
 }
-.item:hover {
-  background: var(--hover);
+@media (hover: hover) and (pointer: fine) {
+  .item:hover {
+    background: var(--hover);
+  }
 }
 .item[aria-current='true'] {
   background: var(--raised);
@@ -122,7 +128,7 @@
 }
 .count {
   flex-shrink: 0;
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--faint);
 }
 .item[data-rich] .count {
@@ -144,9 +150,11 @@
   cursor: pointer;
   flex-shrink: 0;
 }
-.add:hover {
-  color: var(--text);
-  border-color: var(--muted);
+@media (hover: hover) and (pointer: fine) {
+  .add:hover {
+    color: var(--text);
+    border-color: var(--muted);
+  }
 }
 
 /* Phone: spines, then the last column full width. */
@@ -187,6 +195,7 @@
 .wrap[data-phone] .column {
   flex: 1 1 auto;
   border-right: 0;
+  padding-bottom: env(safe-area-inset-bottom);
   background: var(--bg);
 }
 .wrap[data-phone] .item {

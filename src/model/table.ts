@@ -124,9 +124,3 @@ export const deleteColumn = (t: Table, at: number): Table | null => {
   const drop = <T>(list: T[]) => list.filter((_, i) => i !== at)
   return { header: drop(t.header), align: drop(t.align), rows: t.rows.map(drop) }
 }
-
-/** Sets column `at`'s alignment. */
-export const alignColumn = (t: Table, at: number, align: Align): Table => ({
-  ...t,
-  align: t.align.map((a, i) => (i === at ? align : a)),
-})

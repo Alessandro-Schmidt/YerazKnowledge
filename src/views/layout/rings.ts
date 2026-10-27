@@ -5,7 +5,7 @@
 // low-frequency shape and a little noise per ring. Trees are sectors sized by their
 // leaves, separated by rays; each leaf sits mid-ring at the month it was planted.
 
-import { treesOf } from '../../map/family'
+import { FAMILY_TEXT, treesOf } from '../../map/family'
 import type { Box } from '../../map/layout'
 import { textWidth } from '../../map/layout'
 import type { Graph, GraphNode } from '../../model/graph'
@@ -108,7 +108,7 @@ export function layoutRings(
   /** Show the Family as it was at the end of this ring (an index into the months). */
   asOf?: number,
 ): RingsLayout {
-  const leaves = [...graph.nodes.values()].filter((n) => n.kind === 'leaf')
+  const leaves = [...graph.nodes.values()].filter((n) => n.kind === 'leaf' && n.id !== FAMILY_TEXT)
   const nowIndex = monthIndex(now)
   const dateOf = (id: string) => {
     const d = planted.get(id)

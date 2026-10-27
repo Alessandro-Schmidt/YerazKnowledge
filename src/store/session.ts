@@ -15,8 +15,10 @@ import {
 } from '../github/client'
 import { githubApi } from '../github/endpoint'
 import {
+  createRepository,
   createTreeRepository,
   discoverTrees,
+  renameRepository,
   fetchHistory,
   fetchPlanted,
   lookupTree,
@@ -38,11 +40,13 @@ import {
   type FolderAccess,
   type FolderFs,
 } from '../local/folder'
-import { buildGraph, type Graph } from '../model/graph'
-import type { ParsedLeaf } from '../model/parse'
+import { AGENTS_FILE, AGENTS_TEXT } from '../example/files'
+import { buildGraph, humanize, type Graph } from '../model/graph'
+import { markNow } from '../perf'
+import { parseLeaf, parseMeta, withMeta, type ParsedLeaf } from '../model/parse'
 import { gitBlobSha } from '../model/sha'
 import { slugify } from '../model/slug'
-import { buildTree } from '../model/tree'
+import { branchText, buildTree } from '../model/tree'
 import { assetBytes, mimeOf } from '../sync/assets'
 import { createAutosave, type Autosave } from '../sync/autosave'
 import { pullFolder, pushFolder } from '../sync/folder'
@@ -96,11 +100,18 @@ export interface SessionState {
   connect(repo: string): Promise<TreeRef>
   /**
    * Asks for a folder on this device and adds it as a Family; null when the person cancels.
-   * A folder without `.yeraz.json` gets one (and a welcome leaf, when it has no leaves).
-   * With `project`, a new folder by that name instead, made where the person chooses (on a
-   * device without folders, a new Family kept on it). Throws a message for a name no folder can have.
+   * A folder without `.yeraz.json` gets one (and a welcome leaf and `CLAUDE.md`, when it has
+   * no leaves; `seed` files instead, when given: the example Family). With `project`, a new
+   * folder by that name instead, made where the person chooses (on a device without folders,
+   * a new Family kept on it). Throws a message for a name no folder can have.
    */
-  addFolder(project?: string): Promise<TreeRef | null>
+  addFolder(project?: string, seed?: Readonly<Record<string, string>>): Promise<TreeRef | null>
+  /**
+   * Takes a Family off this device: a repository stays on GitHub (and isn't found again until
+   * connected by hand), a folder stays on the disk, a Family in the device's own storage is
+   * deleted. Pending edits are dropped.
+   */
+  removeTree(repo: string): Promise<void>
   /** Asks the person again for access to a Family's folder (from a click), then opens it. */
   allowFolder(repo: string): Promise<void>
   /** Creates a private repository holding a new Tree. Throws a message on failure. */
@@ -141,10 +152,26 @@ export interface SessionState {
   /** Renames a Tree: the name in its `.yeraz.json`, committed by the autosave. Throws a message. */
   renameTree(repo: string, title: string): Promise<void>
   /**
+   * Renames the repository itself on GitHub (owner's request), after committing what is
+   * pending; this device then knows the Family by its new name. Throws a message.
+   */
+  renameRepository(repo: string, name: string): Promise<TreeRef>
+  /**
+   * Pushes a Family kept in a folder to a new private repository of that name (owner's
+   * request), every file in one commit, and shows the repository in its place: the folder
+   * stays on the disk as it is; a Family in the device's own storage is deleted. Throws a message.
+   */
+  publishFolder(repo: string, name: string): Promise<TreeRef>
+  /**
    * Colours a Family (`color`) or one of its Trees (`tree`), by colour name; null goes back
    * to the theme accent (the Family's colour, for a Tree). Written to `.yeraz.json`.
    */
   setColor(repo: string, color: string | null, tree?: string): Promise<void>
+  /**
+   * Hides a leaf or a branch (a Tree too) with everything under it, or shows it again: line 2
+   * `hidden` of the leaf, or of the branch's README.md, which is written when it has none.
+   */
+  setHidden(repo: string, id: string, hidden: boolean): Promise<void>
   /** Commits a Tree's pending edits now. */
   flush(repo: string): Promise<void>
   /** Commits every Tree's pending edits now (app hidden, Ctrl/Cmd+S, back online). */
@@ -153,19 +180,8 @@ export interface SessionState {
   dismissConflict(repo: string): void
 }
 
-const KEYS = { trees: 'session:trees', connected: 'session:connected' }
+const KEYS = { trees: 'session:trees', connected: 'session:connected', ignored: 'session:ignored' }
 const dirtyKey = (repo: string) => `dirty:${repo.toLowerCase()}`
-
-/** The name a `.yeraz.json` text gives, or null. */
-function nameIn(text: unknown): string | null {
-  if (typeof text !== 'string') return null
-  try {
-    const name = (JSON.parse(text) as { name?: unknown } | null)?.name
-    return typeof name === 'string' && name.trim() ? name.trim() : null
-  } catch {
-    return null
-  }
-}
 
 export function describeError(e: unknown): { message: string; kind: ErrorKind } {
   if (e instanceof FolderError) return { message: e.message, kind: e.kind }
@@ -179,6 +195,7 @@ export function describeError(e: unknown): { message: string; kind: ErrorKind } 
     server: 'GitHub had a problem answering. Try again.',
     graphql: e.message,
     stale: e.message,
+    refused: e.message,
   }
   return { message: messages[e.kind], kind: e.kind }
 }
@@ -235,6 +252,8 @@ export function createSession(deps: {
       return (client ??= createGitHubClient({ token, api: api() }))
     }
     const connected = async () => (await store.get<string[]>(KEYS.connected)) ?? []
+    /** Repositories taken off this device: discovery leaves them out until connected again. */
+    const ignored = async () => (await store.get<string[]>(KEYS.ignored)) ?? []
     /** A folder Family's files. With `ask`, the browser may ask for access again (on a click). */
     const folderOf = async (key: string, ask = false) => {
       let fs = opened.get(key)
@@ -253,7 +272,7 @@ export function createSession(deps: {
         ? (await folderOf(repo.toLowerCase())).read(path)
         : assetBytes(repo, sha, { client: github(), store })
     /** A name typed on this device and not committed yet wins over what GitHub last said. */
-    const pendingTitle = (key: string) => nameIn(dirty.get(key)?.[MARKER]?.text)
+    const pendingTitle = (key: string) => markerFields(dirty.get(key)?.[MARKER]?.text).title ?? null
     /** So do colours chosen here: the pending `.yeraz.json` gives the whole marker. */
     const titled = (ref: TreeRef): TreeRef => {
       const text = dirty.get(ref.repo.toLowerCase())?.[MARKER]?.text
@@ -347,6 +366,23 @@ export function createSession(deps: {
       await retitle(key, { color: fields.color ?? null, trees: fields.trees ?? {} })
     }
 
+    /** Drops what this session holds of a Family in memory, and its pending edits. */
+    const forget = async (key: string) => {
+      autosaves.get(key)?.dispose()
+      autosaves.delete(key)
+      dirty.delete(key)
+      pulls.delete(key)
+      bases.delete(key)
+      opened.delete(key)
+      histories.clear()
+      const data = { ...get().data }
+      const sync = { ...get().sync }
+      delete data[key]
+      delete sync[key]
+      set({ data, sync })
+      await store.set(dirtyKey(key), undefined)
+    }
+
     const loadDirty = async (key: string) => {
       if (!dirty.has(key)) dirty.set(key, (await store.get<Dirty>(dirtyKey(key))) ?? {})
       return dirty.get(key)!
@@ -358,11 +394,9 @@ export function createSession(deps: {
       const base = bases.get(key)
       if (!base) return
       const { entries, leaves } = overlay(base.entries, base.leaves, dirty.get(key) ?? {})
-      setData(key, {
-        status: 'ready',
-        graph: buildGraph(buildTree(entries), leaves, pendingTitle(key) ?? base.ref.title),
-        offline: base.offline,
-      })
+      const graph = buildGraph(buildTree(entries), leaves, pendingTitle(key) ?? base.ref.title)
+      markNow('graph-built')
+      setData(key, { status: 'ready', graph, offline: base.offline })
     }
 
     const pendingState = (key: string): SyncState => {
@@ -399,7 +433,16 @@ export function createSession(deps: {
           const now = current[path]
           if (!now) continue
           if (sameContent(now.text, sent.text)) delete current[path]
-          else now.base = sent.text === null ? null : await gitBlobSha(sent.text)
+          else if (sent.text === null) now.base = null
+          else {
+            now.base = await gitBlobSha(sent.text)
+            // GitHub may have merged a text that was sent: cache it so the next merge has its base.
+            if (typeof sent.text === 'string')
+              await store.setMany([
+                [`blob:${now.base}`, sent.text],
+                [`leaf:${now.base}`, parseLeaf(sent.text)],
+              ])
+          }
         }
         await saveDirty(key)
         const committedMarker = snapshot[MARKER]?.text
@@ -464,7 +507,12 @@ export function createSession(deps: {
         try {
           const found = await discoverTrees(client)
           await tokens.set(token.trim())
-          await saveTrees(found)
+          await saveTrees(
+            mergeTrees(
+              found,
+              get().trees.filter((t) => isFolder(t.repo)),
+            ),
+          )
           set({ phase: 'signed-in', discovery: 'done' })
         } catch (e) {
           client = null
@@ -502,7 +550,10 @@ export function createSession(deps: {
         if (!get().token) return set({ discovery: 'done' })
         set({ discovery: 'loading' })
         try {
-          const found = await discoverTrees(github())
+          const out = new Set((await ignored()).map((r) => r.toLowerCase()))
+          const found = (await discoverTrees(github())).filter(
+            (t) => !out.has(t.repo.toLowerCase()),
+          )
           const extra = get().trees.filter((t) => found.every((f) => f.repo !== t.repo))
           const keep = new Set((await connected()).map((r) => r.toLowerCase()))
           await saveTrees(
@@ -532,12 +583,39 @@ export function createSession(deps: {
         }
         if (!tree)
           throw new Error(`${name} isn't a Yeraz Family yet: add a .yeraz.json file at its root.`)
+        const key = tree.repo.toLowerCase()
         await store.set(KEYS.connected, [...new Set([...(await connected()), tree.repo])])
+        await store.set(
+          KEYS.ignored,
+          (await ignored()).filter((r) => r.toLowerCase() !== key),
+        )
         await saveTrees(mergeTrees(get().trees, [tree]))
         return tree
       },
 
-      async addFolder(project) {
+      async removeTree(repo) {
+        const key = repo.toLowerCase()
+        await forget(key)
+        if (isFolder(repo)) {
+          const handle = await store.get<unknown>(`folder:${key}`)
+          if (handle !== undefined) await deps.folders?.discard?.(handle)
+          await store.set(`folder:${key}`, undefined)
+        } else {
+          await store.set(
+            KEYS.connected,
+            (await connected()).filter((r) => r.toLowerCase() !== key),
+          )
+          await store.set(KEYS.ignored, [...new Set([...(await ignored()), repo])])
+        }
+        const trees = get().trees.filter((t) => t.repo.toLowerCase() !== key)
+        await saveTrees(trees)
+        if (!trees.length && !get().token) {
+          await store.set(KEYS.trees, undefined)
+          set({ phase: 'signed-out' })
+        }
+      },
+
+      async addFolder(project, seed) {
         const access = deps.folders
         if (!access)
           throw new Error(
@@ -561,7 +639,10 @@ export function createSession(deps: {
         else {
           await fs.write(MARKER, encoder.encode(`${JSON.stringify({ name: picked.name })}\n`))
           if (!files.some((f) => f.path.endsWith('.md')))
-            await fs.write('welcome.md', encoder.encode(FOLDER_WELCOME))
+            for (const [path, text] of Object.entries(
+              seed ?? { 'welcome.md': FOLDER_WELCOME, [AGENTS_FILE]: AGENTS_TEXT },
+            ))
+              await fs.write(path, encoder.encode(text))
         }
         const taken = new Set(get().trees.map((t) => t.repo.toLowerCase()))
         const slug = slugify(picked.name)
@@ -602,7 +683,7 @@ export function createSession(deps: {
         if (!/^[\w.-]+$/.test(name))
           throw new Error('Use letters, numbers, dots, dashes or underscores for the name.')
         try {
-          const tree = await createTreeRepository(github(), '', {
+          const tree = await createTreeRepository(github(), {
             name,
             title: input.title || input.name,
           })
@@ -638,13 +719,13 @@ export function createSession(deps: {
             const edits = await loadDirty(key)
             setData(key, { status: 'loading', graph: previous, fetched: 0, total: 0 })
             const onProgress = (p: PullProgress) => {
-              if (p.stage === 'structure' && (p.missing > 0 || !previous)) {
-                setData(key, {
-                  status: 'loading',
-                  graph: buildGraph(p.model, new Map(), title),
-                  fetched: 0,
-                  total: p.missing,
-                })
+              // The structure alone is worth drawing while content is fetched; with every
+              // leaf cached the content follows within the moment, and a map drawn from the
+              // structure would be laid out and mounted only to be replaced.
+              if (p.stage === 'structure' && p.missing > 0) {
+                const graph = buildGraph(p.model, new Map(), title)
+                markNow('graph-built')
+                setData(key, { status: 'loading', graph, fetched: 0, total: p.missing })
               } else if (p.stage === 'content') {
                 set((s) => {
                   const current = s.data[key]
@@ -833,7 +914,7 @@ export function createSession(deps: {
         if (!name) throw new Error('A Family needs a name.')
         await inTurn(key, async () => {
           const { text, marker } = await readMarker(repo)
-          if (nameIn(text) === name) return
+          if (markerFields(text).title === name) return
           await writeMarker(repo, text, { ...marker, name })
           await retitle(key, { title: name })
         })
@@ -842,6 +923,90 @@ export function createSession(deps: {
       async setColor(repo, color, tree) {
         const key = repo.toLowerCase()
         await inTurn(key, () => colour(repo, color, tree))
+      },
+
+      async renameRepository(repo, name) {
+        const key = repo.toLowerCase()
+        const ref = get().trees.find((t) => t.repo.toLowerCase() === key)
+        if (!ref || isFolder(key)) throw new Error('Only a repository on GitHub can be renamed.')
+        const clean = name.trim().replace(/\s+/g, '-')
+        if (!/^[\w.-]+$/.test(clean))
+          throw new Error('Use letters, numbers, dots, dashes or underscores for the name.')
+        if (clean === ref.name) return ref
+        // Nothing may stay under the old name: what is pending is committed first.
+        await get().flush(repo)
+        if (count(key)) throw new Error('Save your edits first: they could not be committed.')
+        let next: TreeRef
+        try {
+          next = await renameRepository(github(), ref, clean)
+        } catch (e) {
+          const { message, kind } = describeError(e)
+          const hint =
+            kind === 'auth'
+              ? ' Renaming needs a token with Administration: Read and write on this repository.'
+              : ''
+          throw new Error(message + hint, { cause: e })
+        }
+        await forget(key)
+        const listing = await store.get<CachedListing>(`tree:${ref.repo}`)
+        await store.setMany([
+          [`tree:${next.repo}`, listing],
+          [`tree:${ref.repo}`, undefined],
+        ])
+        await store.set(KEYS.connected, [
+          ...new Set([...(await connected()).filter((r) => r.toLowerCase() !== key), next.repo]),
+        ])
+        await saveTrees(get().trees.map((t) => (t.repo.toLowerCase() === key ? next : t)))
+        return next
+      },
+
+      async publishFolder(repo, name) {
+        const key = repo.toLowerCase()
+        const ref = get().trees.find((t) => t.repo.toLowerCase() === key)
+        if (!ref || !isFolder(key)) throw new Error('Only a Family in a folder can be pushed.')
+        if (!get().token) throw new Error('Connect GitHub first: the Family menu has it.')
+        const clean = name.trim().replace(/\s+/g, '-')
+        if (!/^[\w.-]+$/.test(clean))
+          throw new Error('Use letters, numbers, dots, dashes or underscores for the name.')
+        await get().flush(repo)
+        if (count(key)) throw new Error('Save your edits first: they could not be written.')
+        const fs = await folderOf(key)
+        const files = await Promise.all(
+          (await fs.list()).map(async (f) => ({ path: f.path, text: await fs.read(f.path) })),
+        )
+        let next: TreeRef
+        try {
+          next = await createRepository(github(), clean, ref.title, files, {
+            headline: `Start ${ref.title}`,
+            body: 'Pushed from a folder by Yeraz.',
+          })
+        } catch (e) {
+          const { message, kind } = describeError(e)
+          const hint =
+            kind === 'auth'
+              ? ' Creating repositories needs a token with Administration: Read and write on all repositories.'
+              : ''
+          throw new Error(message + hint, { cause: e })
+        }
+        next = { ...next, color: ref.color, trees: ref.trees ?? {} }
+        await saveTrees(mergeTrees([next], get().trees))
+        await get().removeTree(repo)
+        return next
+      },
+
+      async setHidden(repo, id, hidden) {
+        const key = repo.toLowerCase()
+        await pulls.get(key)
+        const graph = get().data[key]?.graph
+        const node = graph?.nodes.get(id) ?? graph?.hidden.find((h) => h.id === id)
+        if (!graph || !node) throw new Error("This leaf isn't in the Family.")
+        const path = node.kind === 'leaf' ? id : branchText(id)
+        const text = get().files(repo).includes(path) ? await get().textOf(repo, path) : ''
+        const meta = { ...(parseMeta(text.split(/\r\n|\r|\n/)[1]) ?? {}) }
+        if (hidden) meta.hidden = true
+        else delete meta.hidden
+        const name = id.slice(id.lastIndexOf('/') + 1)
+        await get().apply(repo, [{ path, text: withMeta(text, meta, humanize(name)) }])
       },
 
       async flush(repo) {

@@ -64,7 +64,7 @@ export function treeGraph(family: Graph, id: string): Graph {
   const walk = (node: GraphNode) => {
     for (const child of node.children) {
       const c = family.nodes.get(child)!
-      nodes.set(child, c.parent === id ? { ...c, parent: ROOT, depth: c.depth - 1 } : c)
+      nodes.set(child, { ...c, parent: c.parent === id ? ROOT : c.parent, depth: c.depth - 1 })
       if (c.kind === 'leaf') leaves++
       else branches++
       walk(c)
@@ -106,6 +106,7 @@ export function treeGraph(family: Graph, id: string): Graph {
     in: new Map(),
     external: [],
     ghosts,
+    hidden: [],
     stats: { leaves, branches, threads: threads.length, words: top.total },
   }
 }
@@ -122,6 +123,45 @@ export const treesOf = (graph: Graph): string[] =>
 
 const families = new WeakMap<Graph, FamilyLayout>()
 
+/**
+ * A Tree's layout, kept by what it was laid out from. A save makes a new Family graph in
+ * which only one Tree changed: the others take their layout (and graph) from here, the same
+ * objects as before, so the map's Geometry for them is not re-rendered either.
+ */
+const treeLayouts = new Map<string, { graph: Graph; layout: MapLayout }>()
+const TREE_LAYOUTS = 512
+
+/** Everything the layout and the drawing read from a Tree's nodes, threads and ghosts. */
+function signature(tree: Graph): string {
+  const parts: string[] = []
+  for (const n of tree.nodes.values())
+    parts.push(
+      n.id,
+      n.kind,
+      n.title,
+      n.icon ?? '',
+      n.image ?? '',
+      String(n.words),
+      String(n.total),
+      n.children.join(','),
+    )
+  for (const t of tree.threads) parts.push(`${t.from}>${t.to}${t.ghost ? '~' : ''}`)
+  return parts.join('\n')
+}
+
+function treeLayout(tree: Graph): { graph: Graph; layout: MapLayout } {
+  const key = signature(tree)
+  let kept = treeLayouts.get(key)
+  if (!kept) {
+    const full = layoutTree(tree)
+    // A Tree of one leaf is its core alone: no rings around nothing.
+    kept = { graph: tree, layout: full.nodes.length ? full : { ...full, rings: [] } }
+    if (treeLayouts.size >= TREE_LAYOUTS) treeLayouts.delete(treeLayouts.keys().next().value!)
+    treeLayouts.set(key, kept)
+  }
+  return kept
+}
+
 /** The layout of a Family's graph, computed once per graph object. */
 export function familyLayout(graph: Graph): FamilyLayout {
   let family = families.get(graph)
@@ -135,10 +175,7 @@ export function familyLayout(graph: Graph): FamilyLayout {
  */
 export function layoutFamily(graph: Graph, groupOf?: (tree: string) => string): FamilyLayout {
   const trees: PlacedTree[] = treesOf(graph).map((id) => {
-    const tree = treeGraph(graph, id)
-    const full = layoutTree(tree)
-    // A Tree of one leaf is its core alone: no rings around nothing.
-    const layout = full.nodes.length ? full : { ...full, rings: [] }
+    const { graph: tree, layout } = treeLayout(treeGraph(graph, id))
     const { x0, y0, x1, y1 } = layout.bounds
     const reach = Math.max(-x0, x1, -y0, y1)
     const size = Math.round(Math.max(16, reach / 10))

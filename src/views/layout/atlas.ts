@@ -333,7 +333,11 @@ export function layoutAtlas(graph: Graph): AtlasLayout {
       const left = anchor === 'start' ? tx : anchor === 'end' ? tx - tw : tx - tw / 2
       return [left - 1, ty - size * 0.8, left + tw + 1, ty - size * 0.8 + hh]
     }
-    const pick = options.find((o) => !overlaps(boxOf(o), [...placed, ...marks])) ?? options[0]!
+    const pick =
+      options.find((o) => {
+        const b = boxOf(o)
+        return !overlaps(b, placed) && !overlaps(b, marks)
+      }) ?? options[0]!
     placed.push(boxOf(pick))
     p.label = { ...p.label, x: f(pick[0]), y: f(pick[1]), anchor: pick[2], size }
   }

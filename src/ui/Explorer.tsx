@@ -94,7 +94,7 @@ export function Explorer({
     listRef.current
       ?.querySelector(`[data-row="${CSS.escape(selected)}"]`)
       ?.scrollIntoView({ block: 'nearest' })
-  }, [selected, rows])
+  }, [selected])
 
   const toggle = (id: string) =>
     setOpen((current) => {

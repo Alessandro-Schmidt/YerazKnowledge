@@ -8,7 +8,7 @@
   stroke-dasharray: 3 5;
 }
 .hullLabel {
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 500;
   letter-spacing: 0.14em;
   fill: var(--tree, var(--accent));
@@ -120,6 +120,8 @@
   line-height: 1;
 }
 .cardTitle strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
   font-size: 17px;
   font-weight: 600;
 }
@@ -150,12 +152,20 @@
   text-align: left;
   cursor: pointer;
 }
-.cardThread:hover {
-  background: var(--hover);
+@media (hover: hover) and (pointer: fine) {
+  .cardThread:hover {
+    background: var(--hover);
+  }
+}
+.cardThread > span:first-of-type {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .cardThread > span:last-child {
   margin-left: auto;
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--muted);
   white-space: nowrap;
 }

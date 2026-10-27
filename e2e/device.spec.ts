@@ -2,7 +2,7 @@
 // the browser's own storage, started empty or from a copy of a folder's files.
 
 import { mkdir, writeFile } from 'node:fs/promises'
-import { expect, test } from './fixtures'
+import { expect, familyMenu, test } from './fixtures'
 
 test.skip(
   ({ browserName, isMobile }) => browserName === 'chromium' && !isMobile,
@@ -52,4 +52,34 @@ test('copies in a folder of notes, named after it', async ({ page }, info) => {
   await expect(page).toHaveURL(/#\/tree\/~\/vault$/)
   await page.goto('./#/tree/~/vault/Ideas/first.md')
   await expect(page.locator('.cm-content')).toContainText('Hello.')
+})
+
+test('starts a Family with a name of its own, and deletes it from the device on removal', async ({
+  page,
+}) => {
+  await page.goto('./')
+  await page.getByRole('button', { name: 'Folder', exact: true }).click()
+  await page.getByLabel('Name').fill('Recipes')
+  await page.getByRole('button', { name: 'Create project' }).click()
+  await expect(page).toHaveURL(/#\/tree\/~\/recipes$/)
+  await expect(page.getByRole('heading', { level: 1 })).toContainText('Recipes')
+
+  await familyMenu(page)
+  await page.getByRole('menuitem', { name: 'Remove Family' }).click()
+  const dialog = page.getByRole('dialog', { name: 'Remove Recipes' })
+  await expect(dialog).toContainText('deleted from this device')
+  await dialog.getByRole('button', { name: 'Delete' }).click()
+  // The last Family on a device without GitHub: back to the introduction.
+  await expect(page.getByRole('heading', { name: 'Yeraz', level: 1 })).toBeVisible()
+  await page.reload()
+  await expect(page.getByRole('heading', { name: 'Yeraz', level: 1 })).toBeVisible()
+})
+
+test('Try an example starts the example Family on the device', async ({ page }) => {
+  await page.goto('./')
+  await page.getByRole('button', { name: 'Folder', exact: true }).click()
+  await page.getByRole('button', { name: 'Try an example' }).click()
+  await expect(page).toHaveURL(/#\/tree\/~\/example$/)
+  await page.goto('./#/tree/~/example/Welcome.md')
+  await expect(page.locator('.cm-content')).toContainText('This is an example Family')
 })

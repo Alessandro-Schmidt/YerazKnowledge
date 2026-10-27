@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import themes from '../../design/themes/themes.json'
 import styles from './Appearance.module.css'
 import controls from './controls.module.css'
+import { Icon } from './icons'
 import { CustomThemeEditor } from './ThemeEditor'
 import { applyCustom, savedCustom, saveCustom, type CustomTheme } from './customTheme'
 import {
@@ -88,8 +89,8 @@ export function Appearance() {
 
   return (
     <SettingsShell page="appearance">
-      <main className={styles.main}>
-        <div className={styles.choices}>
+      <main id="main" tabIndex={-1} className={styles.main}>
+        <div>
           <h1 className={styles.title}>Appearance</h1>
           <p className={styles.lede}>Changes apply right away on this device.</p>
 
@@ -173,12 +174,12 @@ export function Appearance() {
           <CustomThemeEditor theme={custom} current={current} onChange={chooseCustom} />
         </div>
 
-        <section className={styles.preview} aria-label="Preview">
+        <section aria-label="Preview">
           <div className={styles.previewHead}>
             <p className={controls.eyebrow}>Preview</p>
             <span className={styles.status}>
-              ✓{' '}
-              <span ref={status}>
+              <Icon name="check" size={13} />{' '}
+              <span ref={status} role="status">
                 {custom ? `${custom.name} · custom · contrast AA` : label(initial)}
               </span>
             </span>

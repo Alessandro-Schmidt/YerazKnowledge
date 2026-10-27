@@ -8,8 +8,9 @@
   flex: 1;
   display: grid;
   place-items: center;
-  padding: 24px 16px;
+  padding: 24px 16px calc(24px + env(safe-area-inset-bottom));
   overflow: auto;
+  overscroll-behavior: contain;
   background-color: var(--bg);
   background-image: radial-gradient(circle, var(--grid) 1px, transparent 1.2px);
   background-size: 28px 28px;

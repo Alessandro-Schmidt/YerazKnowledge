@@ -232,7 +232,7 @@ export function AllView({ params }: { params: { owner?: string; name?: string; '
         />
       )}
       <div className={styles.body}>
-        <main className={styles.main}>
+        <main id="main" tabIndex={-1} className={styles.main}>
           {families.length && View ? (
             <Suspense fallback={<p className={styles.placeholder} aria-busy="true" />}>
               <View

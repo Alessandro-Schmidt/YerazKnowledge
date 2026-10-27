@@ -58,7 +58,7 @@ function Intro({
   return (
     <div className={styles.page}>
       <TopBar home={back} />
-      <main className={styles.main}>
+      <main id="main" tabIndex={-1} className={styles.main}>
         {step === 'welcome' && <Welcome choose={go} />}
         {step === 'github' &&
           (github ? <Repositories back={back} /> : <GitHub onDone={onSignedIn} back={back} />)}
@@ -213,6 +213,7 @@ function GitHub({ onDone, back }: { onDone?: () => void; back(): void }) {
         <input
           className={`${controls.input} ${controls.mono}`}
           type="password"
+          name="token"
           autoComplete="off"
           spellCheck={false}
           placeholder="github_pat_…"
@@ -247,17 +248,22 @@ function Folder({ back }: { back(): void }) {
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
-  /** With a name, a new project; without, an existing folder. */
-  async function add(project?: string) {
+  /** With a name, a new project; without, an existing folder. `seed`: its first files. */
+  async function add(project?: string, seed?: Record<string, string>) {
     setError(null)
     setBusy(true)
     try {
-      const tree = await session.getState().addFolder(project)
+      const tree = await session.getState().addFolder(project, seed)
       if (tree) open(tree)
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
     }
     setBusy(false)
+  }
+  // A first look (owner's request): the example Family, kept like any other, to change or delete.
+  const example = async () => {
+    const { EXAMPLE_FILES, EXAMPLE_NAME } = await import('../example/files')
+    await add(onDevice ? EXAMPLE_NAME : undefined, EXAMPLE_FILES)
   }
 
   return (
@@ -308,6 +314,20 @@ function Folder({ back }: { back(): void }) {
           >
             <Icon name="folder" />
             {onDevice ? 'Copy in a folder' : 'Open an existing folder'}
+          </button>
+          <button
+            type="button"
+            className={controls.ghost}
+            disabled={busy}
+            title={
+              onDevice
+                ? 'A few example notes, kept on this device'
+                : 'A few example notes, written into an empty folder you pick'
+            }
+            onClick={() => void example()}
+          >
+            <Icon name="face" />
+            Try an example
           </button>
         </>
       ) : (

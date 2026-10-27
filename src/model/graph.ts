@@ -54,6 +54,14 @@ export interface Ghost {
   from: string[]
 }
 
+/** A node hidden by its line 2 (`"hidden": true`), with everything under it (owner's request). */
+export interface HiddenNode {
+  id: string
+  kind: 'branch' | 'leaf'
+  title: string
+  icon: string | null
+}
+
 export interface Graph {
   nodes: Map<string, GraphNode>
   threads: Thread[]
@@ -65,6 +73,8 @@ export interface Graph {
   external: ExternalLink[]
   /** Links to leaves of this Tree not written yet, by path. */
   ghosts: Map<string, Ghost>
+  /** The hidden nodes, the topmost of each hidden part: not in `nodes`, shown again from Settings. */
+  hidden: HiddenNode[]
   stats: { leaves: number; branches: number; threads: number; words: number }
 }
 
@@ -116,6 +126,23 @@ export function buildGraph(
     })
   }
 
+  // A node whose line 2 says `hidden` leaves the graph with everything under it: no node, no
+  // thread, no ghost for a link to it. A branch's line 2 is its README.md's (its look).
+  const hidden = new Set<string>()
+  const hide = (id: string) => {
+    hidden.add(id)
+    for (const child of nodes.get(id)!.children) hide(child)
+  }
+  const tops: HiddenNode[] = []
+  for (const n of nodes.values())
+    if (n.kind !== 'root' && n.meta?.hidden === true && !hidden.has(n.id)) hide(n.id)
+  for (const n of nodes.values())
+    if (hidden.has(n.id) && !hidden.has(n.parent!))
+      tops.push({ id: n.id, kind: n.kind as 'branch' | 'leaf', title: n.title, icon: n.icon })
+  tops.sort((a, b) => a.id.localeCompare(b.id))
+  for (const id of hidden) nodes.delete(id)
+  for (const n of nodes.values()) n.children = n.children.filter((c) => !hidden.has(c))
+
   // Totals, children before parents.
   const sum = (id: string): number => {
     const node = nodes.get(id)!
@@ -129,13 +156,14 @@ export function buildGraph(
   const into = new Map<string, string[]>()
   const external: ExternalLink[] = []
   const ghosts = new Map<string, Ghost>()
-  // A link differing from a file only by case is a typo, not a leaf to write.
-  const lower = new Set([...nodes.keys()].map((id) => id.toLowerCase()))
+  // A link differing from a file only by case is a typo, not a leaf to write; a hidden
+  // leaf's path is not a ghost either.
+  const lower = new Set([...nodes.keys(), ...hidden].map((id) => id.toLowerCase()))
   // Threads start in a leaf or a branch's text, and end at a leaf or a branch (its text).
   const sources = [
     ...model.leaves.map((id) => [id, id] as const),
     ...[...model.texts].map(([path, branch]) => [branch, path] as const),
-  ]
+  ].filter(([id]) => nodes.has(id))
   for (const [id, file] of sources) {
     for (const link of leaves.get(file)?.links ?? []) {
       if (link.repo !== null) {
@@ -144,6 +172,7 @@ export function buildGraph(
       }
       const to =
         model.texts.get(link.path) ?? (nodes.get(link.path)?.kind === 'leaf' ? link.path : null)
+      if (to !== null && hidden.has(to)) continue
       if (to === null) {
         const ghost = ghosts.get(link.path) ?? ghostAt(nodes, lower, link.path)
         if (ghost) ghosts.set(ghost.id, ghost)
@@ -165,8 +194,9 @@ export function buildGraph(
     in: into,
     external,
     ghosts,
+    hidden: tops,
     stats: {
-      leaves: model.leaves.length,
+      leaves: model.leaves.filter((id) => !hidden.has(id)).length,
       branches: all.filter((n) => n.kind === 'branch').length,
       threads: threads.length,
       words: nodes.get(ROOT)!.total,

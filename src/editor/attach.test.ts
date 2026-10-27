@@ -69,7 +69,7 @@ describe('attach', () => {
     const declined = host(false)
     expect(await attach(big, declined)).toBeNull()
     expect(declined.asked).toEqual([
-      'dump.sql is 10.0 MB. Large files make the repository slow to download. Add it anyway?',
+      'dump.sql is 10.0\u00a0MB. Large files make the repository slow to download. Add it anyway?',
     ])
     expect(declined.save).not.toHaveBeenCalled()
     expect(await attach(big, host(true))).not.toBeNull()
@@ -81,7 +81,7 @@ describe('attach', () => {
     const read = vi.spyOn(file, 'arrayBuffer')
     expect(await attach(file, h)).toBeNull()
     expect(h.told).toEqual([
-      "film.mov is 100.0 MB. GitHub doesn't accept files over 100 MB, so it can't be added to the Tree.",
+      'film.mov is 100.0\u00a0MB. GitHub doesn’t accept files over 100\u00a0MB, so it can’t be added to the Tree.',
     ])
     expect(read).not.toHaveBeenCalled()
     expect(h.save).not.toHaveBeenCalled()

@@ -3,7 +3,7 @@
 // real FileSystemDirectoryHandle, read and written through the same File System Access API.
 
 import type { Page } from '@playwright/test'
-import { expect, test } from './fixtures'
+import { expect, familyMenu, signInHere, test } from './fixtures'
 
 test.skip(
   ({ browserName, isMobile }) => browserName !== 'chromium' || isMobile,
@@ -108,4 +108,58 @@ test('creates a new project folder by name, where you choose', async ({ page }) 
   await page.getByLabel('Name').fill('Work notes')
   await page.getByRole('button', { name: 'Choose where to create it…' }).click()
   await expect(page.getByRole('alert')).toContainText("There's already a folder named “Work notes”")
+})
+
+test('Try an example writes the example Family into the picked folder, CLAUDE.md included', async ({
+  page,
+}) => {
+  await folderPicker(page)
+  await page.goto('./')
+  await page.getByRole('button', { name: 'Folder', exact: true }).click()
+  await page.getByRole('button', { name: 'Try an example' }).click()
+  await expect(page.locator('[data-map]')).toBeVisible()
+  await expect(page).toHaveURL(/#\/tree\/~\/notes$/)
+  expect(await readFile(page, 'CLAUDE.md')).toMatch(/^# 🤖 Notes for AI agents/)
+  expect(await readFile(page, 'Projects/README.md')).toMatch(/^# 🧭 Projects/)
+  await expect(page.getByRole('treeitem', { name: /Welcome/ })).toBeVisible()
+  await expect(page.getByRole('treeitem', { name: /Notes for AI agents/ })).toBeVisible()
+  // A thread between two of its leaves, and the ghost it points at.
+  await expect(page.locator('[data-map] [data-thread]').first()).toBeAttached()
+  await page.goto('./#/tree/~/notes/Ideas.md')
+  await expect(page.getByRole('region', { name: 'Leaf not written yet' })).toBeVisible()
+})
+
+test('Push to GitHub makes a private repository of the folder, shown in its place', async ({
+  page,
+  fake,
+}) => {
+  await folderPicker(page, {
+    'Ideas/first.md': '# First idea\n\nSee [Second](/Ideas/second.md).\n',
+    'Ideas/second.md': '# Second idea\n',
+  })
+  await page.goto('./')
+  await page.getByRole('button', { name: 'Folder', exact: true }).click()
+  await page.getByRole('button', { name: 'Open an existing folder' }).click()
+  await expect(page.locator('[data-map]')).toBeVisible()
+  // Without GitHub, the item leads to connecting it first.
+  await (await familyMenu(page)).getByRole('menuitem', { name: /Push to GitHub/ }).click()
+  await expect(page.getByRole('heading', { name: 'Connect GitHub' })).toBeVisible()
+  await page.getByRole('button', { name: 'Back' }).click()
+  await signInHere(page)
+  await page.goto('./#/tree/~/notes')
+  await (await familyMenu(page)).getByRole('menuitem', { name: 'Push to GitHub…' }).click()
+  const dialog = page.getByRole('dialog', { name: 'Push Notes to GitHub' })
+  await expect(dialog.getByLabel('Repository')).toHaveValue('notes')
+  await dialog.getByRole('button', { name: 'Push' }).click()
+  await expect(page).toHaveURL(/#\/tree\/you\/notes$/)
+  const repo = fake.repo('you/notes')
+  expect(repo.isPrivate).toBe(true)
+  expect(repo.read('Ideas/first.md')).toBe('# First idea\n\nSee [Second](/Ideas/second.md).\n')
+  expect(repo.read('.yeraz.json')).toBe('{"name":"Notes"}\n')
+  await expect(page.locator('[data-map] [data-thread]')).toHaveCount(1)
+  const menu = await familyMenu(page)
+  await expect(menu).toContainText('you/notes')
+  await expect(menu).not.toContainText('~/notes')
+  // The folder itself is untouched.
+  expect(await readFile(page, 'Ideas/second.md')).toBe('# Second idea\n')
 })
