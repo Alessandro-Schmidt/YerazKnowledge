@@ -9,6 +9,7 @@ import {
   planNewLeaf,
   planNewLeaves,
   planGhostLeaf,
+  leavesUnder,
   moveReads,
   planBranchText,
   planTemplate,
@@ -299,5 +300,65 @@ describe("a branch's text (README.md) in structure edits", () => {
     expect(planNewLeaf(g, 'AI Agents', 'README').path).toBe('AI Agents/readme-2.md')
     expect(planNewBranch(g, 'AI Agents', 'readme').branch).toBe('AI Agents/readme 2')
     expect(planNewLeaf(g, ROOT, 'README').path).toBe('readme.md')
+  })
+})
+
+describe('hidden leaves and branches in structure edits', () => {
+  // Hidden from the map (line 2), but still files of the Tree: names stay taken, and they
+  // move and go with what holds them.
+  const hiddenFiles: Record<string, string> = {
+    'Archive/README.md': '# Archive\n<!-- yeraz {"hidden":true} -->\n',
+    'Archive/old.md': '# Old\n',
+    'identity/keycloak.md': '# Keycloak\n',
+    'identity/keycloak/legacy.md':
+      '# Legacy\n<!-- yeraz {"hidden":true} -->\n\nSee [OAuth](/identity/oauth.md).\n',
+    'identity/oauth.md': '# OAuth\n',
+    'welcome.md': '# Welcome\n',
+  }
+  const hiddenGraph = (() => {
+    const model = buildTree(
+      Object.keys(hiddenFiles).map((path) => ({ path, type: 'blob' as const, sha: path, size: 1 })),
+    )
+    return buildGraph(
+      model,
+      new Map([...model.leaves, ...model.texts.keys()].map((p) => [p, parseLeaf(hiddenFiles[p]!)])),
+      'T',
+    )
+  })()
+  const hiddenText = (p: string) => hiddenFiles[p]!
+
+  it('never takes a name a hidden leaf or branch holds', () => {
+    expect(hiddenGraph.nodes.has('Archive')).toBe(false)
+    expect(planNewBranch(hiddenGraph, ROOT, 'Archive').branch).toBe('Archive 2')
+    expect(planNewLeaf(hiddenGraph, 'identity/keycloak.md', 'Legacy').path).toBe(
+      'identity/keycloak/legacy-2.md',
+    )
+    const moved = planMove(hiddenGraph, hiddenText, 'welcome.md', 'identity/keycloak.md')
+    expect(moved.id).toBe('identity/keycloak/welcome.md')
+  })
+
+  it('deletes hidden sub-leaves with what holds them', () => {
+    const { changes } = planDelete(hiddenGraph, 'identity/keycloak.md')
+    expect(changes.map((c) => c.path).sort()).toEqual([
+      'identity/keycloak.md',
+      'identity/keycloak/legacy.md',
+    ])
+    // The dialog counts what goes, hidden leaves included.
+    expect(leavesUnder(hiddenGraph, 'identity/keycloak.md')).toHaveLength(2)
+  })
+
+  it('moves hidden sub-leaves, and rewrites a hidden leaf’s link to a moved one', () => {
+    expect(moveReads(hiddenGraph, 'identity/keycloak.md')).toContain('identity/keycloak/legacy.md')
+    const { changes } = planMove(hiddenGraph, hiddenText, 'identity/keycloak.md', ROOT)
+    expect(changes.map((c) => c.path)).toEqual(
+      expect.arrayContaining(['keycloak/legacy.md', 'identity/keycloak/legacy.md']),
+    )
+
+    expect(moveReads(hiddenGraph, 'identity/oauth.md')).toContain('identity/keycloak/legacy.md')
+    const oauth = planMove(hiddenGraph, hiddenText, 'identity/oauth.md', ROOT)
+    expect(oauth.changes).toContainEqual({
+      path: 'identity/keycloak/legacy.md',
+      text: '# Legacy\n<!-- yeraz {"hidden":true} -->\n\nSee [OAuth](/oauth.md).\n',
+    })
   })
 })

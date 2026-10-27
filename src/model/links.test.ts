@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { destination, rewriteLinks } from './links'
+import { destination, rewriteFileLinks, rewriteLinks } from './links'
 import { parseLeaf } from './parse'
 
 const moves = new Map([
@@ -39,6 +39,26 @@ describe('rewriteLinks', () => {
     const text = '# T\n\n[a](/identity/keycloak.md) [b](/identity/keycloak.md)\n'
     const out = rewriteLinks(text, moves)
     expect(parseLeaf(out).links).toEqual([{ path: 'auth/keycloak.md', repo: null }])
+  })
+})
+
+describe('rewriteFileLinks', () => {
+  const moves = new Map([['assets/a.png', 'assets/a-2.png']])
+
+  it('rewrites images and links to a renamed file, keeping their width and anchors', () => {
+    expect(
+      rewriteFileLinks(
+        '![Realm](/assets/a.png "width=50%")\n[Download](/assets/a.png#x)\n![](/assets/b.png)\n',
+        moves,
+      ),
+    ).toBe(
+      '![Realm](/assets/a-2.png "width=50%")\n[Download](/assets/a-2.png#x)\n![](/assets/b.png)\n',
+    )
+  })
+
+  it('leaves code and other addresses alone', () => {
+    const text = '`![x](/assets/a.png)`\n![x](https://example.com/assets/a.png)\n'
+    expect(rewriteFileLinks(text, moves)).toBe(text)
   })
 })
 

@@ -212,6 +212,88 @@ describe('pushTree', () => {
     expect(repo.blobs.get(repo.head!.files.get('assets/dot.png')!)).toEqual(png)
   })
 
+  it('keeps another device’s new version of an image this device deleted', async () => {
+    const before = new Uint8Array([137, 80, 78, 71, 0, 1])
+    const after = new Uint8Array([137, 80, 78, 71, 0, 2])
+    await fake.repo('you/eng').commit({
+      message: 'image',
+      additions: [{ path: 'assets/x.png', contents: before }],
+    })
+    const store = await setUp()
+    fake.faults.pushBeforeNextCommit = {
+      message: 'phone',
+      additions: [{ path: 'assets/x.png', contents: after }],
+    }
+    const pushed = await pushTree(
+      ref,
+      { 'assets/x.png': { text: null, base: await gitBlobSha(before) } },
+      { client, store },
+    )
+    expect(pushed.committed).toEqual([])
+    const repo = fake.repo('you/eng')
+    expect(repo.blobs.get(repo.head!.files.get('assets/x.png')!)).toEqual(after)
+  })
+
+  it('keeps both images when two devices paste one of the same name, each leaf on its own', async () => {
+    const store = await setUp()
+    const theirs = new Uint8Array([137, 80, 78, 71, 0, 1])
+    const ours = new Uint8Array([137, 80, 78, 71, 0, 2])
+    const path = 'assets/2026-10-27-image.png'
+    fake.faults.pushBeforeNextCommit = {
+      message: 'phone',
+      additions: [
+        { path, contents: theirs },
+        {
+          path: 'welcome.md',
+          contents: `# Welcome
+
+![](/${path})
+`,
+        },
+      ],
+    }
+    const pushed = await pushTree(
+      ref,
+      {
+        [path]: { text: ours, base: null },
+        'identity/keycloak.md': {
+          text: `${KEYCLOAK}
+![Realm](/${path})
+`,
+          base: await gitBlobSha(KEYCLOAK),
+        },
+      },
+      { client, store },
+    )
+    const repo = fake.repo('you/eng')
+    const at = (p: string) => repo.blobs.get(repo.head!.files.get(p)!)
+    expect(at(path)).toEqual(theirs)
+    expect(at('assets/2026-10-27-image-2.png')).toEqual(ours)
+    expect(new TextDecoder().decode(at('identity/keycloak.md'))).toBe(
+      `${KEYCLOAK}
+![Realm](/assets/2026-10-27-image-2.png)
+`,
+    )
+    expect(new TextDecoder().decode(at('welcome.md'))).toContain(`(/${path})`)
+    expect(pushed.conflicts).toEqual([])
+  })
+
+  it('commits nothing more for an image another device committed with the same bytes', async () => {
+    const store = await setUp()
+    const png = new Uint8Array([137, 80, 78, 71, 0, 9])
+    fake.faults.pushBeforeNextCommit = {
+      message: 'phone',
+      additions: [{ path: 'assets/same.png', contents: png }],
+    }
+    const pushed = await pushTree(
+      ref,
+      { 'assets/same.png': { text: png, base: null } },
+      { client, store },
+    )
+    expect(pushed.committed).toEqual([])
+    expect([...fake.repo('you/eng').head!.files.keys()]).not.toContain('assets/same-2.png')
+  })
+
   it('throws a network error offline, keeping nothing half-done', async () => {
     const store = await setUp()
     fake.faults.offline = true
