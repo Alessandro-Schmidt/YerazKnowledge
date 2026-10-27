@@ -37,12 +37,26 @@ export function folderOf(graph: Graph, id: string): string {
 
 const baseName = (id: string) => id.slice(id.lastIndexOf('/') + 1).replace(/\.md$/, '')
 
+/** The Tree with its hidden parts: structure edits plan against it, never just the map. */
+function whole(graph: Graph): NonNullable<Graph['whole']> {
+  if (!graph.whole) throw new StructureError('Structure edits need a Tree’s own graph')
+  return graph.whole
+}
+
+/** A node's file, hidden or not: a leaf itself, a branch's text (README.md) if it has one. */
+function fileOf(graph: Graph, id: string): string | null {
+  const node = whole(graph).model.nodes.get(id)
+  if (node?.kind === 'leaf') return id
+  return node?.kind === 'branch' ? (node.text?.path ?? null) : null
+}
+
 /**
- * Names taken in a folder: leaf file names (without .md) and folder names, compared without
- * case. A branch's folder keeps README for its text.
+ * Names taken in a folder, hidden ones included: leaf file names (without .md) and folder
+ * names, compared without case. A branch's folder keeps README for its text.
  */
 function takenNames(graph: Graph, parentId: string): Set<string> {
-  const taken = new Set(graph.nodes.get(parentId)!.children.map((id) => baseName(id).toLowerCase()))
+  const children = whole(graph).model.nodes.get(parentId)!.children
+  const taken = new Set(children.map((id) => baseName(id).toLowerCase()))
   if (parentId === ROOT) taken.add('assets')
   if (graph.nodes.get(parentId)!.kind === 'branch') taken.add(baseName(BRANCH_TEXT).toLowerCase())
   return taken
@@ -151,37 +165,30 @@ export function planNewBranch(
   return { branch, leaf: { path: `${branch}/${slugify(firstLeaf)}.md`, text: leafText(firstLeaf) } }
 }
 
-/** The leaves in a node's subtree, the node included when it is a leaf. */
-export function leavesUnder(graph: Graph, id: string): string[] {
-  const out: string[] = []
-  const walk = (n: string) => {
-    const node = graph.nodes.get(n)!
-    if (node.kind === 'leaf') out.push(n)
-    node.children.forEach(walk)
-  }
-  walk(id)
+/** The nodes in a node's subtree, itself first, hidden ones included. */
+function nodesUnder(graph: Graph, id: string): string[] {
+  const { nodes } = whole(graph).model
+  const out = [id]
+  for (let i = 0; i < out.length; i++) out.push(...nodes.get(out[i]!)!.children)
   return out
 }
 
-/** The nodes in a node's subtree, itself first. */
-function nodesUnder(graph: Graph, id: string): string[] {
-  const out = [id]
-  for (let i = 0; i < out.length; i++) out.push(...graph.nodes.get(out[i]!)!.children)
-  return out
-}
+/** The leaves in a node's subtree, hidden ones included, the node too when it is a leaf. */
+export const leavesUnder = (graph: Graph, id: string): string[] =>
+  nodesUnder(graph, id).filter((n) => whole(graph).model.nodes.get(n)!.kind === 'leaf')
 
 /** The files in a node's subtree: its leaves and the texts (README.md) of its branches. */
 function filesUnder(graph: Graph, id: string): string[] {
-  return nodesUnder(graph, id)
-    .filter((n) => graph.nodes.get(n)!.sha !== null)
-    .map((n) => textFile(graph, n)!)
+  return nodesUnder(graph, id).flatMap((n) => fileOf(graph, n) ?? [])
 }
 
-/** The files a node's subtree links to from outside it, as files to read and rewrite. */
+/** The files linking to a node's subtree from outside it (hidden ones too), to rewrite. */
 function linkingFiles(graph: Graph, id: string): string[] {
   const inside = new Set(nodesUnder(graph, id))
-  const from = [...inside].flatMap((n) => graph.in.get(n) ?? []).filter((n) => !inside.has(n))
-  return [...new Set(from)].map((n) => textFile(graph, n)!)
+  const from = [...inside]
+    .flatMap((n) => whole(graph).linkers.get(n) ?? [])
+    .filter((n) => !inside.has(n))
+  return [...new Set(from)].map((n) => fileOf(graph, n)!)
 }
 
 /** Every file `planMove` reads: the moved files and the ones linking to them. */
