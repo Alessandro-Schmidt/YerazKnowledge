@@ -64,6 +64,30 @@ test('debug: the line being written keeps its place', async ({ page, fake }) => 
     }
     console.log('LINE', i, 'caret samples', samples.join(' '), JSON.stringify(await state()))
   }
+  const dom = await page.evaluate(() => {
+    const probe = (el: Element | null) => {
+      if (!el) return null
+      const cs = getComputedStyle(el)
+      const r = el.getBoundingClientRect()
+      return {
+        cls: (el as HTMLElement).className.toString().slice(0, 60),
+        h: Math.round(r.height),
+        top: Math.round(r.top),
+        scrollH: (el as HTMLElement).scrollHeight,
+        clientH: (el as HTMLElement).clientHeight,
+        overflowY: cs.overflowY,
+        contentVisibility: cs.getPropertyValue('content-visibility'),
+        contain: cs.contain,
+        position: cs.position,
+      }
+    }
+    const content = document.querySelector('.cm-content')!
+    const chain: unknown[] = []
+    for (let p: Element | null = content; p && chain.length < 12; p = p.parentElement)
+      chain.push(probe(p))
+    return chain
+  })
+  console.log('DOM', JSON.stringify(dom))
   const final = await caretTop()
   console.log('FINAL', final, 'settled', settled, 'diff', final - settled)
   expect(Math.abs(final - settled)).toBeLessThan(2)
