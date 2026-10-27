@@ -240,7 +240,7 @@ Next to the radial map, a Family can be shown seven other ways (design: `design/
 
 ## 8. Read view and PDF
 
-- A leaf is edited wherever it is shown (issue #17): the floating Peek, its full page and the phone's sheet all hold the editor (`editor/LeafEditor.tsx`), live preview on, with no separate Edit step. The Peek adds the leaf's metadata chips, sub-leaves and threads below it, and "Show Markdown", "Hide" (line 2 `hidden`, §4) and more in its More actions menu; a button after its breadcrumb copies the node's path from the Family's root. Old `#/edit/…` links redirect to the leaf in its Family.
+- A leaf is edited wherever it is shown (issue #17): the floating Peek, its full page and the phone's sheet all hold the editor (`editor/LeafEditor.tsx`), live preview on, with no separate Edit step. The Peek adds the leaf's metadata chips, sub-leaves and threads below it, and "Show Markdown", "Hide" (line 2 `hidden`, §4) and more in its More actions menu; a button beside the path in its foot copies the node's path from the Family's root. Old `#/edit/…` links redirect to the leaf in its Family.
 - **Several leaves at once** (owner's request): *Keep open* in a floating Peek's head holds that leaf in a column of its own beside whatever is selected next, each column its own editor (`FamilyView.tsx`, `pinned`); the same leaf is never shown twice, and the full page covers the columns. Not on phones, nor in views with a docked or own panel.
 - The read view is the HTML `markdown-it` makes of a leaf (plus task lists and KaTeX). It is what a leaf prints as.
 - **PDF export** uses a print stylesheet and `window.print()` on the read view.

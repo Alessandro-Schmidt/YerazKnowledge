@@ -192,7 +192,6 @@ export function Peek({
       )}
       <PeekHead
         {...{ kind, crumb, away, href, onSelect, expanded, onClose, sheet }}
-        copy={node.kind === 'root' ? null : `/${id}${node.kind === 'branch' ? '/' : ''}`}
         onPin={onPin && node.kind !== 'root' && !expanded && !docked ? () => onPin(id) : undefined}
         onExpand={motion.expand}
       />
@@ -327,6 +326,7 @@ export function Peek({
 
       <div className={styles.foot}>
         <span className={`${controls.mono} ${styles.path}`}>{path}</span>
+        {node.kind !== 'root' && <CopyPath text={`/${id}${node.kind === 'branch' ? '/' : ''}`} />}
         {!expanded && node.kind === 'leaf' && (
           <button
             type="button"
@@ -468,6 +468,29 @@ export function Peek({
   )
 }
 
+/** Copies the node's path from the Family's root (owner's request), beside it in the foot. */
+function CopyPath({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false)
+  useEffect(() => {
+    if (!copied) return
+    const timer = setTimeout(() => setCopied(false), 1500)
+    return () => clearTimeout(timer)
+  }, [copied])
+  return (
+    <button
+      type="button"
+      className={`${controls.iconButton} ${styles.copy}`}
+      aria-label={copied ? 'Copied' : 'Copy path'}
+      title={text}
+      onClick={() => {
+        void navigator.clipboard?.writeText(text).then(() => setCopied(true))
+      }}
+    >
+      <Icon name={copied ? 'check' : 'copy'} size={15} />
+    </button>
+  )
+}
+
 /** A plain click opens it here; others (a new tab) follow the link. */
 const openHere = (onSelect: (id: string) => void, id: string) => (e: MouseEvent) => {
   if (e.button || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return
@@ -482,7 +505,6 @@ function PeekHead({
   kind,
   crumb,
   away = null,
-  copy = null,
   onPin,
   href,
   onSelect,
@@ -495,8 +517,6 @@ function PeekHead({
   /** The places above, each a link to it; or a line of text, linking `away` when given. */
   crumb: string | GraphNode[]
   away?: string | null
-  /** The node's path from the Family's root, copied by a button after the breadcrumb (owner's request). */
-  copy?: string | null
   /** Keeps the node open beside the next selection; no button without it. */
   onPin?: (() => void) | undefined
   sheet: RefObject<HTMLElement | null>
@@ -506,12 +526,6 @@ function PeekHead({
   // finger (upwards reluctantly), and settles back when the swipe is too short and too slow:
   // a quick flick counts whatever its length.
   const start = useRef<{ y: number; at: number } | null>(null)
-  const [copied, setCopied] = useState(false)
-  useEffect(() => {
-    if (!copied) return
-    const timer = setTimeout(() => setCopied(false), 1500)
-    return () => clearTimeout(timer)
-  }, [copied])
   const follow = (dy: number) => shift(sheet.current, dy)
   const settle = (dy: number) => {
     shift(sheet.current, 0)
@@ -570,19 +584,6 @@ function PeekHead({
             ))
           )}
         </nav>
-        {copy && (
-          <button
-            type="button"
-            className={`${controls.iconButton} ${styles.copy}`}
-            aria-label={copied ? 'Copied' : 'Copy path'}
-            title={copy}
-            onClick={() => {
-              void navigator.clipboard?.writeText(copy).then(() => setCopied(true))
-            }}
-          >
-            <Icon name={copied ? 'check' : 'copy'} size={15} />
-          </button>
-        )}
         {onPin && (
           <button
             type="button"
