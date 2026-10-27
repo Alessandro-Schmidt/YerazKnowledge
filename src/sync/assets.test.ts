@@ -1,3 +1,4 @@
+import { resolveObjectURL } from 'node:buffer'
 import { setupServer } from 'msw/node'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { createFakeGitHub, type FakeGitHub } from '../../test/fake-github/fakeGitHub'
@@ -5,7 +6,7 @@ import { fakeGitHubHandlers } from '../../test/fake-github/msw'
 import { createGitHubClient } from '../github/client'
 import { gitBlobSha } from '../model/sha'
 import { memoryStore } from '../store/db'
-import { assetBytes, assetPath, mimeOf } from './assets'
+import { assetBytes, assetPath, mimeOf, objectUrl } from './assets'
 
 let fake: FakeGitHub
 const server = setupServer()
@@ -75,5 +76,26 @@ describe('mimeOf', () => {
     expect(mimeOf('assets/a.mp4')).toBe('video/mp4')
     expect(mimeOf('assets/a.en.vtt')).toBe('text/vtt')
     expect(mimeOf('assets/a.bin')).toBe('application/octet-stream')
+  })
+})
+
+describe('objectUrl', () => {
+  it('gives an SVG a data: address, never a blob: one in the app’s origin', () => {
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>'
+    const url = objectUrl(new TextEncoder().encode(svg), 'assets/Logo.SVG')
+    expect(url).toBe(`data:image/svg+xml;base64,${btoa(svg)}`)
+  })
+
+  it('keeps a large SVG whole', () => {
+    const bytes = new Uint8Array(200_000).map((_, i) => 32 + (i % 90))
+    const url = objectUrl(bytes, 'assets/big.svg')
+    const back = Uint8Array.from(atob(url.split(',')[1]!), (c) => c.charCodeAt(0))
+    expect(back).toEqual(bytes)
+  })
+
+  it('gives other files a blob: address of their type', () => {
+    const url = objectUrl(new Uint8Array([1, 2, 3]), 'assets/a.png')
+    expect(url).toMatch(/^blob:/)
+    expect(resolveObjectURL(url)?.type).toBe('image/png')
   })
 })

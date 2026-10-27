@@ -2,7 +2,7 @@
 // lives as long as the Playwright worker. The app finds it through window.__YERAZ_API__,
 // which only VITE_E2E=1 builds read (src/github/endpoint.ts).
 
-import { test as base, type Page } from '@playwright/test'
+import { expect, test as base, type Page } from '@playwright/test'
 import { buildGraph, type Graph } from '../src/model/graph'
 import { parseLeaf } from '../src/model/parse'
 import { buildTree } from '../src/model/tree'
@@ -22,6 +22,9 @@ interface Fixtures {
   api: string
   /** The same graph the app builds, for checking what the screen shows. */
   graph: Graph
+  /** What the build's Content-Security-Policy blocked; a test fails on any, unless it turns this off. */
+  strictCsp: boolean
+  cspViolations: string[]
 }
 
 export const test = base.extend<Fixtures, { fakeServer: FakeServer }>({
@@ -66,6 +69,27 @@ export const test = base.extend<Fixtures, { fakeServer: FakeServer }>({
       ),
     )
   },
+
+  strictCsp: [true, { option: true }],
+
+  // Something the app needs that the policy (vite.config.ts) leaves out would break only in
+  // production, quietly: every test fails on it instead.
+  cspViolations: [
+    async ({ context, strictCsp }, use) => {
+      const seen: string[] = []
+      await context.exposeBinding('__yerazCsp', (_source, v: string) => void seen.push(v))
+      await context.addInitScript(() =>
+        document.addEventListener('securitypolicyviolation', (e) =>
+          (window as unknown as { __yerazCsp(v: string): void }).__yerazCsp(
+            `${e.effectiveDirective} ${e.blockedURI}`,
+          ),
+        ),
+      )
+      await use(seen)
+      if (strictCsp) expect(seen, 'Content-Security-Policy violations').toEqual([])
+    },
+    { auto: true },
+  ],
 
   api: [
     async ({ fake, fakeServer, context }, use) => {
