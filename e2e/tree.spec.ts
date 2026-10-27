@@ -222,7 +222,7 @@ test('the Peek’s breadcrumbs open the places above the leaf', async ({
   await page.goto(`./#/tree/you/engineering/${leaf.id}`)
   const crumbs = peek(page).getByRole('navigation', { name: 'Breadcrumb' })
   await expect(crumbs.getByRole('link').first()).toHaveText(graph.nodes.get('')!.title)
-  // Beside them, a button copies the leaf's path from the Family's root (owner's request).
+  // In the foot, a button copies the leaf's path from the Family's root (owner's request).
   await context.grantPermissions(['clipboard-read', 'clipboard-write']).catch(() => undefined)
   await peek(page).getByRole('button', { name: 'Copy path' }).click()
   await expect(peek(page).getByRole('button', { name: 'Copied' })).toBeVisible()
