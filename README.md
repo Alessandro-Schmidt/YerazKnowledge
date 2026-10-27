@@ -59,6 +59,10 @@ Edits are not live between people, as in a shared document: each person sees the
 
 *Try an example* on the first screen writes a small example Family to look around in: a few leaves with threads, tasks, a video, maths and code, and a `CLAUDE.md` that tells an AI agent such as Claude Code how notes are kept here. Every new Family gets that `CLAUDE.md` too.
 
+### Templates for new leaves
+
+A template is a note kept in the Family's `.yeraz/templates/` folder: its title is the template's name, its emoji and look go to the new leaf, and `{{title}}`, `{{date}}` and `{{tree}}` in its text are filled in. *New leaf* offers every template under *Start from*; Settings › Templates makes, edits, copies and deletes them, and *Save as template* in a leaf's ⋯ menu turns that leaf into one. Because templates are files of the Family, every device and everyone sharing the repository has them, and *Copy to…* puts one in another Family so it travels with that repository too.
+
 ### Bring your notes from another app
 
 An Obsidian vault, a Notion export (*Markdown & CSV*, unzipped) or any folder of Markdown becomes a new Family with one command, from a clone of this repository:
@@ -92,6 +96,7 @@ These rules are the contract between Yeraz and your files (ARCHITECTURE.md §4):
 - A leaf's sub-leaves live in a folder with the same name beside it: `keycloak.md` and `keycloak/realms.md`. A folder without such a file is a branch.
 - A thread is a root-relative link: `[Keycloak](/identity/keycloak.md)`. A link to a file in another Tree is its full GitHub URL.
 - Images and files live in `assets/`. A paragraph that is only a link to YouTube, or to a PDF or video in `assets/`, shows as a player; subtitles are `name.<lang>.vtt` beside the video. Math is `$…$` and `$$…$$`.
+- A template for new leaves is a `.md` file in `.yeraz/templates/`: line 1 its name, line 2 the leaf's look, the rest what the leaf starts with (`{{title}}`, `{{date}}`, `{{tree}}` filled in).
 - Renaming a title never renames the file.
 
 ## Develop

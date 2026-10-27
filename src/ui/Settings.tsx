@@ -14,6 +14,7 @@ const PAGES = [
   { id: 'views', label: 'Views', icon: <ViewIcon view="treemap" size={18} /> },
   { id: 'colours', label: 'Tree colours', icon: <ViewIcon view="map" size={18} /> },
   { id: 'hidden', label: 'Hidden', icon: <Icon name="eyeOff" size={18} /> },
+  { id: 'templates', label: 'Templates', icon: <Icon name="template" size={18} /> },
 ] as const
 
 type SettingsPage = (typeof PAGES)[number]['id']

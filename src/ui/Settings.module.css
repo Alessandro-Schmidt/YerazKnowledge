@@ -142,3 +142,47 @@
     flex-basis: 100%;
   }
 }
+
+/* Settings › Templates: a template's name being typed, the copy target, and the editor below
+   the list (the leaf's own editor, in a card). */
+.newTemplate {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+}
+.newTemplate input {
+  flex: 1;
+  min-width: 0;
+}
+.copyTo {
+  width: auto;
+  max-width: 160px;
+}
+.editor {
+  margin-top: 28px;
+  border: 1px solid var(--hair);
+  border-radius: 12px;
+  background: var(--panel);
+  overflow: hidden;
+}
+.editorHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px 10px 16px;
+  border-bottom: 1px solid var(--hair);
+  font-size: 13px;
+  color: var(--muted);
+}
+.editorHead strong {
+  color: var(--text);
+  font-weight: 500;
+}
+.editorBody {
+  max-height: 70vh;
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: 0 16px 16px;
+}

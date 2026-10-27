@@ -1,11 +1,12 @@
 // Structure edits as file changes (development-plan.md M2 step 2), planned against the
 // graph and the repository format (ARCHITECTURE.md §4). Pure: the caller commits them.
 
-import { textFile, type Ghost, type Graph } from '../model/graph'
+import { ancestors, textFile, type Ghost, type Graph } from '../model/graph'
 import { linkLabel } from '../model/parse'
 import { rewriteLinks } from '../model/links'
 import { slugify } from '../model/slug'
-import { BRANCH_TEXT, ROOT } from '../model/tree'
+import { fillTemplate } from '../model/template'
+import { BRANCH_TEXT, ROOT, TEMPLATES } from '../model/tree'
 
 /** A file to write, or to delete when `text` is null. */
 /** A file's contents: a leaf's text, or the bytes of an image or other attachment. */
@@ -55,23 +56,57 @@ function unique(name: string, taken: Set<string>, joiner: string): string {
 
 const leafText = (title: string) => `# ${title.trim() || 'Untitled'}\n\n`
 
+/** What a new leaf starts from: a template's text (issue #41), filled on the day. */
+export interface FromTemplate {
+  template: string
+  now?: Date
+}
+
+/** The Tree a leaf under `parentId` belongs to: the top-level node above it, or the leaf itself. */
+export function treeOf(graph: Graph, parentId: string, title: string): string {
+  const node = graph.nodes.get(parentId)
+  if (!node || node.kind === 'root') return title.trim() || 'Untitled'
+  return (ancestors(graph, parentId)[1] ?? node).title
+}
+
 /** A new leaf at the root, in a branch, or as a sub-leaf (in a leaf's sibling folder). */
-export const planNewLeaf = (graph: Graph, parentId: string, title: string): FileChange =>
-  planNewLeaves(graph, parentId, [title])[0]!
+export const planNewLeaf = (
+  graph: Graph,
+  parentId: string,
+  title: string,
+  from?: FromTemplate,
+): FileChange => planNewLeaves(graph, parentId, [title], from)[0]!
 
 /** New leaves under one parent, for one commit: no two share a name, nor take one in use. */
 export function planNewLeaves(
   graph: Graph,
   parentId: string,
   titles: readonly string[],
+  from?: FromTemplate,
 ): FileChange[] {
   const folder = folderOf(graph, parentId)
   const taken = takenNames(graph, parentId)
+  const now = from?.now ?? new Date()
   return titles.map((title) => {
     const name = unique(slugify(title), taken, '-')
     taken.add(name.toLowerCase())
-    return { path: `${folder}${name}.md`, text: leafText(title) }
+    const text = from
+      ? fillTemplate(from.template, { title, date: now, tree: treeOf(graph, parentId, title) })
+      : leafText(title)
+    return { path: `${folder}${name}.md`, text }
   })
+}
+
+/**
+ * A new template in `.yeraz/templates/`, named as typed (a leaf saved as one keeps its
+ * text, its title the template's name); no two share a file name.
+ */
+export function planTemplate(graph: Graph, name: string, text?: string): FileChange {
+  const taken = new Set(
+    graph.templates.map((t) => t.path.slice(TEMPLATES.length, -'.md'.length).toLowerCase()),
+  )
+  const file = unique(slugify(name), taken, '-')
+  return { path: `${TEMPLATES}${file}.md`, text: text ?? leafText(name) }
 }
 
 /**

@@ -35,12 +35,21 @@ export interface LeafNode extends NodeBase {
 }
 export type TreeNode = RootNode | BranchNode | LeafNode
 
+/** A template for new leaves: a `.md` file in `.yeraz/templates/` (ARCHITECTURE.md §4). */
+export interface TemplateFile {
+  path: string
+  sha: string
+  size: number
+}
+
 export interface TreeModel {
   nodes: Map<string, TreeNode>
   /** Leaf ids in path order. */
   leaves: string[]
   /** Branch texts: `folder/README.md` → the branch's id. */
   texts: Map<string, string>
+  /** Templates for new leaves, in path order: never leaves, hidden from the map by the dot rule. */
+  templates: TemplateFile[]
 }
 
 export const ROOT = ''
@@ -48,6 +57,11 @@ export const ROOT = ''
 /** The file that holds a branch's text (ARCHITECTURE.md §4). Matched exactly, case included. */
 export const BRANCH_TEXT = 'README.md'
 export const branchText = (branch: string) => `${branch}/${BRANCH_TEXT}`
+
+/** Where a Family keeps its templates for new leaves; it travels with the repository or folder. */
+export const TEMPLATES = '.yeraz/templates/'
+export const isTemplatePath = (path: string) =>
+  path.startsWith(TEMPLATES) && path.endsWith('.md') && !path.slice(TEMPLATES.length).includes('/')
 
 export function isLeafPath(path: string): boolean {
   return (
@@ -60,6 +74,10 @@ export function isLeafPath(path: string): boolean {
 const byName = new Intl.Collator('en', { numeric: true, sensitivity: 'base' })
 
 export function buildTree(entries: readonly TreeEntryLike[]): TreeModel {
+  const templates = entries
+    .filter((e) => e.type === 'blob' && isTemplatePath(e.path))
+    .map((e) => ({ path: e.path, sha: e.sha, size: e.size ?? 0 }))
+    .sort((a, b) => byName.compare(a.path, b.path))
   const markdown = entries.filter((e) => e.type === 'blob' && isLeafPath(e.path))
   const all = new Set(markdown.map((e) => e.path))
   // `folder/README.md` is a branch's text unless `folder` is a leaf's sibling folder. The root's
@@ -142,7 +160,7 @@ export function buildTree(entries: readonly TreeEntryLike[]): TreeModel {
     })
   }
 
-  return { nodes, leaves: [...files].sort(), texts }
+  return { nodes, leaves: [...files].sort(), texts, templates }
 }
 
 function parentFolder(path: string): string {

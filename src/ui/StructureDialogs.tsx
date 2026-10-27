@@ -4,9 +4,9 @@
 
 import { useMemo, useState } from 'react'
 import type { TreeRef } from '../github/graphql'
-import { crumbs, type Graph } from '../model/graph'
+import { crumbs, type Graph, type Template } from '../model/graph'
 import { ROOT } from '../model/tree'
-import { session } from '../store/session'
+import { session, useSession } from '../store/session'
 import {
   leavesUnder,
   moveReads,
@@ -61,6 +61,9 @@ export function StructureDialog({
   const [first, setFirst] = useState('')
   const [dest, setDest] = useState<string | null>(null)
   const [many, setMany] = useState(action.kind === 'new-leaf' && !!action.many)
+  // A template to start from (issue #41): this Family's, or another connected Family's.
+  const [from, setFrom] = useState('')
+  const templates = useTemplates(tree, graph)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -106,14 +109,17 @@ export function StructureDialog({
           onClose={onClose}
           onSubmit={() =>
             run(async () => {
+              const template = await templateText(templates, from)
               if (!many) {
-                const change = planNewLeaf(graph, action.parent, name)
+                const change = planNewLeaf(graph, action.parent, name, template)
                 await session.getState().apply(tree.repo, [change])
                 return onDone({ edit: change.path })
               }
               if (!titles.length) throw new Error('Write one title per line.')
               // One apply, so the autosave commits them all together.
-              await session.getState().apply(tree.repo, planNewLeaves(graph, action.parent, titles))
+              await session
+                .getState()
+                .apply(tree.repo, planNewLeaves(graph, action.parent, titles, template))
               onDone({ select: action.parent })
             })
           }
@@ -142,6 +148,31 @@ export function StructureDialog({
                 value={name}
                 onChange={(e) => setName(e.target.value)}
               />
+            </Field>
+          )}
+          {templates.length > 0 && (
+            <Field
+              label="Start from"
+              hint="A template's text, with its title, the date and the Tree filled in. Settings › Templates keeps them."
+            >
+              <select
+                className={controls.input}
+                name="template"
+                value={from}
+                onChange={(e) => setFrom(e.target.value)}
+              >
+                <option value="">A blank leaf</option>
+                {templates.map((group) => (
+                  <optgroup key={group.repo} label={group.label}>
+                    {group.templates.map((t) => (
+                      <option key={t.path} value={`${group.repo} ${t.path}`}>
+                        {t.icon ? `${t.icon} ` : ''}
+                        {t.title}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
             </Field>
           )}
           {!action.many && (
@@ -303,6 +334,44 @@ export function StructureDialog({
         </Dialog>
       )
     }
+  }
+}
+
+interface TemplateGroup {
+  repo: string
+  label: string
+  templates: Template[]
+}
+
+/** The templates on offer: this Family's first, then each other open Family's, by name. */
+function useTemplates(tree: TreeRef, graph: Graph): TemplateGroup[] {
+  const trees = useSession((s) => s.trees)
+  const data = useSession((s) => s.data)
+  return useMemo(() => {
+    const groups: TemplateGroup[] = []
+    if (graph.templates.length)
+      groups.push({ repo: tree.repo, label: `In ${tree.title}`, templates: graph.templates })
+    for (const other of trees) {
+      if (other.repo.toLowerCase() === tree.repo.toLowerCase()) continue
+      const templates = data[other.repo.toLowerCase()]?.graph?.templates ?? []
+      if (templates.length) groups.push({ repo: other.repo, label: `In ${other.title}`, templates })
+    }
+    return groups
+  }, [tree, graph, trees, data])
+}
+
+/** The chosen template's text (`repo path`), or undefined for a blank leaf. */
+async function templateText(groups: TemplateGroup[], chosen: string) {
+  if (!chosen) return undefined
+  const space = chosen.indexOf(' ')
+  const repo = chosen.slice(0, space)
+  const path = chosen.slice(space + 1)
+  const template = groups.find((g) => g.repo === repo)?.templates.find((t) => t.path === path)
+  if (!template) throw new Error("That template isn't there any more.")
+  try {
+    return { template: await session.getState().textOf(repo, path) }
+  } catch {
+    throw new Error("The template's text hasn't arrived yet. Try again in a moment.")
   }
 }
 

@@ -107,6 +107,7 @@ export function treeGraph(family: Graph, id: string): Graph {
     external: [],
     ghosts,
     hidden: [],
+    templates: [],
     stats: { leaves, branches, threads: threads.length, words: top.total },
   }
 }

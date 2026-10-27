@@ -197,6 +197,8 @@ export async function fillContent(
       return { path, sha, size }
     }),
     ...[...model.texts.values()].map((id) => (model.nodes.get(id) as BranchNode).text!),
+    // Templates too: their text is what a new leaf starts with (issue #41).
+    ...model.templates,
   ]
   const known = await store.getMany<ParsedLeaf>(docs.map((doc) => `leaf:${doc.sha}`))
   const bySha = new Map<string, ParsedLeaf>()

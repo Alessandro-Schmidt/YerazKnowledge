@@ -58,6 +58,8 @@ export interface FolderAccess {
 
 /** The file that marks a Family and holds its name (ARCHITECTURE.md §4). */
 export const MARKER = '.yeraz.json'
+/** The folder of the Family's own files (its templates, `.yeraz/templates/`). */
+export const YERAZ_DIR = '.yeraz'
 
 /** A folder Family's `owner`: no GitHub account can be named this, so ids never clash. */
 export const FOLDER_OWNER = '~'
@@ -87,9 +89,12 @@ const taken = (name: string) =>
     `There's already a folder named “${name}” there. Choose another name, or open it as an existing folder.`,
   )
 
-/** Whether a folder entry is read: hidden ones (`.git`, `.obsidian`, `.DS_Store`) are not. */
+/**
+ * Whether a folder entry is read: hidden ones (`.git`, `.obsidian`, `.DS_Store`) are not,
+ * except the root's marker and `.yeraz/`, which holds the Family's templates.
+ */
 export const visible = (name: string, atRoot: boolean) =>
-  !name.startsWith('.') || (atRoot && name === MARKER)
+  !name.startsWith('.') || (atRoot && (name === MARKER || name === YERAZ_DIR))
 
 // The parts of the File System Access API used here (not in TypeScript's DOM types yet).
 type Permission = 'granted' | 'denied' | 'prompt'

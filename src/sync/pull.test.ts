@@ -168,3 +168,23 @@ describe('planBatches', () => {
     expect(planBatches([], 1000, 3)).toEqual([])
   })
 })
+
+describe('templates (.yeraz/templates/*.md)', () => {
+  it('fetches and parses them with the leaves, off the map', async () => {
+    await fake.addRepo('you/notes', {
+      '.yeraz.json': '{"name":"Notes"}',
+      '.yeraz/templates/meeting.md': '# 📝 Meeting\n\n{{title}} on {{date}}\n',
+      'a.md': '# A\n',
+    })
+    const store = memoryStore()
+    const pulled = await pullTree((await lookupTree(client, 'you/notes'))!, { client, store })
+    expect(pulled.model.leaves).toEqual(['a.md'])
+    expect(pulled.model.templates.map((t) => t.path)).toEqual(['.yeraz/templates/meeting.md'])
+    expect(pulled.leaves.get('.yeraz/templates/meeting.md')).toMatchObject({
+      title: 'Meeting',
+      icon: '📝',
+    })
+    const sha = pulled.model.templates[0]!.sha
+    expect(await store.get(`blob:${sha}`)).toBe('# 📝 Meeting\n\n{{title}} on {{date}}\n')
+  })
+})

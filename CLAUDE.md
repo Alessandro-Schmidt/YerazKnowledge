@@ -38,7 +38,8 @@ Read `ideas.txt` (why), `ARCHITECTURE.md` (how), `development-plan.md` (what, in
   Settings › Views (`ui/ViewsSettings.tsx`) and › Tree colours (`ui/TreeColours.tsx`, `.yeraz.json` `trees`)
 - `src/read/` `render.ts` (markdown-it, lazy) · `Peek.tsx` · `History.tsx` (past versions, diff, restore) · `src/ui/` App, FamilyView, FamilyMenu, Start, Explorer, TokenScreen,
   theme (saved per device in `localStorage`, applied before paint by `index.html`), `panels.ts` + `ResizeHandle.tsx` (Explorer and Peek widths, per device), Appearance (`#/settings/appearance`),
-  `customTheme.ts` + `ThemeEditor.tsx` (custom themes), `contrast.ts` (`readable` adjusts a failing colour), `Hidden.tsx` (Settings › Hidden)
+  `customTheme.ts` + `ThemeEditor.tsx` (custom themes), `contrast.ts` (`readable` adjusts a failing colour), `Hidden.tsx` (Settings › Hidden),
+  `Templates.tsx` (Settings › Templates, issue #41; `model/template.ts` fills one, `StructureDialogs.tsx` offers them under *Start from*)
 - `src/example/files.ts` `CLAUDE.md` for AI agents (in every new Family) and the example Family (*Try an example*)
 - `themes/` community themes (each must pass every contrast rule as written) · `src/read/colors.ts` leaf colours
 - Map rule: React draws geometry once per layout; selection, zoom level and layers are data
@@ -75,6 +76,7 @@ Read `ideas.txt` (why), `ARCHITECTURE.md` (how), `development-plan.md` (what, in
 - [ ] Threads are root-relative Markdown links (`[Keycloak](/identity/keycloak.md)`)
 - [ ] An image's width ends its title: `![Realm](/assets/realm.png "width=50%")`, a percent of the column
 - [ ] Images in `/assets/`; `.yeraz.json` marks the root (`name`, `color`, optional `trees`: `{"Identity":"amber"}`); filenames never change on retitle
+- [ ] A template for new leaves is a `.md` in `.yeraz/templates/` (hidden from the map): line 1 its name (its emoji → the leaf's icon), line 2 the leaf's look, the rest the leaf's start with `{{title}}`, `{{date}}`, `{{tree}}` filled in
 - [ ] Embeds: a paragraph of one link to YouTube or `/assets/*.pdf|mp4|webm` (subtitles `name.<lang>.vtt`); math `$…$`, `$$…$$`
 
 ## Budgets (ARCHITECTURE.md §11)

@@ -11,6 +11,7 @@ import { FamilyView } from './FamilyView'
 import { Start } from './Start'
 import { TreeColours } from './TreeColours'
 import { Hidden } from './Hidden'
+import { Templates } from './Templates'
 import { ViewsSettings } from './ViewsSettings'
 
 // Routes live in the URL hash (GitHub Pages can't rewrite paths):
@@ -23,6 +24,7 @@ import { ViewsSettings } from './ViewsSettings'
 //   #/settings/views                      Settings › Views (how a Family is shown)
 //   #/settings/colours                    Settings › Tree colours (in .yeraz.json)
 //   #/settings/hidden                     Settings › Hidden (leaves and branches hidden from the map)
+//   #/settings/templates[/owner/name/path] Settings › Templates (for new leaves), one open to edit
 //   #/welcome[/github|/folder]            the introduction, from the Yeraz logo: connect GitHub
 //                                         or a repository, a new project folder, an existing one
 /**
@@ -97,6 +99,17 @@ export function App() {
         <Route path="/settings/views" component={ViewsSettings} />
         <Route path="/settings/colours" component={TreeColours} />
         <Route path="/settings/hidden" component={Hidden} />
+        <Route path="/settings/templates">
+          <Templates />
+        </Route>
+        <Route path="/settings/templates/:owner/:name/*">
+          {(params) => (
+            <Templates
+              repo={`${params.owner}/${params.name}`}
+              path={decodePath(params['*'] ?? '')}
+            />
+          )}
+        </Route>
         <Route path="/welcome/:step?">{(params) => <WelcomeRoute step={params.step} />}</Route>
         <Route>
           <Redirect to="/" replace />

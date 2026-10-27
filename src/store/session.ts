@@ -46,7 +46,7 @@ import { markNow } from '../perf'
 import { parseLeaf, parseMeta, withMeta, type ParsedLeaf } from '../model/parse'
 import { gitBlobSha } from '../model/sha'
 import { slugify } from '../model/slug'
-import { branchText, buildTree } from '../model/tree'
+import { branchText, buildTree, isTemplatePath } from '../model/tree'
 import { assetBytes, mimeOf } from '../sync/assets'
 import { createAutosave, type Autosave } from '../sync/autosave'
 import { pullFolder, pushFolder } from '../sync/folder'
@@ -638,7 +638,7 @@ export function createSession(deps: {
           fields = markerFields(new TextDecoder().decode(await fs.read(MARKER)))
         else {
           await fs.write(MARKER, encoder.encode(`${JSON.stringify({ name: picked.name })}\n`))
-          if (!files.some((f) => f.path.endsWith('.md')))
+          if (!files.some((f) => f.path.endsWith('.md') && !isTemplatePath(f.path)))
             for (const [path, text] of Object.entries(
               seed ?? { 'welcome.md': FOLDER_WELCOME, [AGENTS_FILE]: AGENTS_TEXT },
             ))
@@ -782,14 +782,20 @@ export function createSession(deps: {
         const key = repo.toLowerCase()
         await pulls.get(key)
         const pending = await loadDirty(key)
+        // Templates are not leaves: not searched, not dated.
         const cached = (bases.get(key)?.entries ?? []).filter(
-          (e) => e.path.endsWith('.md') && !(e.path in pending) && !isLocal(e.sha),
+          (e) =>
+            e.path.endsWith('.md') &&
+            !isTemplatePath(e.path) &&
+            !(e.path in pending) &&
+            !isLocal(e.sha),
         )
         const blobs = await store.getMany<string>(cached.map((e) => `blob:${e.sha}`))
         const texts = new Map<string, string>()
         cached.forEach((e, i) => blobs[i] !== undefined && texts.set(e.path, blobs[i]))
         for (const [path, { text }] of Object.entries(pending))
-          if (typeof text === 'string' && path.endsWith('.md')) texts.set(path, text)
+          if (typeof text === 'string' && path.endsWith('.md') && !isTemplatePath(path))
+            texts.set(path, text)
         return texts
       },
 

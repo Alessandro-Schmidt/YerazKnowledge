@@ -12,6 +12,7 @@ import { session, useSession } from '../store/session'
 import controls from '../ui/controls.module.css'
 import { Icon } from '../ui/icons'
 import { treeHref } from '../ui/paths'
+import { ROOT } from '../model/tree'
 import { planBranchText } from '../sync/structure'
 import { parentFor, StructureDialog, type StructureAction } from '../ui/StructureDialogs'
 import { ACCENT_IDS } from '../ui/theme'
@@ -56,6 +57,8 @@ export function LeafEditor({
   // The branch whose text this is, if it is a README.md rather than a leaf.
   const owner = data?.graph ? threadEnd(data.graph, path) : null
   const branch = owner !== null && owner !== path ? data!.graph!.nodes.get(owner)! : null
+  // A template (Settings › Templates) is edited here too: its look is a leaf's, off the map.
+  const template = data?.graph?.templates.find((t) => t.path === path)
   const [text, setText] = useState<{ path: string; text: string } | null>(null)
   const handle = useRef<EditorHandle | null>(null)
 
@@ -81,7 +84,8 @@ export function LeafEditor({
         return n ? asLeaf(n) : null
       },
       open: (id) => openRef.current(id),
-      here: () => path,
+      // A template is nowhere on the map: a leaf mentioned from it is made at the root.
+      here: () => (graphRef.current?.nodes.has(path) ? path : ''),
       // Dragged text dropped on a chip: at the end of that leaf, as a paragraph of its own.
       append: async (id, text) => {
         const { getState } = session
@@ -104,9 +108,13 @@ export function LeafEditor({
     if ((kind === 'image' || kind === 'file') && filePicker.current) {
       filePicker.current.accept = kind === 'image' ? 'image/*' : ''
       filePicker.current.click()
-    } else if (kind === 'leaf') setAction({ kind: 'new-leaf', parent: branch?.id ?? path })
+    } else if (kind === 'leaf')
+      setAction({ kind: 'new-leaf', parent: branch?.id ?? (node ? path : ROOT) })
     else if (kind === 'branch' && graph)
-      setAction({ kind: 'new-branch', parent: parentFor(graph, branch?.id ?? path) })
+      setAction({
+        kind: 'new-branch',
+        parent: parentFor(graph, branch?.id ?? (node ? path : ROOT)),
+      })
   }
 
   // Files, picked, pasted or dropped: saved in assets/ and linked where the cursor is.
@@ -128,7 +136,7 @@ export function LeafEditor({
   // The leaf's look (line 2): cover and colours. Shown at once, written to the text.
   const [look, setLook] = useState<LeafMeta | null>(null)
   // A branch's look is its text's (README.md): the graph gives it to the branch.
-  const owned = branch ?? node
+  const owned = branch ?? node ?? template
   const meta = look ?? owned?.meta ?? null
   const changeLook = (update: (meta: LeafMeta) => LeafMeta) => {
     const next = update(meta ?? {})

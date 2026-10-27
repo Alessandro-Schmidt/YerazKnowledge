@@ -11,6 +11,7 @@ import {
   planGhostLeaf,
   moveReads,
   planBranchText,
+  planTemplate,
   StructureError,
   titlesIn,
 } from './structure'
@@ -49,6 +50,41 @@ describe('planNewLeaf', () => {
     expect(planNewLeaf(graph, '', 'Welcome').path).toBe('welcome-2.md')
     expect(planNewLeaf(graph, 'identity', 'Keycloak').path).toBe('identity/keycloak-2.md')
     expect(planNewLeaf(graph, '', 'Assets').path).toBe('assets-2.md')
+  })
+
+  it('starts from a template, filled with the title, the day and the Tree', () => {
+    const template = '# 📝 Meeting\n\n{{title}} in {{tree}} on {{date}}\n'
+    const now = new Date(2026, 9, 27)
+    expect(planNewLeaf(graph, 'identity/keycloak.md', 'Tokens', { template, now })).toEqual({
+      path: 'identity/keycloak/tokens.md',
+      text: '# 📝 Tokens\n\nTokens in Identity on 2026-10-27\n',
+    })
+    // At the top of the Family the leaf is a Tree of its own.
+    expect(planNewLeaf(graph, ROOT, 'Plans', { template, now }).text).toBe(
+      '# 📝 Plans\n\nPlans in Plans on 2026-10-27\n',
+    )
+    expect(
+      planNewLeaves(graph, 'AI Agents', ['A', 'B'], { template, now }).map((c) => c.text),
+    ).toEqual([
+      '# 📝 A\n\nA in AI Agents on 2026-10-27\n',
+      '# 📝 B\n\nB in AI Agents on 2026-10-27\n',
+    ])
+  })
+})
+
+describe('planTemplate', () => {
+  it('writes a template in .yeraz/templates/, named as typed, never over another', () => {
+    expect(planTemplate(graph, 'Meeting notes')).toEqual({
+      path: '.yeraz/templates/meeting-notes.md',
+      text: '# Meeting notes\n\n',
+    })
+    const withOne = { ...graph, templates: [{ path: '.yeraz/templates/meeting-notes.md' }] }
+    expect(
+      planTemplate(withOne as typeof graph, 'Meeting Notes', '# 📝 Meeting Notes\n\nx\n'),
+    ).toEqual({
+      path: '.yeraz/templates/meeting-notes-2.md',
+      text: '# 📝 Meeting Notes\n\nx\n',
+    })
   })
 })
 
