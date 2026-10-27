@@ -33,15 +33,24 @@ test.describe('on a phone', () => {
     await open(page, fake)
     const editor = page.locator('.cm-content')
     await editor.getByText('two').click()
+    // Writing opens the full page: the text is typed once it is there and still.
+    const peek = page.getByRole('region', { name: 'Leaf preview' })
+    await expect(peek).toHaveAttribute('data-expanded')
+    await peek.evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)))
     await page.keyboard.press('End')
     /** The caret's top on the screen. */
     const caretTop = () =>
       page.evaluate(() => getSelection()!.getRangeAt(0).getClientRects()[0]!.top)
+    // Typed at a thumb's pace: the emulated Android drops Enters typed with no delay at all
+    // (CodeMirror's deferred Android keys), and a short text never has to scroll.
+    const pace = { delay: 30 }
     // Enough items that the text must scroll; then every new line lands where the last was.
-    for (let i = 0; i < 25; i++) await page.keyboard.type('\nitem')
+    for (let i = 0; i < 25; i++) await page.keyboard.type('\nitem', pace)
+    // Each on its own line (the bullet is drawn before it).
+    await expect(editor.locator('.cm-line', { hasText: /^\W*item$/ })).toHaveCount(25)
     const settled = await caretTop()
     for (let i = 0; i < 5; i++) {
-      await page.keyboard.type('\nmore')
+      await page.keyboard.type('\nmore', pace)
       // The text moves under the caret in the editor's next measure frame.
       await expect.poll(async () => Math.abs((await caretTop()) - settled)).toBeLessThan(2)
     }
