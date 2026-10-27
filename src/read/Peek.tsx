@@ -39,7 +39,7 @@ import { ResizeHandle } from '../ui/ResizeHandle'
 import { PHONE, useMedia } from '../ui/useMedia'
 import { SyncStatus } from '../ui/SyncStatus'
 import { focusFirst, menuKeys } from '../ui/menuKeys'
-import { treeHref } from '../ui/paths'
+import { templateHref, treeHref } from '../ui/paths'
 import styles from './Peek.module.css'
 import { coverPosition } from './cover'
 import { leafColors } from './colors'
@@ -47,7 +47,7 @@ import { downloadAsset } from './files'
 import { History } from './History'
 import { printLeaf } from './print'
 import { renderLeaf } from './render'
-import { planGhostLeaf } from '../sync/structure'
+import { planGhostLeaf, planTemplate } from '../sync/structure'
 import type { StructureAction } from '../ui/StructureDialogs'
 
 export interface PeekProps {
@@ -429,6 +429,15 @@ export function Peek({
                       New branch here
                     </button>
                   )}
+                  {node.kind === 'leaf' && (
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => void saveAsTemplate(tree.repo, graph, id)}
+                    >
+                      Save as template
+                    </button>
+                  )}
                   {/* A Tree moves under another Tree, as a branch moves (issue #81). */}
                   {(node.kind === 'leaf' || node.kind === 'branch') && (
                     <button
@@ -500,6 +509,18 @@ const openHere = (onSelect: (id: string) => void, id: string) => (e: MouseEvent)
 
 const count = (n: number, one: string, many = `${one}s`) =>
   `${n.toLocaleString('en-US')} ${n === 1 ? one : many}`
+
+/**
+ * A template from this leaf's text, in `.yeraz/templates/` (issue #41), then Settings ›
+ * Templates with it open: its title is the template's name until changed there.
+ */
+async function saveAsTemplate(repo: string, graph: Graph, id: string) {
+  const { getState } = session
+  const text = await getState().textOf(repo, id)
+  const change = planTemplate(graph, graph.nodes.get(id)!.title, text)
+  await getState().apply(repo, [change])
+  window.location.hash = `#${templateHref(repo, change.path)}`
+}
 
 function PeekHead({
   kind,

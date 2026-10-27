@@ -41,9 +41,10 @@ fn inside(root: &str, path: &str) -> Result<PathBuf, String> {
     Ok(root_of(root)?.join(rel))
 }
 
-/// Hidden entries (`.git`, `.obsidian`, `.DS_Store`) are left out, except the root's marker.
+/// Hidden entries (`.git`, `.obsidian`, `.DS_Store`) are left out, except the root's marker
+/// and `.yeraz/`, which holds the Family's templates.
 fn visible(name: &str, at_root: bool) -> bool {
-    !name.starts_with('.') || (at_root && name == ".yeraz.json")
+    !name.starts_with('.') || (at_root && (name == ".yeraz.json" || name == ".yeraz"))
 }
 
 fn walk(dir: &Path, prefix: &str, out: &mut Vec<FolderFile>) -> Result<(), String> {

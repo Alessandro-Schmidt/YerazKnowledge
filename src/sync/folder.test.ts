@@ -132,3 +132,15 @@ describe('pushFolder', () => {
     expect(fs.text('identity/keycloak.conflict-2026-10-19.md')).toContain('Two, ours.')
   })
 })
+
+describe('templates in a folder', () => {
+  it('lists and reads .yeraz/templates/*.md, while other hidden entries stay out', async () => {
+    const fs = files()
+    fs.put('.yeraz/templates/meeting.md', '# 📝 Meeting\n\n{{date}}\n')
+    fs.put('.git/HEAD', 'ref: refs/heads/main')
+    const pulled = await pullFolder(ref, { fs, store: memoryStore() })
+    expect(pulled.model.templates.map((t) => t.path)).toEqual(['.yeraz/templates/meeting.md'])
+    expect(pulled.leaves.get('.yeraz/templates/meeting.md')!.title).toBe('Meeting')
+    expect(pulled.entries.some((e) => e.path.startsWith('.git/'))).toBe(false)
+  })
+})

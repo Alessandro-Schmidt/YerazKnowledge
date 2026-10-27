@@ -13,6 +13,10 @@ export function decodePath(path: string): string {
 export const treeHref = (repo: string, id?: string | null) =>
   id === undefined || id === null ? `/tree/${repo}` : `/tree/${repo}/${encodePath(id)}`
 
+/** Settings › Templates, with one of a Family's templates open to edit (issue #41). */
+export const templateHref = (repo: string, path: string) =>
+  `/settings/templates/${repo}/${encodePath(path)}`
+
 /** Every Family on one map (issue #69), with a node selected: `repo` and `id` in its Family. */
 export const allHref = (repo?: string, id?: string) =>
   repo === undefined ? '/all' : `/all/${repo}/${encodePath(id ?? '')}`

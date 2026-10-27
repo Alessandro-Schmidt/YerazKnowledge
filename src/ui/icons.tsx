@@ -35,6 +35,8 @@ const PATHS = {
   face: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM9 10h.01M15 10h.01M8.5 14.5a4.5 4.5 0 0 0 7 0',
   image:
     'M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2zM4 16l5-5 4 4 2-2 5 5M15.5 9.5a1 1 0 1 1 0-2 1 1 0 0 1 0 2z',
+  template:
+    'M6.5 3.5h7l4.5 4.5v11.5a1 1 0 0 1-1 1h-10.5a1 1 0 0 1-1-1v-15a1 1 0 0 1 1-1zM13.5 3.5V8H18M9 12h6M9 16h4',
 } as const
 
 type IconName = keyof typeof PATHS

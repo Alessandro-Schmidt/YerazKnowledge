@@ -223,6 +223,10 @@ export function FamilyMenu({ current, all }: { current?: string; all?: boolean }
             <Icon name="eyeOff" size={15} />
             Hidden
           </Link>
+          <Link href="/settings/templates" role="menuitem" className={styles.muted}>
+            <Icon name="template" size={15} />
+            Templates
+          </Link>
           {github && (
             <button
               type="button"

@@ -62,6 +62,17 @@ export interface HiddenNode {
   icon: string | null
 }
 
+/** A template for new leaves (`.yeraz/templates/*.md`, issue #41): named by its line 1. */
+export interface Template {
+  path: string
+  title: string
+  icon: string | null
+  /** Its line 2: the look a leaf made from it gets. */
+  meta: LeafMeta | null
+  /** False while its text hasn't been fetched yet. */
+  loaded: boolean
+}
+
 export interface Graph {
   nodes: Map<string, GraphNode>
   threads: Thread[]
@@ -75,6 +86,8 @@ export interface Graph {
   ghosts: Map<string, Ghost>
   /** The hidden nodes, the topmost of each hidden part: not in `nodes`, shown again from Settings. */
   hidden: HiddenNode[]
+  /** Templates for new leaves, in path order; managed in Settings › Templates. */
+  templates: Template[]
   stats: { leaves: number; branches: number; threads: number; words: number }
 }
 
@@ -186,6 +199,19 @@ export function buildGraph(
     }
   }
 
+  // A template is named by its line 1, as a leaf is titled; its icon is the one new leaves get.
+  const templates: Template[] = model.templates.map(({ path }) => {
+    const parsed = leaves.get(path)
+    const name = path.slice(path.lastIndexOf('/') + 1, -'.md'.length)
+    return {
+      path,
+      title: parsed?.title ?? humanize(name),
+      icon: parsed?.icon ?? null,
+      meta: parsed?.meta ?? null,
+      loaded: parsed !== undefined,
+    }
+  })
+
   const all = [...nodes.values()]
   return {
     nodes,
@@ -195,6 +221,7 @@ export function buildGraph(
     external,
     ghosts,
     hidden: tops,
+    templates,
     stats: {
       leaves: model.leaves.filter((id) => !hidden.has(id)).length,
       branches: all.filter((n) => n.kind === 'branch').length,

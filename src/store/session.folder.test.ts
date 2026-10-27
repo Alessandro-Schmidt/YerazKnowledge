@@ -28,6 +28,10 @@ describe('a Family in a folder', () => {
     expect(data?.status === 'ready' && data.graph.stats).toMatchObject({ leaves: 4, branches: 2 })
     // Its links reach their leaves, bar the one meant as a ghost.
     expect(data?.status === 'ready' && [...data.graph.ghosts.keys()]).toEqual(['Ideas.md'])
+    // Its template is listed, off the map (issue #41).
+    expect(data?.status === 'ready' && data.graph.templates.map((t) => t.path)).toEqual([
+      '.yeraz/templates/meeting.md',
+    ])
   })
 
   it('adds a folder without a token: marks it, welcomes it, and opens it', async () => {

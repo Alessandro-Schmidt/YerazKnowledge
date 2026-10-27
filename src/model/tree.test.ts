@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { branchText, buildTree, isLeafPath, ROOT, type TreeEntryLike } from './tree'
+import { branchText, buildTree, isLeafPath, isTemplatePath, ROOT, type TreeEntryLike } from './tree'
 
 const blob = (path: string, size = 60): TreeEntryLike => ({
   path,
@@ -197,6 +197,27 @@ describe('buildTree', () => {
     walk(ROOT)
     expect(reached).toBe(5000)
     expect(Math.max(...tree.leaves.map((id) => tree.nodes.get(id)!.depth))).toBe(stats.maxDepth)
+  })
+})
+
+describe('templates (.yeraz/templates/*.md)', () => {
+  it('lists them in path order, never as leaves; deeper or other files there are not templates', () => {
+    const tree = buildTree([
+      blob('.yeraz/templates/meeting.md', 80),
+      blob('.yeraz/templates/Book.md', 40),
+      blob('.yeraz/templates/old/x.md'),
+      blob('.yeraz/templates/notes.txt'),
+      blob('.yeraz.json'),
+      blob('a.md'),
+    ])
+    expect(tree.templates).toEqual([
+      { path: '.yeraz/templates/Book.md', sha: 'sha-.yeraz/templates/Book.md', size: 40 },
+      { path: '.yeraz/templates/meeting.md', sha: 'sha-.yeraz/templates/meeting.md', size: 80 },
+    ])
+    expect(tree.leaves).toEqual(['a.md'])
+    expect(isTemplatePath('.yeraz/templates/a.md')).toBe(true)
+    expect(isTemplatePath('.yeraz/templates/a/b.md')).toBe(false)
+    expect(isTemplatePath('yeraz/templates/a.md')).toBe(false)
   })
 })
 

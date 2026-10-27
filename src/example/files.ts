@@ -18,6 +18,7 @@ These notes are kept with [Yeraz](https://github.com/Alessandro-Schmidt/YerazKno
 - Sub-leaves live in a folder with the same name beside the leaf: \`keycloak.md\` and \`keycloak/realms.md\`.
 - A folder without a same-named file is a branch; the \`README.md\` inside it is the branch's text, not a leaf. Every folder or leaf at the root is a Tree.
 - File names stay when titles change: links depend on them.
+- A template for new leaves is a \`.md\` file in \`.yeraz/templates/\` (never a leaf): its line 1 is its name, and \`{{title}}\`, \`{{date}}\` and \`{{tree}}\` in its text are filled in when a leaf is made from it.
 
 ## Threads
 
@@ -45,6 +46,19 @@ This is an example Family: a few notes to look around in, change, or delete. Eve
 - A link to a leaf not written yet, like [Ideas](/Ideas.md), shows as a ghost: a leaf to write.
 - Edits are saved as you type. Hold Ctrl (⌘ on a Mac) for a second while writing to see what can be inserted.
 - [Notes for AI agents](/${AGENTS_FILE}) tells an agent such as Claude Code how notes are kept here.
+- A new leaf can start from a **template**: *Meeting* is one, under *Start from* in New leaf. Settings › Templates keeps them.
+`,
+  '.yeraz/templates/meeting.md': `# 📝 Meeting
+
+{{title}}, on {{date}}, in {{tree}}.
+
+## Decisions
+
+- [ ] 
+
+## Next
+
+- [ ] 
 `,
   'Projects/README.md': `# 🧭 Projects
 

@@ -292,6 +292,37 @@ describe('hidden nodes (line 2 `"hidden": true`)', () => {
   })
 })
 
+describe('templates', () => {
+  it('names each by its line 1, with its icon and look; one not fetched yet by its file name', () => {
+    const files: Record<string, string> = {
+      '.yeraz/templates/meeting-notes.md':
+        '# 📝 Meeting\n<!-- yeraz {"color":{"heading":"amber"}} -->\n\n{{date}}\n',
+      '.yeraz/templates/book.md': '# Book\n',
+      'a.md': '# A\n',
+    }
+    const model = buildTree(
+      Object.keys(files).map((path) => ({ path, type: 'blob' as const, sha: path, size: 1 })),
+    )
+    const leaves = new Map([
+      ['.yeraz/templates/meeting-notes.md', parseLeaf(files['.yeraz/templates/meeting-notes.md']!)],
+      ['a.md', parseLeaf(files['a.md']!)],
+    ])
+    const g = buildGraph(model, leaves, 'T')
+    expect(g.templates).toEqual([
+      { path: '.yeraz/templates/book.md', title: 'Book', icon: null, meta: null, loaded: false },
+      {
+        path: '.yeraz/templates/meeting-notes.md',
+        title: 'Meeting',
+        icon: '📝',
+        meta: { color: { heading: 'amber' } },
+        loaded: true,
+      },
+    ])
+    expect([...g.nodes.keys()]).toEqual(['', 'a.md'])
+    expect(g.stats.leaves).toBe(1)
+  })
+})
+
 describe('neighbours and crumbs', () => {
   it('keeps the parent, children and thread ends bright', () => {
     expect([...neighbours(graphOf(), 'identity/keycloak.md')].sort()).toEqual([
