@@ -163,9 +163,14 @@ def mark_file(shades, d=FULL, size=560):
 
 
 files = {
-    # desktop icon: 1024 canvas, 824 tile, 185 corner radius, the leaf at 600 px
+    # desktop app icon (owner's decision): the leaf alone, no tile, so the desktop shows
+    # through its cut-outs; 1024 canvas, the leaf at 900 px, since the platforms add no margin
+    'yeraz-icon-desktop.svg': svg(1024, 1024, leaf(512, 512, 900, STEEL)),
+    # 32 px and below: the bolder drawing, brighter steel, filling the canvas
+    'yeraz-icon-desktop-small.svg': svg(1024, 1024, leaf(512, 512, 960, STEEL_SMALL, SMALL)),
+    # the tile: 1024 canvas, 824 tile, 185 corner radius, the leaf at 600 px (PWA, favicon)
     'yeraz-icon.svg': svg(1024, 1024, TILE + leaf(512, 512, 600, STEEL) + EDGE),
-    # 32 px and below: the bolder drawing, brighter steel, a little larger in the tile
+    # 32 px and below on the tile: the bolder drawing, brighter steel, a little larger
     'yeraz-icon-small.svg': svg(1024, 1024, TILE + leaf(512, 512, 650, STEEL_SMALL, SMALL) + EDGE),
     'favicon.svg': svg(1024, 1024, TILE + leaf(512, 512, 650, STEEL_SMALL, SMALL) + EDGE),
     # phones and maskable PWA icons: full bleed; tip and stem stay inside the 80 % safe circle
