@@ -420,10 +420,11 @@ Not part of the first release:
 ```
 on pull request and push to main:
   install (cached) → typecheck → lint → unit + integration → build → size-limit
-  → e2e (Chromium, WebKit, mobile emulation)
+  → e2e (Chromium)
 on push to main:  deploy dist/ to GitHub Pages, once check and e2e pass
+when src-tauri/ or the packages change: the desktop build and launch check (desktop.yml)
 on demand:        visual snapshots (snapshots.yml) · performance budgets (npm run perf)
-nightly:          contract test against real GitHub
+nightly:          e2e on every browser (Chromium, WebKit, mobile emulation) · contract test against real GitHub
 on tag v*:        tauri-action builds Windows/macOS/Linux → GitHub Release
 ```
 

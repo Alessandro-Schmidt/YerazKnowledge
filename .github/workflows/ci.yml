@@ -1,5 +1,9 @@
 name: CI
 
+# Fast on every push and pull request: the checks, then the end-to-end tests on Chromium.
+# WebKit and the phones run nightly (nightly.yml), the desktop build when src-tauri/ changes
+# (desktop.yml), so a slow or flaky emulator never holds back a merge or a deploy.
+
 on:
   pull_request:
   push:
@@ -12,6 +16,7 @@ concurrency:
 jobs:
   check:
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -32,6 +37,14 @@ jobs:
 
   e2e:
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    # Playwright's image has the browsers and their system libraries: nothing to download.
+    # Its tag follows @playwright/test (also in nightly.yml and snapshots.yml).
+    container:
+      image: mcr.microsoft.com/playwright:v1.64.1-noble
+      options: --ipc=host
+    env:
+      HOME: /root
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -39,8 +52,9 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      - run: npx playwright install --with-deps chromium webkit
-      - run: npm run e2e
+      - name: The image matches @playwright/test
+        run: test "$(node -p "require('@playwright/test/package.json').version")" = 1.64.1
+      - run: npm run e2e -- --project=chromium
       - uses: actions/upload-artifact@v7
         if: failure()
         with:
@@ -48,47 +62,8 @@ jobs:
           path: playwright-report
           retention-days: 14
 
-  desktop:
-    # The Tauri shell builds and launches (src-tauri/). Only when it, the packages or the
-    # workflows changed.
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-      - id: changed
-        run: |
-          base="${{ github.event.pull_request.base.sha || github.event.before }}"
-          if ! git cat-file -e "$base" 2>/dev/null ||
-            git diff --name-only "$base" HEAD | grep -qE '^(src-tauri/|package(-lock)?\.json$|\.github/workflows/)'; then
-            echo "run=true" >> "$GITHUB_OUTPUT"
-          fi
-      - if: steps.changed.outputs.run
-        uses: actions/setup-node@v7
-        with:
-          node-version: 24
-          cache: npm
-      - if: steps.changed.outputs.run
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libdbus-1-dev xvfb
-      - if: steps.changed.outputs.run
-        run: npm ci && npx vite build
-      - if: steps.changed.outputs.run
-        run: cargo build --locked --manifest-path src-tauri/Cargo.toml
-      # The same launch check as release.yml: the app starts and is still running 15 s later.
-      - if: steps.changed.outputs.run
-        run: |
-          set +e
-          timeout 15 xvfb-run -a src-tauri/target/debug/yeraz
-          code=$?
-          set -e
-          test $code -eq 124 || { echo "Yeraz exited with $code"; exit 1; }
-
   deploy:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    # Only what proves the app works. Visual snapshots and performance budgets run on
-    # demand (snapshots.yml, `npm run perf`), so a noisy runner never holds back a deploy.
     needs: [check, e2e]
     runs-on: ubuntu-24.04
     permissions:
