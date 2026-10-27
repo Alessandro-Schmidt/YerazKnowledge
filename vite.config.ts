@@ -1,4 +1,5 @@
 /// <reference types="vitest/config" />
+import { createHash } from 'node:crypto'
 import { createReadStream } from 'node:fs'
 import { createRequire } from 'node:module'
 import react from '@vitejs/plugin-react'
@@ -33,6 +34,48 @@ function themeColor(): Plugin {
         injectTo: 'head',
       },
     ],
+  }
+}
+
+// The web build's Content-Security-Policy, as a tag (GitHub Pages can't send headers): what a
+// leaf from someone else's repository could slip past the renderer still can't run a script
+// or send anything anywhere but GitHub. Inline scripts (the theme, index.html) by their hash.
+// Not in dev, whose reloading needs inline scripts, nor in the desktop build: Tauri sets its
+// own (src-tauri/tauri.conf.json). End-to-end builds also reach the fake GitHub on localhost.
+function contentSecurityPolicy(): Plugin {
+  return {
+    name: 'yeraz:csp',
+    apply: (_config, { command }) => command === 'build' && !process.env.TAURI_ENV_PLATFORM,
+    transformIndexHtml: {
+      order: 'post',
+      handler(html) {
+        const inline = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(
+          ([, code]) => `'sha256-${createHash('sha256').update(code!).digest('base64')}'`,
+        )
+        const fake = process.env.VITE_E2E === '1' ? ' http://localhost:* http://127.0.0.1:*' : ''
+        const policy = [
+          "default-src 'self'",
+          `script-src 'self' ${inline.join(' ')}`,
+          "style-src 'self' 'unsafe-inline'",
+          "img-src 'self' data: blob: https:",
+          "media-src 'self' blob:",
+          "font-src 'self' data:",
+          'frame-src blob: https://www.youtube-nocookie.com',
+          `connect-src 'self' https://api.github.com${fake}`,
+          "worker-src 'self'",
+          "object-src 'none'",
+          "base-uri 'self'",
+          "form-action 'none'",
+        ].join('; ')
+        return [
+          {
+            tag: 'meta',
+            attrs: { 'http-equiv': 'Content-Security-Policy', content: policy },
+            injectTo: 'head-prepend',
+          },
+        ]
+      },
+    },
   }
 }
 
@@ -71,6 +114,7 @@ export default defineConfig(({ mode }) => ({
   plugins: [
     react(),
     themeColor(),
+    contentSecurityPolicy(),
     mode === 'fake' && mockServiceWorker(),
     mermaidChunks(),
     // Installable, and the app shell works offline; data is offline already in IndexedDB
