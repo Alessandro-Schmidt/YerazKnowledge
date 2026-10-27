@@ -40,11 +40,14 @@ export class FolderError extends Error {
 
 /** How this device reaches folders. A handle is what `pick` gave; it is kept in the key/value store. */
 export interface FolderAccess {
+  /** Asks the person for a folder; null when they cancel. */
+  pick(): Promise<{ name: string; handle: unknown } | null>
   /**
-   * Asks the person for a folder; null when they cancel. On the device's own storage,
-   * `empty` starts a Family with nothing in it instead, called `name`.
+   * A new project: asks the person where, then makes a folder named `name` there; null when
+   * they cancel. Throws when a folder of that name is there already. On the device's own
+   * storage, a new empty Family named `name`.
    */
-  pick(empty?: boolean, name?: string): Promise<{ name: string; handle: unknown } | null>
+  create(name: string): Promise<{ name: string; handle: unknown } | null>
   /** Deletes a Family's files, where they are the device's own (not a folder the person sees). */
   discard?(handle: unknown): Promise<void>
   /** The folder's files. With `ask`, a browser may ask the person again (needs a click). */
@@ -69,6 +72,20 @@ This is the first leaf of your Family. Every leaf is a Markdown file in this fol
 - Mention another leaf with a link, and the map draws a thread between them.
 - Edits are saved to the folder as you type. If iCloud Drive, Dropbox or OneDrive keeps it, your other devices see them too.
 `
+
+/** Why a new project can't be a folder named `name`, or null when it can. */
+export function projectNameProblem(name: string): string | null {
+  if (!name) return 'Give the project a name.'
+  if (/[\\/:*?"<>|]/.test(name)) return 'A folder name can\'t contain / \\ : * ? " < > |'
+  if (name.startsWith('.'))
+    return "A folder name can't start with a dot: the folder would be hidden."
+  return null
+}
+
+const taken = (name: string) =>
+  new Error(
+    `There's already a folder named “${name}” there. Choose another name, or open it as an existing folder.`,
+  )
 
 /** Whether a folder entry is read: hidden ones (`.git`, `.obsidian`, `.DS_Store`) are not. */
 export const visible = (name: string, atRoot: boolean) =>
@@ -175,15 +192,26 @@ function browserFs(root: DirHandle): FolderFs {
 export function browserFolders(): FolderAccess | null {
   const picker = (globalThis as { showDirectoryPicker?: Picker }).showDirectoryPicker
   if (!picker) return null
+  const choose = async () => {
+    try {
+      return await picker({ mode: 'readwrite', id: 'yeraz' })
+    } catch (e) {
+      if (e instanceof DOMException && e.name === 'AbortError') return null
+      throw e
+    }
+  }
   return {
     async pick() {
-      try {
-        const handle = await picker({ mode: 'readwrite', id: 'yeraz' })
-        return { name: handle.name, handle }
-      } catch (e) {
-        if (e instanceof DOMException && e.name === 'AbortError') return null
-        throw e
-      }
+      const handle = await choose()
+      return handle && { name: handle.name, handle }
+    },
+    async create(name) {
+      const parent = await choose()
+      if (!parent) return null
+      // Compared without case: macOS and Windows would give back the folder already there.
+      for await (const [entry] of parent.entries())
+        if (entry.toLowerCase() === name.toLowerCase()) throw taken(name)
+      return { name, handle: await parent.getDirectoryHandle(name, { create: true }) }
     },
     async open(handle, ask) {
       const dir = handle as DirHandle
@@ -216,6 +244,16 @@ export function desktopFolders(invoke: Invoke): FolderAccess {
         ? { name: root.split(/[\\/]/).filter(Boolean).at(-1) ?? root, handle: root }
         : null
     },
+    async create(name) {
+      const parent = await invoke<string | null>('pick_folder')
+      if (!parent) return null
+      try {
+        return { name, handle: await invoke<string>('new_folder', { parent, name }) }
+      } catch (e) {
+        if (String(e) === 'taken') throw taken(name)
+        throw new Error(String(e), { cause: e })
+      }
+    },
     async open(handle) {
       const root = handle as string
       return {
@@ -241,9 +279,9 @@ export function deviceFolders(store: KeyValueStore, choose: ChooseFiles): Folder
   const newId = () => `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`
   return {
     onDevice: true,
-    async pick(empty, name) {
+    create: async (name) => ({ name, handle: newId() }),
+    async pick() {
       const id = newId()
-      if (empty) return { name: name?.trim() || 'Notes', handle: id }
       const picked = await choose()
       if (!picked?.length) return null
       // Paths from a folder start with its name; that name is the Family's.

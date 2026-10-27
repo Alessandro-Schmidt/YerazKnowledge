@@ -42,7 +42,10 @@ export function memoryFolder(initial: Record<string, string> = {}): MemoryFolder
   return folder
 }
 
-/** Folder access over named memory folders: `pick` gives the next one queued. */
+/**
+ * Folder access over named memory folders: `pick` gives the next one queued; `create` makes
+ * one named as asked, in the next one queued (nothing queued: cancelled).
+ */
 export function memoryFolders(folders: Record<string, MemoryFolder>) {
   const queue: string[] = []
   const access: FolderAccess & { choose(name: string): void } = {
@@ -50,6 +53,12 @@ export function memoryFolders(folders: Record<string, MemoryFolder>) {
     pick: async () => {
       const name = queue.shift()
       return name ? { name, handle: name } : null
+    },
+    create: async (name) => {
+      if (!queue.shift()) return null
+      if (folders[name]) throw new Error(`There's already a folder named “${name}” there.`)
+      folders[name] = memoryFolder()
+      return { name, handle: name }
     },
     open: async (handle) => folders[handle as string]!,
   }

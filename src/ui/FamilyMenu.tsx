@@ -63,7 +63,7 @@ export function rememberFamily(repo: string) {
 export function FamilyMenu({ current, all }: { current?: string; all?: boolean }) {
   const [open, setOpen] = useState(false)
   const [dialog, setDialog] = useState<
-    'connect' | 'create' | 'new' | 'rename' | 'remove' | 'publish' | null
+    'connect' | 'create' | 'rename' | 'remove' | 'publish' | null
   >(null)
   const here = useSession((s) =>
     s.trees.find((t) => t.repo.toLowerCase() === current?.toLowerCase()),
@@ -99,19 +99,15 @@ export function FamilyMenu({ current, all }: { current?: string; all?: boolean }
     void session.getState().open(tree.repo)
     navigate(treeHref(tree.repo))
   }
-  /** A folder, or on a device without folders a copy of one (or nothing), as a new Family. */
-  const addFolder = (empty: boolean, name?: string) =>
+  /** A folder, or on a device without folders a copy of one, as a new Family. */
+  const addFolder = () =>
     void session
       .getState()
-      .addFolder(empty, name)
+      .addFolder()
       .then(
         (tree) => tree && go(tree),
         (e: unknown) => window.alert(e instanceof Error ? e.message : String(e)),
       )
-  const startFamily = async (name: string) => {
-    const tree = await session.getState().addFolder(true, name)
-    if (tree) go(tree)
-  }
 
   return (
     <div ref={host} className={styles.host}>
@@ -173,7 +169,7 @@ export function FamilyMenu({ current, all }: { current?: string; all?: boolean }
                     Push to GitHub…
                   </button>
                 ) : (
-                  <Link href="/github" role="menuitem">
+                  <Link href="/welcome/github" role="menuitem">
                     <Icon name="repo" size={15} />
                     Push to GitHub… (connect first)
                   </Link>
@@ -193,22 +189,22 @@ export function FamilyMenu({ current, all }: { current?: string; all?: boolean }
               </button>
             </>
           ) : (
-            <Link href="/github" role="menuitem" className={styles.muted}>
+            <Link href="/welcome/github" role="menuitem" className={styles.muted}>
               <Icon name="repo" size={15} />
               Connect GitHub
             </Link>
           )}
           {folders && (
-            <button type="button" role="menuitem" onClick={() => addFolder(false)}>
-              <Icon name="folder" size={15} />
-              {onDevice ? 'Copy in a folder' : 'Use a folder'}
-            </button>
-          )}
-          {onDevice && (
-            <button type="button" role="menuitem" onClick={() => setDialog('new')}>
-              <Icon name="plus" size={15} />
-              New Family on this device
-            </button>
+            <>
+              <Link href="/welcome/folder" role="menuitem" className={styles.muted}>
+                <Icon name="plus" size={15} />
+                {onDevice ? 'New project' : 'New project folder'}
+              </Link>
+              <button type="button" role="menuitem" onClick={addFolder}>
+                <Icon name="folder" size={15} />
+                {onDevice ? 'Copy in a folder' : 'Open an existing folder'}
+              </button>
+            </>
           )}
           <hr />
           <Link href="/settings/appearance" role="menuitem" className={styles.muted}>
@@ -246,7 +242,6 @@ export function FamilyMenu({ current, all }: { current?: string; all?: boolean }
       )}
       {dialog === 'connect' && <ConnectDialog onClose={() => setDialog(null)} onConnected={go} />}
       {dialog === 'create' && <CreateTreeDialog onClose={() => setDialog(null)} onCreated={go} />}
-      {dialog === 'new' && <NewFamilyDialog onClose={() => setDialog(null)} onName={startFamily} />}
       {dialog === 'rename' && here && (
         <RenameFamilyDialog
           tree={here}
@@ -268,56 +263,6 @@ export function FamilyMenu({ current, all }: { current?: string; all?: boolean }
         />
       )}
     </div>
-  )
-}
-
-/** Names a Family started from nothing in this device's storage (phones, Safari, Firefox). */
-export function NewFamilyDialog({
-  onName,
-  onClose,
-}: {
-  /** Starts the Family; a thrown message is shown and the dialog stays open. */
-  onName(name: string): Promise<void>
-  onClose(): void
-}) {
-  const [value, setValue] = useState('Notes')
-  const [error, setError] = useState<string | null>(null)
-  const [busy, setBusy] = useState(false)
-  return (
-    <Dialog
-      title="New Family on this device"
-      submit="Start"
-      busy={busy}
-      error={error}
-      onClose={onClose}
-      onSubmit={async () => {
-        setBusy(true)
-        setError(null)
-        try {
-          await onName(value.replace(/\s+/g, ' ').trim() || 'Notes')
-          onClose()
-        } catch (e) {
-          setError(e instanceof Error ? e.message : String(e))
-          setBusy(false)
-        }
-      }}
-    >
-      <Field
-        label="Name"
-        hint="Kept in this browser’s storage on this device; copy it to a folder or a repository later."
-      >
-        <input
-          className={controls.input}
-          name="name"
-          autoComplete="off"
-          autoFocus
-          required
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          onFocus={(e) => e.target.select()}
-        />
-      </Field>
-    </Dialog>
   )
 }
 

@@ -1,24 +1,17 @@
 // `#/`: the app opens straight into a Family, the one last shown on this device or the
-// first one found. Without any, it says what a Family is and how to make or connect one.
+// first one found. Without any, the introduction offers GitHub or a folder.
 
-import { useEffect, useState } from 'react'
-import { Redirect, useLocation } from 'wouter'
-import type { TreeRef } from '../github/graphql'
+import { useEffect } from 'react'
+import { Redirect } from 'wouter'
 import { session, useSession } from '../store/session'
-import controls from './controls.module.css'
-import { ConnectDialog, FamilyMenu, lastFamily, openOn } from './FamilyMenu'
+import { FamilyMenu, lastFamily, openOn } from './FamilyMenu'
 import styles from './FamilyView.module.css'
-import { Icon } from './icons'
 import { allHref, treeHref } from './paths'
-import { FolderButton } from './FolderButton'
-import { CreateTreeDialog } from './StructureDialogs'
 import { Divider, TopBar } from './TopBar'
 
 export function Start() {
   const trees = useSession((s) => s.trees)
   const discovery = useSession((s) => s.discovery)
-  const [dialog, setDialog] = useState<'connect' | 'create' | null>(null)
-  const [, navigate] = useLocation()
 
   useEffect(() => {
     if (session.getState().trees.length === 0) void session.getState().discover()
@@ -29,12 +22,8 @@ export function Start() {
   // Every Family together, unless this device chose to open on the last one (issue #69).
   if (trees.length > 1 && openOn() === 'all') return <Redirect to={allHref()} replace />
   if (family) return <Redirect to={treeHref(family.repo)} replace />
+  if (discovery !== 'idle' && discovery !== 'loading') return <Redirect to="/welcome" replace />
 
-  const go = (tree: TreeRef) => {
-    void session.getState().open(tree.repo)
-    navigate(treeHref(tree.repo))
-  }
-  const looking = discovery === 'idle' || discovery === 'loading'
   return (
     <div className={styles.page}>
       <TopBar>
@@ -45,37 +34,10 @@ export function Start() {
         </div>
       </TopBar>
       <main id="main" tabIndex={-1} className={styles.main}>
-        {looking ? (
-          <p className={styles.placeholder} aria-busy="true">
-            Looking for your notes…
-          </p>
-        ) : (
-          <div className={styles.placeholder}>
-            <h2 className={styles.emptyTitle}>No Family yet</h2>
-            <p>
-              A Family is a GitHub repository, or a folder on this device, with a{' '}
-              <code>.yeraz.json</code> file at its root. Every folder or leaf at its top is a Tree.
-            </p>
-            <div className={styles.actions}>
-              <button
-                type="button"
-                className={controls.primary}
-                onClick={() => setDialog('create')}
-              >
-                <Icon name="plus" />
-                Create a new repository
-              </button>
-              <button type="button" className={controls.ghost} onClick={() => setDialog('connect')}>
-                <Icon name="repo" />
-                Connect repository
-              </button>
-              <FolderButton onAdded={go} />
-            </div>
-          </div>
-        )}
+        <p className={styles.placeholder} aria-busy="true">
+          Looking for your notes…
+        </p>
       </main>
-      {dialog === 'connect' && <ConnectDialog onClose={() => setDialog(null)} onConnected={go} />}
-      {dialog === 'create' && <CreateTreeDialog onClose={() => setDialog(null)} onCreated={go} />}
     </div>
   )
 }

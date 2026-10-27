@@ -30,15 +30,17 @@ test('removes the Family from this device: GitHub keeps it, and it is not found 
   const dialog = page.getByRole('dialog', { name: 'Remove Engineering' })
   await expect(dialog).toContainText('stays on GitHub')
   await dialog.getByRole('button', { name: 'Remove' }).click()
-  await expect(page.getByRole('heading', { name: 'No Family yet' })).toBeVisible()
+  // No Family left: the introduction.
+  await expect(page).toHaveURL(/#\/welcome$/)
   expect(fake.repo(REPO).read('.yeraz.json')).toContain('Engineering')
-  await expect(await familyMenu(page)).not.toContainText('Engineering')
-  await page.keyboard.press('Escape')
+  await expect(page.getByRole('link', { name: 'Back to your notes' })).toHaveCount(0)
 
   // Reloading looks for Families again: this one stays off, until connected by hand.
+  await page.goto('./')
   await page.reload()
-  await expect(page.getByRole('heading', { name: 'No Family yet' })).toBeVisible()
-  await (await familyMenu(page)).getByRole('menuitem', { name: 'Connect repository' }).click()
+  await expect(page).toHaveURL(/#\/welcome$/)
+  await page.getByRole('button', { name: 'GitHub', exact: true }).click()
+  await page.getByRole('button', { name: 'Connect repository' }).click()
   await page.getByPlaceholder('owner/name').fill(REPO)
   await page.getByRole('button', { name: 'Connect', exact: true }).click()
   await expect(page).toHaveURL(/#\/tree\/you\/engineering$/)

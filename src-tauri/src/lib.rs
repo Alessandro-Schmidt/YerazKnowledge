@@ -44,6 +44,7 @@ pub fn run() {
             set_token,
             delete_token,
             folder::pick_folder,
+            folder::new_folder,
             folder::list_folder,
             folder::read_file,
             folder::write_file,

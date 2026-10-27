@@ -18,10 +18,9 @@ test.beforeEach(async ({ page }) => {
 
 test('starts a Family on the device, writes to it, and reopens on it', async ({ page }) => {
   await page.goto('./')
-  await page.getByRole('button', { name: 'Start on this device' }).click()
-  const dialog = page.getByRole('dialog', { name: 'New Family on this device' })
-  await dialog.getByLabel('Name').fill('Notes')
-  await dialog.getByRole('button', { name: 'Start' }).click()
+  await page.getByRole('button', { name: 'Folder', exact: true }).click()
+  await page.getByLabel('Name').fill('Notes')
+  await page.getByRole('button', { name: 'Create project' }).click()
   await expect(page).toHaveURL(/#\/tree\/~\/notes$/)
 
   await page.goto('./#/tree/~/notes/welcome.md')
@@ -34,7 +33,7 @@ test('starts a Family on the device, writes to it, and reopens on it', async ({ 
   await expect(status).toContainText('Saved on this device', { timeout: 10_000 })
 
   await page.reload()
-  await expect(page.getByRole('heading', { name: 'Connect GitHub' })).toHaveCount(0)
+  await expect(page.getByRole('heading', { name: 'Yeraz', level: 1 })).toHaveCount(0)
   await page.goto('./#/tree/~/notes/welcome.md')
   await expect(page.locator('.cm-content')).toContainText('Kept here.')
 })
@@ -47,6 +46,7 @@ test('copies in a folder of notes, named after it', async ({ page }, info) => {
   await writeFile(`${vault}/.obsidian/app.json`, '{}')
   await page.goto('./')
   const chooser = page.waitForEvent('filechooser')
+  await page.getByRole('button', { name: 'Folder', exact: true }).click()
   await page.getByRole('button', { name: 'Copy in a folder' }).click()
   await (await chooser).setFiles(vault)
   await expect(page).toHaveURL(/#\/tree\/~\/vault$/)
@@ -58,10 +58,9 @@ test('starts a Family with a name of its own, and deletes it from the device on 
   page,
 }) => {
   await page.goto('./')
-  await page.getByRole('button', { name: 'Start on this device' }).click()
-  const naming = page.getByRole('dialog', { name: 'New Family on this device' })
-  await naming.getByLabel('Name').fill('Recipes')
-  await naming.getByRole('button', { name: 'Start' }).click()
+  await page.getByRole('button', { name: 'Folder', exact: true }).click()
+  await page.getByLabel('Name').fill('Recipes')
+  await page.getByRole('button', { name: 'Create project' }).click()
   await expect(page).toHaveURL(/#\/tree\/~\/recipes$/)
   await expect(page.getByRole('heading', { level: 1 })).toContainText('Recipes')
 
@@ -70,14 +69,15 @@ test('starts a Family with a name of its own, and deletes it from the device on 
   const dialog = page.getByRole('dialog', { name: 'Remove Recipes' })
   await expect(dialog).toContainText('deleted from this device')
   await dialog.getByRole('button', { name: 'Delete' }).click()
-  // The last Family on a device without GitHub: back to the start.
-  await expect(page.getByRole('heading', { name: 'Connect GitHub' })).toBeVisible()
+  // The last Family on a device without GitHub: back to the introduction.
+  await expect(page.getByRole('heading', { name: 'Yeraz', level: 1 })).toBeVisible()
   await page.reload()
-  await expect(page.getByRole('heading', { name: 'Connect GitHub' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Yeraz', level: 1 })).toBeVisible()
 })
 
 test('Try an example starts the example Family on the device', async ({ page }) => {
   await page.goto('./')
+  await page.getByRole('button', { name: 'Folder', exact: true }).click()
   await page.getByRole('button', { name: 'Try an example' }).click()
   await expect(page).toHaveURL(/#\/tree\/~\/example$/)
   await page.goto('./#/tree/~/example/Welcome.md')

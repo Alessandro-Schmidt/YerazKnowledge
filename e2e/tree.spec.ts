@@ -565,12 +565,27 @@ test('the Family view, its menu and the Peek have no accessibility violations', 
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
 })
 
+test('the Yeraz logo opens the introduction, which leads to repositories and back to the notes', async ({
+  page,
+}) => {
+  await signIn(page)
+  await page.getByRole('link', { name: 'Yeraz', exact: true }).click()
+  await expect(page).toHaveURL(/#\/welcome$/)
+  await page.getByRole('button', { name: 'GitHub', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Connect repository' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Create a new repository' })).toBeVisible()
+  await expect(page.getByLabel('Personal access token')).toHaveCount(0)
+  await page.getByRole('button', { name: 'Back' }).click()
+  await page.getByRole('link', { name: 'Back to your notes' }).click()
+  await expect(page.locator('[data-map]')).toBeVisible()
+})
+
 test('signs out from the Family menu', async ({ page }) => {
   await signIn(page)
   await (await familyMenu(page)).getByRole('menuitem', { name: 'Sign out' }).click()
-  await expect(page.getByRole('heading', { name: 'Connect GitHub' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Yeraz', level: 1 })).toBeVisible()
   await page.reload()
-  await expect(page.getByRole('heading', { name: 'Connect GitHub' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Yeraz', level: 1 })).toBeVisible()
 })
 
 test('the map works from the keyboard: arrows move the selection, Enter opens, Escape clears', async ({

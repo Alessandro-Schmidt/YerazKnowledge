@@ -36,22 +36,75 @@
   letter-spacing: -0.01em;
 }
 
-.subtitle {
+.back {
+  align-self: flex-start;
+  margin: -8px 0 -4px -10px;
+}
+
+.hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0 4px;
+  text-align: center;
+}
+
+.logo {
+  display: block;
+  height: 72px;
+  width: auto;
+  margin-bottom: 6px;
+}
+:root[data-mode='light'] .logoDark,
+:root[data-mode='dark'] .logoLight {
+  display: none;
+}
+
+.name {
   margin: 0;
-  font-size: 16px;
+  font-size: 30px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.choices {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.choice {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 16px;
+  border: 1px solid var(--hair);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.choice:hover {
+  background: var(--hover);
+}
+.choice:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.choiceName {
+  font-size: 15px;
   font-weight: 600;
 }
 
-/* The GitHub part of the card is the form; the card's gap still spaces its children. */
-.form {
-  display: contents;
-}
-
-.or {
-  width: 100%;
-  margin: 4px 0;
-  border: 0;
-  border-top: 1px solid var(--hair);
+.choiceText {
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.5;
 }
 
 .lead {
@@ -87,6 +140,40 @@
   gap: 8px;
 }
 
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.or {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+.or::before,
+.or::after {
+  content: '';
+  flex: 1;
+  border-top: 1px solid var(--hair);
+}
+
+.home {
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--accent);
+  font-size: 13.5px;
+  text-decoration: none;
+}
+.home:hover {
+  text-decoration: underline;
+}
+
 .fine {
   margin: 0;
   color: var(--muted);
@@ -101,5 +188,11 @@
 @media (max-width: 640px) {
   .card {
     padding: 20px;
+  }
+}
+
+@media (max-width: 420px) {
+  .choices {
+    grid-template-columns: 1fr;
   }
 }
