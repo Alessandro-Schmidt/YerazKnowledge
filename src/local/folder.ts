@@ -117,6 +117,8 @@ type Picker = (options: { mode: 'readwrite'; id?: string }) => Promise<DirHandle
 
 const missing = () =>
   new FolderError('missing', "This folder isn't there any more: it may have been moved or renamed.")
+const denied = () =>
+  new FolderError('permission', 'Yeraz needs your permission to open this folder again.')
 
 /** Runs a file operation, turning a vanished folder into a FolderError. */
 async function guard<T>(run: () => Promise<T>): Promise<T> {
@@ -222,23 +224,24 @@ export function browserFolders(): FolderAccess | null {
       const dir = handle as DirHandle
       let state = await dir.queryPermission({ mode: 'readwrite' })
       if (state !== 'granted' && ask) state = await dir.requestPermission({ mode: 'readwrite' })
-      if (state !== 'granted')
-        throw new FolderError(
-          'permission',
-          'Yeraz needs your permission to open this folder again.',
-        )
+      if (state !== 'granted') throw denied()
       return browserFs(dir)
     },
   }
 }
 
-/** Folders through the desktop app's commands; a handle is the folder's absolute path. */
+/**
+ * Folders through the desktop app's commands; a handle is the folder's absolute path. The
+ * desktop opens only folders picked there: any other answers `permission`, and asking
+ * (`open` with `ask`) shows the system's own dialog.
+ */
 export function desktopFolders(invoke: Invoke): FolderAccess {
   const call = async <T>(cmd: string, args: Record<string, unknown>) => {
     try {
       return await invoke<T>(cmd, args)
     } catch (e) {
       if (String(e) === 'missing') throw missing()
+      if (String(e) === 'permission') throw denied()
       throw new Error(String(e), { cause: e })
     }
   }
@@ -250,7 +253,7 @@ export function desktopFolders(invoke: Invoke): FolderAccess {
         : null
     },
     async create(name) {
-      const parent = await invoke<string | null>('pick_folder')
+      const parent = await invoke<string | null>('pick_parent')
       if (!parent) return null
       try {
         return { name, handle: await invoke<string>('new_folder', { parent, name }) }
@@ -259,8 +262,9 @@ export function desktopFolders(invoke: Invoke): FolderAccess {
         throw new Error(String(e), { cause: e })
       }
     },
-    async open(handle) {
+    async open(handle, ask) {
       const root = handle as string
+      if (ask && !(await call<boolean>('allow_folder', { root }))) throw denied()
       return {
         list: () => call<FolderFile[]>('list_folder', { root }),
         read: async (path) => new Uint8Array(await call<ArrayBuffer>('read_file', { root, path })),

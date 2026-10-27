@@ -14,7 +14,9 @@ export default defineConfig({
   use: {
     ...devices['Desktop Chrome'],
     baseURL: `http://localhost:${PORT}`,
-    trace: 'retain-on-failure',
+    // A trace records the token (typed, and in every request's headers): kept on your machine
+    // only, never in CI, where test results could end up somewhere others can read them.
+    trace: process.env.CI ? 'off' : 'retain-on-failure',
   },
   webServer: {
     command: `npx vite build --outDir dist-contract && npx vite preview --outDir dist-contract --port ${PORT} --strictPort`,

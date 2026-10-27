@@ -47,7 +47,7 @@ import { parseLeaf, parseMeta, withMeta, type ParsedLeaf } from '../model/parse'
 import { gitBlobSha } from '../model/sha'
 import { slugify } from '../model/slug'
 import { branchText, buildTree, isTemplatePath } from '../model/tree'
-import { assetBytes, mimeOf } from '../sync/assets'
+import { assetBytes, objectUrl } from '../sync/assets'
 import { createAutosave, type Autosave } from '../sync/autosave'
 import { pullFolder, pushFolder } from '../sync/folder'
 import { isLocal, overlay } from '../sync/overlay'
@@ -809,7 +809,7 @@ export function createSession(deps: {
         let url = urls.get(id)
         if (!url) {
           const bytes = id instanceof Uint8Array ? id : await bytesOf(repo, path, id)
-          url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: mimeOf(path) }))
+          url = objectUrl(bytes, path)
           urls.set(id, url)
         }
         return url

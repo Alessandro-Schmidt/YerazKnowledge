@@ -49,3 +49,17 @@ const TYPES: Record<string, string> = {
 
 export const mimeOf = (path: string) =>
   TYPES[/\.([^./]+)$/.exec(path)?.[1]?.toLowerCase() ?? ''] ?? 'application/octet-stream'
+
+/**
+ * An address for a file's bytes. An SVG can hold a script, and a `blob:` address shares the
+ * app's origin, so one opened in its own tab could read the token: SVGs get a `data:`
+ * address instead, which browsers won't open in a tab or open in an origin of its own.
+ */
+export function objectUrl(bytes: Uint8Array, path: string): string {
+  const type = mimeOf(path)
+  if (type !== 'image/svg+xml') return URL.createObjectURL(new Blob([bytes as BlobPart], { type }))
+  let binary = ''
+  for (let i = 0; i < bytes.length; i += 0x8000)
+    binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000))
+  return `data:${type};base64,${btoa(binary)}`
+}

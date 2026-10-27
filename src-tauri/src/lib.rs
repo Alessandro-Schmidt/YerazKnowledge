@@ -35,15 +35,28 @@ fn delete_token() -> Result<(), String> {
 
 mod folder;
 
+use tauri::Manager;
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .setup(|app| {
+            let file = app
+                .path()
+                .app_data_dir()
+                .ok()
+                .map(|d| d.join("folders.txt"));
+            app.manage(folder::Allowed::load(file));
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             get_token,
             set_token,
             delete_token,
             folder::pick_folder,
+            folder::pick_parent,
+            folder::allow_folder,
             folder::new_folder,
             folder::list_folder,
             folder::read_file,
