@@ -4,7 +4,7 @@
 // paper does: typing scrolls the panel so the caret stays this far down the part of the screen
 // the keyboard leaves. Stable and predictable; nothing happens on a mouse.
 
-import { ViewPlugin, type ViewUpdate } from '@codemirror/view'
+import { ViewPlugin, type EditorView, type ViewUpdate } from '@codemirror/view'
 
 /** Where the caret sits while writing, as a share of the visible height. */
 const EYE_LEVEL = 0.38
@@ -20,26 +20,35 @@ function scrollerOf(el: HTMLElement): HTMLElement | null {
   return null
 }
 
+/**
+ * Measured after the change is drawn; the editor's own scrolling, which runs after this,
+ * then finds the caret in view and leaves it. A slow device can draw late: one more look
+ * on the next frame puts right whatever moved meanwhile.
+ */
+function settle(view: EditorView, again: boolean) {
+  view.requestMeasure({
+    read: () => {
+      const scroller = scrollerOf(view.dom)
+      const caret = view.coordsAtPos(view.state.selection.main.head)
+      if (!scroller || !caret) return null
+      const box = scroller.getBoundingClientRect()
+      const vv = window.visualViewport
+      const bottom = vv ? vv.offsetTop + vv.height : window.innerHeight
+      const visible = Math.min(box.bottom, bottom) - box.top
+      return { scroller, by: caret.top - (box.top + visible * EYE_LEVEL) }
+    },
+    write: (m) => {
+      if (!m || Math.abs(m.by) <= 1) return
+      m.scroller.scrollTop += m.by
+      if (again) requestAnimationFrame(() => settle(view, false))
+    },
+  })
+}
+
 export const steadyCaret = ViewPlugin.define((view) => ({
   update(u: ViewUpdate) {
     if (!u.docChanged || !touch()) return
     if (!u.transactions.some((tr) => tr.isUserEvent('input') || tr.isUserEvent('delete'))) return
-    // Measured after the change is drawn; the editor's own scrolling, which runs after this,
-    // then finds the caret in view and leaves it.
-    view.requestMeasure({
-      read: () => {
-        const scroller = scrollerOf(view.dom)
-        const caret = view.coordsAtPos(view.state.selection.main.head)
-        if (!scroller || !caret) return null
-        const box = scroller.getBoundingClientRect()
-        const vv = window.visualViewport
-        const bottom = vv ? vv.offsetTop + vv.height : window.innerHeight
-        const visible = Math.min(box.bottom, bottom) - box.top
-        return { scroller, by: caret.top - (box.top + visible * EYE_LEVEL) }
-      },
-      write: (m) => {
-        if (m && Math.abs(m.by) > 1) m.scroller.scrollTop += m.by
-      },
-    })
+    settle(view, true)
   },
 }))
