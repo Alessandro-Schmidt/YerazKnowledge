@@ -1,0 +1,38 @@
+name: Desktop
+
+# The Tauri shell builds and launches (src-tauri/), only when it or the packages change.
+# Not part of the deploy: the web app ships without it.
+on:
+  pull_request:
+    paths: ['src-tauri/**', 'package.json', 'package-lock.json', '.github/workflows/desktop.yml']
+  push:
+    branches: [main]
+    paths: ['src-tauri/**', 'package.json', 'package-lock.json', '.github/workflows/desktop.yml']
+  workflow_dispatch:
+
+concurrency:
+  group: desktop-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  desktop:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libdbus-1-dev xvfb
+      - run: npm ci && npx vite build
+      - run: cargo build --locked --manifest-path src-tauri/Cargo.toml
+      # The same launch check as release.yml: the app starts and is still running 15 s later.
+      - run: |
+          set +e
+          timeout 15 xvfb-run -a src-tauri/target/debug/yeraz
+          code=$?
+          set -e
+          test $code -eq 124 || { echo "Yeraz exited with $code"; exit 1; }
