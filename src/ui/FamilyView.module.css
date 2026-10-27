@@ -195,13 +195,6 @@
   }
 }
 
-/* No Family yet (Start.tsx) */
-.emptyTitle {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--text);
-}
 .placeholder p {
   max-width: 440px;
   margin: 0;

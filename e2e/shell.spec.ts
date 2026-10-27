@@ -6,8 +6,15 @@ test.beforeEach(async ({ page }) => {
   await page.evaluate(() => document.fonts.ready)
 })
 
-test('starts on the token screen, on the Vanta background', async ({ page }) => {
-  await expect(page.getByRole('heading', { name: 'Connect GitHub' })).toBeVisible()
+test('starts on the welcome screen: the logo, the name, GitHub or a folder', async ({ page }) => {
+  await expect(page.getByRole('heading', { name: 'Yeraz', level: 1 })).toBeVisible()
+  await expect(page.locator('main img').first()).toBeVisible()
+  await expect(page.getByRole('button', { name: 'GitHub', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Folder', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Connect GitHub' })).toHaveCount(0)
+})
+
+test('starts on the Vanta background', async ({ page }) => {
   await expect(page.locator('header img').first()).toBeVisible()
   const colours = await page.evaluate(() => ({
     body: getComputedStyle(document.body).backgroundColor,
@@ -58,11 +65,38 @@ test('loads the Geist interface font', async ({ page }) => {
   expect(faces).toEqual({ loaded: 1, check: true })
 })
 
-test('the token screen has no accessibility violations', async ({ page }) => {
+test('the welcome and token screens have no accessibility violations', async ({ page }) => {
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
+  await page.getByRole('button', { name: 'GitHub', exact: true }).click()
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
 })
 
+test('goes back from either choice to the welcome screen', async ({ page }) => {
+  for (const choice of ['GitHub', 'Folder']) {
+    await page.getByRole('button', { name: choice, exact: true }).click()
+    await page.getByRole('button', { name: 'Back' }).click()
+    await expect(page.getByRole('heading', { name: 'Yeraz', level: 1 })).toBeVisible()
+  }
+})
+
+test('the Yeraz logo returns to the introduction', async ({ page }) => {
+  await page.getByRole('button', { name: 'GitHub', exact: true }).click()
+  await page.getByRole('link', { name: 'Yeraz', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Yeraz', level: 1 })).toBeVisible()
+  await page.getByRole('button', { name: 'Folder', exact: true }).click()
+  await page.getByRole('link', { name: 'Yeraz', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Yeraz', level: 1 })).toBeVisible()
+})
+
+test('a project needs a name a folder can have', async ({ page }) => {
+  await page.getByRole('button', { name: 'Folder', exact: true }).click()
+  await page.getByLabel('Name').fill('a/b')
+  await page.getByRole('button', { name: /Choose where to create it…|Create project/ }).click()
+  await expect(page.getByRole('alert')).toContainText("can't contain")
+})
+
 test('refuses a token GitHub rejects, and says why', async ({ page }) => {
+  await page.getByRole('button', { name: 'GitHub', exact: true }).click()
   await page.getByLabel('Personal access token').fill('wrong')
   await page.getByRole('button', { name: 'Continue' }).click()
   await expect(page.getByRole('alert')).toContainText("GitHub didn't accept this token")

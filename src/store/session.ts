@@ -36,6 +36,7 @@ import {
   desktopFolders,
   deviceFolders,
   isFolder,
+  projectNameProblem,
   type FolderAccess,
   type FolderFs,
 } from '../local/folder'
@@ -100,14 +101,11 @@ export interface SessionState {
   /**
    * Asks for a folder on this device and adds it as a Family; null when the person cancels.
    * A folder without `.yeraz.json` gets one (and a welcome leaf and `CLAUDE.md`, when it has
-   * no leaves; `seed` files instead, when given: the example Family). With `empty`, a Family
-   * kept on the device starts with nothing but those, called `title`.
+   * no leaves; `seed` files instead, when given: the example Family). With `project`, a new
+   * folder by that name instead, made where the person chooses (on a device without folders,
+   * a new Family kept on it). Throws a message for a name no folder can have.
    */
-  addFolder(
-    empty?: boolean,
-    title?: string,
-    seed?: Readonly<Record<string, string>>,
-  ): Promise<TreeRef | null>
+  addFolder(project?: string, seed?: Readonly<Record<string, string>>): Promise<TreeRef | null>
   /**
    * Takes a Family off this device: a repository stays on GitHub (and isn't found again until
    * connected by hand), a folder stays on the disk, a Family in the device's own storage is
@@ -617,13 +615,20 @@ export function createSession(deps: {
         }
       },
 
-      async addFolder(empty, title, seed) {
+      async addFolder(project, seed) {
         const access = deps.folders
         if (!access)
           throw new Error(
             "This browser can't open folders. Use Chrome or Edge on a computer, or the desktop app.",
           )
-        const picked = await access.pick(empty, title)
+        let picked
+        if (project === undefined) picked = await access.pick()
+        else {
+          const name = project.trim()
+          const problem = projectNameProblem(name)
+          if (problem) throw new Error(problem)
+          picked = await access.create(name)
+        }
         if (!picked) return null
         const fs = await access.open(picked.handle, true)
         const files = await fs.list()
