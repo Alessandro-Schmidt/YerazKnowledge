@@ -1,0 +1,15 @@
+name: Debug steady
+on:
+  workflow_dispatch:
+jobs:
+  steady:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npx playwright test e2e/zz-steady-debug.spec.ts --project pixel --repeat-each 2 --workers 2 --retries 0
