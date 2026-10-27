@@ -63,9 +63,15 @@ export function FamilyView({ params }: { params: { owner: string; name: string; 
     [found, lit],
   )
 
+  // Another Family: its columns go (adjusting state while rendering, as the selection below).
+  const [pinnedFor, setPinnedFor] = useState(repo)
+  if (pinnedFor !== repo) {
+    setPinnedFor(repo)
+    setPinned([])
+  }
+
   useEffect(() => {
     markNow('tree-open')
-    setPinned([])
     rememberFamily(repo)
     void session.getState().open(repo)
     preloadEditor()
