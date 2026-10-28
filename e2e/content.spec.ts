@@ -462,6 +462,38 @@ test.describe('embeds', () => {
     await expect(editor.locator('.cm-math')).toHaveCount(1)
     await expect(editor).toContainText('$e^{i\\pi} + 1 = 0$')
   })
+
+  test("plays a /live/ link and YouTube's own embed code pasted under an image", async ({
+    page,
+    fake,
+  }) => {
+    await fake.repo(REPO).commit({
+      message: 'videos',
+      additions: [
+        {
+          path: 'videos.md',
+          contents: [
+            '# Videos',
+            '',
+            '[Live](https://www.youtube.com/live/dQw4w9WgXcQ?si=x)',
+            '',
+            '![Shot](https://example.com/shot.png)',
+            '<iframe width="560" height="315" src="https://www.youtube.com/embed/dQw4w9WgXcQ?si=x" title="YouTube video player" allowfullscreen></iframe>',
+            '',
+          ].join('\n'),
+        },
+      ],
+    })
+    await page.goto(`./#/tree/${REPO}/videos.md`)
+    await signInHere(page)
+    const players = page.locator('.cm-content .cm-embed-youtube iframe')
+    await expect(players).toHaveCount(2)
+    for (const player of await players.all())
+      await expect(player).toHaveAttribute(
+        'src',
+        'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ',
+      )
+  })
 })
 
 test.describe('what github.com renders', () => {
