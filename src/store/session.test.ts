@@ -95,6 +95,15 @@ describe('session', () => {
     expect(s.getState().data['you/dotfiles']).toMatchObject({ status: 'ready' })
   })
 
+  it('gives an empty repository its first commit when turning it into a Family', async () => {
+    await fake.addRepo('you/empty', null)
+    const s = createSession({ store: memoryStore() })
+    await s.getState().signIn('good')
+    await s.getState().connect('you/empty', true)
+    expect(fake.repo('you/empty').read('.yeraz.json')).toBe('{"name":"empty"}\n')
+    expect(fake.repo('you/empty').read('empty/welcome.md')).toContain('# 🌱 Welcome')
+  })
+
   it('connects a repository by name, and keeps it after rediscovery', async () => {
     const store = memoryStore()
     const s = createSession({ store })

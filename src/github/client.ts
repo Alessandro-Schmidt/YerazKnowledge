@@ -53,6 +53,8 @@ export interface GitHubClient {
   post<T>(path: string, body: unknown): Promise<T>
   /** PATCH to a REST path (renaming a repository); answers the parsed JSON. */
   patch<T>(path: string, body: unknown): Promise<T>
+  /** PUT to a REST path (one file, the first commit of an empty repository); answers the parsed JSON. */
+  put<T>(path: string, body: unknown): Promise<T>
   /** The branch's head commit SHA; `'not-modified'` when `etag` still matches (free of rate limit). */
   getHead(
     repo: string,
@@ -129,6 +131,15 @@ export function createGitHubClient({
     async post<T>(path: string, body: unknown) {
       const res = await request(path, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      return (await res.json()) as T
+    },
+
+    async put<T>(path: string, body: unknown) {
+      const res = await request(path, {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       })
