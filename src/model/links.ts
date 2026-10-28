@@ -10,7 +10,9 @@ export function destination(path: string): string {
 
 /** `[Title](/path.md)`: a thread, as the repository format writes it (ARCHITECTURE.md §4). */
 export function mentionLink(title: string, path: string): string {
-  return `[${title.replace(/[[\]\\]/g, '\\$&')}](${destination(path)})`
+  // Another Family's file: its full URL (ARCHITECTURE.md §4).
+  const to = /^https?:\/\//.test(path) ? path : destination(path)
+  return `[${title.replace(/[[\]\\]/g, '\\$&')}](${to})`
 }
 
 /**

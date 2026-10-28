@@ -19,6 +19,8 @@ export interface MentionLeaf {
   path: string
   title: string
   icon: string | null
+  /** Where it is, beside it: a branch, or another Family; its folder otherwise. */
+  detail?: string
 }
 
 /** The Tree as the editor sees it; read on use, so it follows the latest graph. */
@@ -27,7 +29,7 @@ export interface MentionSource {
   leaf(path: string): MentionLeaf | null
   open(path: string): void
   /** Another connected Tree by `owner/name`: its title and in-app href (`#/tree/…`). */
-  tree?(repo: string): { title: string; href: string } | null
+  tree?(repo: string): { title: string; href: string; node?(path: string): string } | null
   /** The file being written (a leaf, or a branch's README.md): a new leaf goes beside it. */
   here?(): string
   /** Adds `text` at the end of the leaf at `path`: dragged text dropped on its chip. */
@@ -64,7 +66,8 @@ export function completeMention(context: CompletionContext): CompletionResult | 
   const options: Completion[] = source.leaves().map((leaf) => ({
     label: leaf.title,
     displayLabel: leaf.icon ? `${leaf.icon} ${leaf.title}` : leaf.title,
-    detail: leaf.path.includes('/') ? leaf.path.replace(/\/[^/]*$/, '') : undefined,
+    detail:
+      leaf.detail ?? (leaf.path.includes('/') ? leaf.path.replace(/\/[^/]*$/, '') : undefined),
     apply: insert(leaf.title, leaf.path),
   }))
   // A name no leaf has: the last option writes a link to it, beside this leaf.

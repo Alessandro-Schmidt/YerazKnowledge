@@ -73,6 +73,35 @@ test('Keep open holds a leaf of one Family beside a leaf of another', async ({ p
   await expect(peeks).toHaveCount(1)
 })
 
+test('@ links to another Family’s Tree; the map of every Family draws the thread', async ({
+  page,
+  fake,
+  graph,
+}) => {
+  test.skip(isPhone(page), 'Typing tests run on desktop engines')
+  const tree = graph.nodes.get('')!.children.find((id) => graph.nodes.get(id)!.kind === 'branch')!
+  const title = graph.nodes.get(tree)!.title
+  await signIn(page)
+  await page.goto('./#/all')
+  await expect(page.locator('[data-group]')).toHaveCount(2)
+  const between = await page.locator('[data-map] [data-between]').count()
+
+  await page.goto('./#/tree/you/art/Baroque/caravaggio.md')
+  await page.locator('.cm-content').click()
+  await page.keyboard.press('ControlOrMeta+End')
+  await page.keyboard.type(`\nSee @${title}`)
+  await page.getByRole('option', { name: new RegExp(`^${title}.*Engineering · Tree`) }).click()
+  await page.keyboard.press('ControlOrMeta+s')
+  await expect
+    .poll(() => fake.repo('you/art').read('Baroque/caravaggio.md'))
+    .toContain(
+      `[${title}](https://github.com/you/engineering/blob/main/${encodeURI(tree)}/README.md)`,
+    )
+
+  await page.goto('./#/all')
+  await expect(page.locator('[data-map] [data-between]')).toHaveCount(between + 1)
+})
+
 test('a leaf moves to another Family, found by typing where', async ({ page, fake }) => {
   test.skip(isPhone(page), 'The move dialog is the same on phones; one run is enough')
   await signIn(page)

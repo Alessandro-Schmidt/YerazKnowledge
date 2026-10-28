@@ -73,6 +73,34 @@ describe('mergeFamilies', () => {
     expect(merged.threads.some((t) => t.from.endsWith('::welcome.md'))).toBe(false)
   })
 
+  it('links to another Family’s branch or Tree, or to a Family kept in a folder (root), are threads', () => {
+    const notes = {
+      ref: { ...ref('you/project', 'Project'), root: 'notes' },
+      graph: graphOf({ 'Plans/roadmap.md': '# Roadmap\n', 'Plans/README.md': '# Plans\n' }, 'P'),
+    }
+    const from = {
+      ref: ref('you/home', 'Home'),
+      graph: graphOf(
+        {
+          'links.md':
+            '# Links\n\n[Plans](https://github.com/you/project/blob/main/notes/Plans/README.md), ' +
+            '[Roadmap](https://github.com/you/project/blob/main/notes/Plans/roadmap.md), ' +
+            '[Baroque](https://github.com/you/art/blob/main/Baroque/README.md)\n',
+        },
+        'Home',
+      ),
+    }
+    const all = mergeFamilies([from, notes, art], 'All Families')
+    const links = allId('you/home', 'links.md')
+    expect(all.threads).toContainEqual({ from: links, to: allId('you/project', 'Plans') })
+    expect(all.threads).toContainEqual({
+      from: links,
+      to: allId('you/project', 'Plans/roadmap.md'),
+    })
+    // A branch without its README.md yet: still the branch.
+    expect(all.threads).toContainEqual({ from: links, to: allId('you/art', 'Baroque') })
+  })
+
   it('splits a merged id back into its Family and node', () => {
     expect(splitId('you/engineering::Identity/oidc.md')).toEqual({
       repo: 'you/engineering',

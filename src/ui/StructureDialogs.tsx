@@ -3,7 +3,7 @@
 // (development-plan.md M2 steps 2 and 5). Plans come from sync/structure.ts.
 
 import { useEffect, useMemo, useState } from 'react'
-import { inRepo, type TreeRef } from '../github/graphql'
+import { fileUrl, type TreeRef } from '../github/graphql'
 import { crumbs, type Graph, type Template } from '../model/graph'
 import { ROOT } from '../model/tree'
 import { session, useSession } from '../store/session'
@@ -41,11 +41,8 @@ const where = (graph: Graph, id: string, family = 'the Family') =>
     ? `At the top of ${family}, as a Tree of its own`
     : [...crumbs(graph, id), graph.nodes.get(id)!.title].join(' / ')
 
-/** A file's address from another Family: its page on GitHub; a folder's Family has none. */
-const urlOf = (ref: TreeRef) => (path: string) =>
-  ref.folder === undefined
-    ? `https://github.com/${ref.repo}/blob/${ref.branch}/${encodeURI(inRepo(ref, path))}`
-    : null
+/** A file's address from another Family. */
+const urlOf = (ref: TreeRef) => (path: string) => fileUrl(ref, path)
 
 /** Every word typed is somewhere in `label`, ignoring case. */
 const matches = (label: string, query: string) =>
