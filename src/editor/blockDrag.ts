@@ -81,6 +81,9 @@ function below(view: EditorView, block: Block, y: number) {
   return y > (top + bottom) / 2
 }
 
+/** How far beside the text a dragged block may still be dropped: the handle's column, and as much on the right. */
+const REACH = 40
+
 const handles = ViewPlugin.fromClass(
   class {
     grip = document.createElement('div')
@@ -112,14 +115,54 @@ const handles = ViewPlugin.fromClass(
         e.dataTransfer.setData('text/plain', text)
         e.dataTransfer.setData(TYPE, '')
         e.dataTransfer.effectAllowed = 'move'
+        // The whole page listens while it is dragged: a drop beside the text counts too.
+        document.addEventListener('dragover', this.dragover, true)
+        document.addEventListener('drop', this.drop, true)
       })
-      this.grip.addEventListener('dragend', () => {
-        dragged = null
-        this.line.hidden = true
-      })
+      this.grip.addEventListener('dragend', () => this.end())
     }
 
-    /** Puts the handle beside the block under the pointer. */
+    end() {
+      dragged = null
+      this.line.hidden = true
+      document.removeEventListener('dragover', this.dragover, true)
+      document.removeEventListener('drop', this.drop, true)
+    }
+
+    /** The text's column, as wide as a drop may land; null when `x`, `y` are outside it. */
+    aim(e: DragEvent): { x: number; y: number } | null {
+      // Over a chip: mentions.ts takes it.
+      if ((e.target as HTMLElement).closest?.('.cm-mention[data-path]')) return null
+      const content = this.view.contentDOM.getBoundingClientRect()
+      const { clientX: x, clientY: y } = e
+      if (y < content.top || y > content.bottom) return null
+      if (x < content.left - REACH || x > content.right + REACH) return null
+      return { x: Math.min(Math.max(x, content.left + 1), content.right - 1), y }
+    }
+
+    dragover = (e: DragEvent) => {
+      const at = this.aim(e)
+      if (!at) return void (this.line.hidden = true)
+      e.preventDefault()
+      e.stopPropagation()
+      if (e.dataTransfer) e.dataTransfer.dropEffect = 'move'
+      this.over(at.x, at.y)
+    }
+
+    drop = (e: DragEvent) => {
+      const at = this.aim(e)
+      const block = dragged?.block
+      if (!at || !block) return this.end()
+      e.preventDefault()
+      // CodeMirror's own drop would insert the text a second time.
+      e.stopPropagation()
+      const target = this.over(at.x, at.y)
+      this.end()
+      const spec = target && moveBlock(this.view.state, block, target.pos, target.after)
+      if (spec) this.view.dispatch(spec)
+    }
+
+    /** Puts the handle beside the block under the pointer, in the margin before the text. */
     point(x: number, y: number) {
       const pos = this.view.posAtCoords({ x, y }, false)
       const block = blockAt(this.view.state, pos)
@@ -131,7 +174,7 @@ const handles = ViewPlugin.fromClass(
       const content = this.view.contentDOM.getBoundingClientRect()
       this.grip.hidden = false
       this.grip.style.top = `${at.top - frame.top}px`
-      this.grip.style.left = `${content.left - frame.left - 26}px`
+      this.grip.style.left = `${content.left - frame.left - 21}px`
     }
 
     /** Shows where a dragged block would land. */
@@ -155,6 +198,7 @@ const handles = ViewPlugin.fromClass(
     }
 
     destroy() {
+      this.end()
       this.grip.remove()
       this.line.remove()
     }
@@ -163,30 +207,6 @@ const handles = ViewPlugin.fromClass(
     eventHandlers: {
       mousemove(e) {
         if (!(e.target as HTMLElement).closest?.('.cm-block-grip')) this.point(e.clientX, e.clientY)
-      },
-      dragover(e) {
-        if (!dragged || dragged.view !== this.view) return false
-        // Over a chip: mentions.ts takes it.
-        if ((e.target as HTMLElement).closest?.('.cm-mention[data-path]')) {
-          this.line.hidden = true
-          return false
-        }
-        e.preventDefault()
-        if (e.dataTransfer) e.dataTransfer.dropEffect = 'move'
-        this.over(e.clientX, e.clientY)
-        return true
-      },
-      drop(e) {
-        this.line.hidden = true
-        if (!dragged || dragged.view !== this.view) return false
-        if ((e.target as HTMLElement).closest?.('.cm-mention[data-path]')) return false
-        e.preventDefault()
-        const at = this.over(e.clientX, e.clientY)
-        this.line.hidden = true
-        const spec = at && moveBlock(this.view.state, dragged.block, at.pos, at.after)
-        dragged = null
-        if (spec) this.view.dispatch(spec)
-        return true
       },
     },
   },

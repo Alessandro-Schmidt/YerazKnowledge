@@ -130,7 +130,8 @@ test.describe('dragging text onto a chip', () => {
       await page.mouse.up()
     }
 
-    await drag('Stays.', line('See'), 2, 2)
+    // Dropped in the margin, level with the handles, not on the text.
+    await drag('Stays.', line('See'), -12, 2)
     await expect.poll(() => page.locator('.cm-content').innerText()).toMatch(/Stays\.[\s\S]*See/)
 
     await drag('Move me.', page.locator('.cm-mention[data-path="target.md"]'), 10, 8)
