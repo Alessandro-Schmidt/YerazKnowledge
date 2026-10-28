@@ -99,6 +99,48 @@ test.describe('dragging text onto a chip', () => {
       .toBe('# Target\n\nAlready here.\n\nMove me.\n')
     expect(fake.repo(REPO).read('from.md')).toBe('# From\n\nSee [Target](/target.md).\n\nStays.\n')
   })
+
+  test('a block, dragged by its handle, moves above another, or onto a chip', async ({
+    page,
+    fake,
+  }) => {
+    await fake.repo(REPO).commit({
+      message: 'drag',
+      additions: [
+        {
+          path: 'from.md',
+          contents: '# From\n\nSee [Target](/target.md).\n\nMove me.\n\nStays.\n',
+        },
+        { path: 'target.md', contents: '# Target\n\nAlready here.\n' },
+      ],
+    })
+    await page.goto(`./#/tree/${REPO}/from.md`)
+    await signInHere(page)
+    const line = (text: string) => page.locator('.cm-line', { hasText: text })
+    const grip = page.locator('.cm-block-grip')
+    /** Drags the handle of the block at `what` to `to`'s top left, in steps, as a hand does. */
+    const drag = async (what: string, to: ReturnType<Page['locator']>, dx = 40, dy = 2) => {
+      await line(what).hover()
+      const from = (await grip.boundingBox())!
+      await page.mouse.move(from.x + 9, from.y + 12)
+      await page.mouse.down()
+      await page.mouse.move(from.x + 20, from.y + 20, { steps: 5 })
+      const at = (await to.boundingBox())!
+      await page.mouse.move(at.x + dx, at.y + dy, { steps: 10 })
+      await page.mouse.up()
+    }
+
+    await drag('Stays.', line('See'), 2, 2)
+    await expect.poll(() => page.locator('.cm-content').innerText()).toMatch(/Stays\.[\s\S]*See/)
+
+    await drag('Move me.', page.locator('.cm-mention[data-path="target.md"]'), 10, 8)
+    await expect(page.locator('.cm-content')).not.toContainText('Move me.')
+    await page.keyboard.press('ControlOrMeta+s')
+    await expect
+      .poll(() => fake.repo(REPO).read('target.md'))
+      .toBe('# Target\n\nAlready here.\n\nMove me.\n')
+    expect(fake.repo(REPO).read('from.md')).toBe('# From\n\nStays.\n\nSee [Target](/target.md).\n')
+  })
 })
 
 test.describe('insert menu', () => {

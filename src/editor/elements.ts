@@ -96,9 +96,11 @@ export function deletion(state: EditorState, from: number, to: number): ChangeSp
   // Between two blank lines, one of them goes too, so the paragraphs keep one between them.
   const blank = (n: number) => n < 1 || n > state.doc.lines || !state.doc.line(n).text.trim()
   const after = state.doc.line(last.number + 1)
-  return blank(first.number - 1) && blank(after.number)
-    ? { from: first.from, to: Math.min(after.to + 1, state.doc.length) }
-    : { from: first.from, to: last.to + 1 }
+  if (!blank(first.number - 1) || !blank(after.number)) return { from: first.from, to: last.to + 1 }
+  // The last block, before the final newline: the blank line above it goes instead.
+  return after.number === state.doc.lines
+    ? { from: first.from - 1, to: last.to + 1 }
+    : { from: first.from, to: after.to + 1 }
 }
 
 export interface Action<K extends string = string> {
