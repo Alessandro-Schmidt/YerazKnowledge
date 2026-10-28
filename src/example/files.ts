@@ -31,6 +31,13 @@ These notes are kept with [Yeraz](https://github.com/Alessandro-Schmidt/YerazKno
 - Short leaves, one subject each, linked rather than repeated. Prefer a new leaf beside the one it grows from.
 - Keep the person's words and voice; add structure, not opinions. Task lists (\`- [ ]\`) are for things to do.
 - Don't touch \`.yeraz.json\` (the Family's name and colours) or anything in \`assets/\` unless asked.
+- When \`.yeraz.json\` names a \`root\` folder (\`"root":"notes"\`), the notes live in that folder: every path here, links included, starts inside it.
+
+## Text encoding
+
+- Write every file as UTF-8 without a BOM. Emoji, \`→\` and accents must stay as they are: \`â†’\`, \`Ã©\` or \`ðŸ\` in a note means a file was read or written in another encoding.
+- On Windows, PowerShell 5.1's \`Set-Content\`, \`Add-Content\`, \`Out-File\` and \`>\` don't write UTF-8 by default, and \`Get-Content\` misreads it: use your file tools, or pass \`-Encoding utf8\` both ways.
+- Fix such text where you find it: \`â†’\` is \`→\`, \`â€™\` is \`’\`, \`â€”\` is \`—\`, \`Ã©\` is \`é\`.
 `
 
 /** The example Family's leaves, written where the person wants it kept. */
