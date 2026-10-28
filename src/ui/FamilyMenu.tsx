@@ -6,7 +6,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation } from 'wouter'
 import type { TreeRef } from '../github/graphql'
-import { session, useSession } from '../store/session'
+import { NotFamilyError, session, useSession } from '../store/session'
 import controls from './controls.module.css'
 import { Dialog, Field } from './Dialog'
 import styles from './FamilyMenu.module.css'
@@ -472,10 +472,11 @@ export function ConnectDialog({
   const [value, setValue] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [start, setStart] = useState(false)
   return (
     <Dialog
       title="Connect repository"
-      submit="Connect"
+      submit={start ? 'Turn into a notebook' : 'Connect'}
       busy={busy}
       error={error}
       onClose={onClose}
@@ -483,8 +484,9 @@ export function ConnectDialog({
         setBusy(true)
         setError(null)
         try {
-          onConnected(await session.getState().connect(value))
+          onConnected(await session.getState().connect(value, start))
         } catch (e) {
+          setStart(e instanceof NotFamilyError)
           setError(e instanceof Error ? e.message : String(e))
           setBusy(false)
         }
@@ -500,7 +502,10 @@ export function ConnectDialog({
           required
           spellCheck={false}
           value={value}
-          onChange={(e) => setValue(e.target.value)}
+          onChange={(e) => {
+            setValue(e.target.value)
+            setStart(false)
+          }}
         />
       </Field>
     </Dialog>

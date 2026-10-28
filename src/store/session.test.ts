@@ -85,12 +85,22 @@ describe('session', () => {
     expect(s.getState().data['you/dotfiles']).toMatchObject({ status: 'error', kind: 'not-found' })
   })
 
+  it('turns a repository without .yeraz.json into a Family when asked', async () => {
+    const s = createSession({ store: memoryStore() })
+    await s.getState().signIn('good')
+    const tree = await s.getState().connect('you/dotfiles', true)
+    expect(tree).toMatchObject({ repo: 'you/dotfiles', title: 'dotfiles' })
+    expect(s.getState().trees.map((t) => t.repo)).toContain('you/dotfiles')
+    await s.getState().open('you/dotfiles')
+    expect(s.getState().data['you/dotfiles']).toMatchObject({ status: 'ready' })
+  })
+
   it('connects a repository by name, and keeps it after rediscovery', async () => {
     const store = memoryStore()
     const s = createSession({ store })
     await s.getState().signIn('good')
     await expect(s.getState().connect('nonsense')).rejects.toThrow('owner/name')
-    await expect(s.getState().connect('you/dotfiles')).rejects.toThrow("isn't a Yeraz Family yet")
+    await expect(s.getState().connect('you/dotfiles')).rejects.toThrow('into a notebook?')
     await expect(s.getState().connect('you/missing')).rejects.toThrow("doesn't exist")
     await fake.addRepo('friend/other', { '.yeraz.json': '{}', 'b.md': '# B\n' }, { private: false })
     // The fake's discovery lists every repository; real GitHub would not list a stranger's.

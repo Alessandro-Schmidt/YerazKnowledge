@@ -22,6 +22,7 @@ import {
   fetchHistory,
   fetchPlanted,
   lookupTree,
+  startFamily,
   markerFields,
   type TreeRef,
   type Version,
@@ -96,8 +97,11 @@ export interface SessionState {
   signIn(token: string): Promise<void>
   signOut(): Promise<void>
   discover(): Promise<void>
-  /** Adds a repository by `owner/name`. Throws a message when it isn't a Tree. */
-  connect(repo: string): Promise<TreeRef>
+  /**
+   * Adds a repository by `owner/name`. Throws NotFamilyError when it has no `.yeraz.json`;
+   * with `start`, writes one first (a Tree named after the repository, a welcome leaf).
+   */
+  connect(repo: string, start?: boolean): Promise<TreeRef>
   /**
    * Asks for a folder on this device and adds it as a Family; null when the person cancels.
    * A folder without `.yeraz.json` gets one (and a welcome leaf and `CLAUDE.md`, when it has
@@ -221,6 +225,9 @@ interface Base {
   leaves: Map<string, ParsedLeaf>
   offline: boolean
 }
+
+/** A repository without `.yeraz.json`: `connect(repo, true)` makes it a Family. */
+export class NotFamilyError extends Error {}
 
 export function createSession(deps: {
   store: KeyValueStore
@@ -568,7 +575,7 @@ export function createSession(deps: {
         }
       },
 
-      async connect(repo) {
+      async connect(repo, start) {
         const name = repo
           .trim()
           .replace(/^https?:\/\/github\.com\//, '')
@@ -578,11 +585,14 @@ export function createSession(deps: {
         let tree: TreeRef | null
         try {
           tree = await lookupTree(github(), name)
+          if (!tree && start) tree = await startFamily(github(), name)
         } catch (e) {
           throw new Error(describeError(e).message, { cause: e })
         }
         if (!tree)
-          throw new Error(`${name} isn't a Yeraz Family yet: add a .yeraz.json file at its root.`)
+          throw new NotFamilyError(
+            `Turn ${name} into a notebook? Yeraz adds a .yeraz.json and a Welcome leaf.`,
+          )
         const key = tree.repo.toLowerCase()
         await store.set(KEYS.connected, [...new Set([...(await connected()), tree.repo])])
         await store.set(
