@@ -165,6 +165,20 @@ test.describe('insert menu', () => {
       .toContain(`- [ ] Write the report\n- [ ] [Quarterly report](${sub})`)
     expect(fake.repo(REPO).read(sub.slice(1))).toMatch(/^# Quarterly report\n/)
   })
+
+  test('a code block, written in and saved', async ({ page, fake, graph }) => {
+    await page.keyboard.press('Enter')
+    await page.keyboard.press('Enter')
+    await page.keyboard.down('Control')
+    await page.clock.runFor(1000)
+    await page.keyboard.up('Control')
+    await page.getByRole('menuitem', { name: 'Code block' }).click()
+    await page.keyboard.type('npm test')
+    await page.keyboard.press('ControlOrMeta+s')
+    await expect
+      .poll(() => fake.repo(REPO).read(pair(graph).from.id))
+      .toContain('\n```\nnpm test\n```')
+  })
 })
 
 test.describe('images', () => {

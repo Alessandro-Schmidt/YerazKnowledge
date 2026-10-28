@@ -1,6 +1,6 @@
 import { EditorState } from '@codemirror/state'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { createHold, HOLD_MS, listChange, type ListKind } from './insertMenu'
+import { codeChange, createHold, HOLD_MS, listChange, type ListKind } from './insertMenu'
 
 const key = (k: string, repeat = false) => ({ key: k, repeat })
 
@@ -74,5 +74,25 @@ describe('listChange', () => {
   it('leaves the cursor after the marker on an empty line', () => {
     const state = EditorState.create({ doc: '# T\n\n', selection: { anchor: 5 } })
     expect(state.update(listChange(state, 'todo')).state.selection.main.head).toBe(11)
+  })
+})
+
+describe('codeChange', () => {
+  /** The document after, `|` at the cursor. */
+  const apply = (doc: string, at: number) => {
+    const state = EditorState.create({ doc, selection: { anchor: at } })
+    const next = state.update(codeChange(state)).state
+    const head = next.selection.main.head
+    return next.doc.sliceString(0, head) + '|' + next.doc.sliceString(head)
+  }
+
+  it('turns an empty line into a code block, the cursor inside', () => {
+    expect(apply('# T\n\n', 5)).toBe('# T\n\n```\n|\n```')
+  })
+
+  it('starts the block below a line with text, or below the title and its metadata', () => {
+    expect(apply('# T\n\nSome text', 8)).toBe('# T\n\nSome text\n```\n|\n```')
+    expect(apply('# T', 3)).toBe('# T\n```\n|\n```')
+    expect(apply('# T\n<!-- yeraz {} -->', 1)).toBe('# T\n<!-- yeraz {} -->\n```\n|\n```')
   })
 })
