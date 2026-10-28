@@ -762,3 +762,33 @@
 .editor :global(.cm-details-end) {
   height: 6px;
 }
+
+/* A block's handle, beside the block under the pointer, and where a dragged one would land
+   (blockDrag.ts). */
+.editor :global(.cm-block-grip) {
+  position: absolute;
+  z-index: 5;
+  width: 18px;
+  height: 24px;
+  border-radius: 4px;
+  color: var(--faint);
+  font-size: 12px;
+  line-height: 24px;
+  letter-spacing: -3px;
+  text-align: center;
+  cursor: grab;
+  user-select: none;
+}
+.editor :global(.cm-block-grip:hover) {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.editor :global(.cm-block-drop) {
+  position: absolute;
+  z-index: 5;
+  height: 2px;
+  margin-top: -1px;
+  border-radius: 1px;
+  background: var(--accent);
+  pointer-events: none;
+}
