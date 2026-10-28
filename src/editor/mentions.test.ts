@@ -38,7 +38,34 @@ describe('mentionLink', () => {
   })
 })
 
+describe('mentionLink, to another Family', () => {
+  it('writes its full URL, a thread between Families', () => {
+    const url = 'https://github.com/you/art/blob/main/Baroque/caravaggio.md'
+    expect(mentionLink('Caravaggio', url)).toBe(`[Caravaggio](${url})`)
+    expect(parseLeaf(`# T\n\n${mentionLink('Caravaggio', url)}\n`).links).toEqual([
+      { path: 'Baroque/caravaggio.md', repo: 'you/art' },
+    ])
+  })
+})
+
 describe('completeMention', () => {
+  it('says where a leaf, branch or Tree is: its own detail, or its folder', () => {
+    const state = EditorState.create({
+      doc: '@',
+      extensions: [
+        mentionSource.of({
+          ...source,
+          leaves: () => [
+            { path: 'identity/README.md', title: 'Identity', icon: null, detail: 'Branch' },
+            { path: 'identity/oauth.md', title: 'OAuth 2.0', icon: null },
+          ],
+        }),
+      ],
+    })
+    const result = completeMention(new CompletionContext(state, 1, false)) as CompletionResult
+    expect(result.options.map((o) => o.detail)).toEqual(['Branch', 'identity'])
+  })
+
   it('offers every leaf, with its icon, right after an @', () => {
     const result = complete('See @')!
     expect(result.from).toBe(5)

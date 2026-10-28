@@ -3,7 +3,8 @@
 // A branch's text (its folder's README.md) is written here too, without a look of its own.
 
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { iconImage, threadEnd, type GraphNode } from '../model/graph'
+import { fileUrl, inFamily } from '../github/graphql'
+import { iconImage, textFile, threadEnd, type Graph, type GraphNode } from '../model/graph'
 import { parseLeaf, parseMeta, repairHeader, type LeafMeta } from '../model/parse'
 import { leafColors } from '../read/colors'
 import { Cover } from '../read/LeafLook'
@@ -71,11 +72,39 @@ export function LeafEditor({
   })
   const mentionsFrom = useMemo<MentionSource>(() => {
     const asLeaf = (n: GraphNode): MentionLeaf => ({ path: n.id, title: n.title, icon: n.icon })
+    /** A leaf, branch or Tree to link to: its file (a branch's README.md), `url` from another Family. */
+    const linkable = (graph: Graph, url: (file: string) => string | null, where?: string) =>
+      [...graph.nodes.values()].flatMap((n): MentionLeaf[] => {
+        const file = n.kind === 'leaf' || n.kind === 'branch' ? textFile(graph, n.id) : null
+        const to = file && url(file)
+        if (!to || file === path) return []
+        const kind = n.kind === 'branch' ? (n.parent === ROOT ? 'Tree' : 'Branch') : undefined
+        const detail = [where, kind].filter(Boolean).join(' · ') || undefined
+        return [{ path: to, title: n.title, icon: n.icon, detail }]
+      })
     return {
-      leaves: () =>
-        [...(graphRef.current?.nodes.values() ?? [])]
-          .filter((n) => n.kind === 'leaf' && n.id !== path)
-          .map(asLeaf),
+      // Everything here, then every other Family's leaves, branches and Trees, and the Families.
+      leaves: () => {
+        const { trees, data, open } = session.getState()
+        const others = trees.filter((t) => t.repo.toLowerCase() !== repo.toLowerCase())
+        for (const t of others) if (!data[t.repo.toLowerCase()]) void open(t.repo)
+        return [
+          ...(graphRef.current ? linkable(graphRef.current, (f) => f) : []),
+          ...others.flatMap((t) => {
+            const graph = data[t.repo.toLowerCase()]?.graph
+            if (!graph || t.folder !== undefined) return []
+            return [
+              {
+                path: `https://github.com/${t.repo}`,
+                title: t.title,
+                icon: null,
+                detail: 'Family',
+              },
+              ...linkable(graph, (f) => fileUrl(t, f), t.title),
+            ]
+          }),
+        ]
+      },
       // A link to a branch's README.md is a mention of the branch, and opens it.
       leaf: (id) => {
         const graph = graphRef.current
@@ -95,7 +124,14 @@ export function LeafEditor({
       },
       tree: (other) => {
         const t = session.getState().trees.find((t) => t.repo.toLowerCase() === other.toLowerCase())
-        return t ? { title: t.title, href: `#${treeHref(t.repo)}` } : null
+        if (!t) return null
+        // A path in the repository, as that Family's node: inside its `root`, a branch by its README.md.
+        const node = (file: string) => {
+          const inside = inFamily(t, file) ?? file
+          const graph = session.getState().data[t.repo.toLowerCase()]?.graph
+          return (graph && threadEnd(graph, inside)) ?? inside
+        }
+        return { title: t.title, href: `#${treeHref(t.repo)}`, node }
       },
     }
   }, [path, repo])

@@ -32,6 +32,12 @@ export function inRepo(ref: Pick<TreeRef, 'root'>, path: string): string {
   return ref.root && path !== MARKER_PATH ? `${ref.root}/${path}` : path
 }
 
+/** A Family's file as a full URL, how other Families link to it; a folder's Family has none. */
+export const fileUrl = (ref: TreeRef, path: string): string | null =>
+  ref.folder === undefined
+    ? `https://github.com/${ref.repo}/blob/${ref.branch}/${encodeURI(inRepo(ref, path))}`
+    : null
+
 /** A repository path as the Family sees it; null when it is outside the Family's `root`. */
 export function inFamily(ref: Pick<TreeRef, 'root'>, path: string): string | null {
   if (!ref.root || path === MARKER_PATH) return path

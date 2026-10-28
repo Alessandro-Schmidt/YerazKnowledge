@@ -868,7 +868,7 @@ function build(view: EditorView): Built {
                     ? Decoration.mark({
                         class: 'cm-mention',
                         attributes: {
-                          'data-href': `${other.href}/${encodePath(target.path)}`,
+                          'data-href': `${other.href}/${encodePath(other.node?.(target.path) ?? target.path)}`,
                           'data-before': '@ ',
                         },
                       })

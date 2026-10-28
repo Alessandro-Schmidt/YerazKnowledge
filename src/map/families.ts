@@ -4,8 +4,8 @@
 // A link to a leaf in another connected Family, written as its GitHub URL, is a thread here.
 // Pure. Editing still happens in the selected node's own Family (ui/AllView.tsx).
 
-import type { TreeRef } from '../github/graphql'
-import type { Ghost, Graph, GraphNode, Thread } from '../model/graph'
+import { inFamily, type TreeRef } from '../github/graphql'
+import { threadEnd, type Ghost, type Graph, type GraphNode, type Thread } from '../model/graph'
 import { ROOT } from '../model/tree'
 import { FAMILY_TEXT, layoutFamily, treesOf, type FamilyLayout } from './family'
 
@@ -66,12 +66,16 @@ export function mergeFamilies(families: readonly FamilyGraph[], title: string): 
     stats.words += graph.stats.words
   }
 
-  // Threads between Families: links to a leaf of another connected Family.
+  // Threads between Families: links to a leaf, branch or Tree of another connected Family
+  // (a branch by its README.md), its path inside that Family's `root`.
+  const byRepo = new Map(families.map((f) => [f.ref.repo.toLowerCase(), f]))
   for (const { ref, graph } of families)
     for (const e of graph.external) {
-      const to = allId(e.repo, e.path)
-      if (nodes.get(to)?.kind !== 'leaf') continue
-      link(allId(ref.repo, e.from), to)
+      const target = byRepo.get(e.repo.toLowerCase())
+      const path = target && inFamily(target.ref, e.path)
+      const end = path ? threadEnd(target.graph, path) : null
+      if (end === null || !nodes.has(allId(e.repo, end))) continue
+      link(allId(ref.repo, e.from), allId(e.repo, end))
       stats.threads++
     }
 
