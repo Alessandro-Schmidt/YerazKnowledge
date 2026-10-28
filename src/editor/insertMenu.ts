@@ -14,12 +14,14 @@ import {
 import { EditorView, showTooltip, ViewPlugin, type Tooltip } from '@codemirror/view'
 import { menu } from './menu'
 import { insertTable } from './tables'
+import { META } from '../model/parse'
 
 export const HOLD_MS = 1000
 const LONG_PRESS_MS = 600
 
 export type ListKind = 'todo' | 'ordered' | 'bullet'
-export type InsertKind = ListKind | 'mention' | 'table' | 'image' | 'file' | 'leaf' | 'branch'
+export type InsertKind =
+  ListKind | 'mention' | 'table' | 'code' | 'image' | 'file' | 'leaf' | 'branch'
 
 const ITEMS: { kind: InsertKind; label: string }[] = [
   { kind: 'todo', label: 'To-do list' },
@@ -27,6 +29,7 @@ const ITEMS: { kind: InsertKind; label: string }[] = [
   { kind: 'bullet', label: 'Bullet list' },
   { kind: 'mention', label: 'Mention a leaf' },
   { kind: 'table', label: 'Table' },
+  { kind: 'code', label: 'Code block' },
   { kind: 'image', label: 'Image from files' },
   { kind: 'file', label: 'Attach a file' },
   { kind: 'leaf', label: 'New leaf' },
@@ -78,6 +81,21 @@ export function listChange(state: EditorState, kind: ListKind): TransactionSpec 
   }
 }
 
+/** A code block on the cursor's empty line, or below its line (and below the title's metadata). */
+export function codeChange(state: EditorState): TransactionSpec {
+  let line = state.doc.lineAt(state.selection.main.head)
+  if (line.number === 1 && state.doc.lines > 1 && META.test(state.doc.line(2).text))
+    line = state.doc.line(2)
+  const empty = line.number > 2 && !line.text.trim()
+  const from = empty ? line.from : line.to
+  const open = empty ? '```\n' : '\n```\n'
+  return {
+    changes: { from, to: line.to, insert: `${open}\n${'```'}` },
+    selection: { anchor: from + open.length },
+    scrollIntoView: true,
+  }
+}
+
 /** Where the menu is open, and the trigger text (a typed /) to remove when an item is picked. */
 interface Open {
   pos: number
@@ -126,6 +144,7 @@ function pick(view: EditorView, open: Open, kind: InsertKind) {
     view.dispatch({ changes: { from: at, insert }, selection: { anchor: at + insert.length } })
     startCompletion(view)
   } else if (kind === 'table') insertTable(view)
+  else if (kind === 'code') view.dispatch(codeChange(view.state))
   else askHost(view, kind)
 }
 
