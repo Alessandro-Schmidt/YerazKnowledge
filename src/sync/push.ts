@@ -8,7 +8,7 @@ import { createCommit, type TreeRef } from '../github/graphql'
 import { parseLeaf } from '../model/parse'
 import { gitBlobSha } from '../model/sha'
 import type { KeyValueStore } from '../store/db'
-import { reconcile, type Pending } from './merge'
+import { reconcileEdits } from './merge'
 import { blobTexts, freshListing, type CachedListing } from './pull'
 import type { Content, FileChange } from './structure'
 
@@ -93,27 +93,7 @@ async function merge(
   const remote = new Map(
     listing.entries.filter((e) => e.type === 'blob').map((e) => [e.path, e.sha]),
   )
-  // Images aren't merged: their names are unique (a date and a slug), so they go in as they are.
-  const binary = Object.entries(dirty).filter(([, f]) => f.text instanceof Uint8Array)
-  const text = Object.entries(dirty).filter(([, f]) => !(f.text instanceof Uint8Array))
-  const shas = text.flatMap(([path, f]) =>
-    [f.base, remote.get(path)].filter((s): s is string => !!s),
-  )
-  const texts = await blobTexts(client, store, ref.repo, shas)
-  const pending: Pending[] = text.map(([path, f]) => {
-    const theirs = remote.get(path)
-    return {
-      path,
-      ours: f.text as string | null,
-      base: f.base ? (texts.get(f.base) ?? null) : null,
-      theirs: theirs ? (texts.get(theirs) ?? null) : null,
-    }
-  })
-  const reconciled = reconcile(pending, date, (p) => remote.has(p))
-  return {
-    ...reconciled,
-    changes: [...reconciled.changes, ...binary.map(([path, f]) => ({ path, text: f.text }))],
-  }
+  return reconcileEdits(dirty, remote, (shas) => blobTexts(client, store, ref.repo, shas), date)
 }
 
 /** Caches what was committed: blobs by SHA, and the listing at the new head. */

@@ -89,6 +89,12 @@ export interface Graph {
   /** Templates for new leaves, in path order; managed in Settings › Templates. */
   templates: Template[]
   stats: { leaves: number; branches: number; threads: number; words: number }
+  /**
+   * The Tree with its hidden parts, for structure edits (sync/structure.ts): their names stay
+   * taken, and they move and go with what holds them. `linkers`: node id → the nodes linking
+   * to it. Only a Tree's own graph has it, not the map's merged ones.
+   */
+  whole?: { model: TreeModel; linkers: Map<string, string[]> }
 }
 
 /** A leaf's image icon from line 2: a file of the Tree (`/…`) or an https address. */
@@ -172,20 +178,23 @@ export function buildGraph(
   // A link differing from a file only by case is a typo, not a leaf to write; a hidden
   // leaf's path is not a ghost either.
   const lower = new Set([...nodes.keys(), ...hidden].map((id) => id.toLowerCase()))
+  const linkers = new Map<string, string[]>()
   // Threads start in a leaf or a branch's text, and end at a leaf or a branch (its text).
   const sources = [
     ...model.leaves.map((id) => [id, id] as const),
     ...[...model.texts].map(([path, branch]) => [branch, path] as const),
-  ].filter(([id]) => nodes.has(id))
+  ]
   for (const [id, file] of sources) {
     for (const link of leaves.get(file)?.links ?? []) {
       if (link.repo !== null) {
-        external.push({ from: id, repo: link.repo, path: link.path })
+        if (nodes.has(id)) external.push({ from: id, repo: link.repo, path: link.path })
         continue
       }
       const to =
-        model.texts.get(link.path) ?? (nodes.get(link.path)?.kind === 'leaf' ? link.path : null)
-      if (to !== null && hidden.has(to)) continue
+        model.texts.get(link.path) ??
+        (model.nodes.get(link.path)?.kind === 'leaf' ? link.path : null)
+      if (to !== null && to !== id) linkers.set(to, [...(linkers.get(to) ?? []), id])
+      if (!nodes.has(id) || (to !== null && hidden.has(to))) continue
       if (to === null) {
         const ghost = ghosts.get(link.path) ?? ghostAt(nodes, lower, link.path)
         if (ghost) ghosts.set(ghost.id, ghost)
@@ -222,6 +231,7 @@ export function buildGraph(
     ghosts,
     hidden: tops,
     templates,
+    whole: { model, linkers },
     stats: {
       leaves: model.leaves.filter((id) => !hidden.has(id)).length,
       branches: all.filter((n) => n.kind === 'branch').length,

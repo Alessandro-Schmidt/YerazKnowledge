@@ -102,7 +102,80 @@ describe('reconcile', () => {
   })
 })
 
+describe('reconcile: the marker and templates', () => {
+  const date = new Date(2026, 9, 15, 10)
+
+  it('merges .yeraz.json key by key, laid out as on GitHub, never as a copy', () => {
+    const r = reconcile(
+      [
+        {
+          path: '.yeraz.json',
+          base: '{"name":"Eng","trees":{"Identity":"red"}}\n',
+          ours: '{"name":"Eng","trees":{"Identity":"red","AI":"blue"},"color":"amber"}\n',
+          theirs: '{\n  "name": "Engineering",\n  "trees": {\n    "Identity": "green"\n  }\n}\n',
+        },
+      ],
+      date,
+      () => false,
+    )
+    expect(r.conflicts).toEqual([])
+    expect(r.changes).toEqual([
+      {
+        path: '.yeraz.json',
+        text: `${JSON.stringify(
+          { name: 'Engineering', trees: { Identity: 'green', AI: 'blue' }, color: 'amber' },
+          null,
+          '  ',
+        )}\n`,
+      },
+    ])
+  })
+
+  it('saves a .yeraz.json that isn’t JSON beside it, where it can be seen', () => {
+    const r = reconcile(
+      [{ path: '.yeraz.json', base: '{"name":"A"}\n', ours: '{"name":"B"}\n', theirs: 'oops\n' }],
+      date,
+      () => false,
+    )
+    expect(r.conflicts).toEqual(['yeraz.conflict-2026-10-15.json'])
+  })
+
+  it('names a template’s copy apart, so Start from shows two names', () => {
+    const r = reconcile(
+      [
+        {
+          path: '.yeraz/templates/meeting.md',
+          base: '# 📝 Meeting\n\nAgenda\n',
+          ours: '# 📝 Meeting\n\nAgenda, ours\n',
+          theirs: '# 📝 Meeting\n\nAgenda, theirs\n',
+        },
+      ],
+      date,
+      () => false,
+    )
+    expect(r.changes).toEqual([
+      {
+        path: '.yeraz/templates/meeting.conflict-2026-10-15.md',
+        text: '# 📝 Meeting (conflict 2026-10-15)\n\nAgenda, ours\n',
+      },
+    ])
+  })
+})
+
 describe('conflictPath', () => {
+  it('dates the copy by the person’s calendar, not UTC’s', () => {
+    const tz = process.env.TZ
+    process.env.TZ = 'America/Los_Angeles'
+    try {
+      // 18:00 on the 27th in California is already the 28th in UTC.
+      expect(conflictPath('a.md', new Date('2026-10-28T01:00:00Z'), () => false)).toBe(
+        'a.conflict-2026-10-27.md',
+      )
+    } finally {
+      process.env.TZ = tz
+    }
+  })
+
   it('names the copy after the file and the day', () => {
     expect(
       conflictPath('AI Agents/prompting.md', new Date('2026-01-02T23:00:00Z'), () => false),
