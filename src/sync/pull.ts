@@ -4,7 +4,7 @@
 // Structure is reported first, so the map can draw from paths and sizes before content arrives.
 
 import { GitHubError, type GitHubClient, type TreeEntry } from '../github/client'
-import { fetchBlobs, type TreeRef } from '../github/graphql'
+import { fetchBlobs, inFamily, type TreeRef } from '../github/graphql'
 import { parseLeaf, type ParsedLeaf } from '../model/parse'
 import { buildTree, type BranchNode, type LeafNode, type TreeModel } from '../model/tree'
 import type { KeyValueStore } from '../store/db'
@@ -83,6 +83,23 @@ export async function inParallel<T>(
 /** The full listing of a commit; when GitHub truncates it, lists subtrees one at a time. */
 async function listTree(
   client: GitHubClient,
+  ref: TreeRef,
+  commit: string,
+): Promise<{ sha: string; entries: TreeEntry[] }> {
+  const all = await repoTree(client, ref.repo, commit)
+  // ponytail: lists the whole repository, then keeps the Family's `root`; list the root's
+  // subtree alone if a project's code makes the listing slow.
+  return {
+    sha: all.sha,
+    entries: all.entries.flatMap((e) => {
+      const path = inFamily(ref, e.path)
+      return path === null ? [] : [{ ...e, path }]
+    }),
+  }
+}
+
+async function repoTree(
+  client: GitHubClient,
   repo: string,
   commit: string,
 ): Promise<{ sha: string; entries: TreeEntry[] }> {
@@ -126,7 +143,7 @@ export async function freshListing(
       await store.set(key, listing)
       return { listing, offline: false }
     }
-    const tree = await listTree(client, ref.repo, head.sha)
+    const tree = await listTree(client, ref, head.sha)
     const listing: CachedListing = {
       head: head.sha,
       etag: head.etag,

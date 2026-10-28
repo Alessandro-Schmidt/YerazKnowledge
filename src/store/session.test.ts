@@ -93,6 +93,19 @@ describe('session', () => {
     expect(s.getState().trees.map((t) => t.repo)).toContain('you/dotfiles')
     await s.getState().open('you/dotfiles')
     expect(s.getState().data['you/dotfiles']).toMatchObject({ status: 'ready' })
+
+    // The notes live in notes/, beside the project's files, and are read and written there.
+    const repo = fake.repo('you/dotfiles')
+    expect(repo.read('README.md')).toBe('# dotfiles\n')
+    expect(repo.read('notes/dotfiles/welcome.md')).toContain('# 🌱 Welcome')
+    const graph = () => s.getState().data['you/dotfiles']!.graph!
+    expect(graph().nodes.get('dotfiles/welcome.md')!.title).toBe('Welcome')
+    expect(graph().nodes.has('README.md')).toBe(false)
+    const changes = planNewLeaves(graph(), 'dotfiles/welcome.md', ['Next'])
+    await s.getState().apply('you/dotfiles', changes)
+    await s.getState().flush('you/dotfiles')
+    for (const { path, text } of changes) expect(repo.read(`notes/${path}`)).toBe(text)
+    expect(repo.read('.yeraz.json')).toBe('{"name":"dotfiles","root":"notes"}\n')
   })
 
   it('gives an empty repository its first commit when turning it into a Family', async () => {
@@ -100,8 +113,8 @@ describe('session', () => {
     const s = createSession({ store: memoryStore() })
     await s.getState().signIn('good')
     await s.getState().connect('you/empty', true)
-    expect(fake.repo('you/empty').read('.yeraz.json')).toBe('{"name":"empty"}\n')
-    expect(fake.repo('you/empty').read('empty/welcome.md')).toContain('# 🌱 Welcome')
+    expect(fake.repo('you/empty').read('.yeraz.json')).toBe('{"name":"empty","root":"notes"}\n')
+    expect(fake.repo('you/empty').read('notes/empty/welcome.md')).toContain('# 🌱 Welcome')
   })
 
   it('connects a repository by name, and keeps it after rediscovery', async () => {

@@ -77,6 +77,8 @@ Read `ideas.txt` (why), `ARCHITECTURE.md` (how), `development-plan.md` (what, in
 - [ ] Threads are root-relative Markdown links (`[Keycloak](/identity/keycloak.md)`)
 - [ ] An image's width ends its title: `![Realm](/assets/realm.png "width=50%")`, a percent of the column
 - [ ] Images in `/assets/`; `.yeraz.json` marks the root (`name`, `color`, optional `trees`: `{"Identity":"amber"}`); filenames never change on retitle
+- [ ] `.yeraz.json` stays at the repository root; an optional `root` (`"notes"`) puts the whole Family in that folder, paths inside it as above
+  (a repository turned into a notebook from *Connect* gets `notes/`, beside the project's files)
 - [ ] A template for new leaves is a `.md` in `.yeraz/templates/` (hidden from the map): line 1 its name (its emoji → the leaf's icon), line 2 the leaf's look, the rest the leaf's start with `{{title}}`, `{{date}}`, `{{tree}}` filled in
 - [ ] Embeds: a paragraph of one link to YouTube or `/assets/*.pdf|mp4|webm` (subtitles `name.<lang>.vtt`); math `$…$`, `$$…$$`
 

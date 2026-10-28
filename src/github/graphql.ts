@@ -21,24 +21,46 @@ export interface TreeRef {
   trees?: Record<string, string>
   /** A Family kept in a folder on this device (issue #64): the folder's name. */
   folder?: string
+  /** The repository folder holding the Family (`.yeraz.json` `root`); none: the repository root. */
+  root?: string
+}
+
+const MARKER_PATH = '.yeraz.json'
+
+/** A Family path as it is in the repository: under `root`, except the marker. */
+export function inRepo(ref: Pick<TreeRef, 'root'>, path: string): string {
+  return ref.root && path !== MARKER_PATH ? `${ref.root}/${path}` : path
+}
+
+/** A repository path as the Family sees it; null when it is outside the Family's `root`. */
+export function inFamily(ref: Pick<TreeRef, 'root'>, path: string): string | null {
+  if (!ref.root || path === MARKER_PATH) return path
+  return path.startsWith(`${ref.root}/`) ? path.slice(ref.root.length + 1) : null
 }
 
 /** The name, colour and Tree colours a `.yeraz.json` text gives; malformed parts are left out. */
-export function markerFields(text: unknown): Partial<Pick<TreeRef, 'title' | 'color' | 'trees'>> {
-  let marker: { name?: unknown; color?: unknown; trees?: unknown } = {}
+export function markerFields(
+  text: unknown,
+): Partial<Pick<TreeRef, 'title' | 'color' | 'trees' | 'root'>> {
+  let marker: { name?: unknown; color?: unknown; trees?: unknown; root?: unknown } = {}
   try {
     const parsed: unknown = typeof text === 'string' ? JSON.parse(text) : null
     if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) marker = parsed
   } catch {
     // A malformed marker still marks a Tree; it just has no name or colour.
   }
-  const out: Partial<Pick<TreeRef, 'title' | 'color' | 'trees'>> = {}
+  const out: Partial<Pick<TreeRef, 'title' | 'color' | 'trees' | 'root'>> = {}
   if (typeof marker.name === 'string' && marker.name.trim()) out.title = marker.name.trim()
   if (typeof marker.color === 'string') out.color = marker.color
   if (marker.trees && typeof marker.trees === 'object' && !Array.isArray(marker.trees))
     out.trees = Object.fromEntries(
       Object.entries(marker.trees).filter((e): e is [string, string] => typeof e[1] === 'string'),
     )
+  // A plain relative folder: no `..`, no leading or trailing slash.
+  if (typeof marker.root === 'string') {
+    const root = marker.root.trim().replace(/^\/+|\/+$/g, '')
+    if (root && root.split('/').every((p) => p && p !== '.' && p !== '..')) out.root = root
+  }
   return out
 }
 
@@ -198,6 +220,7 @@ function toTreeRef(node: RepoNode): TreeRef | null {
     title: marker.title ?? node.name,
     color: marker.color ?? null,
     ...(marker.trees ? { trees: marker.trees } : {}),
+    ...(marker.root ? { root: marker.root } : {}),
   }
 }
 
@@ -273,8 +296,10 @@ export async function createCommit(
 ): Promise<string> {
   const additions = changes
     .filter((c) => c.text !== null)
-    .map((c) => ({ path: c.path, contents: toBase64(c.text!) }))
-  const deletions = changes.filter((c) => c.text === null).map((c) => ({ path: c.path }))
+    .map((c) => ({ path: inRepo(tree, c.path), contents: toBase64(c.text!) }))
+  const deletions = changes
+    .filter((c) => c.text === null)
+    .map((c) => ({ path: inRepo(tree, c.path) }))
   const { data, errors } = await client.graphql<{
     createCommitOnBranch: { commit: { oid: string } } | null
   }>(
@@ -364,13 +389,17 @@ export async function createRepository(
   return ref
 }
 
+/** Where a Family started in an existing repository keeps its notes. */
+export const NOTES_ROOT = 'notes'
+
 /**
  * Turns an existing repository into a Family, in one commit on its default branch: a
- * `.yeraz.json`, and one Tree named after the repository holding a welcome leaf.
+ * `.yeraz.json`, and in `notes/` (so the notes stay out of the project's own files) one Tree
+ * named after the repository holding a welcome leaf.
  */
 export async function startFamily(client: GitHubClient, repo: string): Promise<TreeRef> {
   const [owner, name] = repo.split('/')
-  const marker = `${JSON.stringify({ name })}\n`
+  const marker = `${JSON.stringify({ name, root: NOTES_ROOT })}\n`
   let node = await repositoryHead(client, owner!, name!)
   // An empty repository has no branch for createCommitOnBranch: the marker is its first commit.
   if (node && !node.defaultBranchRef) {
@@ -390,6 +419,7 @@ export async function startFamily(client: GitHubClient, repo: string): Promise<T
     isPrivate: node.isPrivate,
     title: node.name,
     color: null,
+    root: NOTES_ROOT,
   }
   await createCommit(
     client,
