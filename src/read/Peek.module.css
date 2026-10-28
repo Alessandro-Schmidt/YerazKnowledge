@@ -728,3 +728,10 @@
   opacity: 0.4;
   cursor: default;
 }
+
+/* A pinned leaf's pin: inverted, so the pin reads as on. */
+.pin[aria-pressed='true'],
+.pin[aria-pressed='true']:hover {
+  background: var(--text);
+  color: var(--bg);
+}

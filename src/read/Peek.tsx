@@ -63,6 +63,8 @@ export interface PeekProps {
   pinned?: boolean
   /** Keeps this node open beside whatever is selected next; the head shows the button. */
   onPin?(id: string): void
+  /** This node is pinned: the pin shows pressed, and a click unpins it. */
+  kept?: boolean
   href(id: string): string
   onSelect(id: string): void
   onExpand(expanded: boolean): void
@@ -82,6 +84,7 @@ export function Peek({
   created,
   pinned,
   onPin,
+  kept,
   href,
   onSelect,
   onExpand,
@@ -191,7 +194,7 @@ export function Peek({
         <ResizeHandle panel={docked ? 'dock' : 'peek'} edge="left" label="Leaf panel width" />
       )}
       <PeekHead
-        {...{ kind, crumb, away, href, onSelect, expanded, onClose, sheet }}
+        {...{ kind, crumb, away, href, onSelect, expanded, onClose, sheet, kept }}
         onPin={onPin && node.kind !== 'root' && !expanded && !docked ? () => onPin(id) : undefined}
         onExpand={motion.expand}
       />
@@ -527,6 +530,7 @@ function PeekHead({
   crumb,
   away = null,
   onPin,
+  kept,
   href,
   onSelect,
   expanded,
@@ -540,6 +544,7 @@ function PeekHead({
   away?: string | null
   /** Keeps the node open beside the next selection; no button without it. */
   onPin?: (() => void) | undefined
+  kept?: boolean | undefined
   sheet: RefObject<HTMLElement | null>
 } & Pick<PeekProps, 'href' | 'onSelect' | 'expanded' | 'onExpand' | 'onClose'>) {
   // On a touch screen the handle and head are a grip: swipe up to open the full page,
@@ -608,9 +613,10 @@ function PeekHead({
         {onPin && (
           <button
             type="button"
-            className={controls.iconButton}
+            className={`${controls.iconButton} ${styles.pin}`}
             aria-label="Keep open"
-            title="Keep this open beside the next leaf you pick"
+            aria-pressed={!!kept}
+            title={kept ? 'Pinned: click to unpin' : 'Keep this open beside the next leaf you pick'}
             onClick={onPin}
           >
             <Icon name="pin" size={16} />

@@ -304,6 +304,8 @@ export function FamilyView({ params }: { params: { owner: string; name: string; 
                       select(id)
                       setExpanded(true)
                     }}
+                    kept
+                    onPin={unpin}
                     onClose={() => unpin(id)}
                     onAction={setAction}
                     onWritten={(written) => {
@@ -321,10 +323,14 @@ export function FamilyView({ params }: { params: { owner: string; name: string; 
                     docked={panel === 'dock'}
                     created={created === selected}
                     pinned={stackShown}
+                    kept={pinned.includes(selected!)}
                     onPin={
                       phone || panel !== 'float'
                         ? undefined
-                        : (id) => setPinned((p) => (p.includes(id) ? p : [...p, id]))
+                        : (id) =>
+                            setPinned((p) =>
+                              p.includes(id) ? p.filter((x) => x !== id) : [...p, id],
+                            )
                     }
                     href={href}
                     onSelect={select}
