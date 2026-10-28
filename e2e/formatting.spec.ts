@@ -70,7 +70,10 @@ test('on a phone, a bar above the keyboard formats the selection', async ({ page
   await expect.poll(() => fake.repo(REPO).read(LEAF)).toContain('- [ ] Make this **word** strong.')
 })
 
-test('a closed code block shows its language in place of its fences', async ({ page, fake }) => {
+test('a code block hides its fences; its language is picked, and colours its keywords', async ({
+  page,
+  fake,
+}) => {
   await fake.repo(REPO).commit({
     message: 'c',
     additions: [
@@ -79,12 +82,17 @@ test('a closed code block shows its language in place of its fences', async ({ p
   })
   await page.reload()
   const editor = page.locator('.cm-content')
-  await expect(editor.locator('.cm-fence-label')).toHaveText('js')
+  const language = editor.getByRole('combobox', { name: 'Code language' })
+  await expect(language).toHaveValue('javascript')
   await expect(editor).not.toContainText('```')
-  await expect(editor).toContainText('const x = 1')
+  await expect(editor.locator('.tok-keyword', { hasText: 'const' })).toHaveCount(1)
+  // Writing in it keeps the fences hidden.
   await editor.getByText('const x = 1').click()
-  await expect(editor).toContainText('```js')
-  await expect(editor.locator('.cm-fence-label')).toHaveCount(0)
+  await expect(editor).not.toContainText('```')
+  await language.selectOption({ label: 'Python' })
+  await page.keyboard.press('ControlOrMeta+s')
+  await expect.poll(() => fake.repo(REPO).read(LEAF)).toContain('```python\nconst x = 1\n```')
+  await expect(editor.locator('.tok-keyword', { hasText: 'const' })).toHaveCount(0)
 })
 
 test('Tab nests a list item under the one above, Shift+Tab brings it out', async ({

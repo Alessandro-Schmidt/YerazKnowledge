@@ -212,11 +212,15 @@
 .editor :global(.cm-fence) {
   color: var(--faint);
 }
-/* A closed block away from the cursor: its language where its opening fence was, its closing
-   fence gone (livePreview.ts). */
+/* A closed block: its language's picker where its opening fence was, its closing fence gone
+   (livePreview.ts). */
 .editor :global(.cm-fence-label) {
   display: block;
-  padding-top: 6px;
+  margin-top: 6px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
   font-family: var(--font-ui);
   font-size: 12px;
   font-weight: 500;
