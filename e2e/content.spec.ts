@@ -812,9 +812,7 @@ test.describe('icons', () => {
     expect(await icons.getByRole('button').count()).toBeGreaterThan(1800)
     // The last column clear of the scrollbar.
     const room = await page.evaluate(() => {
-      const first = document.querySelector(
-        '[aria-label="Icons"] section button:nth-child(8)',
-      )
+      const first = document.querySelector('[aria-label="Icons"] section button:nth-child(8)')
       const list = first!.closest('[class*="emojiList"]')!
       const r = list.getBoundingClientRect()
       return r.left + list.clientWidth - first!.getBoundingClientRect().right

@@ -424,7 +424,11 @@ describe('planMoveAcross: to another Family', () => {
   })
 
   it('moves a whole Tree to the top of the other Family', () => {
-    const { dest, source: here, id } = planMoveAcross(
+    const {
+      dest,
+      source: here,
+      id,
+    } = planMoveAcross(
       { graph: graphOf(source), textOf: (p) => source[p]!, url: () => null },
       'identity',
       { graph: other, parent: ROOT, url: () => null, taken: () => false },

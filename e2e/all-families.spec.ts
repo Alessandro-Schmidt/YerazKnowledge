@@ -84,6 +84,10 @@ test('@ links to another Family’s Tree; the map of every Family draws the thre
   await signIn(page)
   await page.goto('./#/all')
   await expect(page.locator('[data-group]')).toHaveCount(2)
+  // Counted once every Family's content is in (Refresh is busy while one loads): threads
+  // come with the content, so an early count misses them (CI run 40773196482).
+  await expect(page.locator('[data-map] [data-between]').first()).toBeAttached()
+  await expect(page.getByRole('button', { name: 'Refresh' })).toBeEnabled()
   const between = await page.locator('[data-map] [data-between]').count()
 
   await page.goto('./#/tree/you/art/Baroque/caravaggio.md')
