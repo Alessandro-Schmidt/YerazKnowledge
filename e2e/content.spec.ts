@@ -810,6 +810,16 @@ test.describe('icons', () => {
     // With no search, every emoji, by group: far more than fits on screen.
     await expect(icons.getByRole('region', { name: 'Flags' })).toBeAttached()
     expect(await icons.getByRole('button').count()).toBeGreaterThan(1800)
+    // The last column clear of the scrollbar.
+    const room = await page.evaluate(() => {
+      const first = document.querySelector(
+        '[aria-label="Icons"] section button:nth-child(8)',
+      )
+      const list = first!.closest('[class*="emojiList"]')!
+      const r = list.getBoundingClientRect()
+      return r.left + list.clientWidth - first!.getBoundingClientRect().right
+    })
+    expect(room).toBeGreaterThanOrEqual(4)
 
     await search.fill('xyzzy')
     await expect(icons).toContainText('No emoji for “xyzzy”')

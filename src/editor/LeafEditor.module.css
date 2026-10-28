@@ -152,6 +152,9 @@
   height: 296px;
   overflow-y: auto;
   overscroll-behavior: contain;
+  /* The scrollbar beside the last column, not over it (overlay scrollbars too: the padding). */
+  scrollbar-gutter: stable;
+  padding-right: 6px;
 }
 
 /* About 1,900 buttons: groups below the fold aren't laid out until scrolled to. */
@@ -165,7 +168,8 @@
 
 .emojiGrid {
   display: grid;
-  grid-template-columns: repeat(8, 1fr);
+  /* minmax(0, …): the columns share the width; a button's own width never pushes the last one out. */
+  grid-template-columns: repeat(8, minmax(0, 1fr));
   gap: 2px;
 }
 
@@ -178,6 +182,8 @@
 
 .emoji {
   aspect-ratio: 1;
+  min-width: 0;
+  padding: 0;
   border: 0;
   border-radius: 7px;
   background: transparent;
