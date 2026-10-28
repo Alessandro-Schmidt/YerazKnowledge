@@ -82,6 +82,9 @@ export function AllView({ params }: { params: { owner?: string; name?: string; '
   const [action, setAction] = useState<{ tree: TreeRef; action: StructureAction } | null>(null)
   const [created, setCreated] = useState<string | null>(null)
   const [found, setFound] = useState<Matches | null>(null)
+  /** Nodes kept open beside the selection, by merged id: any Family's (as in FamilyView). */
+  const [pinned, setPinned] = useState<string[]>([])
+  const unpin = (id: string) => setPinned((p) => p.filter((x) => x !== id))
 
   useEffect(() => {
     for (const t of session.getState().trees) void session.getState().open(t.repo)
@@ -125,6 +128,16 @@ export function AllView({ params }: { params: { owner?: string; name?: string; '
   const peekVisible = peekOpen && family !== undefined && path !== null
   // A view with its own panel shows the Peek only as a full page.
   const peekShown = peekVisible && (panel !== 'own' || expanded)
+  // The pinned columns: beside a floating Peek on a computer, never twice the selection.
+  const stack =
+    phone || panel !== 'float' || expanded
+      ? []
+      : pinned.flatMap((id) => {
+          const at = id === selected ? null : splitId(id)
+          const f = at && families.find((f) => f.ref.repo.toLowerCase() === at.repo)
+          return f && f.graph.nodes.has(at.id) ? [{ id, family: f, path: at.id }] : []
+        })
+  const stackShown = stack.length > 0 && !expanded
 
   /** Selects a node of the Family `ref` by its own id; null clears the selection. */
   const select = useCallback(
@@ -276,28 +289,68 @@ export function AllView({ params }: { params: { owner?: string; name?: string; '
               Opening your Families…
             </p>
           )}
-          <Presence show={peekShown}>
-            {peekShown && (
-              <Peek
-                tree={family.ref}
-                graph={family.graph}
-                id={path ?? ROOT}
-                expanded={expanded}
-                docked={panel === 'dock'}
-                created={created === path}
-                href={(id) => `#${allHref(family.ref.repo, id)}`}
-                onSelect={(id) => select(family.ref, id)}
-                onExpand={setExpanded}
-                onClose={() => {
-                  setPeekOpen(false)
-                  setExpanded(false)
-                }}
-                onAction={(a) => setAction({ tree: family.ref, action: a })}
-                onWritten={(id) => {
-                  select(family.ref, id)
-                  setCreated(id)
-                }}
-              />
+          <Presence show={peekShown || stackShown}>
+            {(peekShown || stackShown) && (
+              <div className={stackShown ? styles.stack : undefined}>
+                {stack.map(({ id, family: f, path: p }) => (
+                  <Peek
+                    key={id}
+                    tree={f.ref}
+                    graph={f.graph}
+                    id={p}
+                    expanded={false}
+                    pinned
+                    kept
+                    href={(id) => `#${allHref(f.ref.repo, id)}`}
+                    onSelect={(id) => select(f.ref, id)}
+                    onExpand={() => {
+                      select(f.ref, p)
+                      setExpanded(true)
+                    }}
+                    onPin={() => unpin(id)}
+                    onClose={() => unpin(id)}
+                    onAction={(a) => setAction({ tree: f.ref, action: a })}
+                    onWritten={(id) => {
+                      select(f.ref, id)
+                      setCreated(id)
+                    }}
+                  />
+                ))}
+                {peekShown && (
+                  <Peek
+                    tree={family.ref}
+                    graph={family.graph}
+                    id={path ?? ROOT}
+                    expanded={expanded}
+                    docked={panel === 'dock'}
+                    created={created === path}
+                    pinned={stackShown}
+                    kept={pinned.includes(selected!)}
+                    onPin={
+                      phone || panel !== 'float'
+                        ? undefined
+                        : () =>
+                            setPinned((p) =>
+                              p.includes(selected!)
+                                ? p.filter((x) => x !== selected)
+                                : [...p, selected!],
+                            )
+                    }
+                    href={(id) => `#${allHref(family.ref.repo, id)}`}
+                    onSelect={(id) => select(family.ref, id)}
+                    onExpand={setExpanded}
+                    onClose={() => {
+                      setPeekOpen(false)
+                      setExpanded(false)
+                    }}
+                    onAction={(a) => setAction({ tree: family.ref, action: a })}
+                    onWritten={(id) => {
+                      select(family.ref, id)
+                      setCreated(id)
+                    }}
+                  />
+                )}
+              </div>
             )}
           </Presence>
         </main>

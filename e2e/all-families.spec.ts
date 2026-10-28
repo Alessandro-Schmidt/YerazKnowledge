@@ -56,6 +56,23 @@ test('a node opens in its own Family, and its edits save there', async ({ page, 
     .toContain('Chiaroscuro.')
 })
 
+test('Keep open holds a leaf of one Family beside a leaf of another', async ({ page, graph }) => {
+  test.skip(isPhone(page), 'Phones show one Peek, as a sheet')
+  await page.setViewportSize({ width: 1600, height: 900 })
+  const other = [...graph.nodes.values()].find((n) => n.kind === 'leaf' && n.parent !== '')!
+  await signIn(page)
+  await page.goto('./#/all/you/art/Baroque/caravaggio.md')
+  const peeks = page.getByRole('region', { name: 'Leaf preview' })
+  await expect(peeks).toHaveCount(1)
+  await peeks.getByRole('button', { name: 'Keep open' }).click()
+  await page.goto(`./#/all/you/engineering/${other.id}`)
+  await expect(peeks).toHaveCount(2)
+  await expect(peeks.nth(0).getByRole('heading', { level: 2 })).toHaveText('Caravaggio')
+  await expect(peeks.nth(1).getByRole('heading', { level: 2 })).toHaveText(other.title)
+  await peeks.nth(0).getByRole('button', { name: 'Dismiss' }).click()
+  await expect(peeks).toHaveCount(1)
+})
+
 test('Settings › Views can open the app on the last Family instead', async ({ page }) => {
   await signIn(page)
   await page.goto('./#/tree/you/art')
