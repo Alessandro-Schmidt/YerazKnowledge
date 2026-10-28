@@ -94,6 +94,11 @@ test('a code block hides its fences; its language is picked, and colours its key
   await language.click()
   const languages = page.getByRole('menu', { name: 'Code language' })
   await expect(languages.getByRole('menuitem', { name: 'Rust' }).locator('svg')).toHaveCount(1)
+  // A language without a logo shows </>, as every other: the same mark.
+  const mark = (name: string) =>
+    languages.getByRole('menuitem', { name, exact: true }).locator('path').getAttribute('d')
+  expect(await mark('SQL')).toBe(await mark('PowerShell'))
+  expect(await mark('SQL')).not.toBe(await mark('Rust'))
   await languages.getByRole('menuitem', { name: 'Python', exact: true }).click()
   await expect(languages).toHaveCount(0)
   await expect(language).toHaveText('Python')
