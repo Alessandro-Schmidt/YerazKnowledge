@@ -27,7 +27,7 @@
         "img-src": "'self' data: blob: https:",
         "media-src": "'self' blob:",
         "font-src": "'self' data:",
-        "frame-src": "blob: https://www.youtube-nocookie.com",
+        "frame-src": "blob: https://www.youtube-nocookie.com https://alessandro-schmidt.github.io",
         "connect-src": "'self' ipc: http://ipc.localhost https://api.github.com",
         "object-src": "'none'",
         "base-uri": "'self'"

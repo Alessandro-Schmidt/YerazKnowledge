@@ -19,6 +19,17 @@ export type Embed =
   | { kind: 'repo'; repo: string; title: string }
   | { kind: 'bookmark'; url: string; title: string }
 
+/** The player's address: on the desktop, through the web app's page (public/youtube.html). */
+export function youtubeSrc(
+  id: string,
+  start: number,
+  desktop = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window,
+): string {
+  return desktop
+    ? `https://alessandro-schmidt.github.io/YerazKnowledge/youtube.html?v=${id}${start ? `&start=${start}` : ''}`
+    : `https://www.youtube-nocookie.com/embed/${id}${start ? `?start=${start}` : ''}`
+}
+
 const YOUTUBE =
   /^https?:\/\/(?:www\.|m\.)?(?:youtube\.com\/(?:watch\?(?:[^#]*&)?v=|shorts\/|embed\/)|youtu\.be\/)([\w-]{11})(?=$|[?&#])/
 

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  youtubeSrc,
   bookmarkTitle,
   embedOf,
   imageWidth,
@@ -201,5 +202,16 @@ describe("image widths: a percent of the column, at the end of the image's title
     expect(titleWithWidth('The realm width=70%', 40)).toBe('The realm width=40%')
     expect(titleWithWidth('The realm width=70%', 100)).toBe('The realm')
     expect(titleWithWidth('width=70%', null)).toBe('')
+  })
+})
+
+describe('youtubeSrc', () => {
+  it('embeds YouTube on the web, and through the web app on the desktop (error 153)', () => {
+    expect(youtubeSrc('dQw4w9WgXcQ', 0, false)).toBe(
+      'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ',
+    )
+    expect(youtubeSrc('dQw4w9WgXcQ', 90, true)).toBe(
+      'https://alessandro-schmidt.github.io/YerazKnowledge/youtube.html?v=dQw4w9WgXcQ&start=90',
+    )
   })
 })

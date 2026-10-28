@@ -1,0 +1,37 @@
+<!doctype html>
+<!-- The desktop app's YouTube player: YouTube refuses embeds from tauri:// origins (error 153),
+     so the app frames this page, which frames YouTube from a web origin. -->
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
+    <title>YouTube video</title>
+    <style>
+      html,
+      body,
+      iframe {
+        margin: 0;
+        width: 100%;
+        height: 100%;
+        border: 0;
+        background: #000;
+      }
+    </style>
+  </head>
+  <body>
+    <script>
+      const q = new URLSearchParams(location.search)
+      const id = q.get('v') || ''
+      const start = parseInt(q.get('start') || '0', 10)
+      if (/^[\w-]{11}$/.test(id)) {
+        const f = document.createElement('iframe')
+        f.src =
+          'https://www.youtube-nocookie.com/embed/' + id + (start > 0 ? '?start=' + start : '')
+        f.title = 'YouTube video'
+        f.allow = 'encrypted-media; picture-in-picture; fullscreen'
+        f.allowFullscreen = true
+        document.body.append(f)
+      }
+    </script>
+  </body>
+</html>
