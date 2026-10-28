@@ -36,6 +36,7 @@ import {
 } from '../model/blocks'
 import {
   embedOf,
+  IFRAME,
   imageWidth,
   languageName,
   mathSpans,
@@ -991,6 +992,7 @@ function richRanges(
       const item = /^\s*(?:[-*+]|\d+[.)])\s+(?!\[[ xX]\]\s)/.exec(l.text)
       const alone =
         !!item ||
+        IFRAME.test(l.text.trim()) ||
         (state.doc.line(l.number - 1).text.trim() === '' &&
           (l.number === state.doc.lines || state.doc.line(l.number + 1).text.trim() === ''))
       const start = l.from + (item?.[0].length ?? 0)

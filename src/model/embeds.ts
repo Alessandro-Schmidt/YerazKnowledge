@@ -31,7 +31,7 @@ export function youtubeSrc(
 }
 
 const YOUTUBE =
-  /^https?:\/\/(?:www\.|m\.)?(?:youtube\.com\/(?:watch\?(?:[^#]*&)?v=|shorts\/|embed\/)|youtu\.be\/)([\w-]{11})(?=$|[?&#])/
+  /^https?:\/\/(?:www\.|m\.)?(?:youtube\.com\/(?:watch\?(?:[^#]*&)?v=|shorts\/|embed\/|live\/)|youtu\.be\/)([\w-]{11})(?=$|[?&#])/
 
 /** `90`, `90s`, `1m30s`, `1h2m3s` → seconds. */
 function seconds(t: string | null): number {
@@ -41,16 +41,19 @@ function seconds(t: string | null): number {
   return Number(h ?? 0) * 3600 + Number(m ?? 0) * 60 + Number(s ?? 0)
 }
 
+/** A line of HTML that is one `<iframe>` (YouTube's Share › Embed code); group 1 is its `src`. */
+export const IFRAME = /^<iframe\b[^>]*?\ssrc=["']([^"']+)["'][^>]*>\s*<\/iframe>$/i
+
 export function embedOf(paragraph: string): Embed | null {
   const p = paragraph.trim()
   let title = ''
-  let dest = p
+  let dest = IFRAME.exec(p)?.[1] ?? p
   const link = /^\[((?:\\.|[^\]\\])*)\]\(\s*(<[^>\n]*>|\S+?)\s*\)$/.exec(p)
   if (link) {
     title = link[1]!.replace(/\\(.)/g, '$1')
     dest = link[2]!
   } else if (/^<[^>\s]+>$/.test(p)) dest = p.slice(1, -1)
-  else if (/\s/.test(p)) return null
+  else if (/\s/.test(dest)) return null
 
   const url = dest.replace(/^<|>$/g, '')
   const video = YOUTUBE.exec(url)

@@ -22,6 +22,16 @@ describe('embedOf: a paragraph that is only a link becomes an embed', () => {
     })
     expect(embedOf('https://youtu.be/dQw4w9WgXcQ?t=42')).toEqual({ ...video, start: 42 })
     expect(embedOf('https://www.youtube.com/shorts/dQw4w9WgXcQ')).toEqual(video)
+    expect(embedOf('[Live](https://www.youtube.com/live/dQw4w9WgXcQ?si=Fw-Azx1VoQetjYG_)')).toEqual(
+      { ...video, title: 'Live' },
+    )
+    // YouTube's own Share › Embed code, pasted as is.
+    expect(
+      embedOf(
+        '<iframe width="560" height="315" src="https://www.youtube.com/embed/dQw4w9WgXcQ?si=oCV37o4_tZTcKZLS" title="YouTube video player" frameborder="0" allowfullscreen></iframe>',
+      ),
+    ).toEqual(video)
+    expect(embedOf('<iframe src="https://example.com/page"></iframe>')).toBeNull()
   })
 
   it('PDFs and videos kept in the Tree', () => {

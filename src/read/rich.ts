@@ -10,6 +10,7 @@ import {
   embedOf,
   languageName,
   MATH,
+  IFRAME,
   shortUrl,
   subtitleTracks,
   type Embed,
@@ -73,6 +74,30 @@ async function loadParsers(names: Set<string>, into: Map<string, Parser>) {
 
 export function rich(md: MarkdownIt, highlight: typeof import('@lezer/highlight')) {
   const escape = md.utils.escapeHtml
+
+  // A line of YouTube's embed code is a paragraph of its own, even with no blank line
+  // around it, so the embeds rule below can play it.
+  md.block.ruler.before(
+    'paragraph',
+    'iframe',
+    (state, line, _end, silent) => {
+      if (state.sCount[line]! - state.blkIndent >= 4) return false
+      const text = state.src
+        .slice(state.bMarks[line]! + state.tShift[line]!, state.eMarks[line])
+        .trim()
+      if (embedOf(text)?.kind !== 'youtube' || !IFRAME.test(text)) return false
+      if (silent) return true
+      state.push('paragraph_open', 'p', 1).map = [line, line + 1]
+      const inline = state.push('inline', '', 0)
+      inline.content = text
+      inline.map = [line, line + 1]
+      inline.children = []
+      state.push('paragraph_close', 'p', -1)
+      state.line = line + 1
+      return true
+    },
+    { alt: ['paragraph'] },
+  )
 
   // $inline$ and $$display$$ (one paragraph); the rules are in model/embeds.ts.
   const at = new RegExp(MATH.source, 'y')

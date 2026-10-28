@@ -169,6 +169,20 @@ describe('renderLeaf', () => {
     expect(html).toContain('<a href="https://youtu.be/dQw4w9WgXcQ"')
   })
 
+  it("plays YouTube's own embed code, even on the line right after other text", async () => {
+    const html = await renderLeaf(
+      '# T\n\n![Shot](https://example.com/a.png)\n<iframe width="560" height="315" src="https://www.youtube.com/embed/dQw4w9WgXcQ?si=x" title="YouTube video player" allowfullscreen></iframe>\n\n<iframe src="https://evil.example/x"></iframe>\n',
+      context,
+    )
+    expect(html).toContain('<img src="https://example.com/a.png"')
+    expect(html).toContain(
+      '<iframe src="https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ" title="YouTube video"',
+    )
+    // Any other iframe stays text: the read view renders no HTML of its own.
+    expect(html).toContain('&lt;iframe src=&quot;')
+    expect(html).not.toContain('<iframe src="https://evil')
+  })
+
   it('embeds a list item that is only a link, keeping the list (owner keeps notes as lists)', async () => {
     const html = await renderLeaf(
       '# T\n\n- https://youtu.be/dQw4w9WgXcQ\n- $x^2$ and [a link](https://youtu.be/dQw4w9WgXcQ) in a sentence\n',
