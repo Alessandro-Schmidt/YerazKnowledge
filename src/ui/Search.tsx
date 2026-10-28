@@ -140,7 +140,10 @@ function SearchDialog({
       ref={dialog}
       className={styles.dialog}
       aria-label="Search"
-      onClose={onClose}
+      // StrictMode closes and reopens on mount; the late close event finds it open again.
+      onClose={() => {
+        if (!dialog.current?.open) onClose()
+      }}
       onCancel={(e) => {
         e.preventDefault()
         onClose()
