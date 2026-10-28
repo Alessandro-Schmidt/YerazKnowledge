@@ -555,6 +555,22 @@ describe('POST /user/repos', () => {
   })
 })
 
+describe('PUT /repos/{owner}/{name}/contents/{path}', () => {
+  it('writes a file in one commit, the first one of an empty repository, needing a token', async () => {
+    await request(fake, 'POST', '/user/repos', { body: { name: 'empty' } })
+    const body = { message: 'Start', content: btoa('{}\n') }
+    expect(
+      (await request(fake, 'PUT', '/repos/you/empty/contents/.yeraz.json', { body, token: null }))
+        .status,
+    ).toBe(401)
+    const res = await request(fake, 'PUT', '/repos/you/empty/contents/.yeraz.json', { body })
+    expect(res.status).toBe(201)
+    expect(fake.repo('you/empty').read('.yeraz.json')).toBe('{}\n')
+    expect(JSON.parse(res.body!).commit.sha).toBe(fake.repo('you/empty').head!.oid)
+    expect((await request(fake, 'PUT', '/repos/you/none/contents/a.md', { body })).status).toBe(404)
+  })
+})
+
 describe('PATCH /repos/{owner}/{name}', () => {
   it('renames a repository: known by its new name, refusing a taken one, needing a token', async () => {
     await fake.addRepo('you/notes', { 'a.md': '# A\n' })

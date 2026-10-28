@@ -370,25 +370,18 @@ export async function createRepository(
  */
 export async function startFamily(client: GitHubClient, repo: string): Promise<TreeRef> {
   const [owner, name] = repo.split('/')
-  const { data } = await client.graphql<{
-    repository: {
-      owner: { login: string }
-      name: string
-      isPrivate: boolean
-      defaultBranchRef: { name: string; target: { oid: string } } | null
-    } | null
-  }>(
-    `query Start($owner: String!, $name: String!) { repository(owner: $owner, name: $name) {
-      owner { login } name isPrivate defaultBranchRef { name target { oid } } } }`,
-    { owner, name },
-  )
-  const node = data.repository
+  const marker = `${JSON.stringify({ name })}\n`
+  let node = await repositoryHead(client, owner!, name!)
+  // An empty repository has no branch for createCommitOnBranch: the marker is its first commit.
+  if (node && !node.defaultBranchRef) {
+    await client.put(`/repos/${owner}/${name}/contents/.yeraz.json`, {
+      message: `Start ${name}`,
+      content: toBase64(marker),
+    })
+    node = await repositoryHead(client, owner!, name!)
+  }
   if (!node) throw new GitHubError('not-found', `Repository ${repo} not found`)
-  if (!node.defaultBranchRef)
-    throw new GitHubError(
-      'graphql',
-      `${repo} is empty: add a first commit on GitHub, then try again.`,
-    )
+  if (!node.defaultBranchRef) throw new GitHubError('graphql', `${repo} has no branch to write to`)
   const ref: TreeRef = {
     owner: node.owner.login,
     name: node.name,
@@ -403,13 +396,29 @@ export async function startFamily(client: GitHubClient, repo: string): Promise<T
     ref,
     node.defaultBranchRef.target.oid,
     [
-      { path: '.yeraz.json', text: `${JSON.stringify({ name: node.name })}\n` },
+      { path: '.yeraz.json', text: marker },
       { path: `${node.name}/README.md`, text: `# 🌳 ${node.name}\n` },
       { path: `${node.name}/welcome.md`, text: WELCOME },
     ],
     { headline: `Start ${node.name}`, body: 'Created by Yeraz.' },
   )
   return ref
+}
+
+async function repositoryHead(client: GitHubClient, owner: string, name: string) {
+  const { data } = await client.graphql<{
+    repository: {
+      owner: { login: string }
+      name: string
+      isPrivate: boolean
+      defaultBranchRef: { name: string; target: { oid: string } } | null
+    } | null
+  }>(
+    `query Start($owner: String!, $name: String!) { repository(owner: $owner, name: $name) {
+      owner { login } name isPrivate defaultBranchRef { name target { oid } } } }`,
+    { owner, name },
+  )
+  return data.repository
 }
 
 /** Renames a repository on GitHub (its name only; GitHub redirects the old one). */

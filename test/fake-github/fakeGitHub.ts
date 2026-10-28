@@ -7,6 +7,7 @@
 //                   Commit.blame(path:),
 //                   viewer.repositories (discovery), createCommitOnBranch
 //   POST /user/repos
+//   PUT  /repos/{owner}/{name}/contents/{path}   (one file; the first commit of an empty repository)
 //   PATCH /repos/{o}/{r}                                 rename (name only)
 // plus a request log and fault switches. Error messages copy GitHub's where known;
 // the nightly contract test against real GitHub keeps them honest.
@@ -32,7 +33,8 @@ export interface LogEntry {
   method: string
   path: string
   status: number
-  kind: 'head' | 'tree' | 'blob' | 'graphql' | 'create-repo' | 'rename-repo' | 'unknown'
+  kind:
+    'head' | 'tree' | 'blob' | 'graphql' | 'create-repo' | 'rename-repo' | 'put-file' | 'unknown'
   /** GraphQL only. */
   operation?: 'query' | 'mutation'
   /** Number of blob texts returned. */
@@ -334,6 +336,29 @@ export function createFakeGitHub(options: { login?: string; tokens?: string[] } 
   }
 
   /** PATCH /repos/{owner}/{name} with `name`: the repository is known by its new name from then on. */
+  async function putFile(
+    owner: string,
+    name: string,
+    path: string,
+    req: FakeRequest,
+  ): Promise<FakeResponse> {
+    const repo = repos.get(key(owner, name))
+    if (!repo) return restError(404, 'Not Found')
+    let input: { message?: string; content?: string }
+    try {
+      input = JSON.parse(req.body ?? '{}')
+    } catch {
+      return restError(400, 'Problems parsing JSON')
+    }
+    if (!input.message || input.content === undefined) return restError(422, 'Invalid request.')
+    const bytes = Uint8Array.from(atob(input.content), (c) => c.charCodeAt(0))
+    const commit = await repo.commit({
+      message: input.message,
+      additions: [{ path, contents: new TextDecoder().decode(bytes) }],
+    })
+    return json(201, { content: { path }, commit: { sha: commit.oid } })
+  }
+
   function renameRepo(owner: string, name: string, req: FakeRequest): FakeResponse {
     const repo = repos.get(key(owner, name))
     if (!repo) return restError(404, 'Not Found')
@@ -683,20 +708,23 @@ export function createFakeGitHub(options: { login?: string; tokens?: string[] } 
     const head = url.pathname.match(/^\/repos\/([^/]+)\/([^/]+)\/commits\/([^/]+)$/)
     const blob = url.pathname.match(/^\/repos\/([^/]+)\/([^/]+)\/git\/blobs\/([0-9a-f]{40})$/)
     const repoPath = url.pathname.match(/^\/repos\/([^/]+)\/([^/]+)$/)
+    const contents = url.pathname.match(/^\/repos\/([^/]+)\/([^/]+)\/contents\/(.+)$/)
     const kind: LogEntry['kind'] =
       method === 'PATCH' && repoPath
         ? 'rename-repo'
-        : method === 'GET' && head
-          ? 'head'
-          : method === 'GET' && tree
-            ? 'tree'
-            : method === 'GET' && blob
-              ? 'blob'
-              : method === 'POST' && url.pathname === '/graphql'
-                ? 'graphql'
-                : method === 'POST' && url.pathname === '/user/repos'
-                  ? 'create-repo'
-                  : 'unknown'
+        : method === 'PUT' && contents
+          ? 'put-file'
+          : method === 'GET' && head
+            ? 'head'
+            : method === 'GET' && tree
+              ? 'tree'
+              : method === 'GET' && blob
+                ? 'blob'
+                : method === 'POST' && url.pathname === '/graphql'
+                  ? 'graphql'
+                  : method === 'POST' && url.pathname === '/user/repos'
+                    ? 'create-repo'
+                    : 'unknown'
     const entry: LogEntry = { method, path: url.pathname + url.search, status: 0, kind, blobs: 0 }
     log.push(entry)
 
@@ -743,6 +771,11 @@ export function createFakeGitHub(options: { login?: string; tokens?: string[] } 
       }
     } else if (kind === 'create-repo') {
       response = auth ? await createRepo(request) : restError(401, 'Requires authentication')
+    } else if (kind === 'put-file') {
+      const [, owner, name, path] = contents!
+      response = auth
+        ? await putFile(owner!, name!, decodeURIComponent(path!), request)
+        : restError(401, 'Requires authentication')
     } else if (kind === 'rename-repo') {
       const [, owner, name] = repoPath!
       response = auth
