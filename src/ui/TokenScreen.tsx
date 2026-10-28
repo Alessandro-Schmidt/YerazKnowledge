@@ -99,8 +99,34 @@ function Welcome({ choose }: { choose(step: Step): void }) {
           alt=""
         />
         <h1 className={styles.name}>Yeraz</h1>
-        <p className={styles.lead}>Your notes as Markdown, on a map. Where should they live?</p>
+        <p className={styles.lead}>
+          Yeraz is a note-taking app. Your notes are Markdown files you own, and the main screen is
+          a map of how they connect.
+        </p>
       </div>
+      <dl className={styles.topics}>
+        <dt>Your files</dt>
+        <dd>
+          Each note is a Markdown file in a GitHub repository you own, or in a folder on this
+          device. Nothing passes through a server of ours, and the files read well on github.com
+          too.
+        </dd>
+        <dt>The map</dt>
+        <dd>
+          Folders are branches, notes are leaves, and a link from one note to another is a thread.
+          The main screen draws them all as one map.
+        </dd>
+        <dt>Writing</dt>
+        <dd>
+          You write Markdown and see the result as you type, with @ mentions, images, code, math and
+          videos.
+        </dd>
+        <dt>Saving</dt>
+        <dd>
+          Yeraz keeps your edits on this device as you type and commits them in the background.
+        </dd>
+      </dl>
+      <p className={styles.ask}>Where should your notes live?</p>
       <div className={styles.choices}>
         {choices.map((c) => (
           <button
@@ -244,6 +270,7 @@ function GitHub({ onDone, back }: { onDone?: () => void; back(): void }) {
 function Folder({ back }: { back(): void }) {
   const can = useSession((s) => s.folders)
   const onDevice = useSession((s) => s.onDevice)
+  const closed = useSession((s) => s.closed)
   const [name, setName] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -255,6 +282,18 @@ function Folder({ back }: { back(): void }) {
     try {
       const tree = await session.getState().addFolder(project, seed)
       if (tree) open(tree)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    }
+    setBusy(false)
+  }
+  /** A closed project, kept on this device: open it again, or delete it. */
+  const closedProject = async (handle: unknown, what: 'reopen' | 'discard') => {
+    setError(null)
+    setBusy(true)
+    try {
+      if (what === 'reopen') open(await session.getState().reopenFolder(handle))
+      else await session.getState().discardClosed(handle)
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
     }
@@ -329,6 +368,36 @@ function Folder({ back }: { back(): void }) {
             <Icon name="face" />
             Try an example
           </button>
+          {onDevice && closed.length > 0 && (
+            <>
+              <p className={styles.or}>closed, still on this device</p>
+              <ul className={styles.closed} aria-label="Closed projects">
+                {closed.map((c) => (
+                  <li key={String(c.handle)}>
+                    <button
+                      type="button"
+                      className={controls.ghost}
+                      disabled={busy}
+                      onClick={() => void closedProject(c.handle, 'reopen')}
+                    >
+                      <Icon name="folder" />
+                      Open {c.title} again
+                    </button>
+                    <button
+                      type="button"
+                      className={controls.iconButton}
+                      aria-label={`Delete ${c.title} from this device`}
+                      title="Delete from this device"
+                      disabled={busy}
+                      onClick={() => void closedProject(c.handle, 'discard')}
+                    >
+                      <Icon name="trash" size={15} />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
         </>
       ) : (
         <p className={controls.hint}>

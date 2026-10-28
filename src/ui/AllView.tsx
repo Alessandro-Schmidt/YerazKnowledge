@@ -40,7 +40,9 @@ import { allHref, decodePath } from './paths'
 import { SaveAndRefresh } from './SaveAndRefresh'
 import { Search, type Matches } from './Search'
 import { parentFor, StructureDialog, type StructureAction } from './StructureDialogs'
+import { useDeleteKey } from './deleteKey'
 import { colorVar } from './theme'
+import { ProjectTabs } from './ProjectTabs'
 import { Divider, TopBar } from './TopBar'
 import { widthStore, widthVars } from './panels'
 import { PHONE, useMedia } from './useMedia'
@@ -156,6 +158,13 @@ export function AllView({ params }: { params: { owner?: string; name?: string; '
     },
     [navigate],
   )
+  // The Delete key on the selection (a ghost or a Family's root have nothing to delete).
+  useDeleteKey(
+    family && action === null && path !== null && path !== ROOT && family.graph.nodes.has(path)
+      ? path
+      : null,
+    (id) => family && setAction({ tree: family.ref, action: { kind: 'delete', id } }),
+  )
   /** A node's image icon, from its own Family. */
   const imageUrl = useCallback(
     (id: string, src: string) => imageAt(splitId(id)?.repo ?? '', src),
@@ -234,6 +243,7 @@ export function AllView({ params }: { params: { owner?: string; name?: string; '
           )}
         </div>
       </TopBar>
+      <ProjectTabs all />
       {phone && <ViewSwitcher phone />}
       {trees.map((t) => (
         <ConflictBanner key={t.repo} repo={t.repo} />

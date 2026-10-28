@@ -4,10 +4,9 @@
 
 Notes as Markdown in your own GitHub repositories. The main screen is a map of how they're structured and connected.
 
-- **Your files, your repositories.** Every note is a `.md` file that reads well on github.com too. There's no server of ours; GitHub is the backend.
-- **A map, not a list.** Each repository is a *Tree*: folders are *branches*, notes are *leaves*, and links between notes are *threads*, drawn as one radial map.
-- **Write in Markdown, see the result.** The editor edits the text itself, with live preview: `@` mentions, images, math, code, YouTube, PDFs and subtitled videos.
-- **Saved for you.** Edits are kept on your device as you type and committed in the background, one commit per save. Two devices editing the same leaf are merged.
+Every note is a `.md` file in a repository you own, and it reads well on github.com too. There's no server of ours: GitHub is the backend. Each repository is a *Family*; its top-level folders are *Trees*, folders *branches*, notes *leaves*, and links between notes *threads*, drawn together as one radial map.
+
+The editor edits the text itself and shows the result as you type: `@` mentions, images, math, code, YouTube, PDFs and subtitled videos. Edits are kept on your device as you type and committed in the background, one commit per save. Two devices editing the same leaf are merged.
 
 ## Preview
 
@@ -37,14 +36,14 @@ Two Families together: *Engineering* (400 leaves) and *Art History* (90 leaves),
 Yeraz signs in with a fine-grained personal access token, kept on your device (in the OS keychain on desktop).
 
 1. Open [New fine-grained token](https://github.com/settings/personal-access-tokens/new).
-2. Under **Repository access**, choose the repositories that hold your Trees, or all repositories.
+2. Under **Repository access**, choose the repositories that hold your notes, or all repositories.
 3. Under **Permissions**, set **Contents** to *Read and write*. Metadata stays read-only.
-4. To create new Trees from the app, also set **Administration** to *Read and write* (on all repositories).
+4. To create new repositories from the app, also set **Administration** to *Read and write* (on all repositories).
 5. Paste the token into Yeraz.
 
 ### Or use a folder, without GitHub
 
-*Use a folder* on the first screen (or in the Family menu) keeps a Family in a folder on your computer instead: no account, no token. Pick one that iCloud Drive, Dropbox, OneDrive or a shared drive keeps in sync, and your other devices see the same notes. Edits are written to the folder a couple of seconds after you stop typing; when another device changed the same leaf meanwhile, the two versions are merged, or both kept. The files follow the same format as a repository, so the folder can become one later.
+*Folder* on the first screen (or *Open an existing folder* in the Family menu) keeps a Family in a folder on your computer instead, with no account and no token. Pick one that iCloud Drive, Dropbox, OneDrive or a shared drive keeps in sync, and your other devices see the same notes. Edits are written to the folder a couple of seconds after you stop typing; when another device changed the same leaf meanwhile, the two versions are merged, or both kept. The files follow the same format as a repository, so the folder can become one later.
 
 It works in the desktop app and in Chrome or Edge on a computer. Safari, Firefox and phone browsers can't open folders, so there Yeraz keeps the Family in the browser's own storage. A folder keeps no history: *History* is GitHub's. When you want it tracked, *Push to GitHub* in the Family menu makes a private repository of it, every file in one commit, and shows the repository in its place.
 
@@ -61,7 +60,7 @@ Edits are not live between people, as in a shared document: each person sees the
 
 ### Templates for new leaves
 
-A template is a note kept in the Family's `.yeraz/templates/` folder: its title is the template's name, its emoji and look go to the new leaf, and `{{title}}`, `{{date}}` and `{{tree}}` in its text are filled in. *New leaf* offers every template under *Start from*; Settings › Templates makes, edits, copies and deletes them, and *Save as template* in a leaf's ⋯ menu turns that leaf into one. Because templates are files of the Family, every device and everyone sharing the repository has them, and *Copy to…* puts one in another Family so it travels with that repository too.
+A template is a note kept in the Family's `.yeraz/templates/` folder: its title is the template's name, its emoji and look go to the new leaf, and `{{title}}`, `{{date}}` and `{{tree}}` in its text are filled in. *New leaf* offers every template under *Start from*; Settings › Templates makes, edits, copies and deletes them, and *Save as template* in a leaf's Options menu turns that leaf into one. Because templates are files of the Family, every device and everyone sharing the repository has them, and *Copy to…* puts one in another Family so it travels with that repository too.
 
 ### Bring your notes from another app
 
@@ -71,7 +70,7 @@ An Obsidian vault, a Notion export (*Markdown & CSV*, unzipped) or any folder of
 npm run import -- ~/Obsidian/Vault ~/Notes/Vault --name "My notes"
 ```
 
-Notion's ids leave the file names, `[[wikilinks]]` and relative links become threads, attachments move to `assets/`, and each note gets its title on line 1. The source isn't touched. Open the new folder with *Use a folder*, or push it to a GitHub repository. With [Claude Code](https://claude.com/claude-code) in this repository, asking it to *import my Obsidian vault* runs the same steps (`.claude/skills/import-notes/`).
+Notion's ids leave the file names, `[[wikilinks]]` and relative links become threads, attachments move to `assets/`, and each note gets its title on line 1. The source isn't touched. Open the new folder with *Folder* on the first screen, or push it to a GitHub repository. With [Claude Code](https://claude.com/claude-code) in this repository, asking it to *import my Obsidian vault* runs the same steps (`.claude/skills/import-notes/`).
 
 Without a clone, the standalone skill in [`skills/yeraz-import/`](skills/yeraz-import/) does the same from one Node script, reads Logseq graphs and OneNote's HTML or MHT exports too, and gives every page an emoji icon that says what it is about (Claude chooses them from an inventory of the pages):
 
@@ -83,9 +82,9 @@ npx skills add Alessandro-Schmidt/YerazKnowledge --skill yeraz-import
 
 With more than one Family (repositories or folders), Yeraz opens on all of them on one map, each in its own ring, and every view (Mind map, Outline, Columns, Treemap, Graph, Growth rings, Atlas) shows them all too. Click any leaf to read and edit it there. *All Families* in the Family menu brings that map back; to open on the last Family instead, choose *The last Family* in Settings › Views.
 
-### Make a repository a Tree
+### Make a repository a Family
 
-A repository is a Tree when it has a `.yeraz.json` at its root, for example `{"name": "Engineering", "color": "green"}`. Yeraz finds every such repository the token can see. *Create a new repository* on Home makes one for you. To rename a Tree, click its name in the top bar, on its Home card or in its own panel. This repository's [`knowledge-base-example/`](knowledge-base-example) folder is an example Tree.
+A repository is a Family when it has a `.yeraz.json` at its root, for example `{"name": "Engineering", "color": "green"}`. Yeraz finds every such repository the token can see. *Create a new repository*, on the first screen's GitHub step or in the Family menu, makes one for you. To rename a Family, click its name in the top bar, or choose *Rename Family* in the Family menu. This repository's [`knowledge-base-example/`](knowledge-base-example) folder is an example Family.
 
 ## The repository format
 

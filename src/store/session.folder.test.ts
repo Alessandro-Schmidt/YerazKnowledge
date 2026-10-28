@@ -65,6 +65,24 @@ describe('a Family in a folder', () => {
     expect(again.getState().trees.map((t) => t.repo)).toEqual(['~/notes'])
   })
 
+  it('removes a folder Family with its files kept, or deletes its files from the device too', async () => {
+    const notes = memoryFolder({ 'Ideas/first.md': '# First\n' })
+    const folders = memoryFolders({ Notes: notes })
+    const s = createSession({ store: memoryStore(), folders })
+    await s.getState().start()
+    folders.choose('Notes')
+    const ref = (await s.getState().addFolder())!
+    await s.getState().removeTree(ref.repo)
+    expect(s.getState().trees).toEqual([])
+    expect(notes.text('Ideas/first.md')).toBe('# First\n')
+
+    folders.choose('Notes')
+    const again = (await s.getState().addFolder())!
+    await s.getState().removeTree(again.repo, { files: true })
+    expect(s.getState().trees).toEqual([])
+    expect(await notes.list()).toEqual([])
+  })
+
   it('keeps an existing folder of notes as it is, apart from the marker', async () => {
     const vault = memoryFolder({ 'Ideas/first.md': '# First\n', '.obsidian/app.json': '{}' })
     const folders = memoryFolders({ Vault: vault })
@@ -228,6 +246,41 @@ describe('a Family kept on a device without folders (phones, Safari, Firefox)', 
 })
 
 describe('removing a Family', () => {
+  it('closes a project on the device with its notes kept, to open again or delete', async () => {
+    const store = memoryStore()
+    const folders = deviceFolders(store, async () => null)
+    const s = createSession({ store, folders })
+    await s.getState().start()
+    const ref = (await s.getState().addFolder('Recipes'))!
+    await s.getState().open(ref.repo)
+    await s.getState().apply(ref.repo, [{ path: 'soup.md', text: '# Soup\n' }])
+    await s.getState().flush(ref.repo)
+    const handle = await store.get<string>('folder:~/recipes')
+
+    await s.getState().removeTree('~/recipes')
+    expect(s.getState().trees).toEqual([])
+    expect(s.getState().phase).toBe('signed-out')
+    expect(s.getState().closed).toEqual([{ title: 'Recipes', handle }])
+    expect(await store.get(`device:${handle}`)).toBeTruthy()
+
+    // Reopening the app still lists it; opened again, it is the same Family, soup included.
+    const again = createSession({ store, folders })
+    await again.getState().start()
+    expect(again.getState().closed).toEqual([{ title: 'Recipes', handle }])
+    const back = await again.getState().reopenFolder(handle)
+    expect(back).toMatchObject({ repo: '~/recipes', title: 'Recipes' })
+    expect(again.getState().closed).toEqual([])
+    await again.getState().open(back.repo)
+    const data = again.getState().data['~/recipes']
+    expect(data?.status === 'ready' && data.graph.nodes.get('soup.md')?.title).toBe('Soup')
+
+    // Closed, then deleted from the device.
+    await again.getState().removeTree('~/recipes')
+    await again.getState().discardClosed(handle)
+    expect(again.getState().closed).toEqual([])
+    expect(await store.get(`device:${handle}`)).toBeUndefined()
+  })
+
   it('starts a named Family on the device, and deletes it on removal', async () => {
     const store = memoryStore()
     const folders = deviceFolders(store, async () => null)
@@ -238,7 +291,7 @@ describe('removing a Family', () => {
     const handle = await store.get<string>('folder:~/recipes')
     expect(await store.get(`device:${handle}`)).toBeTruthy()
 
-    await s.getState().removeTree('~/recipes')
+    await s.getState().removeTree('~/recipes', { files: true })
     expect(s.getState().trees).toEqual([])
     expect(s.getState().phase).toBe('signed-out')
     expect(await store.get('folder:~/recipes')).toBeUndefined()

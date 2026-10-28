@@ -68,6 +68,28 @@ test('uses a folder instead of GitHub: welcomes it, writes edits to it, reopens 
   await page.reload()
   await expect(page.locator('[data-map]')).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Yeraz', level: 1 })).toHaveCount(0)
+  // Nothing to commit or fetch: Save now and Refresh are GitHub's.
+  await expect(page.getByRole('button', { name: 'Save now' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Refresh' })).toHaveCount(0)
+})
+
+test('Delete from device takes the folder Family off and deletes its files', async ({ page }) => {
+  await folderPicker(page, { 'Ideas/first.md': '# First\n' })
+  await page.goto('./')
+  await page.getByRole('button', { name: 'Folder', exact: true }).click()
+  await page.getByRole('button', { name: 'Open an existing folder' }).click()
+  await expect(page).toHaveURL(/#\/tree\/~\/notes$/)
+  await page
+    .getByRole('navigation', { name: 'Projects' })
+    .getByRole('button', { name: 'Remove Notes' })
+    .click()
+  const dialog = page.getByRole('dialog', { name: 'Remove Notes' })
+  await expect(dialog).toContainText('stay on this device')
+  await dialog.getByRole('button', { name: 'Delete from device' }).click()
+  // No Family and no GitHub: the introduction is the whole app again.
+  await expect(page.getByRole('button', { name: 'Folder', exact: true })).toBeVisible()
+  expect(await readFile(page, 'Ideas/first.md')).toBeNull()
+  expect(await readFile(page, '.yeraz.json')).toBeNull()
 })
 
 test('opens a folder of notes made elsewhere as it is', async ({ page }) => {

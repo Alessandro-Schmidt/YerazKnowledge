@@ -140,7 +140,7 @@ function TemplateList({
           </p>
         ) : graph.templates.length === 0 ? (
           <p className={styles.note}>
-            No templates yet. Make one here, or save a leaf as one from its ⋯ menu.
+            No templates yet. Make one here, or save a leaf as one from its Options menu.
           </p>
         ) : (
           <div className={own.rows}>

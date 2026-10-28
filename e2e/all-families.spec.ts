@@ -107,7 +107,7 @@ test('a leaf moves to another Family, found by typing where', async ({ page, fak
   await signIn(page)
   await page.goto('./#/tree/you/art/Baroque/caravaggio.md')
   const panel = page.getByRole('region', { name: 'Leaf preview' })
-  await panel.getByRole('button', { name: 'More actions' }).click()
+  await panel.getByRole('button', { name: 'Options' }).click()
   await page.getByRole('menuitem', { name: 'Move…' }).click()
   const dialog = page.getByRole('dialog')
   await dialog.getByRole('searchbox', { name: 'Where to' }).fill('top of engin')

@@ -48,7 +48,9 @@ test('copies in a folder of notes, named after it', async ({ page }, info) => {
   const chooser = page.waitForEvent('filechooser')
   await page.getByRole('button', { name: 'Folder', exact: true }).click()
   await page.getByRole('button', { name: 'Copy in a folder' }).click()
-  await (await chooser).setFiles(vault)
+  // WebKit now and then never answers a folder's setFiles although the page got the files
+  // (CI runs 40516518655, 39866726554): what the files lead to is waited for, not the call.
+  void (await chooser).setFiles(vault).catch(() => undefined)
   await expect(page).toHaveURL(/#\/tree\/~\/vault$/)
   await page.goto('./#/tree/~/vault/Ideas/first.md')
   await expect(page.locator('.cm-content')).toContainText('Hello.')
@@ -67,12 +69,26 @@ test('starts a Family with a name of its own, and deletes it from the device on 
   await familyMenu(page)
   await page.getByRole('menuitem', { name: 'Remove Family' }).click()
   const dialog = page.getByRole('dialog', { name: 'Remove Recipes' })
-  await expect(dialog).toContainText('deleted from this device')
-  await dialog.getByRole('button', { name: 'Delete' }).click()
-  // The last Family on a device without GitHub: back to the introduction.
+  await expect(dialog).toContainText('stay on this device')
+  await dialog.getByRole('button', { name: 'Remove' }).click()
+  // The last Family on a device without GitHub: back to the introduction, where the Folder
+  // step opens the closed project again, notes kept.
   await expect(page.getByRole('heading', { name: 'Yeraz', level: 1 })).toBeVisible()
   await page.reload()
+  await page.getByRole('button', { name: 'Folder', exact: true }).click()
+  await page.getByRole('button', { name: 'Open Recipes again' }).click()
+  await expect(page).toHaveURL(/#\/tree\/~\/recipes$/)
+  await expect(page.getByRole('heading', { level: 1 })).toContainText('Recipes')
+
+  // Deleted from the device: gone from the Folder step too.
+  await page
+    .getByRole('navigation', { name: 'Projects' })
+    .getByRole('button', { name: 'Remove Recipes' })
+    .click()
+  await page.getByRole('dialog').getByRole('button', { name: 'Delete from device' }).click()
   await expect(page.getByRole('heading', { name: 'Yeraz', level: 1 })).toBeVisible()
+  await page.getByRole('button', { name: 'Folder', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Open Recipes again' })).toHaveCount(0)
 })
 
 test('Try an example starts the example Family on the device', async ({ page }) => {

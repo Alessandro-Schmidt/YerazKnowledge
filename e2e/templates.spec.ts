@@ -30,7 +30,7 @@ test('New leaf starts from a template: its emoji and look, the title, the date a
   ).toBeAttached()
   await expect(page.locator('[data-map] [data-id^=".yeraz"]')).toHaveCount(0)
   await expect(page.getByRole('treeitem', { name: /Meeting/ })).toHaveCount(0)
-  await peek.getByRole('button', { name: 'More actions' }).click()
+  await peek.getByRole('button', { name: 'Options' }).click()
   await page.getByRole('menuitem', { name: 'Add sub-leaf' }).click()
   const dialog = page.getByRole('dialog')
   await dialog.getByRole('textbox', { name: /^Title/ }).fill('Sprint review')
@@ -85,7 +85,7 @@ test('a leaf is saved as a template from its ⋯ menu, and opens in Settings ›
   await page.goto(`./#/tree/${REPO}/Work%2Fplan.md`)
   await signInHere(page)
   const peek = page.getByRole('region', { name: 'Leaf preview' })
-  await peek.getByRole('button', { name: 'More actions' }).click()
+  await peek.getByRole('button', { name: 'Options' }).click()
   await page.getByRole('menuitem', { name: 'Save as template' }).click()
   await expect(page).toHaveURL(
     /#\/settings\/templates\/you\/notes\/\.yeraz(\/|%2F)templates(\/|%2F)plan\.md$/,

@@ -365,13 +365,13 @@ export function Peek({
             <div ref={menuHost} className={styles.menuHost}>
               <button
                 type="button"
-                className={controls.iconButton}
-                aria-label="More actions"
+                className={controls.ghost}
                 aria-haspopup="menu"
                 aria-expanded={menu}
                 onClick={() => setMenu((m) => !m)}
               >
-                <Icon name="more" />
+                Options
+                <Icon name="chevronDown" size={15} />
               </button>
               {menu && (
                 <div

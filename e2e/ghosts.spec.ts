@@ -38,6 +38,9 @@ test('a link to a leaf not written yet is a ghost on the map and in the Peek', a
   await expect(ghost.getByRole('link', { name: /Keycloak/ })).toBeVisible()
   await expect(ghost.getByRole('link', { name: /OIDC/ })).toBeVisible()
   await expect(ghost.getByRole('button', { name: 'Write this leaf' })).toBeVisible()
+  // Scanned once the sheet has come in: axe reads a fading sheet's colours as blended, and
+  // fails the contrast of its button (CI run 40500151278).
+  await ghost.evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)))
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])
 
   // A linker opens from there; the ghost's dot on the map opens it again.

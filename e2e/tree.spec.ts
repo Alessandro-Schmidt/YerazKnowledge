@@ -275,11 +275,13 @@ test('on a phone, the sheet follows the finger, and scrolling its note opens the
   const panel = peek(page)
   const handle = panel.locator('[class*="handle"]')
   const init = { pointerType: 'touch', isPrimary: true, clientX: 200, clientY: 400 }
+  // A short drag: too short to count as a swipe at any speed, so no matter how long the
+  // three events take to reach the page (a 30 px drag lifted within 270 ms is a flick).
   await handle.dispatchEvent('pointerdown', init)
-  await handle.dispatchEvent('pointermove', { ...init, clientY: 430 })
-  await expect(panel).toHaveCSS('transform', 'matrix(1, 0, 0, 1, 0, 30)')
+  await handle.dispatchEvent('pointermove', { ...init, clientY: 420 })
+  await expect(panel).toHaveCSS('transform', 'matrix(1, 0, 0, 1, 0, 20)')
   // Too short a swipe: it settles back.
-  await handle.dispatchEvent('pointerup', { ...init, clientY: 430 })
+  await handle.dispatchEvent('pointerup', { ...init, clientY: 420 })
   await expect(panel).toHaveCSS('transform', 'none')
   await expect(panel).not.toHaveAttribute('data-expanded')
 
@@ -300,17 +302,18 @@ test('on a phone, a selected leaf or Tree sits in the room above the sheet', asy
   await page.goto(`./#/tree/you/engineering/${leaf.id}`)
   /** The middle of what the sheet and the map's controls leave free, and its edges. */
   const room = async () => {
-    const stage = (await page.locator('[data-map]').boundingBox())!
-    const sheet = (await peek(page).boundingBox())!
+    const stage = await page.locator('[data-map]').boundingBox()
+    const sheet = await peek(page).boundingBox()
+    if (!stage || !sheet) return null
     const top = stage.y + 64
     const bottom = sheet.y - 80
     return { top, bottom, cx: stage.x + stage.width / 2, cy: (top + bottom) / 2 }
   }
-  /** How far a box's centre is from the room's; far while the box isn't drawn yet. */
+  /** How far a box's centre is from the room's; far while it or the sheet isn't drawn yet. */
   const offCentre = async (box: { x: number; y: number; width: number; height: number } | null) => {
-    if (!box) return Infinity
-    const { cx, cy } = await room()
-    return Math.hypot(box.x + box.width / 2 - cx, box.y + box.height / 2 - cy)
+    const r = box && (await room())
+    if (!box || !r) return Infinity
+    return Math.hypot(box.x + box.width / 2 - r.cx, box.y + box.height / 2 - r.cy)
   }
   await expect
     .poll(async () => offCentre(await page.locator('[data-map] [data-sel]').first().boundingBox()))
@@ -328,12 +331,12 @@ test('on a phone, a selected leaf or Tree sits in the room above the sheet', asy
     .toBeLessThan(40)
 })
 
-test("on a phone, a branch's More actions menu stays on screen", async ({ page, graph }) => {
+test("on a phone, a branch's Options menu stays on screen", async ({ page, graph }) => {
   test.skip(!isPhone(page), 'Phone layout')
   const branch = [...graph.nodes.values()].find((n) => n.kind === 'branch' && n.parent !== '')!
   await openTree(page)
   await page.goto(`./#/tree/you/engineering/${branch.id}`)
-  await peek(page).getByRole('button', { name: 'More actions' }).click()
+  await peek(page).getByRole('button', { name: 'Options' }).click()
   const box = (await peek(page).getByRole('menu').boundingBox())!
   expect(box.x).toBeGreaterThanOrEqual(0)
   expect(box.x + box.width).toBeLessThanOrEqual(page.viewportSize()!.width)

@@ -24,8 +24,12 @@ const firstLeaf = (graph: Graph) =>
 
 test('the skip link is the first stop, and lands on the main region', async ({ page }) => {
   await page.goto('./')
+  // The page is empty until the session has started (App.tsx): a Tab before the
+  // introduction is drawn lands nowhere, and the link then appears unfocused.
+  const skip = page.getByRole('link', { name: 'Skip to content' })
+  await expect(skip).toBeAttached()
   await page.keyboard.press('Tab')
-  await expect(page.getByRole('link', { name: 'Skip to content' })).toBeFocused()
+  await expect(skip).toBeFocused()
   await page.keyboard.press('Enter')
   await expect(page.locator('#main')).toBeFocused()
 })

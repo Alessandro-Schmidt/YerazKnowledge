@@ -409,8 +409,8 @@ function PublishDialog({
   )
 }
 
-/** Takes the Family on screen off this device; says what happens to its notes. */
-function RemoveFamilyDialog({
+/** Takes a Family off this device; says what happens to its notes. */
+export function RemoveFamilyDialog({
   tree,
   onClose,
   onRemoved,
@@ -429,29 +429,31 @@ function RemoveFamilyDialog({
   const folder = isFolder(tree.repo)
   const what =
     folder && onDevice
-      ? 'Its notes are deleted from this device. Nothing else holds them.'
+      ? 'Its notes stay on this device, and the Folder step of the introduction opens it again. Delete from device deletes them: nothing else holds them.'
       : folder
-        ? `The folder ${tree.folder ?? ''} and its files stay on this device; Yeraz stops showing it.`
+        ? `The folder ${tree.folder ?? ''} and its files stay on this device; Yeraz stops showing it. Delete from device deletes its files too, and keeps the empty folder.`
         : `The repository ${tree.repo} stays on GitHub; Yeraz stops showing it on this device.`
+  const remove = async (files: boolean) => {
+    setBusy(true)
+    setError(null)
+    try {
+      await session.getState().removeTree(tree.repo, { files })
+      onRemoved()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+      setBusy(false)
+    }
+  }
   return (
     <Dialog
       title={`Remove ${tree.title}`}
-      submit={folder && onDevice ? 'Delete' : 'Remove'}
+      submit="Remove"
       danger
       busy={busy}
       error={error}
       onClose={onClose}
-      onSubmit={async () => {
-        setBusy(true)
-        setError(null)
-        try {
-          await session.getState().removeTree(tree.repo)
-          onRemoved()
-        } catch (e) {
-          setError(e instanceof Error ? e.message : String(e))
-          setBusy(false)
-        }
-      }}
+      extra={folder ? { label: 'Delete from device', onClick: () => remove(true) } : undefined}
+      onSubmit={() => remove(false)}
     >
       <p className={controls.hint}>
         {what}

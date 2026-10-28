@@ -91,6 +91,8 @@ export interface SessionState {
   /** Families are kept in this browser's storage: it can't open folders (phones, Safari, Firefox). */
   onDevice: boolean
   trees: TreeRef[]
+  /** Projects kept in this browser's storage and closed: their notes stay until reopened or deleted. */
+  closed: ClosedFolder[]
   discovery: 'idle' | 'loading' | 'done' | 'error'
   data: Record<string, TreeData>
   sync: Record<string, SyncState>
@@ -115,9 +117,14 @@ export interface SessionState {
   /**
    * Takes a Family off this device: a repository stays on GitHub (and isn't found again until
    * connected by hand), a folder stays on the disk, a Family in the device's own storage is
-   * deleted. Pending edits are dropped.
+   * closed with its notes kept (`closed`). Pending edits are dropped. With `files`, a folder's
+   * files are deleted from the device as well (the folder itself stays).
    */
-  removeTree(repo: string): Promise<void>
+  removeTree(repo: string, options?: { files?: boolean }): Promise<void>
+  /** Opens a closed project again, as a Family. */
+  reopenFolder(handle: unknown): Promise<TreeRef>
+  /** Deletes a closed project's notes from this device. */
+  discardClosed(handle: unknown): Promise<void>
   /** Asks the person again for access to a Family's folder (from a click), then opens it. */
   allowFolder(repo: string): Promise<void>
   /** Creates a private repository holding a new Tree. Throws a message on failure. */
@@ -188,7 +195,18 @@ export interface SessionState {
   dismissConflict(repo: string): void
 }
 
-const KEYS = { trees: 'session:trees', connected: 'session:connected', ignored: 'session:ignored' }
+/** A project kept in this browser's storage and closed: opened again, or deleted, from the Folder step. */
+export interface ClosedFolder {
+  title: string
+  handle: unknown
+}
+
+const KEYS = {
+  trees: 'session:trees',
+  connected: 'session:connected',
+  ignored: 'session:ignored',
+  closed: 'session:closed',
+}
 const dirtyKey = (repo: string) => `dirty:${repo.toLowerCase()}`
 
 export function describeError(e: unknown): { message: string; kind: ErrorKind } {
@@ -394,6 +412,51 @@ export function createSession(deps: {
       await store.set(dirtyKey(key), undefined)
     }
 
+    /** A picked or created folder as a Family: marked, welcomed when empty, opened. */
+    const adopt = async (
+      picked: { name: string; handle: unknown },
+      seed?: Readonly<Record<string, string>>,
+    ): Promise<TreeRef> => {
+      const fs = await deps.folders!.open(picked.handle, true)
+      const files = await fs.list()
+      const encoder = new TextEncoder()
+      let fields: ReturnType<typeof markerFields> = {}
+      if (files.some((f) => f.path === MARKER))
+        fields = markerFields(new TextDecoder().decode(await fs.read(MARKER)))
+      else {
+        await fs.write(MARKER, encoder.encode(`${JSON.stringify({ name: picked.name })}\n`))
+        if (!files.some((f) => f.path.endsWith('.md') && !isTemplatePath(f.path)))
+          for (const [path, text] of Object.entries(
+            seed ?? { 'welcome.md': FOLDER_WELCOME, [AGENTS_FILE]: AGENTS_TEXT },
+          ))
+            await fs.write(path, encoder.encode(text))
+      }
+      const taken = new Set(get().trees.map((t) => t.repo.toLowerCase()))
+      const slug = slugify(picked.name)
+      let name = slug
+      for (let n = 2; taken.has(`${FOLDER_OWNER}/${name}`); n++) name = `${slug}-${n}`
+      const ref: TreeRef = {
+        owner: FOLDER_OWNER,
+        name,
+        repo: `${FOLDER_OWNER}/${name}`,
+        branch: '',
+        isPrivate: true,
+        title: fields.title ?? picked.name,
+        color: fields.color ?? null,
+        trees: fields.trees ?? {},
+        folder: picked.name,
+      }
+      await store.set(`folder:${ref.repo}`, picked.handle)
+      opened.set(ref.repo, fs)
+      await saveTrees(mergeTrees(get().trees, [ref]))
+      set({ phase: 'signed-in' })
+      return ref
+    }
+    const saveClosed = async (closed: ClosedFolder[]) => {
+      await store.set(KEYS.closed, closed)
+      set({ closed })
+    }
+
     const loadDirty = async (key: string) => {
       if (!dirty.has(key)) dirty.set(key, (await store.get<Dirty>(dirtyKey(key))) ?? {})
       return dirty.get(key)!
@@ -498,17 +561,23 @@ export function createSession(deps: {
       folders: !!deps.folders,
       onDevice: !!deps.folders?.onDevice,
       trees: [],
+      closed: [],
       discovery: 'idle',
       data: {},
       sync: {},
 
       async start() {
-        const [token, trees] = await Promise.all([tokens.get(), store.get<TreeRef[]>(KEYS.trees)])
+        const [token, trees, closed] = await Promise.all([
+          tokens.get(),
+          store.get<TreeRef[]>(KEYS.trees),
+          store.get<ClosedFolder[]>(KEYS.closed),
+        ])
         const inFolders = (trees ?? []).some((t) => isFolder(t.repo))
         set({
           phase: token || inFolders ? 'signed-in' : 'signed-out',
           token: token ?? null,
           trees: trees ?? [],
+          closed: closed ?? [],
         })
       },
 
@@ -607,12 +676,21 @@ export function createSession(deps: {
         return tree
       },
 
-      async removeTree(repo) {
+      async removeTree(repo, options) {
         const key = repo.toLowerCase()
+        const title = get().trees.find((t) => t.repo.toLowerCase() === key)?.title ?? repo
+        // Pending edits go first (forget), so no autosave writes a file back while deleting.
         await forget(key)
+        if (isFolder(repo) && options?.files && !get().onDevice) {
+          const fs = await folderOf(key, true)
+          for (const file of await fs.list()) await fs.remove(file.path)
+        }
         if (isFolder(repo)) {
           const handle = await store.get<unknown>(`folder:${key}`)
-          if (handle !== undefined) await deps.folders?.discard?.(handle)
+          // On a device: closed with its notes kept, unless they are to be deleted.
+          if (handle !== undefined && get().onDevice && !options?.files)
+            await saveClosed([...get().closed, { title, handle }])
+          else if (handle !== undefined) await deps.folders?.discard?.(handle)
           await store.set(`folder:${key}`, undefined)
         } else {
           await store.set(
@@ -644,40 +722,22 @@ export function createSession(deps: {
           picked = await access.create(name)
         }
         if (!picked) return null
-        const fs = await access.open(picked.handle, true)
-        const files = await fs.list()
-        const encoder = new TextEncoder()
-        let fields: ReturnType<typeof markerFields> = {}
-        if (files.some((f) => f.path === MARKER))
-          fields = markerFields(new TextDecoder().decode(await fs.read(MARKER)))
-        else {
-          await fs.write(MARKER, encoder.encode(`${JSON.stringify({ name: picked.name })}\n`))
-          if (!files.some((f) => f.path.endsWith('.md') && !isTemplatePath(f.path)))
-            for (const [path, text] of Object.entries(
-              seed ?? { 'welcome.md': FOLDER_WELCOME, [AGENTS_FILE]: AGENTS_TEXT },
-            ))
-              await fs.write(path, encoder.encode(text))
-        }
-        const taken = new Set(get().trees.map((t) => t.repo.toLowerCase()))
-        const slug = slugify(picked.name)
-        let name = slug
-        for (let n = 2; taken.has(`${FOLDER_OWNER}/${name}`); n++) name = `${slug}-${n}`
-        const ref: TreeRef = {
-          owner: FOLDER_OWNER,
-          name,
-          repo: `${FOLDER_OWNER}/${name}`,
-          branch: '',
-          isPrivate: true,
-          title: fields.title ?? picked.name,
-          color: fields.color ?? null,
-          trees: fields.trees ?? {},
-          folder: picked.name,
-        }
-        await store.set(`folder:${ref.repo}`, picked.handle)
-        opened.set(ref.repo, fs)
-        await saveTrees(mergeTrees(get().trees, [ref]))
-        set({ phase: 'signed-in' })
-        return ref
+        return adopt(picked, seed)
+      },
+
+      async reopenFolder(handle) {
+        const entry = get().closed.find((c) => c.handle === handle)
+        if (!entry) throw new Error('This project is not on this device any more.')
+        const tree = await adopt({ name: entry.title, handle })
+        await saveClosed(get().closed.filter((c) => c !== entry))
+        return tree
+      },
+
+      async discardClosed(handle) {
+        const entry = get().closed.find((c) => c.handle === handle)
+        if (!entry) return
+        await deps.folders?.discard?.(handle)
+        await saveClosed(get().closed.filter((c) => c !== entry))
       },
 
       async allowFolder(repo) {
