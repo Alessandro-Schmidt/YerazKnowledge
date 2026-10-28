@@ -224,6 +224,8 @@ export function FamilyView({ params }: { params: { owner: string; name: string; 
           onClose={() => setAction(null)}
           onDone={(result) => {
             setAction(null)
+            // Moved to another Family: it opens there.
+            if (result.repo) return navigate(treeHref(result.repo, result.select ?? null))
             select(result.edit ?? result.select ?? null)
             setCreated(result.edit ?? null)
           }}

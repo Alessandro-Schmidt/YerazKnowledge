@@ -5,6 +5,7 @@ import { buildTree, ROOT } from '../model/tree'
 import {
   planDelete,
   planMove,
+  planMoveAcross,
   planNewBranch,
   planNewLeaf,
   planNewLeaves,
@@ -360,5 +361,80 @@ describe('hidden leaves and branches in structure edits', () => {
       path: 'identity/keycloak/legacy.md',
       text: '# Legacy\n<!-- yeraz {"hidden":true} -->\n\nSee [OAuth](/oauth.md).\n',
     })
+  })
+})
+
+describe('planMoveAcross: to another Family', () => {
+  const graphOf = (files: Record<string, string>) => {
+    const model = buildTree(
+      Object.keys(files).map((path) => ({ path, type: 'blob' as const, sha: path, size: 1 })),
+    )
+    return buildGraph(model, new Map(model.leaves.map((p) => [p, parseLeaf(files[p] ?? '')])), 'T')
+  }
+  const source: Record<string, string> = {
+    ...files,
+    'identity/keycloak.md':
+      '# Keycloak\n\nUses [OAuth](/identity/oauth.md).\n\n![Realm](/assets/realm.png)\n',
+    'assets/realm.png': '',
+  }
+  const other = graphOf({ 'notes/welcome.md': '# Welcome\n', 'assets/realm.png': '' })
+  const plan = () =>
+    planMoveAcross(
+      {
+        graph: graphOf(source),
+        textOf: (p) => source[p]!,
+        url: (p) => `https://github.com/you/work/blob/main/${p}`,
+      },
+      'identity/keycloak.md',
+      {
+        graph: other,
+        parent: 'notes',
+        url: (p) => `https://github.com/you/home/blob/main/${p}`,
+        taken: (p) => p === 'assets/realm.png',
+      },
+    )
+
+  it('writes the leaf and its sub-leaves in the other Family, its images copied beside', () => {
+    const { dest, assets, id } = plan()
+    expect(id).toBe('notes/keycloak.md')
+    const byPath = Object.fromEntries(dest.map((c) => [c.path, c.text]))
+    expect(Object.keys(byPath).sort()).toEqual(['notes/keycloak.md', 'notes/keycloak/realms.md'])
+    // Links between the moved leaves stay threads; to the Family they left, full URLs.
+    expect(byPath['notes/keycloak/realms.md']).toContain('(/notes/keycloak.md#top)')
+    expect(byPath['notes/keycloak.md']).toContain(
+      '[OAuth](https://github.com/you/work/blob/main/identity/oauth.md)',
+    )
+    // An image of the same name there already: this one gets its own.
+    expect(byPath['notes/keycloak.md']).toContain('![Realm](/assets/realm-2.png)')
+    expect([...assets]).toEqual([['assets/realm.png', 'assets/realm-2.png']])
+  })
+
+  it('removes them here; links to them from here go to the other Family', () => {
+    const byPath = Object.fromEntries(plan().source.map((c) => [c.path, c.text]))
+    expect(byPath['identity/keycloak.md']).toBeNull()
+    expect(byPath['identity/keycloak/realms.md']).toBeNull()
+    expect(byPath['AI Agents/prompting.md']).toContain(
+      '[Keycloak](https://github.com/you/home/blob/main/notes/keycloak.md)',
+    )
+    expect(byPath['identity/oauth.md']).toContain(
+      '[Realms](https://github.com/you/home/blob/main/notes/keycloak/realms.md)',
+    )
+    // The image stays here too: other leaves may show it.
+    expect(byPath['assets/realm.png']).toBeUndefined()
+  })
+
+  it('moves a whole Tree to the top of the other Family', () => {
+    const { dest, source: here, id } = planMoveAcross(
+      { graph: graphOf(source), textOf: (p) => source[p]!, url: () => null },
+      'identity',
+      { graph: other, parent: ROOT, url: () => null, taken: () => false },
+    )
+    expect(id).toBe('identity')
+    expect(dest.map((c) => c.path).sort()).toEqual([
+      'identity/keycloak.md',
+      'identity/keycloak/realms.md',
+      'identity/oauth.md',
+    ])
+    expect(here.filter((c) => c.text === null)).toHaveLength(3)
   })
 })

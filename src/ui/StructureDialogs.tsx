@@ -2,8 +2,8 @@
 // Move, Delete and Create a new repository
 // (development-plan.md M2 steps 2 and 5). Plans come from sync/structure.ts.
 
-import { useMemo, useState } from 'react'
-import type { TreeRef } from '../github/graphql'
+import { useEffect, useMemo, useState } from 'react'
+import { inRepo, type TreeRef } from '../github/graphql'
 import { crumbs, type Graph, type Template } from '../model/graph'
 import { ROOT } from '../model/tree'
 import { session, useSession } from '../store/session'
@@ -12,6 +12,7 @@ import {
   moveReads,
   planDelete,
   planMove,
+  planMoveAcross,
   planNewBranch,
   planNewLeaf,
   planNewLeaves,
@@ -35,10 +36,23 @@ export function parentFor(graph: Graph, selected: string | null): string {
   return node.kind === 'branch' ? node.id : (node.parent ?? ROOT)
 }
 
-const where = (graph: Graph, id: string) =>
+const where = (graph: Graph, id: string, family = 'the Family') =>
   id === ROOT
-    ? 'At the top of the Family, as a Tree of its own'
+    ? `At the top of ${family}, as a Tree of its own`
     : [...crumbs(graph, id), graph.nodes.get(id)!.title].join(' / ')
+
+/** A file's address from another Family: its page on GitHub; a folder's Family has none. */
+const urlOf = (ref: TreeRef) => (path: string) =>
+  ref.folder === undefined
+    ? `https://github.com/${ref.repo}/blob/${ref.branch}/${encodeURI(inRepo(ref, path))}`
+    : null
+
+/** Every word typed is somewhere in `label`, ignoring case. */
+const matches = (label: string, query: string) =>
+  query
+    .toLowerCase()
+    .split(/\s+/)
+    .every((word) => label.toLowerCase().includes(word))
 
 export function StructureDialog({
   tree,
@@ -51,7 +65,7 @@ export function StructureDialog({
   graph: Graph
   action: StructureAction
   /** Where to go afterwards: the leaf to edit or select, or null for the Tree. */
-  onDone(result: { edit?: string; select?: string | null }): void
+  onDone(result: { edit?: string; select?: string | null; repo?: string }): void
   onClose(): void
 }) {
   // The graph as it was when the dialog opened: applying the change updates the live one
@@ -59,7 +73,8 @@ export function StructureDialog({
   const [graph] = useState(current)
   const [name, setName] = useState('')
   const [first, setFirst] = useState('')
-  const [dest, setDest] = useState<string | null>(null)
+  const [dest, setDest] = useState<{ repo: string; id: string } | null>(null)
+  const [query, setQuery] = useState('')
   const [many, setMany] = useState(action.kind === 'new-leaf' && !!action.many)
   // A template to start from (issue #41): this Family's, or another connected Family's.
   const [from, setFrom] = useState('')
@@ -78,15 +93,42 @@ export function StructureDialog({
     }
   }
 
-  // Destinations for a move: anything outside the moved leaf's or branch's own subtree.
+  // Destinations for a move: anything outside the moved leaf's or branch's own subtree, here,
+  // or anywhere in another Family (its name first).
+  const trees = useSession((s) => s.trees)
+  const data = useSession((s) => s.data)
+  const moving = action.kind === 'move'
+  useEffect(() => {
+    if (!moving) return
+    for (const t of session.getState().trees)
+      if (!session.getState().data[t.repo.toLowerCase()]) void session.getState().open(t.repo)
+  }, [moving])
   const destinations = useMemo(() => {
     if (action.kind !== 'move') return []
     const moved = graph.nodes.get(action.id)!
     const prefix = `${moved.kind === 'leaf' ? action.id.slice(0, -3) : action.id}/`
-    return [...graph.nodes.values()]
+    const here = [...graph.nodes.values()]
       .filter((n) => n.id !== action.id && !n.id.startsWith(prefix) && n.id !== moved.parent)
-      .map((n) => n.id)
-  }, [action, graph])
+      .map((n) => ({
+        repo: tree.repo,
+        id: n.id,
+        label: where(graph, n.id),
+        leaf: n.kind === 'leaf',
+      }))
+    const there = trees.flatMap((ref) => {
+      const other = data[ref.repo.toLowerCase()]?.graph
+      if (ref.repo.toLowerCase() === tree.repo.toLowerCase() || !other) return []
+      return [...other.nodes.values()].map((n) => ({
+        repo: ref.repo,
+        id: n.id,
+        label:
+          n.id === ROOT ? where(other, ROOT, ref.title) : `${ref.title} / ${where(other, n.id)}`,
+        leaf: n.kind === 'leaf',
+      }))
+    })
+    return [...here, ...there]
+  }, [action, graph, tree.repo, trees, data])
+  const shown = destinations.filter((d) => matches(d.label, query))
 
   switch (action.kind) {
     case 'new-leaf': {
@@ -253,17 +295,43 @@ export function StructureDialog({
           onSubmit={() =>
             run(async () => {
               if (dest === null) throw new Error('Choose where to move it.')
-              const paths = moveReads(graph, action.id)
+              const s = session.getState()
               const texts = new Map(
                 await Promise.all(
-                  paths.map(
-                    async (p) => [p, await session.getState().textOf(tree.repo, p)] as const,
+                  moveReads(graph, action.id).map(
+                    async (p) => [p, await s.textOf(tree.repo, p)] as const,
                   ),
                 ),
               )
-              const { changes, id } = planMove(graph, (p) => texts.get(p)!, action.id, dest)
-              await session.getState().apply(tree.repo, changes)
-              onDone({ select: id })
+              if (dest.repo === tree.repo) {
+                const { changes, id } = planMove(graph, (p) => texts.get(p)!, action.id, dest.id)
+                await s.apply(tree.repo, changes)
+                return onDone({ select: id })
+              }
+              const to = trees.find((t) => t.repo === dest.repo)!
+              const files = new Set(s.files(to.repo))
+              const plan = planMoveAcross(
+                { graph, textOf: (p) => texts.get(p)!, url: urlOf(tree) },
+                action.id,
+                {
+                  graph: data[to.repo.toLowerCase()]!.graph!,
+                  parent: dest.id,
+                  url: urlOf(to),
+                  taken: (p) => files.has(p),
+                },
+              )
+              const copies = await Promise.all(
+                [...plan.assets].map(async ([from, path]) => {
+                  const bytes = await s.fileBytes(tree.repo, from)
+                  return bytes ? [{ path, text: bytes }] : []
+                }),
+              )
+              // Committed now, the other Family first: a failure in between leaves a copy.
+              await s.apply(to.repo, [...plan.dest, ...copies.flat()])
+              await s.flush(to.repo)
+              await s.apply(tree.repo, plan.source)
+              await s.flush(tree.repo)
+              onDone({ select: plan.id, repo: to.repo })
             })
           }
         >
@@ -272,26 +340,35 @@ export function StructureDialog({
               ? 'Its sub-leaves move with it, and every link to them is updated in the same commit.'
               : 'Everything in it moves with it, and every link to it is updated in the same commit.'}
           </p>
+          <Field label="Where to">
+            <input
+              type="search"
+              className={controls.input}
+              placeholder="A Family, Tree, branch or leaf"
+              autoComplete="off"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+          </Field>
           <fieldset className={styles.fieldset}>
             <legend className={controls.eyebrow}>Move to</legend>
             <ul className={styles.list}>
-              {destinations.map((id) => (
-                <li key={id || 'root'}>
+              {shown.map((d) => (
+                <li key={`${d.repo}:${d.id}`}>
                   <label>
                     <input
                       type="radio"
                       name="dest"
-                      checked={dest === id}
-                      onChange={() => setDest(id)}
+                      checked={dest?.repo === d.repo && dest.id === d.id}
+                      onChange={() => setDest(d)}
                     />
-                    {where(graph, id)}
-                    {graph.nodes.get(id)!.kind === 'leaf' && (
-                      <span className={styles.hint}> · as a sub-leaf</span>
-                    )}
+                    {d.label}
+                    {d.leaf && <span className={styles.hint}> · as a sub-leaf</span>}
                   </label>
                 </li>
               ))}
             </ul>
+            {!shown.length && <p className={styles.hint}>Nothing matches.</p>}
           </fieldset>
         </Dialog>
       )
