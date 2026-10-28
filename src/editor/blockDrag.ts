@@ -92,7 +92,13 @@ const handles = ViewPlugin.fromClass(
       this.grip.draggable = true
       this.grip.setAttribute('aria-hidden', 'true')
       this.grip.title = 'Drag to move this block'
-      this.grip.textContent = '⋮⋮'
+      // Six dots, two columns: a handle to hold.
+      this.grip.innerHTML =
+        '<svg viewBox="0 0 10 16" width="10" height="16" aria-hidden="true">' +
+        [3, 8, 13]
+          .map((y) => `<circle cx="2" cy="${y}" r="1.4"/><circle cx="8" cy="${y}" r="1.4"/>`)
+          .join('') +
+        '</svg>'
       this.grip.hidden = true
       this.line.className = 'cm-block-drop'
       this.line.hidden = true
@@ -125,7 +131,7 @@ const handles = ViewPlugin.fromClass(
       const content = this.view.contentDOM.getBoundingClientRect()
       this.grip.hidden = false
       this.grip.style.top = `${at.top - frame.top}px`
-      this.grip.style.left = `${content.left - frame.left - 22}px`
+      this.grip.style.left = `${content.left - frame.left - 26}px`
     }
 
     /** Shows where a dragged block would land. */
