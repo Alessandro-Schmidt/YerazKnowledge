@@ -62,6 +62,8 @@ import {
 } from './elements'
 import { titleShown } from './emptyText'
 import { askHost } from './insertMenu'
+import { LANGUAGE_ICONS } from './languageIcons'
+import { logo, menu } from './menu'
 import { mentionSource } from './mentions'
 import { metaLine } from './metaLine'
 import { tableEditing } from './tables'
@@ -466,25 +468,55 @@ class FenceWidget extends WidgetType {
     return other.language === this.language
   }
   toDOM(view: EditorView) {
-    const select = document.createElement('select')
-    select.className = 'cm-fence-label'
-    select.setAttribute('aria-label', 'Code language')
-    select.add(new Option('Plain text', ''))
-    for (const l of [...languages].sort((a, b) => a.name.localeCompare(b.name)))
-      select.add(new Option(l.name, fenceName(l)))
+    const bar = document.createElement('span')
+    bar.className = 'cm-fence-bar'
     const known = this.language && LanguageDescription.matchLanguageName(languages, this.language)
-    select.value = known ? fenceName(known) : ''
-    // A language Yeraz doesn't know stays as written.
-    if (this.language && !known) select.add(new Option(this.language, this.language, true, true))
-    select.addEventListener('change', () => {
-      const line = view.state.doc.lineAt(view.posAtDOM(select))
-      const [marks] = /^\s*(?:`{3,}|~{3,})/.exec(line.text) ?? []
-      if (marks === undefined) return
-      view.dispatch({
-        changes: { from: line.from + marks.length, to: line.to, insert: select.value },
-      })
+    // A language Yeraz doesn't know shows as written.
+    const name = known ? known.name : this.language || 'Plain text'
+    const button = document.createElement('button')
+    button.type = 'button'
+    button.className = 'cm-fence-label'
+    button.setAttribute('aria-label', `Code language: ${name}`)
+    button.setAttribute('aria-haspopup', 'menu')
+    button.textContent = name
+    if (known && LANGUAGE_ICONS[known.name]) button.prepend(logo(LANGUAGE_ICONS[known.name]!.path))
+    button.addEventListener('mousedown', (e) => e.preventDefault())
+    button.addEventListener('click', () => {
+      // Outside the text, so focusing it doesn't move the cursor onto the fence.
+      const close = () => view.dom.querySelector('.cm-languages')?.remove()
+      if (view.dom.querySelector('.cm-languages')) return close()
+      const items = [
+        { kind: '', label: 'Plain text', icon: '' },
+        ...[...languages]
+          .sort((a, b) => a.name.localeCompare(b.name))
+          .map((l) => ({
+            kind: fenceName(l),
+            label: l.name,
+            icon: LANGUAGE_ICONS[l.name]?.path ?? '',
+          })),
+      ]
+      const choose = (kind: string) => {
+        // The text's focus first: it closes the menu (focusout), then the fence is rewritten.
+        view.focus()
+        close()
+        // The fence's line as the menu opened: the picker may be redrawn while it is open.
+        const line = view.state.doc.lineAt(Math.min(pos, view.state.doc.length))
+        const [marks] = /^\s*(?:`{3,}|~{3,})/.exec(line.text) ?? []
+        if (marks !== undefined)
+          view.dispatch({ changes: { from: line.from + marks.length, to: line.to, insert: kind } })
+      }
+      const { dom, mount } = menu(view, 'Code language', items, choose, close)
+      const pos = view.posAtDOM(bar)
+      const at = button.getBoundingClientRect()
+      const frame = view.dom.getBoundingClientRect()
+      dom.classList.add('cm-languages')
+      dom.style.top = `${at.bottom - frame.top + 4}px`
+      dom.style.right = `${frame.right - at.right}px`
+      view.dom.append(dom)
+      mount?.()
     })
-    return select
+    bar.append(button)
+    return bar
   }
 }
 

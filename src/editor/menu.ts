@@ -9,7 +9,7 @@ import type { EditorView } from '@codemirror/view'
 export function menu<K extends string>(
   view: EditorView,
   name: string,
-  items: readonly { kind: K; label: string }[],
+  items: readonly { kind: K; label: string; icon?: string }[],
   choose: (kind: K) => void,
   dismiss: () => void,
   autofocus = true,
@@ -18,12 +18,13 @@ export function menu<K extends string>(
   dom.className = 'cm-insert-menu'
   dom.setAttribute('role', 'menu')
   dom.setAttribute('aria-label', name)
-  const buttons = items.map(({ kind, label }) => {
+  const buttons = items.map(({ kind, label, icon }) => {
     const button = document.createElement('button')
     button.type = 'button'
     button.setAttribute('role', 'menuitem')
     button.dataset.kind = kind
     button.textContent = label
+    if (icon !== undefined) button.prepend(logo(icon))
     button.addEventListener('mousedown', (e) => e.preventDefault())
     button.addEventListener('click', () => choose(kind))
     dom.append(button)
@@ -47,4 +48,16 @@ export function menu<K extends string>(
     if (!dom.contains(e.relatedTarget as Node | null)) dismiss()
   })
   return { dom, mount: autofocus ? () => buttons[0]!.focus() : undefined }
+}
+
+/** A 24×24 one-colour logo from its SVG path, in the text's colour; an empty path draws none. */
+export function logo(path: string) {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+  svg.setAttribute('viewBox', '0 0 24 24')
+  svg.setAttribute('aria-hidden', 'true')
+  svg.classList.add('cm-logo')
+  const shape = document.createElementNS('http://www.w3.org/2000/svg', 'path')
+  shape.setAttribute('d', path)
+  svg.append(shape)
+  return svg
 }

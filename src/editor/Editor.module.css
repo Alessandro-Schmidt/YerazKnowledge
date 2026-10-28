@@ -214,17 +214,49 @@
 }
 /* A closed block: its language's picker where its opening fence was, its closing fence gone
    (livePreview.ts). */
+.editor :global(.cm-fence-bar) {
+  position: relative;
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 6px;
+}
 .editor :global(.cm-fence-label) {
-  display: block;
-  margin-top: 6px;
-  padding: 0;
-  border: none;
-  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
   cursor: pointer;
   font-family: var(--font-ui);
   font-size: 12px;
   font-weight: 500;
-  color: var(--faint);
+  color: var(--muted);
+}
+.editor :global(.cm-fence-label:hover),
+.editor :global(.cm-fence-label:focus-visible) {
+  outline: none;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+/* The languages' menu, under the picker, on the block's right (placed by livePreview.ts). */
+.editor :global(.cm-insert-menu.cm-languages) {
+  position: absolute;
+  z-index: 10;
+  max-height: 320px;
+  overflow-y: auto;
+}
+.editor :global(.cm-insert-menu button) {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.editor :global(.cm-logo) {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  fill: currentColor;
 }
 .editor :global(.cm-line.cm-fence-end) {
   font-size: 1px;
