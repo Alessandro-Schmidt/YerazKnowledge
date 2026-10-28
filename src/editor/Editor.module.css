@@ -768,16 +768,24 @@
 .editor :global(.cm-block-grip) {
   position: absolute;
   z-index: 5;
-  width: 18px;
-  height: 24px;
-  border-radius: 4px;
-  color: var(--faint);
-  font-size: 12px;
-  line-height: 24px;
-  letter-spacing: -3px;
-  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 26px;
+  border: 1px solid var(--hair-strong);
+  border-radius: 6px;
+  background: var(--raised);
+  color: var(--muted);
   cursor: grab;
   user-select: none;
+}
+.editor :global(.cm-block-grip[hidden]) {
+  display: none;
+}
+.editor :global(.cm-block-grip svg) {
+  fill: currentColor;
+  pointer-events: none;
 }
 .editor :global(.cm-block-grip:hover) {
   background: var(--accent-soft);
