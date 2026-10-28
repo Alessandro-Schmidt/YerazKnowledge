@@ -43,6 +43,7 @@ import {
   subtitleTracks,
   titleWithWidth,
   type Embed,
+  youtubeSrc,
 } from '../model/embeds'
 import { leadingIcon, linkTarget, ownPath } from '../model/parse'
 import { downloadAsset, fileCardHtml } from '../read/files'
@@ -388,7 +389,7 @@ class EmbedWidget extends WidgetType {
     const el = document.createElement(embed.kind === 'video' ? 'video' : 'iframe')
     el.title = embed.title || (embed.kind === 'youtube' ? 'YouTube video' : embed.path)
     if (embed.kind === 'youtube') {
-      el.src = `https://www.youtube-nocookie.com/embed/${embed.id}${embed.start ? `?start=${embed.start}` : ''}`
+      el.src = youtubeSrc(embed.id, embed.start)
       el.setAttribute('allow', 'encrypted-media; picture-in-picture; fullscreen')
       el.setAttribute('referrerpolicy', 'strict-origin-when-cross-origin')
       el.setAttribute('loading', 'lazy')

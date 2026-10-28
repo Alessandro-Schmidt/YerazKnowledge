@@ -6,7 +6,15 @@
 import type MarkdownItClass from 'markdown-it'
 import type { Parser } from '@lezer/common'
 import { isDiagram } from '../model/blocks'
-import { embedOf, languageName, MATH, shortUrl, subtitleTracks, type Embed } from '../model/embeds'
+import {
+  embedOf,
+  languageName,
+  MATH,
+  shortUrl,
+  subtitleTracks,
+  type Embed,
+  youtubeSrc,
+} from '../model/embeds'
 import { fileCardHtml } from './files'
 
 type MarkdownIt = InstanceType<typeof MarkdownItClass>
@@ -156,7 +164,7 @@ function embedHtml(embed: Embed, env: RichEnv, escape: (s: string) => string): s
   const name = embed.kind === 'youtube' ? '' : embed.path.replace(/^.*\//, '')
   const title = escape(embed.title || name || 'YouTube video')
   if (embed.kind === 'youtube') {
-    const src = `https://www.youtube-nocookie.com/embed/${embed.id}${embed.start ? `?start=${embed.start}` : ''}`
+    const src = youtubeSrc(embed.id, embed.start)
     return (
       `<div class="embed video"><iframe src="${src}" title="${title}" loading="lazy" ` +
       `allow="encrypted-media; picture-in-picture; fullscreen" allowfullscreen ` +
