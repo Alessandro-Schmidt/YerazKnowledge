@@ -72,6 +72,10 @@ test('Keep open holds a leaf beside the next one picked; both are edited at once
   const peeks = page.getByRole('region', { name: 'Leaf preview' })
   await expect(peeks).toHaveCount(1)
   await peeks.getByRole('button', { name: 'Keep open' }).click()
+  await expect(peeks.getByRole('button', { name: 'Keep open' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
   // The same leaf is not shown twice; picking another opens it beside the kept one.
   await expect(peeks).toHaveCount(1)
   await page.getByRole('treeitem', { name: new RegExp(second.title) }).click()
@@ -81,6 +85,15 @@ test('Keep open holds a leaf beside the next one picked; both are edited at once
   const left = (await peeks.nth(0).boundingBox())!
   const right = (await peeks.nth(1).boundingBox())!
   expect(left.x + left.width).toBeLessThanOrEqual(right.x)
+  // The kept one's pin stays, pressed; the new one's is not.
+  await expect(peeks.nth(0).getByRole('button', { name: 'Keep open' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
+  await expect(peeks.nth(1).getByRole('button', { name: 'Keep open' })).toHaveAttribute(
+    'aria-pressed',
+    'false',
+  )
 
   // Written in both, saved from both.
   for (const [i, word] of [
