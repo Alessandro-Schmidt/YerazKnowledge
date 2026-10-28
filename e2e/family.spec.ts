@@ -69,3 +69,19 @@ test('renames the repository on GitHub from the same dialog: the Family moves wi
   await dialog.getByRole('button', { name: 'Rename' }).click()
   await expect(dialog.getByRole('alert')).toContainText('name already exists')
 })
+
+test('connects a repository without .yeraz.json from the Family menu, after asking', async ({
+  page,
+  fake,
+}) => {
+  await fake.addRepo('you/dotfiles', { 'README.md': '# dotfiles\n' })
+  await signIn(page)
+  await (await familyMenu(page)).getByRole('menuitem', { name: 'Connect repository' }).click()
+  const dialog = page.getByRole('dialog', { name: 'Connect repository' })
+  await dialog.getByPlaceholder('owner/name').fill('you/dotfiles')
+  await dialog.getByRole('button', { name: 'Connect', exact: true }).click()
+  await expect(dialog).toContainText('into a notebook?')
+  await dialog.getByRole('button', { name: 'Turn into a notebook' }).click()
+  await expect(page).toHaveURL(/#\/tree\/you\/dotfiles$/)
+  expect(fake.repo('you/dotfiles').read('dotfiles/welcome.md')).toContain('# 🌱 Welcome')
+})
