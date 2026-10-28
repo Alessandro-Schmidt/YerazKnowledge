@@ -1,5 +1,5 @@
 // Each code language's logo (Simple Icons, one colour: drawn in the text's colour), by its
-// name in @codemirror/language-data. Languages without one show none.
+// name in @codemirror/language-data. Languages without one show `</>`.
 
 import {
   siAngular,
@@ -139,3 +139,10 @@ export const LANGUAGE_ICONS: Record<string, { path: string }> = {
   Vue: siVuedotjs,
   'Angular Template': siAngular,
 }
+
+/** `</>`, for a language without a logo of its own. */
+export const CODE_ICON =
+  'M8.7 6.3 3 12l5.7 5.7 1.4-1.4L5.8 12l4.3-4.3zm6.6 0-1.4 1.4 4.3 4.3-4.3 4.3 1.4 1.4L21 12zM13.4 4.5l1.9.6-4.7 14.4-1.9-.6z'
+
+/** A language's logo path, by its name; `</>` when it has none. */
+export const languageIcon = (name: string) => LANGUAGE_ICONS[name]?.path ?? CODE_ICON

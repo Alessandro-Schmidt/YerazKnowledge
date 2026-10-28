@@ -62,7 +62,7 @@ import {
 } from './elements'
 import { titleShown } from './emptyText'
 import { askHost } from './insertMenu'
-import { LANGUAGE_ICONS } from './languageIcons'
+import { CODE_ICON, languageIcon } from './languageIcons'
 import { logo, menu } from './menu'
 import { mentionSource } from './mentions'
 import { metaLine } from './metaLine'
@@ -479,20 +479,20 @@ class FenceWidget extends WidgetType {
     button.setAttribute('aria-label', `Code language: ${name}`)
     button.setAttribute('aria-haspopup', 'menu')
     button.textContent = name
-    if (known && LANGUAGE_ICONS[known.name]) button.prepend(logo(LANGUAGE_ICONS[known.name]!.path))
+    button.prepend(logo(languageIcon(known ? known.name : '')))
     button.addEventListener('mousedown', (e) => e.preventDefault())
     button.addEventListener('click', () => {
       // Outside the text, so focusing it doesn't move the cursor onto the fence.
       const close = () => view.dom.querySelector('.cm-languages')?.remove()
       if (view.dom.querySelector('.cm-languages')) return close()
       const items = [
-        { kind: '', label: 'Plain text', icon: '' },
+        { kind: '', label: 'Plain text', icon: CODE_ICON },
         ...[...languages]
           .sort((a, b) => a.name.localeCompare(b.name))
           .map((l) => ({
             kind: fenceName(l),
             label: l.name,
-            icon: LANGUAGE_ICONS[l.name]?.path ?? '',
+            icon: languageIcon(l.name),
           })),
       ]
       const choose = (kind: string) => {
