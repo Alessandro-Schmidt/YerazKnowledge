@@ -6,7 +6,8 @@
 // "Show Markdown" turns this extension off: same editor, same text.
 // GitHub's alerts, footnote marks, toggles and Mermaid diagrams show as github.com draws them.
 
-import { syntaxTree } from '@codemirror/language'
+import { LanguageDescription, syntaxTree } from '@codemirror/language'
+import { languages } from '@codemirror/language-data'
 import {
   Facet,
   RangeSet,
@@ -453,7 +454,10 @@ function embedMenu(view: EditorView, box: HTMLElement, button: HTMLElement, embe
   )
 }
 
-/** A code block's language, in place of its opening fence. */
+/** What a fence's language is written as: the language's name, lower case, no spaces. */
+const fenceName = (l: LanguageDescription) => l.name.toLowerCase().replace(/\s+/g, '-')
+
+/** A code block's language, picked, in place of its opening fence: picking rewrites it. */
 class FenceWidget extends WidgetType {
   constructor(readonly language: string) {
     super()
@@ -461,11 +465,26 @@ class FenceWidget extends WidgetType {
   eq(other: FenceWidget) {
     return other.language === this.language
   }
-  toDOM() {
-    const label = document.createElement('span')
-    label.className = 'cm-fence-label'
-    label.textContent = this.language || 'code'
-    return label
+  toDOM(view: EditorView) {
+    const select = document.createElement('select')
+    select.className = 'cm-fence-label'
+    select.setAttribute('aria-label', 'Code language')
+    select.add(new Option('Plain text', ''))
+    for (const l of [...languages].sort((a, b) => a.name.localeCompare(b.name)))
+      select.add(new Option(l.name, fenceName(l)))
+    const known = this.language && LanguageDescription.matchLanguageName(languages, this.language)
+    select.value = known ? fenceName(known) : ''
+    // A language Yeraz doesn't know stays as written.
+    if (this.language && !known) select.add(new Option(this.language, this.language, true, true))
+    select.addEventListener('change', () => {
+      const line = view.state.doc.lineAt(view.posAtDOM(select))
+      const [marks] = /^\s*(?:`{3,}|~{3,})/.exec(line.text) ?? []
+      if (marks === undefined) return
+      view.dispatch({
+        changes: { from: line.from + marks.length, to: line.to, insert: select.value },
+      })
+    })
+    return select
   }
 }
 
@@ -914,12 +933,13 @@ function build(view: EditorView): Built {
             return
           }
           case 'FencedCode': {
-            // Away from the cursor, a closed block's fences give way to its language's name.
+            // A closed block's fences give way to its language's picker, also while writing in
+            // it; the cursor on a fence's own line shows that line's Markdown.
             const first = state.doc.lineAt(node.from)
             const last = state.doc.lineAt(node.to)
             const closed =
               node.node.getChildren('CodeMark').length === 2 && last.number > first.number
-            const plain = !closed || touched(node.from, node.to)
+            const plain = !closed || touched(first.from, first.to) || touched(last.from, last.to)
             for (let pos = node.from; pos <= node.to;) {
               const l = state.doc.lineAt(pos)
               const cls =
