@@ -49,8 +49,10 @@ function contentSecurityPolicy(): Plugin {
     transformIndexHtml: {
       order: 'post',
       handler(html) {
+        // The browser hashes the script as parsed, line endings as \n (a Windows checkout has \r\n).
         const inline = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(
-          ([, code]) => `'sha256-${createHash('sha256').update(code!).digest('base64')}'`,
+          ([, code]) =>
+            `'sha256-${createHash('sha256').update(code!.replace(/\r\n?/g, '\n')).digest('base64')}'`,
         )
         const fake = process.env.VITE_E2E === '1' ? ' http://localhost:* http://127.0.0.1:*' : ''
         const policy = [
