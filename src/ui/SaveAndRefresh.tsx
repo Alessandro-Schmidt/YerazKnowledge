@@ -1,14 +1,17 @@
 // Issue #63: commit pending edits now (as Ctrl/Cmd+S does), and bring in what other devices
 // committed (the read path again: one request, a free 304 when nothing changed). For one
-// Family, or every Family on one map (AllView).
+// Family, or every Family on one map (AllView). GitHub only: a folder is written as you type
+// and read from the disk, so there is nothing to commit or fetch (owner's request).
 
+import { isFolder } from '../local/folder'
 import { session, useSession } from '../store/session'
 import controls from './controls.module.css'
 import styles from './FamilyView.module.css'
 import { Icon } from './icons'
 import { isMac } from './platform'
 
-export function SaveAndRefresh({ repos }: { repos: readonly string[] }) {
+export function SaveAndRefresh({ repos: all }: { repos: readonly string[] }) {
+  const repos = all.filter((r) => !isFolder(r))
   const keys = repos.map((r) => r.toLowerCase())
   const unsaved = useSession((s) =>
     keys.some((k) => {
@@ -17,6 +20,7 @@ export function SaveAndRefresh({ repos }: { repos: readonly string[] }) {
     }),
   )
   const loading = useSession((s) => keys.some((k) => s.data[k]?.status === 'loading'))
+  if (repos.length === 0) return null
   return (
     <>
       <button

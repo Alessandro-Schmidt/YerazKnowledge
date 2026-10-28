@@ -16,6 +16,7 @@ import { session, useSession } from '../store/session'
 import controls from './controls.module.css'
 import { Explorer } from './Explorer'
 import { Presence } from './motion'
+import { ProjectTabs } from './ProjectTabs'
 import { FamilyMenu, rememberFamily } from './FamilyMenu'
 import { Icon } from './icons'
 import { InlineName } from './InlineName'
@@ -23,6 +24,7 @@ import { ConflictBanner } from './ConflictBanner'
 import { decodePath, treeHref } from './paths'
 import { parentFor, StructureDialog, type StructureAction } from './StructureDialogs'
 import { SaveAndRefresh } from './SaveAndRefresh'
+import { useDeleteKey } from './deleteKey'
 import { SyncStatus } from './SyncStatus'
 import { colorVar } from './theme'
 import { Divider, TopBar } from './TopBar'
@@ -126,6 +128,13 @@ export function FamilyView({ params }: { params: { owner: string; name: string; 
     [navigate, repo],
   )
   const href = useCallback((id: string) => `#${treeHref(repo, id)}`, [repo])
+  // The Delete key on the selection (a ghost or the root have nothing to delete).
+  useDeleteKey(
+    graph && action === null && selected !== null && selected !== ROOT && graph.nodes.has(selected)
+      ? selected
+      : null,
+    (id) => setAction({ kind: 'delete', id }),
+  )
   const imageUrl = useCallback((_: string, src: string) => imageAt(repo, src), [repo])
   const color = colorVar(tree?.color)
   // Each Tree's colour, for the map's Tree groups.
@@ -216,6 +225,7 @@ export function FamilyView({ params }: { params: { owner: string; name: string; 
           )}
         </div>
       </TopBar>
+      <ProjectTabs current={repo} />
       {phone && <ViewSwitcher phone />}
       <ConflictBanner repo={repo} />
       {action && graph && tree && (

@@ -26,7 +26,7 @@ test('lists past versions, compares one with now, and restores it as a new commi
   await signInHere(page)
   const panel = page.getByRole('region', { name: 'Leaf preview' })
   await expect(panel.locator('.cm-content')).toContainText('Rewritten elsewhere.')
-  await panel.getByRole('button', { name: 'More actions' }).click()
+  await panel.getByRole('button', { name: 'Options' }).click()
   await page.getByRole('menuitem', { name: 'History' }).click()
 
   const history = panel.getByRole('region', { name: 'History' })
@@ -59,7 +59,7 @@ test('the history has no accessibility violations', async ({ page, graph }) => {
   await page.goto(`./#/tree/${REPO}/${leaf.id}`)
   await signInHere(page)
   const panel = page.getByRole('region', { name: 'Leaf preview' })
-  await panel.getByRole('button', { name: 'More actions' }).click()
+  await panel.getByRole('button', { name: 'Options' }).click()
   await page.getByRole('menuitem', { name: 'History' }).click()
   await expect(panel.getByRole('region', { name: 'History' }).getByRole('listitem')).toHaveCount(1)
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([])

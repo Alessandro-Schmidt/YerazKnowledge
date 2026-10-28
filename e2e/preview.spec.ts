@@ -40,7 +40,7 @@ test.describe('writing', () => {
     await expect(text).toContainText('**bold**')
 
     // "Show Markdown" shows all of it.
-    await page.getByRole('button', { name: 'More actions' }).click()
+    await page.getByRole('button', { name: 'Options' }).click()
     await page.getByRole('menuitemcheckbox', { name: 'Show Markdown' }).click()
     await expect(page.locator('.cm-content')).toContainText('## Section')
     await expect(page.locator('.cm-content')).toContainText('[link](https://example.com)')

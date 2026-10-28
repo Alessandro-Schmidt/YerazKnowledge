@@ -25,7 +25,7 @@ export function Hidden() {
           <h1 className={styles.title}>Hidden</h1>
           <p className={styles.lede}>
             Leaves, branches and Trees hidden from the map, with everything under them. Hide one
-            from its ⋯ menu; it is written to the note itself, so every device hides the same.
+            from its Options menu; it is written to the note itself, so every device hides the same.
           </p>
           {trees.length > 1 && (
             <label className={own.family}>

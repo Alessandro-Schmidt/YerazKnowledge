@@ -92,7 +92,7 @@ test.describe('PDF export', () => {
       window.print = () => void ((window as unknown as { printed: boolean }).printed = true)
     })
     await expect(page.getByText('A paragraph to print.')).toBeVisible()
-    await page.getByRole('button', { name: 'More actions' }).click()
+    await page.getByRole('button', { name: 'Options' }).click()
     await page.getByRole('menuitem', { name: 'Export PDF' }).click()
     // The leaf is drawn for print first (the Peek shows it in the editor), then printed.
     await expect

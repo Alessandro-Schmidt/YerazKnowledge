@@ -194,7 +194,7 @@ test('moving a leaf rewrites every backlink in one commit', async ({ page, fake,
   await page.goto(`./#/tree/${REPO}/${leaf.id}`)
   await signInHere(page)
   const panel = page.getByRole('region', { name: 'Leaf preview' })
-  await panel.getByRole('button', { name: 'More actions' }).click()
+  await panel.getByRole('button', { name: 'Options' }).click()
   await page.getByRole('menuitem', { name: 'Move…' }).click()
   const dialog = page.getByRole('dialog')
   // At the top of the Family, it becomes a Tree of its own.
@@ -237,7 +237,7 @@ test('a Tree moves under another Tree, everything in it with it, in one commit (
   await page.goto(`./#/tree/${REPO}/${tree}`)
   await signInHere(page)
   const panel = page.getByRole('region', { name: 'Tree preview' })
-  await panel.getByRole('button', { name: 'More actions' }).click()
+  await panel.getByRole('button', { name: 'Options' }).click()
   await page.getByRole('menuitem', { name: 'Move…' }).click()
   const dialog = page.getByRole('dialog')
   await dialog.getByRole('radio', { name: graph.nodes.get(into!)!.title, exact: true }).check()
@@ -334,7 +334,7 @@ test('creates many sub-leaves of a leaf in one commit', async ({ page, fake, gra
   await signInHere(page)
   await page
     .getByRole('region', { name: 'Leaf preview' })
-    .getByRole('button', { name: 'More actions' })
+    .getByRole('button', { name: 'Options' })
     .click()
   await page.getByRole('menuitem', { name: 'Add sub-leaves…' }).click()
   const dialog = page.getByRole('dialog', { name: 'New sub-leaves' })
@@ -422,7 +422,7 @@ test('deleting a leaf warns about the leaves that link to it', async ({ page, fa
   await signInHere(page)
   await page
     .getByRole('region', { name: 'Leaf preview' })
-    .getByRole('button', { name: 'More actions' })
+    .getByRole('button', { name: 'Options' })
     .click()
   await page.getByRole('menuitem', { name: 'Delete…' }).click()
   const dialog = page.getByRole('dialog')
@@ -437,6 +437,44 @@ test('deleting a leaf warns about the leaves that link to it', async ({ page, fa
   await expect(page.locator(`[data-node][data-ghost][data-id="${leaf.id}"]`).first()).toBeAttached()
   await page.keyboard.press('ControlOrMeta+s')
   await expect.poll(() => fake.repo(REPO).read(leaf.id)).toBeUndefined()
+})
+
+test('the Delete key offers to delete the selection, unless typed into the leaf', async ({
+  page,
+  graph,
+}) => {
+  test.skip(isPhone(page), 'Phones have no Delete key')
+  const leaf = plainLeaf(graph)
+  await page.goto(`./#/tree/${REPO}/${leaf.id}`)
+  await signInHere(page)
+  const dialog = page.getByRole('dialog', { name: `Delete ${leaf.title}` })
+  // Typed into the leaf, it edits the text.
+  await page.locator('.cm-content').click()
+  await page.keyboard.press('Delete')
+  await expect(dialog).toBeHidden()
+  // On the map, it asks; Escape declines.
+  await page.locator('[data-map]').focus()
+  await page.keyboard.press('Delete')
+  await expect(dialog).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(dialog).toBeHidden()
+  // Backspace is the delete key on a Mac keyboard.
+  await page.locator('[data-map]').focus()
+  await page.keyboard.press('Backspace')
+  await expect(dialog).toBeVisible()
+  await page.keyboard.press('Escape')
+  // Inside another dialog, the key is that dialog's.
+  await page
+    .getByRole('navigation', { name: 'Projects' })
+    .getByRole('button', { name: 'Remove Engineering' })
+    .click()
+  await page
+    .getByRole('dialog', { name: 'Remove Engineering' })
+    .getByRole('button', { name: 'Cancel' })
+    .focus()
+  await page.keyboard.press('Backspace')
+  await expect(page.getByRole('dialog')).toHaveCount(1)
+  await expect(dialog).toBeHidden()
 })
 
 test('live preview hides Markdown, toggles tasks, and shows the source on request', async ({
@@ -459,7 +497,7 @@ test('live preview hides Markdown, toggles tasks, and shows the source on reques
   await box.click()
   await expect(page.locator('input.cm-task')).toBeChecked()
 
-  await page.getByRole('button', { name: 'More actions' }).click()
+  await page.getByRole('button', { name: 'Options' }).click()
   await page.getByRole('menuitemcheckbox', { name: 'Show Markdown' }).click()
   await expect(page.locator('.cm-content')).toContainText('## Section')
   await expect(page.locator('.cm-content')).toContainText('- [x] A task')
@@ -475,7 +513,7 @@ test('the editor and the dialogs have no accessibility violations', async ({ pag
   await page.goto(`./#/tree/${REPO}/${linkedLeaf(graph).id}`)
   await page
     .getByRole('region', { name: 'Leaf preview' })
-    .getByRole('button', { name: 'More actions' })
+    .getByRole('button', { name: 'Options' })
     .click()
   await page.getByRole('menuitem', { name: 'Move…' }).click()
   await expect(page.getByRole('dialog')).toBeVisible()

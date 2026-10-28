@@ -28,8 +28,8 @@ These notes are kept with [Yeraz](https://github.com/Alessandro-Schmidt/YerazKno
 
 ## Writing well here
 
-- Short leaves, one subject each, linked rather than repeated. Prefer a new leaf beside the one it grows from.
-- Keep the person's words and voice; add structure, not opinions. Task lists (\`- [ ]\`) are for things to do.
+- Short leaves, one subject each. Link to a leaf instead of repeating it, and prefer a new leaf beside the one it grows from.
+- Keep the person's words and voice. Add structure, and keep your own opinions out. Task lists (\`- [ ]\`) are for things to do.
 - Don't touch \`.yeraz.json\` (the Family's name and colours) or anything in \`assets/\` unless asked.
 - When \`.yeraz.json\` names a \`root\` folder (\`"root":"notes"\`), the notes live in that folder: every path here, links included, starts inside it.
 

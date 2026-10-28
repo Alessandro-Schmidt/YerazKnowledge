@@ -10,6 +10,7 @@ export function Dialog({
   danger,
   busy,
   error,
+  extra,
   onSubmit,
   onClose,
 }: {
@@ -19,6 +20,8 @@ export function Dialog({
   danger?: boolean
   busy?: boolean
   error?: string | null
+  /** A second way out, between Cancel and `submit`: a stronger step the person may want instead. */
+  extra?: { label: string; onClick(): void }
   onSubmit(): void
   onClose(): void
 }) {
@@ -62,6 +65,16 @@ export function Dialog({
           <button type="button" className={controls.ghost} onClick={onClose}>
             Cancel
           </button>
+          {extra && (
+            <button
+              type="button"
+              className={`${controls.ghost} ${styles.extra}`}
+              disabled={busy}
+              onClick={extra.onClick}
+            >
+              {extra.label}
+            </button>
+          )}
           <button
             type="submit"
             className={danger ? `${controls.primary} ${styles.danger}` : controls.primary}
