@@ -92,6 +92,25 @@ describe('pushFolder', () => {
     expect(pulled.model.leaves).toEqual(['identity/keycloak.md'])
   })
 
+  it('reads a written file again, though the disk keeps its time too coarsely to tell', async () => {
+    const fs = files()
+    const store = memoryStore()
+    await pullFolder(ref, { fs, store })
+    const before = fs.files.get('identity/keycloak.md')!.modified
+    const text = KEYCLOAK.replace('One.', 'Won.')
+    await pushFolder(
+      ref,
+      { 'identity/keycloak.md': { text, base: await gitBlobSha(KEYCLOAK) } },
+      { fs, store },
+    )
+    // Same length, and the same modification time (FAT keeps it to 2 s).
+    fs.files.get('identity/keycloak.md')!.modified = before
+    const pulled = await pullFolder(ref, { fs, store })
+    expect(pulled.entries.find((e) => e.path === 'identity/keycloak.md')!.sha).toBe(
+      await gitBlobSha(text),
+    )
+  })
+
   it('merges a leaf another device changed through the synced folder', async () => {
     const fs = files()
     const store = memoryStore()

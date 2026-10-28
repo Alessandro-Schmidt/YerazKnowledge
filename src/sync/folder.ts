@@ -11,11 +11,11 @@
 // (FileSystemObserver, a desktop file watcher) if people miss them while it is open.
 
 import type { TreeRef } from '../github/graphql'
-import { MARKER, type FolderFs } from '../local/folder'
+import type { FolderFs } from '../local/folder'
 import { parseLeaf } from '../model/parse'
 import { gitBlobSha } from '../model/sha'
 import type { KeyValueStore } from '../store/db'
-import { reconcile, type Pending } from './merge'
+import { isTextPath, reconcileEdits } from './merge'
 import { fillContent, inParallel, type CachedListing, type PulledTree, type PullDeps } from './pull'
 import { remember, type Dirty, type Pushed } from './push'
 
@@ -32,9 +32,6 @@ const READS = 8
 const encoder = new TextEncoder()
 const decoder = new TextDecoder()
 
-/** Files whose text is kept and merged: leaves, branch texts and the marker. */
-const isText = (path: string) => path.endsWith('.md') || path === MARKER
-
 /** Every file in the folder, as a listing; new or changed texts are read and cached. */
 export async function scanFolder(
   fs: FolderFs,
@@ -49,7 +46,7 @@ export async function scanFolder(
     const was = known[path]
     if (was && was.size === size && was.modified === modified) {
       stats[path] = was
-    } else if (!isText(path)) {
+    } else if (!isTextPath(path)) {
       stats[path] = { size, modified, sha: `file:${size}:${modified}` }
     } else {
       const bytes = await fs.read(path)
@@ -98,29 +95,26 @@ export async function pushFolder(
   const listing = await scanFolder(fs, store, ref.repo)
   const onDisk = new Map(listing.entries.map((e) => [e.path, e.sha]))
 
-  const binary = Object.entries(dirty).filter(([, f]) => f.text instanceof Uint8Array)
-  const text = Object.entries(dirty).filter(([, f]) => !(f.text instanceof Uint8Array))
-  const shas = text.flatMap(([path, f]) =>
-    [f.base, onDisk.get(path)].filter((s): s is string => !!s),
+  const textsOf = async (shas: string[]) => {
+    const cached = await store.getMany<string>(shas.map((sha) => `blob:${sha}`))
+    return new Map(shas.map((sha, i) => [sha, cached[i] ?? null]))
+  }
+  const { changes, conflicts } = await reconcileEdits(
+    dirty,
+    onDisk,
+    textsOf,
+    (deps.now ?? (() => new Date()))(),
   )
-  const cached = await store.getMany<string>(shas.map((sha) => `blob:${sha}`))
-  const texts = new Map(shas.map((sha, i) => [sha, cached[i] ?? null]))
-  const pending: Pending[] = text.map(([path, f]) => ({
-    path,
-    ours: f.text as string | null,
-    base: f.base ? (texts.get(f.base) ?? null) : null,
-    theirs: texts.get(onDisk.get(path) ?? '') ?? null,
-  }))
-  const { changes, conflicts } = reconcile(pending, (deps.now ?? (() => new Date()))(), (p) =>
-    onDisk.has(p),
-  )
-  const writes = [...changes, ...binary.map(([path, f]) => ({ path, text: f.text }))].filter(
-    (c) => c.text !== null || onDisk.has(c.path),
-  )
+  const writes = changes.filter((c) => c.text !== null || onDisk.has(c.path))
   for (const { path, text } of writes) {
     if (text === null) await fs.remove(path)
     else await fs.write(path, typeof text === 'string' ? encoder.encode(text) : text)
   }
+  // A file written here is read again on the next scan: within the disk's timestamp
+  // resolution, an edit of the same length would look unchanged.
+  const stats = (await store.get<Record<string, Stat>>(`stat:${ref.repo}`)) ?? {}
+  for (const { path } of writes) delete stats[path]
+  await store.set(`stat:${ref.repo}`, stats)
   await remember(store, ref, listing, FOLDER_HEAD, writes)
   return { head: FOLDER_HEAD, committed: writes.map((c) => c.path), conflicts }
 }
