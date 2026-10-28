@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   buildGraph,
+  byPlanted,
   compactWords,
   ancestors,
   crumbs,
@@ -354,5 +355,26 @@ describe('formatting', () => {
     expect(compactWords(40_512)).toBe('40.5k')
     expect(compactWords(900)).toBe('900')
     expect(compactWords(1000)).toBe('1k')
+  })
+})
+
+describe('byPlanted: the map in the order its leaves were planted', () => {
+  it('orders siblings oldest first; a branch by its oldest leaf; undated ones last, as they were', () => {
+    const graph = graphOf()
+    const planted = new Map([
+      ['identity/oidc.md', '2026-03-01T00:00:00Z'],
+      ['identity/oauth.md', '2026-01-01T00:00:00Z'],
+      ['identity/keycloak.md', '2026-05-01T00:00:00Z'],
+      ['ai-agents/prompting.md', '2026-02-01T00:00:00Z'],
+    ])
+    const sorted = byPlanted(graph, planted)
+    expect(sorted.nodes.get(ROOT)!.children).toEqual(['identity', 'ai-agents'])
+    expect(sorted.nodes.get('identity')!.children).toEqual([
+      'identity/oauth.md',
+      'identity/oidc.md',
+      'identity/keycloak.md',
+    ])
+    // The graph it came from is left as it was.
+    expect(graph.nodes.get('identity')!.children[0]).not.toBe('identity/oauth.md')
   })
 })

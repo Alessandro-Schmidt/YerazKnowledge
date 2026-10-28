@@ -3,7 +3,7 @@
 
 import { useState } from 'react'
 import { useView, ViewIcon } from '../views/ViewSwitcher'
-import { saveView, VIEW_IDS, VIEWS } from '../views/views'
+import { mapOrder, saveMapOrder, saveView, VIEW_IDS, VIEWS, type MapOrder } from '../views/views'
 import styles from './Appearance.module.css'
 import own from './Settings.module.css'
 import controls from './controls.module.css'
@@ -23,9 +23,19 @@ const OPENINGS: { id: OpenOn; label: string; note: string }[] = [
   },
 ]
 
+const ORDERS: { id: MapOrder; label: string; note: string }[] = [
+  {
+    id: 'planted',
+    label: 'When planted',
+    note: 'Oldest first: each leaf where it was written, a branch by its first leaf.',
+  },
+  { id: 'name', label: 'By name', note: 'Branches first, then leaves, A to Z.' },
+]
+
 export function ViewsSettings() {
   const view = useView()
   const [opening, setOpening] = useState(openOn)
+  const [order, setOrder] = useState(() => mapOrder())
   return (
     <SettingsShell page="views">
       <main id="main" tabIndex={-1} className={`${styles.main} ${own.single}`}>
@@ -70,6 +80,27 @@ export function ViewsSettings() {
                   onChange={() => {
                     saveOpenOn(id)
                     setOpening(id)
+                  }}
+                />
+                <span className={own.viewText}>
+                  <strong>{label}</strong>
+                  <span className={styles.note}>{note}</span>
+                </span>
+              </label>
+            ))}
+          </fieldset>
+          <fieldset className={styles.group}>
+            <legend className={controls.eyebrow}>Order on the map</legend>
+            {ORDERS.map(({ id, label, note }) => (
+              <label key={id} className={own.view}>
+                <input
+                  type="radio"
+                  name="order"
+                  value={id}
+                  checked={order === id}
+                  onChange={() => {
+                    saveMapOrder(id)
+                    setOrder(id)
                   }}
                 />
                 <span className={own.viewText}>
