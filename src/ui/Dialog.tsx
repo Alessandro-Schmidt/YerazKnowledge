@@ -33,7 +33,10 @@ export function Dialog({
       ref={ref}
       className={styles.dialog}
       aria-labelledby="dialog-title"
-      onClose={onClose}
+      // StrictMode closes and reopens on mount; the late close event finds it open again.
+      onClose={() => {
+        if (!ref.current?.open) onClose()
+      }}
       onCancel={(e) => {
         e.preventDefault()
         onClose()
