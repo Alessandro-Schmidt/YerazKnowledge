@@ -98,6 +98,7 @@ describe('session', () => {
     const repo = fake.repo('you/dotfiles')
     expect(repo.read('README.md')).toBe('# dotfiles\n')
     expect(repo.read('notes/dotfiles/welcome.md')).toContain('# 🌱 Welcome')
+    expect(repo.read('notes/CLAUDE.md')).toContain('UTF-8')
     const graph = () => s.getState().data['you/dotfiles']!.graph!
     expect(graph().nodes.get('dotfiles/welcome.md')!.title).toBe('Welcome')
     expect(graph().nodes.has('README.md')).toBe(false)

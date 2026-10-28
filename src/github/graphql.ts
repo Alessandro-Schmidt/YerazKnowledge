@@ -429,6 +429,7 @@ export async function startFamily(client: GitHubClient, repo: string): Promise<T
       { path: '.yeraz.json', text: marker },
       { path: `${node.name}/README.md`, text: `# 🌳 ${node.name}\n` },
       { path: `${node.name}/welcome.md`, text: WELCOME },
+      { path: AGENTS_FILE, text: AGENTS_TEXT },
     ],
     { headline: `Start ${node.name}`, body: 'Created by Yeraz.' },
   )
