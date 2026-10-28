@@ -364,6 +364,54 @@ export async function createRepository(
   return ref
 }
 
+/**
+ * Turns an existing repository into a Family, in one commit on its default branch: a
+ * `.yeraz.json`, and one Tree named after the repository holding a welcome leaf.
+ */
+export async function startFamily(client: GitHubClient, repo: string): Promise<TreeRef> {
+  const [owner, name] = repo.split('/')
+  const { data } = await client.graphql<{
+    repository: {
+      owner: { login: string }
+      name: string
+      isPrivate: boolean
+      defaultBranchRef: { name: string; target: { oid: string } } | null
+    } | null
+  }>(
+    `query Start($owner: String!, $name: String!) { repository(owner: $owner, name: $name) {
+      owner { login } name isPrivate defaultBranchRef { name target { oid } } } }`,
+    { owner, name },
+  )
+  const node = data.repository
+  if (!node) throw new GitHubError('not-found', `Repository ${repo} not found`)
+  if (!node.defaultBranchRef)
+    throw new GitHubError(
+      'graphql',
+      `${repo} is empty: add a first commit on GitHub, then try again.`,
+    )
+  const ref: TreeRef = {
+    owner: node.owner.login,
+    name: node.name,
+    repo: `${node.owner.login}/${node.name}`,
+    branch: node.defaultBranchRef.name,
+    isPrivate: node.isPrivate,
+    title: node.name,
+    color: null,
+  }
+  await createCommit(
+    client,
+    ref,
+    node.defaultBranchRef.target.oid,
+    [
+      { path: '.yeraz.json', text: `${JSON.stringify({ name: node.name })}\n` },
+      { path: `${node.name}/README.md`, text: `# 🌳 ${node.name}\n` },
+      { path: `${node.name}/welcome.md`, text: WELCOME },
+    ],
+    { headline: `Start ${node.name}`, body: 'Created by Yeraz.' },
+  )
+  return ref
+}
+
 /** Renames a repository on GitHub (its name only; GitHub redirects the old one). */
 export async function renameRepository(
   client: GitHubClient,
@@ -378,7 +426,7 @@ const WELCOME = `# 🌱 Welcome
 
 This is the first leaf of your Family. Every leaf is a Markdown file in this repository: line 1 is its title, and everything below is yours.
 
-- Every folder or leaf at the top of the repository is a Tree of its own; this leaf is one.
+- Every folder or leaf at the top of the repository is a Tree of its own.
 - Add Trees, branches and leaves from the Explorer.
 - Mention another leaf with a link, and the map draws a thread between them.
 - Edits are saved on this device as you type, and committed to GitHub two minutes after you stop.
