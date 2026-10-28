@@ -313,3 +313,32 @@ export function ancestors(graph: Graph, id: string): GraphNode[] {
 export function compactWords(words: number): string {
   return words >= 1000 ? `${Math.round(words / 100) / 10}k` : String(words)
 }
+
+/**
+ * The graph with each node's children in the order they were planted (`planted`: ISO date
+ * by path), oldest first: a branch by its oldest leaf. Undated ones follow, in their order.
+ */
+export function byPlanted(graph: Graph, planted: ReadonlyMap<string, string>): Graph {
+  const first = new Map<string, string | undefined>()
+  const dateOf = (id: string): string | undefined => {
+    if (first.has(id)) return first.get(id)
+    const node = graph.nodes.get(id)
+    let date = planted.get(id)
+    for (const child of node?.children ?? []) {
+      const d = dateOf(child)
+      if (d && (!date || d < date)) date = d
+    }
+    first.set(id, date)
+    return date
+  }
+  const nodes = new Map(
+    [...graph.nodes].map(([id, node]) => {
+      const children = [...node.children].sort((a, b) => {
+        const [da, db] = [dateOf(a), dateOf(b)]
+        return da && db ? (da < db ? -1 : da > db ? 1 : 0) : da ? -1 : db ? 1 : 0
+      })
+      return [id, { ...node, children }]
+    }),
+  )
+  return { ...graph, nodes }
+}

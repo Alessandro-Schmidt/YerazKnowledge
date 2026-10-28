@@ -139,6 +139,55 @@ test('Growth rings dates leaves from git and shows the core sample', async ({ pa
   }
 })
 
+test('the map orders leaves by when they were planted; Settings › Views can order them by name', async ({
+  page,
+  fake,
+}) => {
+  const repo = await fake.addRepo('you/order', { '.yeraz.json': '{"name":"Order"}\n' })
+  for (const [name, month] of [
+    ['zebra', '01'],
+    ['mango', '02'],
+    ['apple', '03'],
+  ] as const)
+    await repo.commit({
+      message: name,
+      date: new Date(`2026-${month}-10T10:00:00Z`),
+      additions: [{ path: `Notes/${name}.md`, contents: `# ${name}\n` }],
+    })
+  /** The three leaves in the order they go round their Tree. */
+  const round = async () => {
+    const centre = async (c: ReturnType<Page['locator']>) => {
+      const box = (await c.boundingBox())!
+      return [box.x + box.width / 2, box.y + box.height / 2] as const
+    }
+    const at = (id: string) => centre(page.locator(`[data-node][data-id="${id}"]`))
+    // One Tree: drawn as the core, its leaves around it.
+    const [x0, y0] = await centre(page.locator('[data-core]'))
+    const names = ['zebra', 'mango', 'apple']
+    const angles = await Promise.all(
+      names.map(async (n) => {
+        const [x, y] = await at(`Notes/${n}.md`)
+        return Math.atan2(y - y0, x - x0)
+      }),
+    )
+    const order = names.map((n, i) => [n, angles[i]!] as const).sort((a, b) => a[1] - b[1])
+    // Turned so it starts at zebra: the same order whatever the angle it starts at.
+    const names2 = order.map(([n]) => n)
+    const z = names2.indexOf('zebra')
+    return [...names2.slice(z), ...names2.slice(0, z)].join(' ')
+  }
+  await page.goto('./#/tree/you/order')
+  await signInHere(page)
+  await expect(page.locator('[data-node][data-id="Notes/apple.md"]')).toBeAttached()
+  await expect.poll(round).toBe('zebra mango apple')
+
+  await page.goto('./#/settings/views')
+  await page.getByRole('radio', { name: /^By name/ }).check()
+  await page.goto('./#/tree/you/order')
+  await expect(page.locator('[data-node][data-id="Notes/apple.md"]')).toBeAttached()
+  await expect.poll(round).toBe('zebra apple mango')
+})
+
 test('Settings › Views chooses how a Family is shown', async ({ page }) => {
   await page.goto('./#/settings/views')
   await signInHere(page)

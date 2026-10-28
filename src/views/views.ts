@@ -102,3 +102,23 @@ export const viewStore = {
     return () => listeners.delete(listener)
   },
 }
+
+/** How the map orders a Tree's leaves and branches, on this device: when planted (default) or by name. */
+export type MapOrder = 'planted' | 'name'
+const ORDER_KEY = 'yeraz-map-order'
+
+export function mapOrder(store = storage()): MapOrder {
+  try {
+    return store?.getItem(ORDER_KEY) === 'name' ? 'name' : 'planted'
+  } catch {
+    return 'planted'
+  }
+}
+
+export function saveMapOrder(order: MapOrder, store = storage()): void {
+  try {
+    store?.setItem(ORDER_KEY, order)
+  } catch {
+    // Private windows may refuse storage; the map keeps its order for this visit.
+  }
+}

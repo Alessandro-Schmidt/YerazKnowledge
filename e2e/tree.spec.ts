@@ -509,6 +509,18 @@ test('second open: exactly one request (a 304) and no content downloads', async 
   await openTree(page)
   await expect(page.locator('[data-node][data-kind="leaf"]')).toHaveCount(dots(graph))
   await expect(page.getByRole('status')).toHaveText('Synced to main')
+  // The map's order: when each leaf was planted, read once on the first open and kept.
+  let seen = -1
+  await expect
+    .poll(
+      () => {
+        const settled = fake.log.length === seen
+        seen = fake.log.length
+        return settled
+      },
+      { intervals: [1000], timeout: 30_000 },
+    )
+    .toBe(true)
   fake.resetLog()
   await page.reload()
   await expect(page.locator('[data-node][data-kind="leaf"]')).toHaveCount(dots(graph))

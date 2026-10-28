@@ -146,7 +146,7 @@ Renaming a Family changes only `name` in `.yeraz.json`. The edit is committed li
 
 ### 5.5 When leaves were planted
 
-Growth rings (§6.1) asks GraphQL `blame(path:)` on the commit last pulled, 20 files per request, and takes the oldest commit date among each file's lines. The dates are kept on the device (`planted:<owner/name>`); later only leaves not dated yet are asked for, and a leaf not committed yet is planted now. Nothing else reads it.
+Growth rings (§6.1) asks GraphQL `blame(path:)` on the commit last pulled, 20 files per request, and takes the oldest commit date among each file's lines. The dates are kept on the device (`planted:<owner/name>`); later only leaves not dated yet are asked for, and a leaf not committed yet is planted now. The map reads them too (owner's request): by default it orders each node's children oldest first, a branch by its oldest leaf (`byPlanted`, `model/graph.ts`), or by name (Settings › Views, `localStorage` `yeraz-map-order`). They are asked for once, in the background, the first time a Family is shown on the map, which lays itself out by name until they arrive; a reopen stays one request (§11).
 
 ### 5.6 A Family in a folder
 

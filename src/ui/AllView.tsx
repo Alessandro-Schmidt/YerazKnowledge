@@ -10,6 +10,7 @@ import { Suspense, useCallback, useEffect, useMemo, useState, useSyncExternalSto
 import { useLocation } from 'wouter'
 import type { TreeRef } from '../github/graphql'
 import {
+  ALL,
   allId,
   allRef,
   familiesLayout,
@@ -19,13 +20,13 @@ import {
 } from '../map/families'
 import { treesOf, type FamilyLayout } from '../map/family'
 import { TreeMap } from '../map/TreeMap'
-import type { Graph } from '../model/graph'
+import { byPlanted, type Graph } from '../model/graph'
 import { ROOT } from '../model/tree'
 import { preloadEditor } from '../editor/LeafEditor'
 import { imageAt } from '../read/LeafLook'
 import { Peek } from '../read/Peek'
 import { session, useSession } from '../store/session'
-import { treeColor } from '../views/common'
+import { treeColor, usePlanted } from '../views/common'
 import { VIEW_COMPONENTS } from '../views'
 import { PANEL } from '../views/views'
 import { useView, ViewSwitcher } from '../views/ViewSwitcher'
@@ -100,7 +101,13 @@ export function AllView({ params }: { params: { owner?: string; name?: string; '
       }),
     [trees, data],
   )
-  const { merged, layout, ref: all } = useMemo(() => mapOf(families), [families])
+  const { merged, layout: named, ref: all } = useMemo(() => mapOf(families), [families])
+  // The map in the order leaves were planted (Settings › Views); as named until known.
+  const planted = usePlanted(ALL, families.length ? merged : null, view === 'map')
+  const layout = useMemo(
+    () => (planted ? familiesLayout(byPlanted(merged, planted)) : named),
+    [planted, merged, named],
+  )
 
   // The selection, in its Family: `#/all/owner/name/path`.
   const repo = params.owner && params.name ? `${params.owner}/${params.name}`.toLowerCase() : null

@@ -6,7 +6,7 @@ import { Suspense, useCallback, useEffect, useMemo, useState, useSyncExternalSto
 import { useLocation } from 'wouter'
 import { familyLayout, treesOf } from '../map/family'
 import { TreeMap } from '../map/TreeMap'
-import { compactWords, type Graph } from '../model/graph'
+import { byPlanted, compactWords, type Graph } from '../model/graph'
 import { ROOT } from '../model/tree'
 import { markNow } from '../perf'
 import { preloadEditor } from '../editor/LeafEditor'
@@ -30,7 +30,7 @@ import styles from './FamilyView.module.css'
 import { widthStore, widthVars } from './panels'
 import { PHONE, useMedia } from './useMedia'
 import { Search, type Matches } from './Search'
-import { treeColor } from '../views/common'
+import { treeColor, usePlanted } from '../views/common'
 import { VIEW_COMPONENTS } from '../views'
 import { PANEL } from '../views/views'
 import { useView, ViewSwitcher } from '../views/ViewSwitcher'
@@ -78,11 +78,13 @@ export function FamilyView({ params }: { params: { owner: string; name: string; 
   }, [repo])
 
   const graph = data?.graph ?? null
+  // The map in the order its leaves were planted (Settings › Views); as named until known.
+  const planted = usePlanted(repo, graph, view === 'map')
   const family = useMemo(() => {
-    const laid = graph ? familyLayout(graph) : null
+    const laid = graph ? familyLayout(planted ? byPlanted(graph, planted) : graph) : null
     markNow('layout-done')
     return laid
-  }, [graph])
+  }, [graph, planted])
   // No path: nothing selected. An empty path (`/tree/o/n/`): the Family itself.
   const wanted = params['*'] === undefined ? null : decodePath(params['*'])
   const selected =

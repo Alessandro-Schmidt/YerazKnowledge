@@ -10,6 +10,7 @@ import { crumbs, type Graph, type GraphNode } from '../model/graph'
 import { firstLine } from '../model/search'
 import { ROOT } from '../model/tree'
 import { session } from '../store/session'
+import { mapOrder } from './views'
 import type { StructureAction } from '../ui/StructureDialogs'
 import { colorVar } from '../ui/theme'
 import type { Insets } from '../map/useZoom'
@@ -88,6 +89,31 @@ async function fromEvery<T>(
 
 /** When each leaf was planted (Growth rings), for one Family or every Family (`ALL`). */
 export const plantedIn = (repo: string) => fromEvery(repo, (r) => session.getState().planted(r))
+
+/**
+ * When each leaf was planted, for the map's order (Settings › Views): null until known, when
+ * this device orders the map by name, or when `map` is false (another view).
+ */
+export function usePlanted(
+  repo: string,
+  graph: Graph | null,
+  map: boolean,
+): Map<string, string> | null {
+  const [got, setGot] = useState<{ repo: string; planted: Map<string, string> } | null>(null)
+  const wanted = map && !!graph && mapOrder() === 'planted'
+  useEffect(() => {
+    if (!wanted) return
+    let live = true
+    plantedIn(repo).then(
+      (planted) => live && setGot({ repo, planted }),
+      () => {},
+    )
+    return () => {
+      live = false
+    }
+  }, [repo, graph, wanted])
+  return wanted && got?.repo === repo ? got.planted : null
+}
 
 /** Every leaf's first line, from the blob cache (no request); empty until it arrives. */
 export function useFirstLines(repo: string, graph: Graph): Map<string, string> {
