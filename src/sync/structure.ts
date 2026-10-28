@@ -2,8 +2,8 @@
 // graph and the repository format (ARCHITECTURE.md §4). Pure: the caller commits them.
 
 import { ancestors, textFile, type Ghost, type Graph } from '../model/graph'
-import { linkLabel } from '../model/parse'
-import { rewriteLinks } from '../model/links'
+import { LINK, linkLabel, ownPath } from '../model/parse'
+import { rewriteFileLinks, rewriteLinks, rewriteThreads } from '../model/links'
 import { slugify } from '../model/slug'
 import { fillTemplate } from '../model/template'
 import { BRANCH_TEXT, ROOT, TEMPLATES } from '../model/tree'
@@ -243,6 +243,67 @@ export function planMove(
     if (after !== before) changes.push({ path, text: after })
   }
   return { changes, moves, id: node.kind === 'leaf' ? `${newPrefix}.md` : newPrefix }
+}
+
+/** A Family's side of a move between Families: `url` is a file's address from elsewhere. */
+interface Side {
+  graph: Graph
+  url(path: string): string | null
+}
+
+/**
+ * Moves a leaf or a branch (a whole Tree too) under a node of another Family. Its files are
+ * written there and removed here: two commits, the other Family's first, so a failure in
+ * between leaves a copy, never nothing. Threads between the moved files stay threads; links
+ * from them to this Family, and to them from this Family, become full URLs (ARCHITECTURE.md
+ * §4). Their images and attachments are copied (`assets`, here → there); they stay here too.
+ */
+export function planMoveAcross(
+  from: Side & { textOf(path: string): string },
+  id: string,
+  to: Side & { parent: string; taken(path: string): boolean },
+): { source: FileChange[]; dest: FileChange[]; assets: Map<string, string>; id: string } {
+  const node = from.graph.nodes.get(id)
+  if (node?.kind !== 'leaf' && node?.kind !== 'branch')
+    throw new StructureError('Only leaves and branches can be moved')
+  const oldPrefix = node.kind === 'leaf' ? id.slice(0, -'.md'.length) : id
+  const newPrefix = `${folderOf(to.graph, to.parent)}${unique(baseName(id), takenNames(to.graph, to.parent), '-')}`
+  const moves = new Map(
+    filesUnder(from.graph, id).map((p) => [
+      p,
+      p === id ? `${newPrefix}.md` : newPrefix + p.slice(oldPrefix.length),
+    ]),
+  )
+  /** A link's new address: a moved file's, here, or this Family's file, from there. */
+  const there = (path: string) =>
+    moves.has(path) ? `/${moves.get(path)}` : (from.url(path) ?? undefined)
+
+  const assets = new Map<string, string>()
+  const dest: FileChange[] = []
+  for (const [path, next] of moves) {
+    const text = from.textOf(path)
+    for (const [, , , link] of text.matchAll(LINK)) {
+      const file = ownPath(link!)?.replace(/[?#].*$/, '')
+      if (!file?.startsWith('assets/') || assets.has(file)) continue
+      let copy = file
+      const dot = file.lastIndexOf('.')
+      const [stem, ext] =
+        dot > 'assets/'.length ? [file.slice(0, dot), file.slice(dot)] : [file, '']
+      for (let n = 2; to.taken(copy) || [...assets.values()].includes(copy); n++)
+        copy = `${stem}-${n}${ext}`
+      assets.set(file, copy)
+    }
+    dest.push({ path: next, text: rewriteFileLinks(rewriteThreads(text, there), assets) })
+  }
+  const source: FileChange[] = [...moves.keys()].map((path) => ({ path, text: null }))
+  for (const path of linkingFiles(from.graph, id)) {
+    const before = from.textOf(path)
+    const after = rewriteThreads(before, (p) =>
+      moves.has(p) ? (to.url(moves.get(p)!) ?? undefined) : undefined,
+    )
+    if (after !== before) source.push({ path, text: after })
+  }
+  return { source, dest, assets, id: node.kind === 'leaf' ? `${newPrefix}.md` : newPrefix }
 }
 
 /**

@@ -365,6 +365,9 @@ describe('session', () => {
     expect(await s.getState().assetUrl('you/engineering', 'assets/a.png')).toMatch(/^blob:/)
     expect(fake.log).toEqual([])
     expect(await s.getState().assetUrl('you/engineering', 'assets/none.png')).toBeNull()
+    // Its bytes, to copy it into another Family.
+    expect(await s.getState().fileBytes('you/engineering', 'assets/a.png')).toEqual(png)
+    expect(await s.getState().fileBytes('you/engineering', 'assets/none.png')).toBeNull()
   })
 
   it('commits an attached file with the leaf that links to it, in one commit, and knows its size', async () => {

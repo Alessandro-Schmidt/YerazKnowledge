@@ -73,6 +73,26 @@ test('Keep open holds a leaf of one Family beside a leaf of another', async ({ p
   await expect(peeks).toHaveCount(1)
 })
 
+test('a leaf moves to another Family, found by typing where', async ({ page, fake }) => {
+  test.skip(isPhone(page), 'The move dialog is the same on phones; one run is enough')
+  await signIn(page)
+  await page.goto('./#/tree/you/art/Baroque/caravaggio.md')
+  const panel = page.getByRole('region', { name: 'Leaf preview' })
+  await panel.getByRole('button', { name: 'More actions' }).click()
+  await page.getByRole('menuitem', { name: 'Move…' }).click()
+  const dialog = page.getByRole('dialog')
+  await dialog.getByRole('searchbox', { name: 'Where to' }).fill('top of engin')
+  await expect(dialog.getByRole('radio')).toHaveCount(1)
+  await dialog
+    .getByRole('radio', { name: 'At the top of Engineering, as a Tree of its own' })
+    .check()
+  await dialog.getByRole('button', { name: 'Move' }).click()
+  await expect(page).toHaveURL(/#\/tree\/you\/engineering\/caravaggio\.md$/)
+  // Committed in both, without a Save: the other Family's first.
+  await expect.poll(() => fake.repo('you/art').read('Baroque/caravaggio.md')).toBeUndefined()
+  expect(fake.repo('you/engineering').read('caravaggio.md')).toContain('Light and dark.')
+})
+
 test('Settings › Views can open the app on the last Family instead', async ({ page }) => {
   await signIn(page)
   await page.goto('./#/tree/you/art')

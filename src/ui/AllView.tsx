@@ -239,7 +239,9 @@ export function AllView({ params }: { params: { owner?: string; name?: string; '
           onClose={() => setAction(null)}
           onDone={(result) => {
             setAction(null)
-            select(action.tree, result.edit ?? result.select ?? null)
+            // Moved to another Family: selected there.
+            const ref = trees.find((t) => t.repo === result.repo) ?? action.tree
+            select(ref, result.edit ?? result.select ?? null)
             setCreated(result.edit ?? null)
           }}
         />

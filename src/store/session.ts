@@ -130,6 +130,8 @@ export interface SessionState {
   texts(repo: string): Promise<Map<string, string>>
   /** A URL showing an attachment (`assets/…`), or null when the Tree has no such file. */
   assetUrl(repo: string, path: string): Promise<string | null>
+  /** An attachment's bytes, or null when the Tree has no such file. */
+  fileBytes(repo: string, path: string): Promise<Uint8Array | null>
   /** Every file path in an open Tree, pending edits included. */
   files(repo: string): string[]
   /** A file's size in bytes, pending edits included, without downloading it; null when unknown. */
@@ -809,6 +811,15 @@ export function createSession(deps: {
           if (typeof text === 'string' && path.endsWith('.md') && !isTemplatePath(path))
             texts.set(path, text)
         return texts
+      },
+
+      async fileBytes(repo, path) {
+        const key = repo.toLowerCase()
+        await pulls.get(key)
+        const pending = (await loadDirty(key))[path]?.text
+        if (pending instanceof Uint8Array) return pending
+        const sha = bases.get(key)?.entries.find((e) => e.path === path)?.sha
+        return sha && !isLocal(sha) ? bytesOf(repo, path, sha) : null
       },
 
       async assetUrl(repo, path) {
