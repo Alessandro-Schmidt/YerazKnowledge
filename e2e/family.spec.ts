@@ -83,5 +83,5 @@ test('connects a repository without .yeraz.json from the Family menu, after aski
   await expect(dialog).toContainText('into a notebook?')
   await dialog.getByRole('button', { name: 'Turn into a notebook' }).click()
   await expect(page).toHaveURL(/#\/tree\/you\/dotfiles$/)
-  expect(fake.repo('you/dotfiles').read('dotfiles/welcome.md')).toContain('# 🌱 Welcome')
+  expect(fake.repo('you/dotfiles').read('notes/dotfiles/welcome.md')).toContain('# 🌱 Welcome')
 })

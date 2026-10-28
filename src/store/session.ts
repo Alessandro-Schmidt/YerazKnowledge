@@ -23,6 +23,8 @@ import {
   fetchPlanted,
   lookupTree,
   startFamily,
+  inRepo,
+  inFamily,
   markerFields,
   type TreeRef,
   type Version,
@@ -852,7 +854,7 @@ export function createSession(deps: {
         const id = [ref.repo, head, path, after].join('\n')
         let page = histories.get(id)
         if (!page) {
-          page = fetchHistory(github(), ref.repo, head, path, after)
+          page = fetchHistory(github(), ref.repo, head, inRepo(ref, path), after)
           histories.set(id, page)
           page.catch(() => histories.delete(id))
         }
@@ -881,8 +883,13 @@ export function createSession(deps: {
         const missing = leaves.map((n) => n.id).filter((id) => !saved[id] && committed.has(id))
         if (missing.length) {
           try {
-            for (const [path, date] of await fetchPlanted(github(), ref.repo, head, missing))
-              saved[path] = date
+            const planted = await fetchPlanted(
+              github(),
+              ref.repo,
+              head,
+              missing.map((p) => inRepo(ref, p)),
+            )
+            for (const [path, date] of planted) saved[inFamily(ref, path) ?? path] = date
           } catch (e) {
             throw new Error(describeError(e).message, { cause: e })
           }
