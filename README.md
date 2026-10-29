@@ -1,4 +1,4 @@
-<p align="center"><img src="design/brand/svg/yeraz-mark.svg" alt="" height="56"></p>
+![Yeraz: map what you know. The Atlas, the Map and six other views of the same notes.](docs/banner.webp)
 
 # Yeraz
 
