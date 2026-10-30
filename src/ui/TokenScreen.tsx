@@ -1,10 +1,12 @@
 // The introduction: the logo and the name, then where the notes live, GitHub or a folder.
 // Signed out it is the whole app, its steps kept here so the address stays (a link followed
-// through sign-in still opens). Signed in, the Yeraz logo opens it at `#/welcome[/github|/folder]`.
+// through sign-in still opens). Signed in, the Yeraz logo opens it at `#/welcome[/github|/folder]`;
+// `#/welcome/token` is the token form again, to replace the token (expired, or for other repositories).
 
 import { useState, type FormEvent } from 'react'
 import { useLocation } from 'wouter'
 import type { TreeRef } from '../github/graphql'
+import { isFolder } from '../local/folder'
 import { session, useSession } from '../store/session'
 import controls from './controls.module.css'
 import { ConnectDialog } from './FamilyMenu'
@@ -15,14 +17,21 @@ import styles from './TokenScreen.module.css'
 import { TopBar } from './TopBar'
 
 const NEW_TOKEN = 'https://github.com/settings/personal-access-tokens/new'
+const TOKENS = 'https://github.com/settings/personal-access-tokens'
 const brand = (file: string) => `${import.meta.env.BASE_URL}brand/${file}`
 
-type Step = 'welcome' | 'github' | 'folder'
+type Step = 'welcome' | 'github' | 'folder' | 'token'
+const STEPS: readonly string[] = ['github', 'folder', 'token']
 
 /** Signed out: the introduction. */
 export function TokenScreen() {
   const [step, setStep] = useState<Step>('welcome')
-  return <Intro step={step} go={setStep} />
+  // Signed in from here, an address naming a Family or a leaf is kept (a link followed through
+  // sign-in); one of the introduction's own would show it again, so the notes open instead.
+  const home = () => {
+    if (/^#\/welcome(\/|$)/.test(location.hash)) location.replace('#/')
+  }
+  return <Intro step={step} go={setStep} onSignedIn={home} />
 }
 
 /** Signed in: the introduction at `#/welcome`, a step at `#/welcome/:step`. */
@@ -30,7 +39,7 @@ export function WelcomeRoute({ step }: { step?: string }) {
   const [, navigate] = useLocation()
   return (
     <Intro
-      step={step === 'github' || step === 'folder' ? step : 'welcome'}
+      step={step && STEPS.includes(step) ? (step as Step) : 'welcome'}
       go={(to) => navigate(to === 'welcome' ? '/welcome' : `/welcome/${to}`)}
       onSignedIn={() => navigate('/')}
     />
@@ -61,7 +70,21 @@ function Intro({
       <main id="main" tabIndex={-1} className={styles.main}>
         {step === 'welcome' && <Welcome choose={go} />}
         {step === 'github' &&
-          (github ? <Repositories back={back} /> : <GitHub onDone={onSignedIn} back={back} />)}
+          (github ? <Repositories go={go} /> : <GitHub onDone={onSignedIn} back={back} />)}
+        {step === 'token' &&
+          (github ? (
+            <GitHub
+              change
+              onDone={() =>
+                session.getState().trees.some((t) => !isFolder(t.repo))
+                  ? onSignedIn?.()
+                  : go('github')
+              }
+              back={() => go('github')}
+            />
+          ) : (
+            <GitHub onDone={onSignedIn} back={back} />
+          ))}
         {step === 'folder' && <Folder back={back} />}
       </main>
     </div>
@@ -70,8 +93,14 @@ function Intro({
 
 function Welcome({ choose }: { choose(step: Step): void }) {
   const onDevice = useSession((s) => s.onDevice)
+  const github = useSession((s) => s.token !== null)
   // Back to every Family together, or to the only one.
   const families = useSession((s) => (s.phase === 'signed-in' ? s.trees.length : 0))
+  // Signed in and nothing found: a warning for both homes, with a start from either (a fresh
+  // start needs no telling).
+  const empty = useSession((s) => s.phase === 'signed-in' && s.trees.length === 0)
+  const folders = useSession((s) => s.folders)
+  const [dialog, setDialog] = useState<'create' | null>(null)
   const choices = [
     {
       step: 'github' as const,
@@ -126,6 +155,49 @@ function Welcome({ choose }: { choose(step: Step): void }) {
           Yeraz keeps your edits on this device as you type and commits them in the background.
         </dd>
       </dl>
+      {empty && (
+        <div className={styles.notice} role="status">
+          <p>
+            <strong>No notes yet.</strong>{' '}
+            {github
+              ? 'The GitHub token sees no repository with a notebook, and there is no project folder on this device. '
+              : 'There is no project folder on this device. '}
+            Start one here
+            {github && (
+              <>
+                , or{' '}
+                <a href={TOKENS} target="_blank" rel="noreferrer">
+                  widen the token's repository access
+                </a>
+              </>
+            )}
+            .
+          </p>
+          <div className={styles.noticeActions}>
+            {github && (
+              <button
+                type="button"
+                className={controls.primary}
+                onClick={() => setDialog('create')}
+              >
+                <Icon name="plus" />
+                Create a repository
+              </button>
+            )}
+            {folders && (
+              <button
+                type="button"
+                className={github ? controls.ghost : controls.primary}
+                onClick={() => choose('folder')}
+              >
+                <Icon name="folder" />
+                {onDevice ? 'New project' : 'New project folder'}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+      {dialog === 'create' && <CreateTreeDialog onClose={() => setDialog(null)} onCreated={open} />}
       <p className={styles.ask}>Where should your notes live?</p>
       <div className={styles.choices}>
         {choices.map((c) => (
@@ -147,6 +219,14 @@ function Welcome({ choose }: { choose(step: Step): void }) {
           </button>
         ))}
       </div>
+      {github && (
+        <p className={styles.fine}>
+          GitHub is connected with a token kept on this device.{' '}
+          <button type="button" className={styles.textButton} onClick={() => choose('token')}>
+            Change token
+          </button>
+        </p>
+      )}
       {families > 0 && (
         <a className={styles.home} href={families > 1 ? `#${allHref()}` : '#/'}>
           Back to your notes
@@ -166,17 +246,28 @@ function Back({ onClick }: { onClick(): void }) {
   )
 }
 
-/** Signed in to GitHub already: connect another repository, or create one. */
-function Repositories({ back }: { back(): void }) {
+/** Signed in to GitHub already: connect another repository, create one, or change the token. */
+function Repositories({ go }: { go(step: Step): void }) {
   const [dialog, setDialog] = useState<'connect' | 'create' | null>(null)
+  const none = useSession((s) => !s.trees.some((t) => !isFolder(t.repo)))
   return (
     <div className={styles.card}>
-      <Back onClick={back} />
+      <Back onClick={() => go('welcome')} />
       <h1 className={styles.title}>Your GitHub repositories</h1>
       <p className={styles.lead}>
         Each Family is one of your repositories. Connect one that holds notes already, or create a
         new one.
       </p>
+      {none && (
+        <p className={styles.notice} role="status">
+          <strong>No notebook found.</strong> None of the repositories this token can see has notes.
+          Create one, connect one that holds notes, or{' '}
+          <a href={TOKENS} target="_blank" rel="noreferrer">
+            widen the token's repository access
+          </a>
+          .
+        </p>
+      )}
       <button type="button" className={controls.primary} onClick={() => setDialog('create')}>
         <Icon name="plus" />
         Create a new repository
@@ -185,13 +276,27 @@ function Repositories({ back }: { back(): void }) {
         <Icon name="repo" />
         Connect repository
       </button>
+      <p className={styles.or}>or</p>
+      <button type="button" className={controls.ghost} onClick={() => go('token')}>
+        <Icon name="key" />
+        Change token
+      </button>
       {dialog === 'connect' && <ConnectDialog onClose={() => setDialog(null)} onConnected={open} />}
       {dialog === 'create' && <CreateTreeDialog onClose={() => setDialog(null)} onCreated={open} />}
     </div>
   )
 }
 
-function GitHub({ onDone, back }: { onDone?: () => void; back(): void }) {
+/** The token form: to connect GitHub, or with `change`, to replace the token in use. */
+function GitHub({
+  onDone,
+  back,
+  change = false,
+}: {
+  onDone?: () => void
+  back(): void
+  change?: boolean
+}) {
   const [token, setToken] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -213,10 +318,11 @@ function GitHub({ onDone, back }: { onDone?: () => void; back(): void }) {
   return (
     <form className={styles.card} onSubmit={submit}>
       <Back onClick={back} />
-      <h1 className={styles.title}>Connect GitHub</h1>
+      <h1 className={styles.title}>{change ? 'Change your GitHub token' : 'Connect GitHub'}</h1>
       <p className={styles.lead}>
-        Your notes live in your own GitHub repositories. Yeraz reads and writes them with a personal
-        access token that stays on this device.
+        {change
+          ? 'Yeraz reads and writes your repositories with one personal access token, kept on this device. Paste a new one to replace it: when the old one expires, or to reach other repositories.'
+          : 'Your notes live in your own GitHub repositories. Yeraz reads and writes them with a personal access token that stays on this device.'}
       </p>
       <ol className={styles.steps}>
         <li>
@@ -255,13 +361,20 @@ function GitHub({ onDone, back }: { onDone?: () => void; back(): void }) {
         </p>
       )}
       <button type="submit" className={controls.primary} disabled={busy || !token.trim()}>
-        {busy ? 'Checking…' : 'Continue'}
+        {busy ? 'Checking…' : change ? 'Use this token' : 'Continue'}
         {!busy && <Icon name="arrowRight" />}
       </button>
-      <p className={styles.fine}>
-        A Family is any repository with a <code>.yeraz.json</code> file at its root, and every
-        folder or leaf at its top is a Tree. The app opens on yours next.
-      </p>
+      {change ? (
+        <p className={styles.fine}>
+          Your notes and unsaved edits stay on this device. The map then shows the Families the new
+          token can see, with any you connected by name.
+        </p>
+      ) : (
+        <p className={styles.fine}>
+          A Family is any repository with a <code>.yeraz.json</code> file at its root, and every
+          folder or leaf at its top is a Tree. The app opens on yours next.
+        </p>
+      )}
     </form>
   )
 }
@@ -271,6 +384,7 @@ function Folder({ back }: { back(): void }) {
   const can = useSession((s) => s.folders)
   const onDevice = useSession((s) => s.onDevice)
   const closed = useSession((s) => s.closed)
+  const none = useSession((s) => s.phase === 'signed-in' && !s.trees.some((t) => isFolder(t.repo)))
   const [name, setName] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -314,6 +428,12 @@ function Folder({ back }: { back(): void }) {
           ? "No GitHub account needed. This browser can't keep a folder open, so Yeraz keeps the project in its own storage here."
           : 'No GitHub account needed. Yeraz makes a folder for your notes wherever you choose. In iCloud Drive, Dropbox or OneDrive, your other devices see it too.'}
       </p>
+      {none && can && (
+        <p className={styles.notice} role="status">
+          <strong>No project folder on this device yet.</strong> Make one here, open a folder of
+          notes, or try the example.
+        </p>
+      )}
       {can ? (
         <>
           <form

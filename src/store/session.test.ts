@@ -49,6 +49,32 @@ describe('session', () => {
     expect(again.getState().trees).toHaveLength(2)
   })
 
+  it('changes the token while signed in, and keeps the session when GitHub refuses one', async () => {
+    const store = memoryStore()
+    const s = createSession({ store })
+    await s.getState().signIn('good')
+    await s.getState().open('you/engineering')
+    const before = s.getState().trees
+
+    await expect(s.getState().signIn('bad')).rejects.toThrow("GitHub didn't accept this token")
+    expect(s.getState()).toMatchObject({ phase: 'signed-in', token: 'good', trees: before })
+    expect(s.getState().data['you/engineering']!.status).toBe('ready')
+    // The old token still works: a lookup goes through.
+    expect(await s.getState().connect('you/engineering')).toMatchObject({ repo: 'you/engineering' })
+
+    // A new token GitHub accepts replaces the old one, here and on the next start.
+    const other = createFakeGitHub({ login: 'you', tokens: ['newer'] })
+    server.resetHandlers(...fakeGitHubHandlers(other))
+    await other.addRepo('you/journal', { '.yeraz.json': '{"name":"Journal"}', 'a.md': '# A\n' })
+    await s.getState().signIn('newer')
+    expect(s.getState()).toMatchObject({ phase: 'signed-in', token: 'newer' })
+    expect(s.getState().trees.map((t) => t.title)).toEqual(['Journal', 'Engineering'])
+
+    const again = createSession({ store })
+    await again.getState().start()
+    expect(again.getState()).toMatchObject({ phase: 'signed-in', token: 'newer' })
+  })
+
   it('opens a Tree: structure first, then the full graph', async () => {
     const s = createSession({ store: memoryStore() })
     await s.getState().signIn('good')

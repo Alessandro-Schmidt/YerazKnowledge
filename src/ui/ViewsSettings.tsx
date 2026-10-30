@@ -13,7 +13,7 @@ import { SettingsShell } from './Settings'
 const OPENINGS: { id: OpenOn; label: string; note: string }[] = [
   {
     id: 'all',
-    label: 'All Families',
+    label: 'All projects',
     note: 'Every Family on one map, each in its own ring. The usual choice on a computer.',
   },
   {

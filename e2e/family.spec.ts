@@ -30,10 +30,21 @@ test('removes the Family from this device: GitHub keeps it, and it is not found 
   const dialog = page.getByRole('dialog', { name: 'Remove Engineering' })
   await expect(dialog).toContainText('stays on GitHub')
   await dialog.getByRole('button', { name: 'Remove' }).click()
-  // No Family left: the introduction.
+  // No Family left: the introduction says so, for GitHub and for folders.
   await expect(page).toHaveURL(/#\/welcome$/)
   expect(fake.repo(REPO).read('.yeraz.json')).toContain('Engineering')
   await expect(page.getByRole('link', { name: 'Back to your notes' })).toHaveCount(0)
+  await expect(page.getByRole('status')).toContainText('No notes yet')
+  await expect(page.getByRole('status')).toContainText('no project folder on this device')
+  await expect(
+    page.getByRole('status').getByRole('button', { name: 'Create a repository' }),
+  ).toBeVisible()
+  await page.getByRole('button', { name: 'GitHub', exact: true }).click()
+  await expect(page.getByRole('status')).toContainText('No notebook found')
+  await expect(
+    page.getByRole('link', { name: "widen the token's repository access" }),
+  ).toHaveAttribute('href', 'https://github.com/settings/personal-access-tokens')
+  await page.getByRole('button', { name: 'Back' }).click()
 
   // Reloading looks for Families again: this one stays off, until connected by hand.
   await page.goto('./')

@@ -47,7 +47,7 @@ import { Divider, TopBar } from './TopBar'
 import { widthStore, widthVars } from './panels'
 import { PHONE, useMedia } from './useMedia'
 
-const TITLE = 'All Families'
+const TITLE = 'All projects'
 
 /**
  * The merged graph and its layout, made again only when a Family's graph or ref changes:

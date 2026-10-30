@@ -135,7 +135,7 @@ export function FamilyMenu({ current, all }: { current?: string; all?: boolean }
           </span>
           {trees.length > 1 && (
             <Link href={allHref()} role="menuitem" aria-current={all || undefined}>
-              <span className={styles.name}>All Families</span>
+              <span className={styles.name}>All projects</span>
               <span className={`${controls.mono} ${styles.repo}`}>on one map</span>
             </Link>
           )}

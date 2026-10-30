@@ -582,21 +582,26 @@ export function createSession(deps: {
       },
 
       async signIn(token) {
+        // Signed in already: the new token replaces the old one, or the old one stays.
+        const previous = { client, token: get().token }
         client = createGitHubClient({ token: token.trim(), api: api() })
         set({ token: token.trim() })
         try {
           const found = await discoverTrees(client)
           await tokens.set(token.trim())
+          // Families kept: folders, and repositories connected by name (the new token may
+          // see other repositories than the old one did).
+          const keep = new Set((await connected()).map((r) => r.toLowerCase()))
           await saveTrees(
             mergeTrees(
               found,
-              get().trees.filter((t) => isFolder(t.repo)),
+              get().trees.filter((t) => isFolder(t.repo) || keep.has(t.repo.toLowerCase())),
             ),
           )
           set({ phase: 'signed-in', discovery: 'done' })
         } catch (e) {
-          client = null
-          set({ token: null })
+          client = previous.client
+          set({ token: previous.token })
           throw new Error(describeError(e).message, { cause: e })
         }
       },
