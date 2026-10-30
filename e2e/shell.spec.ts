@@ -1,5 +1,5 @@
 import AxeBuilder from '@axe-core/playwright'
-import { expect, test } from './fixtures'
+import { expect, signIn, test, TOKEN, TOKEN2 } from './fixtures'
 
 test.beforeEach(async ({ page }) => {
   await page.goto('./')
@@ -101,6 +101,44 @@ test('refuses a token GitHub rejects, and says why', async ({ page }) => {
   await page.getByRole('button', { name: 'Continue' }).click()
   await expect(page.getByRole('alert')).toContainText("GitHub didn't accept this token")
   await expect(page.getByRole('heading', { name: 'Connect GitHub' })).toBeVisible()
+})
+
+test('signing in with the tab left on an introduction address opens the notes', async ({
+  page,
+}) => {
+  await page.goto('./#/welcome/github')
+  await page.getByRole('button', { name: 'GitHub', exact: true }).click()
+  await page.getByLabel('Personal access token').fill(TOKEN)
+  await page.getByRole('button', { name: 'Continue' }).click()
+  await page.locator('[data-map]').waitFor()
+  await expect(page).toHaveURL(/#\/tree\/you\/engineering/)
+})
+
+test('changes the token from the repositories step and the introduction', async ({ page }) => {
+  await signIn(page)
+  await page.goto('./#/welcome/github')
+  await expect(page.getByRole('heading', { name: 'Your GitHub repositories' })).toBeVisible()
+  await page.getByRole('button', { name: 'Change token' }).click()
+  await expect(page).toHaveURL(/#\/welcome\/token$/)
+  await expect(page.getByRole('heading', { name: 'Change your GitHub token' })).toBeVisible()
+
+  // One GitHub refuses leaves the old one in place: the session goes on.
+  await page.getByLabel('Personal access token').fill('wrong')
+  await page.getByRole('button', { name: 'Use this token' }).click()
+  await expect(page.getByRole('alert')).toContainText("GitHub didn't accept this token")
+  await page.getByRole('button', { name: 'Back' }).click()
+  await expect(page.getByRole('heading', { name: 'Your GitHub repositories' })).toBeVisible()
+
+  // From the introduction too; one GitHub accepts replaces it, and the notes are still there.
+  await page.getByRole('button', { name: 'Back' }).click()
+  await page.getByRole('button', { name: 'Change token' }).click()
+  await page.getByLabel('Personal access token').fill(TOKEN2)
+  await page.getByRole('button', { name: 'Use this token' }).click()
+  // Back on the notes, as after connecting GitHub; and still signed in after a reload.
+  await page.locator('[data-map]').waitFor()
+  await expect(page.getByRole('heading', { level: 1 })).toContainText('Engineering')
+  await page.reload()
+  await page.locator('[data-map]').waitFor()
 })
 
 const AUTH = { Authorization: 'Bearer fake-token' }

@@ -26,7 +26,7 @@ test('opens on every Family together, each in its own ring', async ({ page }) =>
   await expect(page.locator('[data-group="you/engineering"] text')).toHaveText('Engineering')
   await expect(page.locator('[data-node][data-id="you/art::Baroque/caravaggio.md"]')).toHaveCount(1)
   await expect(page.locator('[data-node][data-id^="you/engineering::"]').first()).toBeAttached()
-  await expect(await familyMenu(page)).toContainText('All Families')
+  await expect(await familyMenu(page)).toContainText('All projects')
 })
 
 test('the logo in the top bar leads to the introduction, and from there to every Family', async ({
@@ -136,7 +136,7 @@ test('Settings › Views can open the app on the last Family instead', async ({ 
   await expect(page).toHaveURL(/#\/tree\/you\/art$/)
 
   await page.goto('./#/settings/views')
-  await page.getByRole('radio', { name: /All Families/ }).check()
+  await page.getByRole('radio', { name: /All projects/ }).check()
   await page.goto('./#/')
   await expect(page).toHaveURL(/#\/all$/)
 })

@@ -13,6 +13,8 @@ import { startFakeServer, type FakeServer } from '../test/fake-github/server'
 import type {} from '../src/github/endpoint'
 
 export const TOKEN = 'fake-token'
+/** A second token the fake accepts: for changing the one in use. */
+export const TOKEN2 = 'fake-token-2'
 
 interface Fixtures {
   /** Leaves in the you/engineering fixture. */
@@ -47,7 +49,7 @@ export const test = base.extend<Fixtures, { fakeServer: FakeServer }>({
   },
 
   fake: async ({ fixture }, use) => {
-    const fake = createFakeGitHub({ login: 'you', tokens: [TOKEN] })
+    const fake = createFakeGitHub({ login: 'you', tokens: [TOKEN, TOKEN2] })
     await fake.addRepo('you/engineering', fixture.files)
     await use(fake)
   },

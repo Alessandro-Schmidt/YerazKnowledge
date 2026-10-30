@@ -224,6 +224,48 @@
   color: var(--text-body);
 }
 
+/* Nothing found where the notes would be: a warning, in the conflict banner's amber, with a
+   start from either home. */
+.notice {
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, var(--c-amber) 45%, var(--hair));
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--c-amber) 12%, var(--panel));
+  color: var(--text-body);
+  font-size: 13px;
+  line-height: 1.55;
+}
+.notice p {
+  margin: 0;
+}
+.noticeActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+.notice strong {
+  color: var(--text);
+  font-weight: 600;
+}
+.notice a {
+  color: var(--accent);
+}
+
+/* A button that reads as a link, inside a sentence. */
+.textButton {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  cursor: pointer;
+}
+.textButton:hover {
+  text-decoration: underline;
+}
+
 @media (max-width: 640px) {
   .card {
     padding: 20px;

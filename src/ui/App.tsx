@@ -25,8 +25,9 @@ import { ViewsSettings } from './ViewsSettings'
 //   #/settings/colours                    Settings › Tree colours (in .yeraz.json)
 //   #/settings/hidden                     Settings › Hidden (leaves and branches hidden from the map)
 //   #/settings/templates[/owner/name/path] Settings › Templates (for new leaves), one open to edit
-//   #/welcome[/github|/folder]            the introduction, from the Yeraz logo: connect GitHub
-//                                         or a repository, a new project folder, an existing one
+//   #/welcome[/github|/folder|/token]     the introduction, from the Yeraz logo: connect GitHub
+//                                         or a repository, a new project folder, an existing one,
+//                                         or another token in place of the one in use
 /**
  * The address the app was opened at. Opening it on a Family's own address (a tab the browser
  * restored, a bookmark) shows every Family together, as `#/` does (issue #69); an address
