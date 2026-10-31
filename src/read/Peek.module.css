@@ -570,9 +570,17 @@
     /* The whole screen (owner's request): over the top bar too. */
     position: fixed;
     z-index: 10;
-    height: auto;
-    top: 0;
+    /* The part of the screen the keyboard leaves (Peek.tsx useVisibleArea), and below the
+       status bar: the head's Back to the map and Dismiss stay in reach. */
+    top: var(--vv-top, 0);
+    bottom: auto;
+    height: var(--vv-h, 100%);
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top);
     border-radius: 0;
+  }
+  .peek[data-expanded] .grip {
+    flex-shrink: 0;
   }
   .grip {
     touch-action: none;
