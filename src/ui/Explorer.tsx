@@ -1,10 +1,13 @@
 // The Explorer: the file view of a Family, each of its Trees a top-level group, and the
 // keyboard route to every leaf (role="tree", arrow keys; development-plan.md §7.3).
 // Branches start collapsed below the Trees; the selection's ancestors open by themselves.
+// A hidden leaf, branch or Tree stays listed in what holds it, muted, with an eye that shows
+// it on the map again (owner's request); it has no place on the map to select.
 
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import type { TreeRef } from '../github/graphql'
-import { compactWords, type Graph } from '../model/graph'
+import { compactWords, type Graph, type HiddenNode } from '../model/graph'
+import { session } from '../store/session'
 import { ROOT } from '../model/tree'
 import controls from './controls.module.css'
 import styles from './Explorer.module.css'
@@ -20,7 +23,16 @@ interface Row {
   hasChildren: boolean
   index: number
   of: number
+  /** A hidden node: listed, not on the map. */
+  hidden?: HiddenNode
 }
+
+/** Shows a hidden node on the map again: its line 2 loses `hidden`. */
+export const showAgain = (repo: string, id: string) =>
+  session
+    .getState()
+    .setHidden(repo, id, false)
+    .catch((e: unknown) => window.alert(e instanceof Error ? e.message : String(e)))
 
 export function Explorer({
   tree,
@@ -66,7 +78,10 @@ export function Explorer({
   const rows = useMemo(() => {
     const out: Row[] = []
     const walk = (id: string) => {
-      const children = graph.nodes.get(id)!.children
+      const holder = graph.nodes.get(id)!
+      const children = holder.children
+      const hidden = graph.hidden.filter((h) => h.parent === id)
+      const of = children.length + hidden.length
       children.forEach((child, i) => {
         const node = graph.nodes.get(child)!
         const isOpen = open.has(child)
@@ -76,10 +91,21 @@ export function Explorer({
           open: isOpen,
           hasChildren: node.children.length > 0,
           index: i + 1,
-          of: children.length,
+          of,
         })
         if (isOpen) walk(child)
       })
+      hidden.forEach((h, i) =>
+        out.push({
+          id: h.id,
+          depth: holder.depth + 1,
+          open: false,
+          hasChildren: false,
+          index: children.length + i + 1,
+          of,
+          hidden: h,
+        }),
+      )
     }
     walk(ROOT)
     return out
@@ -114,7 +140,7 @@ export function Explorer({
     const at = rows.findIndex((r) => r.id === current)
     const row = rows[at]
     if (!row) return
-    const node = graph.nodes.get(row.id)!
+    const node = graph.nodes.get(row.id) ?? row.hidden!
     const handled = (() => {
       switch (event.key) {
         case 'ArrowDown':
@@ -127,7 +153,7 @@ export function Explorer({
           return (move(rows.at(-1)?.id), true)
         case 'ArrowRight':
           if (row.hasChildren && !row.open) toggle(row.id)
-          else if (row.hasChildren) move(node.children[0])
+          else if (row.hasChildren) move(graph.nodes.get(row.id)!.children[0])
           return true
         case 'ArrowLeft':
           if (row.open) toggle(row.id)
@@ -135,7 +161,9 @@ export function Explorer({
           return true
         case 'Enter':
         case ' ':
-          return (onSelect(row.id), true)
+          if (row.hidden) void showAgain(tree.repo, row.id)
+          else onSelect(row.id)
+          return true
         default:
           return false
       }
@@ -172,6 +200,48 @@ export function Explorer({
           onKeyDown={onKeyDown}
         >
           {rows.map((row) => {
+            if (row.hidden) {
+              const h = row.hidden
+              return (
+                <div
+                  key={row.id}
+                  role="treeitem"
+                  data-row={row.id}
+                  data-hidden=""
+                  aria-level={row.depth}
+                  aria-setsize={row.of}
+                  aria-posinset={row.index}
+                  aria-selected={false}
+                  aria-label={`${h.title}, hidden from the map. Enter shows it again.`}
+                  tabIndex={row.id === current ? 0 : -1}
+                  className={styles.row}
+                  style={{ paddingLeft: 6 + (row.depth - 1) * 16 }}
+                  onFocus={() => setFocus(row.id)}
+                >
+                  <span className={styles.chevron} data-none="" aria-hidden="true" />
+                  <span
+                    className={controls.glyph}
+                    data-kind={h.kind === 'leaf' ? 'leaf' : 'branch'}
+                    aria-hidden="true"
+                  />
+                  <span className={styles.label}>
+                    {h.icon ? `${h.icon} ` : ''}
+                    {h.title}
+                  </span>
+                  <span
+                    className={styles.eye}
+                    title="Hidden from the map: click to show it again"
+                    aria-hidden="true"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      void showAgain(tree.repo, h.id)
+                    }}
+                  >
+                    <Icon name="eyeOff" size={14} />
+                  </span>
+                </div>
+              )
+            }
             const node = graph.nodes.get(row.id)!
             const isSelected = row.id === selected
             return (

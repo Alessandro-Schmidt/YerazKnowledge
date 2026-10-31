@@ -47,7 +47,7 @@ export function menu<K extends string>(
   dom.addEventListener('focusout', (e) => {
     if (!dom.contains(e.relatedTarget as Node | null)) dismiss()
   })
-  return { dom, mount: autofocus ? () => buttons[0]!.focus() : undefined }
+  return { dom, mount: autofocus ? () => buttons[0]?.focus() : undefined }
 }
 
 /** A 24×24 one-colour logo from its SVG path, in the text's colour; an empty path draws none. */
