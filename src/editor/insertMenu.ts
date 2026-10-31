@@ -15,26 +15,12 @@ import { EditorView, showTooltip, ViewPlugin, type Tooltip } from '@codemirror/v
 import { menu } from './menu'
 import { insertTable } from './tables'
 import { META } from '../model/parse'
+import { setupStore, shown, type InsertKind, type ListKind } from './menuSetup'
+
+export type { InsertKind, ListKind } from './menuSetup'
 
 export const HOLD_MS = 1000
 const LONG_PRESS_MS = 600
-
-export type ListKind = 'todo' | 'ordered' | 'bullet'
-export type InsertKind =
-  ListKind | 'mention' | 'table' | 'code' | 'image' | 'file' | 'leaf' | 'branch'
-
-const ITEMS: { kind: InsertKind; label: string }[] = [
-  { kind: 'todo', label: 'To-do list' },
-  { kind: 'ordered', label: 'Numbered list' },
-  { kind: 'bullet', label: 'Bullet list' },
-  { kind: 'mention', label: 'Mention a leaf' },
-  { kind: 'table', label: 'Table' },
-  { kind: 'code', label: 'Code block' },
-  { kind: 'image', label: 'Image from files' },
-  { kind: 'file', label: 'Attach a file' },
-  { kind: 'leaf', label: 'New leaf' },
-  { kind: 'branch', label: 'New branch' },
-]
 
 /** Ctrl/Cmd pressed alone and held: `fire` after HOLD_MS, unless anything else happens. */
 export function createHold(fire: () => void) {
@@ -96,6 +82,24 @@ export function codeChange(state: EditorState): TransactionSpec {
   }
 }
 
+/**
+ * A block of the person's own Markdown (Settings › Insert menu): in place of the cursor's empty
+ * line, or on the lines below its line (and below the title's metadata); the cursor after it.
+ */
+export function blockChange(state: EditorState, text: string): TransactionSpec {
+  let line = state.doc.lineAt(state.selection.main.head)
+  if (line.number === 1 && state.doc.lines > 1 && META.test(state.doc.line(2).text))
+    line = state.doc.line(2)
+  const empty = line.number > 2 && !line.text.trim()
+  const insert = empty ? text : `\n${text}`
+  const from = empty ? line.from : line.to
+  return {
+    changes: { from, to: line.to, insert },
+    selection: { anchor: from + insert.length },
+    scrollIntoView: true,
+  }
+}
+
 /** Where the menu is open, and the trigger text (a typed /) to remove when an item is picked. */
 interface Open {
   pos: number
@@ -132,10 +136,11 @@ const insertHost = Facet.define<InsertHost, InsertHost>({
 export const askHost = (view: EditorView, kind: Parameters<InsertHost>[0]) =>
   view.state.facet(insertHost)(kind, view)
 
-function pick(view: EditorView, open: Open, kind: InsertKind) {
+function pick(view: EditorView, open: Open, kind: InsertKind, text?: string) {
   view.dispatch({ effects: closeMenu.of(null), changes: { from: open.from, to: open.pos } })
   view.focus()
-  if (kind === 'todo' || kind === 'ordered' || kind === 'bullet') {
+  if (text !== undefined) view.dispatch(blockChange(view.state, text))
+  else if (kind === 'todo' || kind === 'ordered' || kind === 'bullet') {
     view.dispatch(listChange(view.state, kind))
   } else if (kind === 'mention') {
     const at = view.state.selection.main.head
@@ -152,7 +157,13 @@ function menuDom(view: EditorView, open: Open) {
   const dismiss = () => {
     if (view.state.field(menuState, false)) view.dispatch({ effects: closeMenu.of(null) })
   }
-  return menu(view, 'Insert', ITEMS, (kind) => pick(view, open, kind), dismiss)
+  // Read as it opens: a change in Settings shows the next time, with no editor to reload.
+  const items = shown(setupStore.get()).map((e) => ({ ...e, kind: e.key }))
+  const choose = (key: string) => {
+    const item = items.find((i) => i.key === key)
+    if (item) pick(view, open, item.key as InsertKind, item.text)
+  }
+  return menu(view, 'Insert', items, choose, dismiss)
 }
 
 const openAt = (view: EditorView, from = view.state.selection.main.head) =>
