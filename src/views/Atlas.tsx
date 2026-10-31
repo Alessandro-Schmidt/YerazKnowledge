@@ -1,6 +1,8 @@
 // Atlas (design/views/screens/07, 09, 16): each Tree an island, each leaf a peak as high as its
 // words (1 word = 1 m), threads as sea routes: dashed over sea, dotted over land (one path,
-// split by a mask and a clip made from the coastline). The selected peak has its card.
+// split by a mask and a clip made from the coastline). The selected peak has its card; the
+// leaf itself opens in the Peek beside the chart, to read and edit there (owner's request),
+// and the card gives way while it is open.
 
 import { memo, useCallback, useId, useMemo, type CSSProperties } from 'react'
 import type { TreeRef } from '../github/graphql'
@@ -153,13 +155,13 @@ export default function Atlas({
       >
         <Chart layout={layout} graph={graph} tree={tree} ids={ids} />
       </Canvas>
-      {node && peak && island && !phone && (
+      {node && peak && island && !phone && !insets.right && (
         <section
           className={`${controls.panel} ${styles.card}`}
           aria-label="Selected peak"
           style={
             {
-              right: 16 + (insets.right ?? 0),
+              right: 16,
               '--tree': treeColor(tree, peak.island),
             } as CSSProperties
           }

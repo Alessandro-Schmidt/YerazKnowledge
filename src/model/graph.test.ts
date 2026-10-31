@@ -276,8 +276,14 @@ describe('hidden nodes (line 2 `"hidden": true`)', () => {
     ])
     expect(g.nodes.get('identity')!.children).toEqual(['identity/oauth.md'])
     expect(g.hidden).toEqual([
-      { id: 'archive', kind: 'branch', title: 'Archive', icon: '📦' },
-      { id: 'identity/keycloak.md', kind: 'leaf', title: 'Keycloak', icon: '🔐' },
+      { id: 'archive', parent: '', kind: 'branch', title: 'Archive', icon: '📦' },
+      {
+        id: 'identity/keycloak.md',
+        parent: 'identity',
+        kind: 'leaf',
+        title: 'Keycloak',
+        icon: '🔐',
+      },
     ])
     const words =
       g.nodes.get('identity/oauth.md')!.words + g.nodes.get('ai-agents/prompting.md')!.words

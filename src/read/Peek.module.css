@@ -389,6 +389,12 @@
   margin-top: 6px;
 }
 
+/* A hidden child: listed, dashed and muted; clicking it shows it on the map again. */
+.kid[data-hidden] {
+  border-style: dashed;
+  color: var(--muted);
+  font-style: italic;
+}
 .kids {
   display: flex;
   flex-wrap: wrap;

@@ -38,7 +38,7 @@ export const PANEL: Record<ViewId, 'float' | 'dock' | 'own'> = {
   treemap: 'float',
   graph: 'own',
   rings: 'own',
-  atlas: 'own',
+  atlas: 'float',
 }
 
 /** 24-unit stroke icons for the switcher (design/views/generators/common.py, ICONS). */
