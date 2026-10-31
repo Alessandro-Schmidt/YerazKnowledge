@@ -186,3 +186,28 @@
   overscroll-behavior: contain;
   padding: 0 16px 16px;
 }
+
+/* Settings › Insert menu: the items as a list, one hidden from the menu muted, and a block's
+   Markdown as it is typed. */
+ol.rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.row[data-hidden] .rowName {
+  color: var(--muted);
+}
+.rowName input[type='checkbox'] {
+  margin: 0 8px 0 0;
+  accent-color: var(--accent);
+}
+.family:has(.blockText) {
+  max-width: none;
+}
+.blockText {
+  width: 100%;
+  min-height: 160px;
+  resize: vertical;
+  font-size: 13px;
+  line-height: 1.5;
+}
