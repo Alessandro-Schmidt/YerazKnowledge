@@ -57,6 +57,36 @@ test.describe('on a phone', () => {
     const panel = page.locator('[class*="_scroll_"]').first()
     expect(await panel.evaluate((el) => el.scrollTop)).toBeGreaterThan(0)
   })
+
+  test('the full page keeps Back to the map and Dismiss on screen when the keyboard moves it', async ({
+    page,
+    fake,
+  }) => {
+    test.skip(!isPhone(page), 'The full page over the screen is on phones')
+    await open(page, fake)
+    await page.locator('.cm-content').getByText('Before.').click()
+    const peek = page.getByRole('region', { name: 'Leaf preview' })
+    await expect(peek).toHaveAttribute('data-expanded')
+    await peek.evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)))
+    // A keyboard opening: the visible part of the screen shrinks, and the browser scrolls the
+    // page up by 180 px under it (what iOS does; the emulator has no keyboard to show it).
+    await page.evaluate(() => {
+      const vv = window.visualViewport!
+      const height = vv.height
+      Object.defineProperty(vv, 'offsetTop', { configurable: true, get: () => 180 })
+      Object.defineProperty(vv, 'height', { configurable: true, get: () => height - 300 })
+      vv.dispatchEvent(new Event('resize'))
+    })
+    for (const name of ['Back to the map', 'Dismiss']) {
+      const box = (await peek.getByRole('button', { name }).boundingBox())!
+      // In the visible part: below its top edge, which the page now starts above by 180 px.
+      expect(box.y).toBeGreaterThanOrEqual(180)
+    }
+    const top = await peek.evaluate((el) => el.getBoundingClientRect().top)
+    expect(top).toBe(180)
+    await peek.getByRole('button', { name: 'Dismiss' }).click()
+    await expect(peek).toHaveCount(0)
+  })
 })
 
 test('on a phone, the full page shows the sync state and Save, since it covers the top bar', async ({
