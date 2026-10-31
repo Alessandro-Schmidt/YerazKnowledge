@@ -751,6 +751,7 @@ function usePeekMotion(
       // Selected hundreds of times a day: the barest settle, no movement.
       play(el.querySelector(`.${styles.column}`), [{ opacity: 0.6 }, {}], { duration: 100 })
   }, [sheet, id, expanded])
+  useVisibleArea(sheet, expanded)
   const expand = (to: boolean) => {
     before.current = sheet.current?.getBoundingClientRect() ?? null
     onExpand(to)
@@ -764,6 +765,33 @@ function usePeekMotion(
       expand(true)
   }
   return { expand, onScroll, onFocus }
+}
+
+/**
+ * A phone's full page fits the part of the screen that is visible (owner's request): when the
+ * keyboard opens, the browser scrolls the page up under it, and a page fixed at the top would
+ * take its head, Back to the map and Dismiss, out of reach. `--vv-top` and `--vv-h` follow the
+ * visual viewport; the CSS keeps the head below the status bar too.
+ */
+function useVisibleArea(sheet: RefObject<HTMLElement | null>, expanded: boolean) {
+  useEffect(() => {
+    const el = sheet.current
+    const vv = window.visualViewport
+    if (!el || !vv || !expanded || !window.matchMedia(PHONE).matches) return
+    const place = () => {
+      el.style.setProperty('--vv-top', `${vv.offsetTop}px`)
+      el.style.setProperty('--vv-h', `${vv.height}px`)
+    }
+    place()
+    vv.addEventListener('resize', place)
+    vv.addEventListener('scroll', place)
+    return () => {
+      vv.removeEventListener('resize', place)
+      vv.removeEventListener('scroll', place)
+      el.style.removeProperty('--vv-top')
+      el.style.removeProperty('--vv-h')
+    }
+  }, [sheet, expanded])
 }
 
 /** How far (px) a phone's sheet scrolls before it opens to the full page. */
