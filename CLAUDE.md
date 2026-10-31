@@ -40,7 +40,8 @@ Read `ideas.txt` (why), `ARCHITECTURE.md` (how), `development-plan.md` (what, in
 - `src/read/` `render.ts` (markdown-it, lazy) · `Peek.tsx` · `History.tsx` (past versions, diff, restore) · `src/ui/` App, FamilyView, FamilyMenu, Start, Explorer, TokenScreen,
   theme (saved per device in `localStorage`, applied before paint by `index.html`), `panels.ts` + `ResizeHandle.tsx` (Explorer and Peek widths, per device), Appearance (`#/settings/appearance`),
   `customTheme.ts` + `ThemeEditor.tsx` (custom themes), `contrast.ts` (`readable` adjusts a failing colour), `Hidden.tsx` (Settings › Hidden),
-  `Templates.tsx` (Settings › Templates, issue #41; `model/template.ts` fills one, `StructureDialogs.tsx` offers them under *Start from*)
+  `Templates.tsx` (Settings › Templates, issue #41; `model/template.ts` fills one, `StructureDialogs.tsx` offers them under *Start from*),
+  `InsertMenuSettings.tsx` (Settings › Insert menu: order, hidden items, own Markdown blocks; `editor/menuSetup.ts`, per device)
 - `src/example/files.ts` `CLAUDE.md` for AI agents (in every new Family) and the example Family (*Try an example*)
 - `themes/` community themes (each must pass every contrast rule as written) · `src/read/colors.ts` leaf colours
 - Map rule: React draws geometry once per layout; selection, zoom level and layers are data
@@ -68,7 +69,7 @@ Read `ideas.txt` (why), `ARCHITECTURE.md` (how), `development-plan.md` (what, in
 - [ ] A leaf is a `.md` file; line 1 is the title (`# 🔐 Keycloak`, leading emoji = icon)
 - [ ] Optional line 2: `<!-- yeraz {...} -->` metadata; colours are names (`"amber"`), not hex; `coverPosition` is % from the top;
   `icon` is an image icon (`/assets/…` or https, instead of the title's emoji); `iconPosition` is `center` or `right`;
-  `hidden: true` takes the leaf (or, in a README.md, the branch or Tree) off the map with everything under it (Settings › Hidden shows it again)
+  `hidden: true` takes the leaf (or, in a README.md, the branch or Tree) off the map with everything under it (still listed, marked, in the Explorer and its parent's Peek, where a click shows it again; Settings › Hidden too)
 - [ ] Sub-leaves live in a sibling folder with the same name (`keycloak.md` + `keycloak/`)
 - [ ] A branch is a folder without a same-named `.md`; its name is the folder name, as typed
 - [ ] A branch's text is `README.md` in its folder (exact name): not a leaf, never renames the branch, but its

@@ -57,6 +57,8 @@ export interface Ghost {
 /** A node hidden by its line 2 (`"hidden": true`), with everything under it (owner's request). */
 export interface HiddenNode {
   id: string
+  /** What holds it: listed there, marked hidden (owner's request). */
+  parent: string
   kind: 'branch' | 'leaf'
   title: string
   icon: string | null
@@ -157,7 +159,13 @@ export function buildGraph(
     if (n.kind !== 'root' && n.meta?.hidden === true && !hidden.has(n.id)) hide(n.id)
   for (const n of nodes.values())
     if (hidden.has(n.id) && !hidden.has(n.parent!))
-      tops.push({ id: n.id, kind: n.kind as 'branch' | 'leaf', title: n.title, icon: n.icon })
+      tops.push({
+        id: n.id,
+        parent: n.parent!,
+        kind: n.kind as 'branch' | 'leaf',
+        title: n.title,
+        icon: n.icon,
+      })
   tops.sort((a, b) => a.id.localeCompare(b.id))
   for (const id of hidden) nodes.delete(id)
   for (const n of nodes.values()) n.children = n.children.filter((c) => !hidden.has(c))

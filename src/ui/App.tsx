@@ -12,6 +12,7 @@ import { Start } from './Start'
 import { TreeColours } from './TreeColours'
 import { Hidden } from './Hidden'
 import { Templates } from './Templates'
+import { InsertMenuSettings } from './InsertMenuSettings'
 import { ViewsSettings } from './ViewsSettings'
 
 // Routes live in the URL hash (GitHub Pages can't rewrite paths):
@@ -25,6 +26,7 @@ import { ViewsSettings } from './ViewsSettings'
 //   #/settings/colours                    Settings › Tree colours (in .yeraz.json)
 //   #/settings/hidden                     Settings › Hidden (leaves and branches hidden from the map)
 //   #/settings/templates[/owner/name/path] Settings › Templates (for new leaves), one open to edit
+//   #/settings/menu                       Settings › Insert menu (its items, their order, own blocks)
 //   #/welcome[/github|/folder|/token]     the introduction, from the Yeraz logo: connect GitHub
 //                                         or a repository, a new project folder, an existing one,
 //                                         or another token in place of the one in use
@@ -100,6 +102,7 @@ export function App() {
         <Route path="/settings/views" component={ViewsSettings} />
         <Route path="/settings/colours" component={TreeColours} />
         <Route path="/settings/hidden" component={Hidden} />
+        <Route path="/settings/menu" component={InsertMenuSettings} />
         <Route path="/settings/templates">
           <Templates />
         </Route>

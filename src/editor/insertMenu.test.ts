@@ -1,6 +1,13 @@
 import { EditorState } from '@codemirror/state'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { codeChange, createHold, HOLD_MS, listChange, type ListKind } from './insertMenu'
+import {
+  blockChange,
+  codeChange,
+  createHold,
+  HOLD_MS,
+  listChange,
+  type ListKind,
+} from './insertMenu'
 
 const key = (k: string, repeat = false) => ({ key: k, repeat })
 
@@ -94,5 +101,24 @@ describe('codeChange', () => {
     expect(apply('# T\n\nSome text', 8)).toBe('# T\n\nSome text\n```\n|\n```')
     expect(apply('# T', 3)).toBe('# T\n```\n|\n```')
     expect(apply('# T\n<!-- yeraz {} -->', 1)).toBe('# T\n<!-- yeraz {} -->\n```\n|\n```')
+  })
+})
+
+describe("blockChange: a block of the person's own Markdown", () => {
+  const apply = (doc: string, at: number) => {
+    const state = EditorState.create({ doc, selection: { anchor: at } })
+    const next = state.update(blockChange(state, '## Notes\n\n- ')).state
+    return [next.doc.toString(), next.selection.main.head] as const
+  }
+
+  it('fills an empty line, the cursor after it', () => {
+    expect(apply('# T\n\nA\n\nB', 7)).toEqual(['# T\n\nA\n## Notes\n\n- \nB', 19])
+  })
+
+  it('goes below a line with text, and below the title and its metadata', () => {
+    expect(apply('# T\n\nText', 7)[0]).toBe('# T\n\nText\n## Notes\n\n- ')
+    expect(apply('# T\n<!-- yeraz {} -->\n\nA', 1)[0]).toBe(
+      '# T\n<!-- yeraz {} -->\n## Notes\n\n- \n\nA',
+    )
   })
 })

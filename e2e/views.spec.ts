@@ -239,7 +239,7 @@ for (const view of VIEW_IDS.filter((v) => v !== 'map')) {
     await openOn(page, view, leafOf(graph).id)
     await expect(shown[view](page)).toBeVisible()
     // The leaf's editor loads on its own; its title is the Peek's heading.
-    const ownPanel = view === 'rings' || (!isPhone(page) && (view === 'graph' || view === 'atlas'))
+    const ownPanel = view === 'rings' || (!isPhone(page) && view === 'graph')
     if (!ownPanel) await expect(page.locator('.cm-editor').first()).toBeVisible()
     const found = (await new AxeBuilder({ page }).exclude('.cm-editor').analyze()).violations
     expect(found.map((v) => `${v.id} ${v.nodes.map((n) => n.target).join(', ')}`)).toEqual([])
@@ -249,10 +249,30 @@ for (const view of VIEW_IDS.filter((v) => v !== 'map')) {
 test('the Views and Tree colours settings have no accessibility violations', async ({ page }) => {
   await page.goto('./#/settings/views')
   await signInHere(page)
-  for (const settings of ['views', 'colours', 'hidden']) {
+  for (const settings of ['views', 'colours', 'hidden', 'menu']) {
     await page.goto(`./#/settings/${settings}`)
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
     const found = (await new AxeBuilder({ page }).analyze()).violations
     expect(found.map((v) => `${settings}: ${v.id}`)).toEqual([])
   }
+})
+
+test('Atlas opens the selected leaf in the Peek beside it, to edit there', async ({
+  page,
+  fake,
+  graph,
+  isMobile,
+}) => {
+  test.skip(isMobile, 'phones open every view’s leaf in the sheet already')
+  const leaf = leafOf(graph)
+  await openOn(page, 'atlas', leaf.id)
+  await expect(shown.atlas(page)).toBeVisible()
+  const editor = page.locator('.cm-content').first()
+  await expect(editor).toBeVisible()
+  await editor.click()
+  await page.keyboard.press('ControlOrMeta+End')
+  await page.keyboard.type(' Charted from the Atlas.')
+  await page.keyboard.press('ControlOrMeta+s')
+  await expect.poll(() => fake.repo(REPO).read(leaf.id)).toContain('Charted from the Atlas.')
+  await expect(page.getByRole('region', { name: 'Selected peak' })).toHaveCount(0)
 })
