@@ -31,6 +31,7 @@ import { LeafEditor } from '../editor/LeafEditor'
 import { FAMILY_TEXT, treesOf } from '../map/family'
 import { ownPath } from '../model/parse'
 import controls from '../ui/controls.module.css'
+import { showAgain } from '../ui/Explorer'
 import { Glyph } from '../ui/Glyph'
 import { Icon } from '../ui/icons'
 import { InlineName } from '../ui/InlineName'
@@ -145,6 +146,8 @@ export function Peek({
   // The Family lists its Trees; its README.md is its text, shown above them.
   const readme = node.kind === 'root' ? graph.nodes.get(FAMILY_TEXT) : undefined
   const children = node.kind === 'root' ? treesOf(graph) : node.children
+  // What is hidden in it stays listed, marked, with a button to show it again (owner's request).
+  const hiddenKids = graph.hidden.filter((h) => h.parent === id)
   // Where it is: the Family's home, or the places above it, each one a link (issue #79).
   const crumb =
     node.kind === 'root'
@@ -276,7 +279,7 @@ export function Peek({
               />
             )}
 
-            {children.length > 0 && (
+            {children.length + hiddenKids.length > 0 && (
               <div className={styles.group}>
                 <h3 className={controls.eyebrow}>
                   {node.kind === 'root'
@@ -296,6 +299,21 @@ export function Peek({
                       <Glyph node={graph.nodes.get(child)!} />
                       {named(child)}
                     </a>
+                  ))}
+                  {hiddenKids.map((h) => (
+                    <button
+                      key={h.id}
+                      type="button"
+                      className={styles.kid}
+                      data-hidden=""
+                      title="Hidden from the map: click to show it again"
+                      aria-label={`Show ${h.title} on the map again (hidden)`}
+                      onClick={() => void showAgain(tree.repo, h.id)}
+                    >
+                      <Icon name="eyeOff" size={14} />
+                      {h.icon ? `${h.icon} ` : ''}
+                      {h.title}
+                    </button>
                   ))}
                 </div>
               </div>
