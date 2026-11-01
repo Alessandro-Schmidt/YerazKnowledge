@@ -12,7 +12,7 @@ import styles from './Appearance.module.css'
 import own from './Settings.module.css'
 import controls from './controls.module.css'
 import { SettingsShell } from './Settings'
-import { ACCENT_IDS } from './theme'
+import { ACCENT_IDS, colorVar } from './theme'
 
 export function TreeColours() {
   const trees = useSession((s) => s.trees)
@@ -99,7 +99,7 @@ function FamilyColours({ family }: { family: TreeRef }) {
                 label={graph.nodes.get(id)!.title}
                 value={family.trees?.[id] ?? null}
                 fallback="Family"
-                fallbackColor={family.color ? `var(--c-${family.color})` : 'var(--accent)'}
+                fallbackColor={colorVar(family.color)}
                 onChange={(c) => set(c, id)}
               />
             ))}

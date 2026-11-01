@@ -152,9 +152,14 @@ describe('renderLeaf', () => {
       ].join('\n'),
       { ...context, files: () => ['assets/demo.mp4', 'assets/demo.en.vtt', 'assets/demo.hy.vtt'] },
     )
+    // A button, until it is played: nothing is fetched from YouTube or Google before that.
     expect(html).toContain(
-      '<iframe src="https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?start=90" title="Talk"',
+      '<button type="button" class="youtube-play" data-youtube="dQw4w9WgXcQ" data-start="90" data-title="Talk"',
     )
+    expect(html).toContain(
+      '<a class="print-only" href="https://www.youtube.com/watch?v=dQw4w9WgXcQ">Talk · youtube.com/watch?v=dQw4w9WgXcQ</a>',
+    )
+    expect(html).not.toMatch(/youtube-nocookie|ytimg|<iframe src=/)
     expect(html).toContain('<iframe class="pdf" data-asset="assets/oidc.pdf" title="OIDC spec"')
     expect(html).toContain('<a data-asset-href="assets/oidc.pdf" download="oidc.pdf">')
     expect(html).toContain(
@@ -176,7 +181,7 @@ describe('renderLeaf', () => {
     )
     expect(html).toContain('<img src="https://example.com/a.png"')
     expect(html).toContain(
-      '<iframe src="https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ" title="YouTube video"',
+      '<button type="button" class="youtube-play" data-youtube="dQw4w9WgXcQ" data-start="0" data-title="YouTube video"',
     )
     // Any other iframe stays text: the read view renders no HTML of its own.
     expect(html).toContain('&lt;iframe src=&quot;')
@@ -189,7 +194,7 @@ describe('renderLeaf', () => {
       context,
     )
     expect(html).toMatch(
-      /<li>\s*<div class="embed video"><iframe src="https:\/\/www.youtube-nocookie.com\/embed\/dQw4w9WgXcQ"/,
+      /<li>\s*<div class="embed video"><button type="button" class="youtube-play" data-youtube="dQw4w9WgXcQ"/,
     )
     expect(html).toMatch(/<li>\s*<span class="katex">/)
     expect(html).toContain('<a href="https://youtu.be/dQw4w9WgXcQ" target="_blank"')

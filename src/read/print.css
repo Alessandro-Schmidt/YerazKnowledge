@@ -23,7 +23,8 @@
     display: block;
   }
   #print-root iframe,
-  #print-root video {
+  #print-root video,
+  #print-root .youtube-play {
     display: none;
   }
   #print-root img {

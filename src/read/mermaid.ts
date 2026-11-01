@@ -2,6 +2,8 @@
 // ```mermaid block. `strict` escapes HTML in labels and turns click handlers off, so a
 // diagram from someone else's repository can't run anything. Drawn in the neutral (grey)
 // theme; dark modes invert it in CSS, so switching theme redraws nothing and print is light.
+// A diagram's own settings (`%%{init: …}%%`) can't change these, nor add CSS: its CSS would
+// land in the page, where a selector can reach past the diagram and `url()` send it away.
 
 import mermaid from 'mermaid'
 
@@ -10,6 +12,10 @@ mermaid.initialize({
   securityLevel: 'strict',
   theme: 'neutral',
   suppressErrorRendering: true,
+  secure: [
+    ...['secure', 'securityLevel', 'startOnLoad', 'maxTextSize', 'suppressErrorRendering'],
+    ...['maxEdges', 'themeCSS', 'themeVariables', 'fontFamily', 'altFontFamily'],
+  ],
 })
 
 let next = 0

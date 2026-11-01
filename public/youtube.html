@@ -24,11 +24,14 @@
       const id = q.get('v') || ''
       const start = parseInt(q.get('start') || '0', 10)
       if (/^[\w-]{11}$/.test(id)) {
+        // Played from a click in the app (read/youtube.ts), so it starts at once.
+        const play = new URLSearchParams()
+        if (start > 0) play.set('start', String(start))
+        if (q.get('autoplay') === '1') play.set('autoplay', '1')
         const f = document.createElement('iframe')
-        f.src =
-          'https://www.youtube-nocookie.com/embed/' + id + (start > 0 ? '?start=' + start : '')
+        f.src = 'https://www.youtube-nocookie.com/embed/' + id + (play.size ? '?' + play : '')
         f.title = 'YouTube video'
-        f.allow = 'encrypted-media; picture-in-picture; fullscreen'
+        f.allow = 'autoplay; encrypted-media; picture-in-picture; fullscreen'
         f.allowFullscreen = true
         document.body.append(f)
       }
