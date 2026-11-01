@@ -2,7 +2,8 @@
 // map with everything under it, written to the note's line 2 (a branch's README.md), and
 // Settings › Hidden shows it again.
 
-import { expect, signInHere, test } from './fixtures'
+import type { Page } from '@playwright/test'
+import { expect, isPhone, signInHere, test } from './fixtures'
 
 const REPO = 'you/notes'
 const FILES = {
@@ -10,6 +11,11 @@ const FILES = {
   'Identity/keycloak.md': '# 🔐 Keycloak\n\nSee [OAuth](/Identity/oauth.md).\n',
   'Identity/oauth.md': '# OAuth\n\nSee [Keycloak](/Identity/keycloak.md).\n',
   'Old/2019.md': '# 2019\n\nPast.\n',
+}
+
+/** The Explorer starts closed on a phone: open it. */
+async function showExplorer(page: Page) {
+  if (isPhone(page)) await page.getByRole('button', { name: 'Show explorer' }).click()
 }
 
 test.beforeEach(async ({ fake }) => {
@@ -28,6 +34,7 @@ test('Hide takes a leaf off the map and out of the Explorer; Settings › Hidden
   await page.getByRole('menuitem', { name: 'Hide' }).click()
   await expect(peek).toHaveCount(0)
   // Still listed in the Explorer, marked hidden: it has no place on the map.
+  await showExplorer(page)
   await expect(page.getByRole('treeitem', { name: /Keycloak/ })).toHaveAttribute('data-hidden', '')
   await expect(page.getByRole('treeitem', { name: /Keycloak/ })).toHaveAccessibleName(
     /hidden from the map/,
@@ -60,6 +67,7 @@ test('a Tree hides with everything under it, through its README.md', async ({ pa
   const peek = page.getByRole('region', { name: 'Tree preview' })
   await peek.getByRole('button', { name: 'Options' }).click()
   await page.getByRole('menuitem', { name: 'Hide' }).click()
+  await showExplorer(page)
   await expect(page.getByRole('treeitem', { name: /2019/ })).toHaveCount(0)
   await expect(page.getByRole('treeitem', { name: /^Old, hidden/ })).toBeVisible()
   await expect(page.locator('[data-map] [data-tree="Old"]')).toHaveCount(0)
@@ -92,6 +100,7 @@ test('a hidden leaf stays listed in what holds it; its eye shows it on the map a
   await expect(peek.getByRole('link', { name: /OAuth/ }).first()).toBeVisible()
 
   // The Explorer's eye shows it again.
+  await showExplorer(page)
   const row = page.getByRole('treeitem', { name: /^Keycloak, hidden/ })
   await row.locator('[title^="Hidden from the map"]').click()
   await expect(
