@@ -17,6 +17,8 @@ Open source: `CONTRIBUTING.md` (setup, rules, pull requests), `SECURITY.md` (pri
 - `npm run visual` — the app in the states of `design/screens/01–07` and every view of `design/views/`, with the design's Trees, into `visual-review/`
 - Visual snapshots (`e2e/visual.spec.ts`) run on demand in Playwright's Linux image: `gh workflow run snapshots.yml`
   compares them; after a visual change, `-f update=true` re-renders them: review its artifact, commit it to `e2e/visual.spec.ts-snapshots/`
+- Branches: work goes to `develop` (default, PRs only); `main` takes releases only (a PR from `develop` or `hotfix/*`, enforced by
+  CI's `release-source`), and a push to it deploys the site. CONTRIBUTING.md › Branches and releases
 - CI (`ci.yml`) is check + e2e on Chromium only; deploy waits on both. WebKit and the phones run nightly (`nightly.yml`),
   the desktop build when `src-tauri/` or the packages change (`desktop.yml`).
   Visual snapshots and perf budgets are not in CI (owner's decision): run them before a change that could affect them

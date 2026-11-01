@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // yeraz-import: notes from Obsidian, Notion, Logseq, Bear, OneNote (HTML / MHT exports) or any
 // folder of Markdown or HTML, converted into a Yeraz Family (ARCHITECTURE.md §4 of
-// github.com/Alessandro-Schmidt/YerazKnowledge). One file, Node 20+, no dependencies, and no
+// github.com/Alessandro-Schmidt/YerazNotes). One file, Node 20+, no dependencies, and no
 // need for the Yeraz repository: copy this folder anywhere.
 //
 //   node convert.mjs inventory <source>                      the pages, their titles and a

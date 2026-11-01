@@ -78,7 +78,7 @@ limit being reached.
 
 ## Pull requests
 
-1. Fork, and branch from `main`.
+1. Fork, and branch from `develop`. Pull requests go to `develop`; `main` only takes releases.
 2. Keep each pull request to one change. Separate refactoring from behaviour changes.
 3. Run `npm run lint`, `npm run typecheck` and `npm test`, and the e2e specs that cover what you
    changed (`npx playwright test e2e/<spec> --project=chromium`).
@@ -89,6 +89,18 @@ limit being reached.
 CI runs the checks and the end-to-end tests on Chromium for every pull request. WebKit and the
 phone layouts run nightly. Visual snapshots run on demand: a maintainer runs them for visual
 changes.
+
+### Branches and releases
+
+- `develop` is where work lands, through pull requests. It is the default branch.
+- `main` is what is released: a push to it deploys <https://yeraznotes.com>. It only takes a
+  pull request from `develop` (a release) or from a `hotfix/…` branch; CI's `release-source`
+  check refuses anything else.
+- A release: open a pull request from `develop` into `main` titled `Release vX.Y.Z` and merge
+  it with a merge commit; then tag that commit `vX.Y.Z`, which builds the desktop installers
+  into a draft release.
+- A hotfix: branch `hotfix/…` from `main`, open the pull request into `main`, then merge
+  `main` back into `develop`.
 
 ### Changing how something looks
 
