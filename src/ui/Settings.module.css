@@ -141,6 +141,9 @@
   .rowName {
     flex-basis: 100%;
   }
+  .grip + .rowName {
+    flex-basis: calc(100% - 40px);
+  }
 }
 
 /* Settings › Templates: a template's name being typed, the copy target, and the editor below
@@ -196,6 +199,18 @@ ol.rows {
 }
 .row[data-hidden] .rowName {
   color: var(--muted);
+}
+/* Settings › Insert menu: an item's handle, held to drag it to its place. */
+.grip {
+  cursor: grab;
+  touch-action: none;
+}
+.row[data-dragging] {
+  background: var(--raised);
+}
+.row[data-dragging] .grip {
+  cursor: grabbing;
+  color: var(--text);
 }
 .rowName input[type='checkbox'] {
   margin: 0 8px 0 0;
