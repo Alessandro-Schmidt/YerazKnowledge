@@ -25,11 +25,26 @@ describe('a Family in a folder', () => {
     expect(example.text('welcome.md')).toBeUndefined()
     await s.getState().open(ref.repo)
     const data = s.getState().data[ref.repo]
-    expect(data?.status === 'ready' && data.graph.stats).toMatchObject({ leaves: 4, branches: 2 })
-    // Its links reach their leaves, bar the one meant as a ghost.
-    expect(data?.status === 'ready' && [...data.graph.ghosts.keys()]).toEqual(['Ideas.md'])
-    // Its template is listed, off the map (issue #41).
-    expect(data?.status === 'ready' && data.graph.templates.map((t) => t.path)).toEqual([
+    if (data?.status !== 'ready') throw new Error('not ready')
+    const { graph } = data
+    expect(graph.stats).toMatchObject({ leaves: 22, branches: 4 })
+    // Its links reach their leaves, bar the two meant as ghosts.
+    expect([...graph.ghosts.keys()].sort()).toEqual([
+      'Armenia/cuisine.md',
+      'Chess/players/magnus-carlsen.md',
+    ])
+    // Its four Trees each thread to the other three (owner's request: themes that connect).
+    const trees = ['Mathematics', 'Software', 'Chess', 'Armenia']
+    const reached = new Set(
+      graph.threads
+        .filter((t) => !t.ghost)
+        .map((t) => `${t.from.split('/')[0]}>${t.to.split('/')[0]}`),
+    )
+    for (const a of trees)
+      for (const b of trees) if (a !== b) expect(reached, `${a} → ${b}`).toContain(`${a}>${b}`)
+    // Its templates are listed, off the map (issue #41).
+    expect(graph.templates.map((t) => t.path).sort()).toEqual([
+      '.yeraz/templates/chess-game.md',
       '.yeraz/templates/meeting.md',
     ])
   })
