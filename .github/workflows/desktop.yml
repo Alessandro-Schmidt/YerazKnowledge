@@ -34,6 +34,8 @@ jobs:
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libdbus-1-dev xvfb
       - run: npm ci && npx vite build
       - run: cargo build --locked --manifest-path src-tauri/Cargo.toml
+      # The folder commands' own tests: paths, links and saves stay inside a picked folder.
+      - run: cargo test --locked --manifest-path src-tauri/Cargo.toml
       # The same launch check as release.yml: the app starts and is still running 15 s later.
       - run: |
           set +e

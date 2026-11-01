@@ -7,8 +7,8 @@
 
 use std::collections::HashSet;
 use std::fs;
-use std::io::ErrorKind;
-use std::path::{Component, Path, PathBuf};
+use std::io::{ErrorKind, Write};
+use std::path::{Component, Path, PathBuf, Prefix};
 use std::sync::Mutex;
 use std::time::UNIX_EPOCH;
 use tauri::ipc::Response;
@@ -182,10 +182,7 @@ pub async fn pick_parent(app: tauri::AppHandle) -> Option<String> {
 /// neither draw nor answer. Only a folder holding a Family's `.yeraz.json` can be asked for.
 #[tauri::command]
 pub async fn allow_folder(app: tauri::AppHandle, root: String) -> Result<bool, String> {
-    let plain = !Path::new(&root)
-        .components()
-        .any(|c| matches!(c, Component::ParentDir | Component::CurDir));
-    if !plain || !root_of(&root)?.join(".yeraz.json").is_file() {
+    if !askable(&root) {
         return Err("missing".into());
     }
     let yes = app
@@ -203,6 +200,20 @@ pub async fn allow_folder(app: tauri::AppHandle, root: String) -> Result<bool, S
         app.state::<Allowed>().add(&root)?;
     }
     Ok(yes)
+}
+
+/// A folder the dialog may name: absolute, plain names only, and on Windows on a drive
+/// (`C:\`), so the disk is touched only there: never a network share (`\\host\share`, which
+/// would sign in to that host before anyone said yes) or a device. It holds a `.yeraz.json`.
+fn askable(root: &str) -> bool {
+    let path = Path::new(root);
+    path.is_absolute()
+        && path.components().all(|c| match c {
+            Component::Prefix(p) => matches!(p.kind(), Prefix::Disk(_)),
+            Component::RootDir | Component::Normal(_) => true,
+            _ => false,
+        })
+        && path.join(".yeraz.json").is_file()
 }
 
 /// A new project's folder, `name` inside `parent` (just picked with `pick_parent`); "taken"
@@ -253,7 +264,6 @@ pub async fn read_file(
     Ok(Response::new(fs::read(inside(&root, &path)?).map_err(err)?))
 }
 
-/// Written beside, then renamed over, so whatever syncs the folder never sees half a file.
 #[tauri::command]
 pub async fn write_file(
     allowed: State<'_, Allowed>,
@@ -262,13 +272,29 @@ pub async fn write_file(
     bytes: Vec<u8>,
 ) -> Result<(), String> {
     allowed.check(&root)?;
-    let file = inside(&root, &path)?;
+    save(&inside(&root, &path)?, &bytes)
+}
+
+/// Written beside, then renamed over, so whatever syncs the folder never sees half a file.
+/// The file beside is always a new one: whatever is there already (half a save, or a link
+/// someone left in a shared folder) is removed first, never written through.
+fn save(file: &Path, bytes: &[u8]) -> Result<(), String> {
     let dir = file.parent().ok_or("No folder")?;
     fs::create_dir_all(dir).map_err(err)?;
     let name = file.file_name().ok_or("No name")?.to_string_lossy();
     let temp = dir.join(format!(".{name}.yeraz-saving"));
-    fs::write(&temp, bytes).map_err(err)?;
-    fs::rename(&temp, &file).map_err(err)
+    match fs::remove_file(&temp) {
+        Err(e) if e.kind() != ErrorKind::NotFound => return Err(err(e)),
+        _ => {}
+    }
+    let mut out = fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&temp)
+        .map_err(err)?;
+    out.write_all(bytes).map_err(err)?;
+    drop(out);
+    fs::rename(&temp, file).map_err(err)
 }
 
 /// Deletes a file, then the folders it leaves empty (git keeps none, so neither does a Family).
@@ -370,5 +396,56 @@ mod tests {
         assert!(inside(root, "evil/x.md").is_err());
         assert!(inside(root, "leaf.md").is_err());
         assert!(inside(root, "plain/new.md").is_ok());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_saved_file_never_writes_through_a_planted_temporary_link() {
+        let root = scratch("temp-link");
+        let away = scratch("temp-link-away");
+        fs::write(away.join("bashrc"), "mine").unwrap();
+        std::os::unix::fs::symlink(away.join("bashrc"), root.join(".leaf.md.yeraz-saving"))
+            .unwrap();
+        save(&root.join("leaf.md"), b"# Leaf\n").unwrap();
+        assert_eq!(fs::read_to_string(away.join("bashrc")).unwrap(), "mine");
+        assert_eq!(
+            fs::read_to_string(root.join("leaf.md")).unwrap(),
+            "# Leaf\n"
+        );
+        assert!(!fs::symlink_metadata(root.join("leaf.md"))
+            .unwrap()
+            .file_type()
+            .is_symlink());
+    }
+
+    #[test]
+    fn a_save_replaces_the_file_and_leaves_no_temporary_one() {
+        let root = scratch("save");
+        fs::write(root.join("leaf.md"), "old").unwrap();
+        fs::write(root.join(".leaf.md.yeraz-saving"), "half a file").unwrap();
+        save(&root.join("leaf.md"), b"new").unwrap();
+        assert_eq!(fs::read_to_string(root.join("leaf.md")).unwrap(), "new");
+        assert!(!root.join(".leaf.md.yeraz-saving").exists());
+    }
+
+    #[test]
+    fn only_a_plain_absolute_folder_can_be_asked_for() {
+        let root = scratch("askable");
+        fs::write(root.join(".yeraz.json"), "{}").unwrap();
+        assert!(askable(root.to_str().unwrap()));
+        let bare = scratch("askable-bare");
+        assert!(!askable(bare.to_str().unwrap()));
+        for bad in ["", "notes", "./notes", "../notes", "/home/me/../.ssh"] {
+            assert!(!askable(bad), "{bad}");
+        }
+        #[cfg(windows)]
+        for bad in [
+            r"\\host\share\notes",
+            r"\\?\C:\notes",
+            r"\\.\pipe\x",
+            r"C:notes",
+        ] {
+            assert!(!askable(bad), "{bad}");
+        }
     }
 }
