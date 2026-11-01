@@ -26,7 +26,7 @@ export function youtubeSrc(
   desktop = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window,
 ): string {
   return desktop
-    ? `https://alessandro-schmidt.github.io/YerazKnowledge/youtube.html?v=${id}${start ? `&start=${start}` : ''}`
+    ? `https://yeraznotes.com/youtube.html?v=${id}${start ? `&start=${start}` : ''}`
     : `https://www.youtube-nocookie.com/embed/${id}${start ? `?start=${start}` : ''}`
 }
 
