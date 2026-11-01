@@ -123,6 +123,12 @@ the rules the code follows and how to send a pull request. Taking part means fol
 [Code of Conduct](CODE_OF_CONDUCT.md). Report security problems privately, as
 [SECURITY.md](SECURITY.md) explains.
 
+## Privacy
+
+Yeraz has no server and collects nothing: no account, analytics or cookies. Your notes and
+token stay on your device and with GitHub. [PRIVACY.md](PRIVACY.md) lists every place the app
+connects to, and when.
+
 ## Licence
 
 [MIT](LICENSE)

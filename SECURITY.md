@@ -24,12 +24,20 @@ Yeraz has no server. Knowing what it trusts helps to judge a report:
   limited to the repositories that hold your notes.
 - **Notes are untrusted input.** A repository or folder can be shared with other people, so
   rendering treats every note as possibly hostile. Markdown is rendered without raw HTML,
-  `javascript:` and `data:` links are refused, Mermaid runs in strict mode, KaTeX without
-  `trust`, and SVG images open as `data:` URLs that can't reach the app.
+  `javascript:` and `data:` links are refused, Mermaid runs in strict mode and a diagram can't
+  bring its own CSS, KaTeX runs without `trust`, a `.yeraz.json` colour is a theme name or
+  nothing, and SVG images open as `data:` URLs that can't reach the app.
 - **The Content-Security-Policy** allows scripts only from the app itself, network requests
   only to GitHub's API, and frames only from YouTube's privacy-enhanced domain and the app's own PDF previews.
+  The desktop app frames YouTube through the web app's `youtube.html`, since YouTube refuses `tauri://` pages.
+- **YouTube videos load only when played.** Until then a video is a button: no request goes to
+  YouTube or Google.
 - **The desktop app** reads and writes only folders you picked. Paths with `..`, absolute
-  paths and symbolic links inside the folder are refused.
+  paths and symbolic links inside the folder are refused, and a save never writes through one
+  (its temporary file is always created new). A folder is asked for again only by an absolute
+  path on a local drive, never a network share.
+
+What the app sends where, for privacy, is in [PRIVACY.md](PRIVACY.md).
 
 ### Known limits
 
