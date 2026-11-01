@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "description": "A note-taking app whose notes live as Markdown in your own GitHub repositories, shown as a map of how they connect.",
   "license": "MIT",
-  "author": "Alessandro M. Schmidt (https://github.com/Alessandro-Schmidt)",
+  "author": "Alessandro M. Schmidt <alessandromacielschmidt@hotmail.com> (https://github.com/Alessandro-Schmidt)",
   "homepage": "https://alessandro-schmidt.github.io/YerazKnowledge/",
   "repository": {
     "type": "git",
