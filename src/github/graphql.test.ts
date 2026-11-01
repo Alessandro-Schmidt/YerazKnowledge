@@ -12,6 +12,7 @@ import {
   fetchPlanted,
   HISTORY_PAGE,
   lookupTree,
+  markerFields,
 } from './graphql'
 
 let fake: FakeGitHub
@@ -63,6 +64,18 @@ describe('discoverTrees', () => {
     fake.resetLog()
     expect(await discoverTrees(client)).toHaveLength(122)
     expect(fake.log).toHaveLength(2)
+  })
+})
+
+describe('markerFields', () => {
+  it("keeps only the theme's named colours, so a shared marker can't put CSS in a style", () => {
+    const hostile = 'x, url(https://evil.example/p)'
+    const marker = JSON.stringify({
+      color: hostile,
+      trees: { Identity: 'amber', Away: hostile, Red: 'red' },
+    })
+    expect(markerFields(marker)).toEqual({ trees: { Identity: 'amber' } })
+    expect(markerFields('{"color":"violet"}')).toEqual({ color: 'violet' })
   })
 })
 

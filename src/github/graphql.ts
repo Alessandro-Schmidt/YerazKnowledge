@@ -3,6 +3,7 @@
 // createCommitOnBranch (§5.2).
 // Creating a repository is the one REST write.
 
+import themes from '../../design/themes/themes.json'
 import { AGENTS_FILE, AGENTS_TEXT } from '../example/files'
 import { GitHubError, type GitHubClient } from './client'
 
@@ -44,6 +45,9 @@ export function inFamily(ref: Pick<TreeRef, 'root'>, path: string): string | nul
   return path.startsWith(`${ref.root}/`) ? path.slice(ref.root.length + 1) : null
 }
 
+/** A colour name the theme has (`"amber"`): a shared marker's other values never reach a style. */
+const named = (c: unknown): c is string => typeof c === 'string' && Object.hasOwn(themes.accents, c)
+
 /** The name, colour and Tree colours a `.yeraz.json` text gives; malformed parts are left out. */
 export function markerFields(
   text: unknown,
@@ -57,10 +61,10 @@ export function markerFields(
   }
   const out: Partial<Pick<TreeRef, 'title' | 'color' | 'trees' | 'root'>> = {}
   if (typeof marker.name === 'string' && marker.name.trim()) out.title = marker.name.trim()
-  if (typeof marker.color === 'string') out.color = marker.color
+  if (named(marker.color)) out.color = marker.color
   if (marker.trees && typeof marker.trees === 'object' && !Array.isArray(marker.trees))
     out.trees = Object.fromEntries(
-      Object.entries(marker.trees).filter((e): e is [string, string] => typeof e[1] === 'string'),
+      Object.entries(marker.trees).filter((e): e is [string, string] => named(e[1])),
     )
   // A plain relative folder: no `..`, no leading or trailing slash.
   if (typeof marker.root === 'string') {
