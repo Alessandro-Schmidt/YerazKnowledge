@@ -45,6 +45,9 @@ export function columnsFor(graph: Graph, selected: string | null): Column[] {
   return columns
 }
 
+/** The least height (px) a phone's column keeps above the sheet: its head and three rows. */
+const PHONE_ROOM = 200
+
 export default function Columns({
   tree,
   graph,
@@ -82,7 +85,14 @@ export default function Columns({
     <div
       className={styles.wrap}
       data-phone={phone || undefined}
-      style={{ right: insets.right ?? 0, bottom: insets.bottom ?? 0 }}
+      style={{
+        right: insets.right ?? 0,
+        // A short phone leaves little above the sheet: the column keeps room for its head and
+        // a few rows, the rest of it going under the sheet.
+        bottom: phone
+          ? `min(${insets.bottom ?? 0}px, calc(100% - ${PHONE_ROOM}px))`
+          : (insets.bottom ?? 0),
+      }}
     >
       {spines.map((c, i) => (
         <button

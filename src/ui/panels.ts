@@ -4,6 +4,12 @@
 
 export type Panel = 'explorer' | 'peek' | 'dock'
 
+/**
+ * The height (px) of a phone's bottom sheet, as Peek.module.css draws it: 60% of the screen,
+ * at most 520 px. The map keeps that much free below what it centres.
+ */
+export const SHEET_HEIGHT = () => Math.round(Math.min(window.innerHeight * 0.6, 520))
+
 export const PANELS: Record<Panel, { initial: number; min: number; max: number }> = {
   explorer: { initial: 272, min: 200, max: 520 },
   peek: { initial: 420, min: 320, max: 960 },

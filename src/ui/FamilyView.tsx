@@ -29,7 +29,7 @@ import { SyncStatus } from './SyncStatus'
 import { colorVar } from './theme'
 import { Divider, TopBar } from './TopBar'
 import styles from './FamilyView.module.css'
-import { widthStore, widthVars } from './panels'
+import { SHEET_HEIGHT, widthStore, widthVars } from './panels'
 import { PHONE, useMedia } from './useMedia'
 import { Search, type Matches } from './Search'
 import { treeColor, usePlanted } from '../views/common'
@@ -150,7 +150,7 @@ export function FamilyView({ params }: { params: { owner: string; name: string; 
   const widths = useSyncExternalStore(widthStore.subscribe, widthStore.get)
   const columns = (peekShown && !expanded ? 1 : 0) + stack.length
   const insets = phone
-    ? { bottom: peekShown ? Math.round(window.innerHeight * 0.6) : 0 }
+    ? { bottom: peekShown ? SHEET_HEIGHT() : 0 }
     : panel === 'dock'
       ? { right: peekShown && !expanded ? widths.dock : 0 }
       : { right: columns ? columns * widths.peek + 32 + (columns - 1) * 12 : 0 }
