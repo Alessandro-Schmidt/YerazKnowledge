@@ -2,6 +2,7 @@
 
 Notes as Markdown in the user's own GitHub repositories; the main screen is a map of them.
 Read `ideas.txt` (why), `ARCHITECTURE.md` (how), `development-plan.md` (what, in what order).
+Open source: `CONTRIBUTING.md` (setup, rules, pull requests), `SECURITY.md` (private reports, what is trusted), `CODE_OF_CONDUCT.md`.
 **Current milestone: M4** (ship) built: every milestone of the plan is done. Left for the owner: the visual review, the manual checklist (development-plan.md §7.6), the contract-test secret, and a `v*` tag for the first installers.
 
 ## Commands
