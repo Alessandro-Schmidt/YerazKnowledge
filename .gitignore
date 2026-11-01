@@ -12,3 +12,7 @@ fixtures-out/
 .DS_Store
 .claude/worktrees/
 .taste-skill/
+
+# Local secrets (e.g. YERAZ_CONTRACT_TOKEN for npm run contract)
+.env
+.env.*
