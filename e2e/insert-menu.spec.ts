@@ -22,9 +22,17 @@ test('the menu follows Settings: order, hidden items, and a block inserted from 
   await signInHere(page)
   const items = page.getByRole('list', { name: 'Menu items' })
   await items.getByRole('checkbox', { name: 'Table' }).uncheck()
-  // Above Table (hidden, still in the list), then above Mention a leaf.
-  await page.getByRole('button', { name: 'Move Code block up' }).click()
-  await page.getByRole('button', { name: 'Move Code block up' }).click()
+  // Dragged by its handle above Mention a leaf (and Table, hidden, still in the list).
+  const grip = page.getByRole('button', { name: 'Reorder Code block' })
+  const target = await items
+    .getByRole('listitem')
+    .filter({ hasText: 'Mention a leaf' })
+    .boundingBox()
+  await grip.hover()
+  await page.mouse.down()
+  await page.mouse.move(target!.x + 20, target!.y + 4, { steps: 8 })
+  await page.mouse.up()
+  await expect(items.getByRole('listitem').nth(3)).toContainText('Code block')
 
   await page.getByRole('button', { name: 'New block' }).click()
   const form = page.getByRole('form', { name: 'Block' })
@@ -32,11 +40,9 @@ test('the menu follows Settings: order, hidden items, and a block inserted from 
   await form.getByLabel('Markdown').fill('## Decisions\n\n- [ ] ')
   await form.getByRole('button', { name: 'Save block' }).click()
   await expect(form).toHaveCount(0)
-  for (let i = 0; i < 12; i++) {
-    const up = page.getByRole('button', { name: 'Move Decisions up' })
-    if (await up.isDisabled()) break
-    await up.click()
-  }
+  // The handle moves with the arrow keys too.
+  await page.getByRole('button', { name: 'Reorder Decisions' }).focus()
+  for (let i = 0; i < 12; i++) await page.keyboard.press('ArrowUp')
   await expect(items.getByRole('listitem').first()).toContainText('Decisions')
 
   await page.clock.install()
