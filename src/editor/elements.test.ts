@@ -2,7 +2,17 @@ import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
 import { ensureSyntaxTree } from '@codemirror/language'
 import { EditorSelection, EditorState } from '@codemirror/state'
 import { describe, expect, it } from 'vitest'
-import { deletion, linkAt, linkParts, shownSource, showSource, sourceShown } from './elements'
+import {
+  beingTyped,
+  deletion,
+  doneTyping,
+  linkAt,
+  linkParts,
+  shownSource,
+  showSource,
+  sourceShown,
+  typingLine,
+} from './elements'
 
 const make = (doc: string, cursor = 0) => {
   const state = EditorState.create({
@@ -69,5 +79,44 @@ describe('deletion: what deleting an element takes', () => {
     expect(state.update({ changes: deletion(state, 17, 29) }).state.doc.toString()).toBe(
       'A ![x](/a.png) B',
     )
+  })
+})
+
+describe('the line being typed: an embed on it stays text until it is done', () => {
+  const URL = 'https://youtu.be/dQw4w9WgXcQ'
+  const start = () => EditorState.create({ doc: '# T\n\n', extensions: typingLine })
+  const at = (state: EditorState) => state.doc.line(3)
+
+  it('typed letter by letter, it is being typed until the cursor leaves the line', () => {
+    let state = start()
+    for (const ch of URL)
+      state = state.update({
+        changes: { from: state.doc.length, insert: ch },
+        selection: { anchor: state.doc.length + 1 },
+        userEvent: 'input.type',
+      }).state
+    expect(beingTyped(state, at(state).from, at(state).to)).toBe(true)
+    state = state.update({ selection: { anchor: 0 } }).state
+    expect(beingTyped(state, at(state).from, at(state).to)).toBe(false)
+  })
+
+  it('pasted, it arrives whole: shown at once (a phone has no easy way to leave the line)', () => {
+    const state = start().update({
+      changes: { from: 5, insert: URL },
+      selection: { anchor: 5 + URL.length },
+      userEvent: 'input.paste',
+    }).state
+    expect(beingTyped(state, at(state).from, at(state).to)).toBe(false)
+  })
+
+  it('leaving the editor (the phone keyboard closed) ends the typing', () => {
+    let state = start().update({
+      changes: { from: 5, insert: URL },
+      selection: { anchor: 5 + URL.length },
+      userEvent: 'input.type',
+    }).state
+    expect(beingTyped(state, at(state).from, at(state).to)).toBe(true)
+    state = state.update({ effects: doneTyping.of(null) }).state
+    expect(beingTyped(state, at(state).from, at(state).to)).toBe(false)
   })
 })

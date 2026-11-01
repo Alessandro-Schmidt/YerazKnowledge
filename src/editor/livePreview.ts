@@ -58,6 +58,7 @@ import {
   openElementMenu,
   revealSource,
   shownSource,
+  typingLine,
   sourceShown,
 } from './elements'
 import { titleShown } from './emptyText'
@@ -1121,7 +1122,9 @@ const preview = ViewPlugin.fromClass(
         update.viewportChanged ||
         update.selectionSet ||
         syntaxTree(update.startState) !== syntaxTree(update.state) ||
-        update.startState.field(shownSource, false) !== update.state.field(shownSource, false)
+        update.startState.field(shownSource, false) !== update.state.field(shownSource, false) ||
+        // The line being typed is done (the text lost the focus): its embed is drawn.
+        update.startState.field(typingLine, false) !== update.state.field(typingLine, false)
       ) {
         this.built = build(update.view)
       }

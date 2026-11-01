@@ -64,13 +64,20 @@ export const sourceShown = (state: EditorState, from: number, to: number) =>
 export const typingLine = StateField.define<number | null>({
   create: () => null,
   update(value, tr) {
+    // Leaving the text (on a phone, closing the keyboard) ends the typing.
+    if (tr.effects.some((e) => e.is(doneTyping))) return null
     const line = tr.state.doc.lineAt(tr.state.selection.main.head)
+    // A paste arrives whole: nothing is halfway, so it is drawn at once.
+    if (tr.isUserEvent('input.paste')) return null
     if (tr.isUserEvent('input') || tr.isUserEvent('delete')) return line.from
     // A change made for the person (a pasted link made a bookmark) is done: it is drawn.
     if (value === null || tr.docChanged) return null
     return tr.state.doc.lineAt(value).from === line.from ? line.from : null
   },
 })
+
+/** The typing is done: the text lost the focus (elements' blur handler). */
+export const doneTyping = StateEffect.define<null>()
 
 /** Whether a line from `from` to `to` is being typed. */
 export const beingTyped = (state: EditorState, from: number, to: number) => {
@@ -472,6 +479,13 @@ const longPress = ViewPlugin.define((view) => {
 export const elements = [
   shownSource,
   typingLine,
+  EditorView.domEventHandlers({
+    blur(_, view) {
+      if (view.state.field(typingLine, false) != null)
+        // Not while the blur itself is being handled: CodeMirror may be mid-update.
+        queueMicrotask(() => view.dispatch({ effects: doneTyping.of(null) }))
+    },
+  }),
   menuField,
   editField,
   cursorLink,
