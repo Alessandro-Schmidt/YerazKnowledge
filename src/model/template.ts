@@ -15,7 +15,6 @@ export interface TemplateFill {
   tree: string
 }
 
-export const VARIABLES = ['title', 'date', 'tree'] as const
 const VARIABLE = /\{\{\s*(title|date|tree)\s*\}\}/g
 
 /** `2026-10-27`: the date as the person's calendar has it, not UTC's. */

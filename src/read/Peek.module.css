@@ -559,7 +559,8 @@
     bottom: 0;
     width: auto;
     max-width: none;
-    height: min(60%, 520px);
+    /* As SHEET_HEIGHT in ui/panels.ts, which the map keeps free. */
+    height: min(60vh, 520px);
     border-radius: 18px 18px 0 0;
     border-width: 1px 0 0;
     padding-bottom: env(safe-area-inset-bottom);
@@ -619,6 +620,16 @@
   .kid,
   .thread {
     min-height: 44px;
+  }
+  /* The Options menu opens upwards inside the sheet, which clips it: on a short phone it keeps
+     to the sheet's height (less its foot and head) and scrolls. */
+  .menu {
+    max-height: calc(min(60vh, 520px) - 72px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .peek[data-expanded] .menu {
+    max-height: calc(100vh - 160px);
   }
 }
 

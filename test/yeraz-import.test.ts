@@ -145,13 +145,13 @@ describe('yeraz-import', () => {
   it('converts a OneNote page exported as HTML or MHT, with its images', () => {
     const html =
       '<html><head><title>Meeting notes</title><style>p{}</style></head><body>' +
-      '<h1>Agenda</h1><p>Talk about <b>pricing</b> &amp; <a href="https://mercio.io">Mercio</a>.</p>' +
+      '<h1>Agenda</h1><p>Talk about <b>pricing</b> &amp; <a href="https://example.com">Example</a>.</p>' +
       '<ul><li>One</li><li>Two</li></ul><img src="data:image/png;base64,UE5H" alt="board">' +
       '<table><tr><th>A</th><th>B</th></tr><tr><td>1</td><td>2</td></tr></table></body></html>'
     const { files } = importNotes(from({ 'Work/Meeting.html': html }))
     const t = texts(files)
     expect(t['Work/Meeting.md']).toBe(
-      '# 🗓️ Agenda\n\nTalk about **pricing** & [Mercio](https://mercio.io).\n\n- One\n- Two\n\n' +
+      '# 🗓️ Agenda\n\nTalk about **pricing** & [Example](https://example.com).\n\n- One\n- Two\n\n' +
         '![board](/assets/meeting-1.png)\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n',
     )
     expect(new TextDecoder().decode(files.get('assets/meeting-1.png') as Uint8Array)).toBe('PNG')

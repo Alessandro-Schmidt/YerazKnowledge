@@ -172,3 +172,21 @@ test('fails like a real network error when the fake is offline', async ({ page, 
   )
   expect(error).toBe('TypeError')
 })
+
+test('inside another page’s frame it shows only a link to open it in its own tab', async ({
+  page,
+}) => {
+  // A page that frames the app, served by the test itself (any site could write one).
+  const app = page.url()
+  const framer = new URL('framer.html', app).href
+  await page.route(framer, (route) =>
+    route.fulfill({
+      contentType: 'text/html',
+      body: `<iframe src="${app}" width="600" height="400"></iframe>`,
+    }),
+  )
+  await page.goto(framer)
+  const inner = page.frameLocator('iframe')
+  await expect(inner.getByRole('link', { name: 'Open Yeraz in its own tab' })).toBeVisible()
+  await expect(inner.getByRole('button')).toHaveCount(0)
+})

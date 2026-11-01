@@ -100,7 +100,7 @@ These rules are the contract between Yeraz and your files (ARCHITECTURE.md §4):
 
 ## Develop
 
-Node 24. `npm ci`, then:
+Node 24 (`.nvmrc`). `npm ci`, then:
 
 | Command | |
 |---|---|
@@ -115,6 +115,13 @@ Node 24. `npm ci`, then:
 Start with [`ideas.txt`](ideas.txt) (why), [`ARCHITECTURE.md`](ARCHITECTURE.md) (how) and [`development-plan.md`](development-plan.md) (what, in what order). [`design/`](design) holds the screens, the brand and every colour.
 
 Releases: pushing a `v*` tag builds the desktop installers and attaches them to a draft release.
+
+## Contributing
+
+Bug reports, fixes and ideas are welcome: [CONTRIBUTING.md](CONTRIBUTING.md) says how to set up,
+the rules the code follows and how to send a pull request. Taking part means following the
+[Code of Conduct](CODE_OF_CONDUCT.md). Report security problems privately, as
+[SECURITY.md](SECURITY.md) explains.
 
 ## Licence
 
