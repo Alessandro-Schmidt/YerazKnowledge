@@ -23,7 +23,7 @@ Two Families together: *Engineering* (400 leaves) and *Art History* (90 leaves),
 
 ## Use it
 
-**On the web:** <https://alessandro-schmidt.github.io/YerazKnowledge/>. It works in any modern browser, and installs as an app: *Add to Home Screen* on a phone, or the install button in Chrome or Edge's address bar.
+**On the web:** <https://yeraznotes.com>. It works in any modern browser, and installs as an app: *Add to Home Screen* on a phone, or the install button in Chrome or Edge's address bar.
 
 **On the desktop:** installers for Windows, macOS and Linux are attached to each [release](https://github.com/Alessandro-Schmidt/YerazKnowledge/releases). They aren't signed yet, so the first launch needs one extra step:
 
