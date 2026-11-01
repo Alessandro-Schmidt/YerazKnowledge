@@ -123,7 +123,7 @@ test('a YouTube link pasted, or typed and the keyboard closed, becomes its playe
   await page.goto(`./#/tree/${REPO}/Identity%2Fvideo.md`)
   await signInHere(page)
   const content = page.locator('.cm-content')
-  const players = page.locator('.cm-embed-youtube iframe')
+  const players = page.locator('.cm-embed-youtube .youtube-play')
   await content.getByText('Above.').click()
   await page.keyboard.press('End')
   await page.keyboard.press('Enter')

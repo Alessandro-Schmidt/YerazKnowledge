@@ -45,10 +45,10 @@ import {
   subtitleTracks,
   titleWithWidth,
   type Embed,
-  youtubeSrc,
 } from '../model/embeds'
 import { leadingIcon, linkTarget, ownPath } from '../model/parse'
 import { downloadAsset, fileCardHtml } from '../read/files'
+import { playYouTube, youtubeButtonHtml } from '../read/youtube'
 import { encodePath } from '../ui/paths'
 import {
   beingTyped,
@@ -391,29 +391,28 @@ class EmbedWidget extends WidgetType {
       box.append(title, url)
       return box
     }
-    const el = document.createElement(embed.kind === 'video' ? 'video' : 'iframe')
-    el.title = embed.title || (embed.kind === 'youtube' ? 'YouTube video' : embed.path)
     if (embed.kind === 'youtube') {
-      el.src = youtubeSrc(embed.id, embed.start)
-      el.setAttribute('allow', 'encrypted-media; picture-in-picture; fullscreen')
-      el.setAttribute('referrerpolicy', 'strict-origin-when-cross-origin')
-      el.setAttribute('loading', 'lazy')
-    } else {
-      if (el instanceof HTMLVideoElement) {
-        el.controls = true
-        el.preload = 'metadata'
-      }
-      void this.resolve?.(embed.path).then((url) => url && (el.src = url))
-      this.tracks.forEach((t, n) => {
-        const track = document.createElement('track')
-        track.kind = 'subtitles'
-        if (t.lang) track.srclang = t.lang
-        track.label = t.lang ? languageName(t.lang) : 'Subtitles'
-        track.default = n === 0
-        void this.resolve?.(t.path).then((url) => url && (track.src = url))
-        el.append(track)
-      })
+      // A button until it is played: opening the leaf asks nothing of YouTube.
+      box.innerHTML = youtubeButtonHtml(embed)
+      box.addEventListener('click', playYouTube)
+      return box
     }
+    const el = document.createElement(embed.kind === 'video' ? 'video' : 'iframe')
+    el.title = embed.title || embed.path
+    if (el instanceof HTMLVideoElement) {
+      el.controls = true
+      el.preload = 'metadata'
+    }
+    void this.resolve?.(embed.path).then((url) => url && (el.src = url))
+    this.tracks.forEach((t, n) => {
+      const track = document.createElement('track')
+      track.kind = 'subtitles'
+      if (t.lang) track.srclang = t.lang
+      track.label = t.lang ? languageName(t.lang) : 'Subtitles'
+      track.default = n === 0
+      void this.resolve?.(t.path).then((url) => url && (track.src = url))
+      el.append(track)
+    })
     box.append(el)
     if (embed.kind === 'pdf') {
       const download = document.createElement('a')

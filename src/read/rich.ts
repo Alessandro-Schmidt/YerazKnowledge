@@ -14,9 +14,9 @@ import {
   shortUrl,
   subtitleTracks,
   type Embed,
-  youtubeSrc,
 } from '../model/embeds'
 import { fileCardHtml } from './files'
+import { youtubeButtonHtml } from './youtube'
 
 type MarkdownIt = InstanceType<typeof MarkdownItClass>
 type Token = ReturnType<MarkdownIt['parse']>[number]
@@ -189,14 +189,12 @@ function embedHtml(embed: Embed, env: RichEnv, escape: (s: string) => string): s
   const name = embed.kind === 'youtube' ? '' : embed.path.replace(/^.*\//, '')
   const title = escape(embed.title || name || 'YouTube video')
   if (embed.kind === 'youtube') {
-    const src = youtubeSrc(embed.id, embed.start)
+    // A button until it is played (read/youtube.ts); printed as a link (ARCHITECTURE.md §8),
+    // without YouTube's thumbnail, which would be fetched from Google even while hidden.
     return (
-      `<div class="embed video"><iframe src="${src}" title="${title}" loading="lazy" ` +
-      `allow="encrypted-media; picture-in-picture; fullscreen" allowfullscreen ` +
-      `referrerpolicy="strict-origin-when-cross-origin"></iframe>` +
-      // Printed as its thumbnail with a link (ARCHITECTURE.md §8).
+      `<div class="embed video">${youtubeButtonHtml(embed)}` +
       `<a class="print-only" href="https://www.youtube.com/watch?v=${embed.id}">` +
-      `<img src="https://i.ytimg.com/vi/${embed.id}/hqdefault.jpg" alt=""> ${title} · youtube.com/watch?v=${embed.id}</a></div>\n`
+      `${title} · youtube.com/watch?v=${embed.id}</a></div>\n`
     )
   }
   const path = escape(embed.path)
