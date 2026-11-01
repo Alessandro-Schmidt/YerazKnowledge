@@ -47,6 +47,7 @@ import { leafColors } from './colors'
 import { downloadAsset } from './files'
 import { History } from './History'
 import { printLeaf } from './print'
+import { playYouTube } from './youtube'
 import { renderLeaf } from './render'
 import { planGhostLeaf, planTemplate } from '../sync/structure'
 import type { StructureAction } from '../ui/StructureDialogs'
@@ -1018,7 +1019,10 @@ function ReadText({
       ref={body}
       className={`reading ${styles.content}`}
       dangerouslySetInnerHTML={{ __html: html.html }}
-      onClick={footnoteJump}
+      onClick={(event) => {
+        footnoteJump(event)
+        playYouTube(event)
+      }}
     />
   )
 }

@@ -154,6 +154,42 @@ h3 {
   color: var(--accent);
 }
 
+/* A YouTube video before it is played (read/youtube.ts): the player's size, as a button. */
+.youtube-play {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  padding: 16px;
+  border: 1px solid var(--hair-strong);
+  border-radius: 9px;
+  background: var(--raised);
+  color: var(--text);
+  font: inherit;
+  text-align: center;
+  cursor: pointer;
+}
+@media (hover: hover) and (pointer: fine) {
+  .youtube-play:hover {
+    border-color: var(--accent);
+  }
+}
+.youtube-play strong {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+.youtube-play strong::before {
+  content: '▶\FE0E  ';
+  color: var(--accent);
+}
+.youtube-play span {
+  font-size: 12px;
+  color: var(--muted);
+}
+
 /* Less motion when the system asks for it: nothing moves, but what comes and goes still
    fades (panels enter and leave from where they are: `--enter`; menus only fade: `--pop`); ui/motion.tsx does the same. */
 @media (prefers-reduced-motion: reduce) {

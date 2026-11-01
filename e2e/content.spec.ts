@@ -483,6 +483,14 @@ test.describe('embeds', () => {
   test('the Peek shows math, highlighted code, a PDF, a subtitled video and YouTube', async ({
     page,
   }) => {
+    // YouTube is asked for nothing (no player, no thumbnail) until the video is played.
+    const google: string[] = []
+    page.on('request', (r) => {
+      if (/youtube|ytimg|google/.test(new URL(r.url()).hostname)) google.push(r.url())
+    })
+    await page.route('https://www.youtube-nocookie.com/**', (r) =>
+      r.fulfill({ contentType: 'text/html', body: '<p>player</p>' }),
+    )
     await page.goto(`./#/tree/${REPO}/embeds.md`)
     await signInHere(page)
     const body = page.getByRole('region', { name: 'Leaf preview' })
@@ -497,10 +505,15 @@ test.describe('embeds', () => {
     await expect(body.locator('video')).toHaveAttribute('src', /^blob:/)
     await expect(body.locator('video track')).toHaveAttribute('src', /^blob:/)
     await expect(body.locator('video track')).toHaveAttribute('label', 'English')
+    const play = body.getByRole('button', { name: 'Play The talk from YouTube' })
+    await expect(play).toBeVisible()
+    expect(google).toEqual([])
+    await play.click()
     await expect(body.locator('iframe[title="The talk"]')).toHaveAttribute(
       'src',
-      'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ',
+      'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?autoplay=1',
     )
+    await expect(play).toHaveCount(0)
   })
 
   test('live preview shows math and players away from the cursor', async ({ page }) => {
@@ -509,7 +522,7 @@ test.describe('embeds', () => {
     const editor = page.locator('.cm-content')
     await expect(editor.locator('.cm-math .katex')).toHaveCount(2)
     // The paragraph's player, and the list item's, which keeps its bullet.
-    await expect(editor.locator('.cm-embed-youtube iframe')).toHaveCount(2)
+    await expect(editor.locator('.cm-embed-youtube .youtube-play')).toHaveCount(2)
     await expect(editor.locator('.cm-line:has(.cm-embed-youtube) .cm-bullet')).toHaveCount(1)
     await expect(editor.locator('.cm-embed-video video')).toHaveAttribute('src', /^blob:/)
     // Writing elsewhere on its line keeps the math drawn (issue #68); clicking it shows its source.
@@ -543,13 +556,10 @@ test.describe('embeds', () => {
     })
     await page.goto(`./#/tree/${REPO}/videos.md`)
     await signInHere(page)
-    const players = page.locator('.cm-content .cm-embed-youtube iframe')
+    const players = page.locator('.cm-content .cm-embed-youtube .youtube-play')
     await expect(players).toHaveCount(2)
     for (const player of await players.all())
-      await expect(player).toHaveAttribute(
-        'src',
-        'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ',
-      )
+      await expect(player).toHaveAttribute('data-youtube', 'dQw4w9WgXcQ')
   })
 })
 
