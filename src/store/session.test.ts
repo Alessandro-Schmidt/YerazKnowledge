@@ -1,4 +1,5 @@
 import { resolveObjectURL } from 'node:buffer'
+import { http, HttpResponse } from 'msw'
 import { setupServer } from 'msw/node'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createFakeGitHub, type FakeGitHub } from '../../test/fake-github/fakeGitHub'
@@ -204,6 +205,43 @@ describe('session', () => {
       expect(s.getState().sync['you/engineering']).toEqual({ status: 'synced' }),
     )
     expect(s.getState().data['you/engineering']!.graph!.nodes.get(leaf)).toBeDefined()
+  })
+
+  it('a Family opened again while it commits keeps the committed text, not the one before', async () => {
+    const s = createSession({ store: memoryStore() })
+    await s.getState().signIn('good')
+    await s.getState().open('you/engineering')
+    const leaf = [...s.getState().data['you/engineering']!.graph!.nodes.values()].find(
+      (n) => n.kind === 'leaf',
+    )!.id
+    await s.getState().apply('you/engineering', [{ path: leaf, text: '# Committed\n' }])
+    // The reopening pull asks whether the head moved before the commit lands, and hears the
+    // answer only after it has.
+    let release!: () => void
+    const gate = new Promise<void>((r) => (release = r))
+    let held = false
+    server.use(
+      http.get('https://api.github.com/repos/*/commits/*', async ({ request }) => {
+        if (held || !request.headers.get('if-none-match')) return
+        held = true
+        const res = await fake.handle({
+          method: 'GET',
+          url: request.url,
+          headers: Object.fromEntries(request.headers),
+          body: null,
+        })
+        await gate
+        return new HttpResponse(res.body, { status: res.status, headers: res.headers })
+      }),
+    )
+    const reopening = s.getState().open('you/engineering')
+    await vi.waitFor(() => expect(held).toBe(true))
+    await s.getState().flush('you/engineering')
+    expect(fake.repo('you/engineering').read(leaf)).toBe('# Committed\n')
+    release()
+    await reopening
+    expect(await s.getState().textOf('you/engineering', leaf)).toBe('# Committed\n')
+    expect(s.getState().data['you/engineering']!.graph!.nodes.get(leaf)!.title).toBe('Committed')
   })
 
   it('gives every leaf text from the cache, pending edits included, without a request', async () => {

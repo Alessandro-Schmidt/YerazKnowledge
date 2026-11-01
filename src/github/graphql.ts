@@ -90,7 +90,29 @@ export async function fetchBlobs(
     { owner, name },
   )
   if (!data.repository) throw new GitHubError('not-found', `Repository ${repo} not found`)
-  return new Map(shas.map((sha, i) => [sha, data.repository![`b${i}`]?.text ?? null]))
+  const found = data.repository
+  const texts = new Map(shas.map((sha, i) => [sha, found[`b${i}`]?.text ?? null]))
+  // GitHub gives no text for a file git calls binary, as a note saved in UTF-16 is: read its
+  // bytes instead, or the note would show empty and the next edit replace the real file.
+  await Promise.all(
+    shas.map(async (sha, i) => {
+      if (found[`b${i}`] && texts.get(sha) === null)
+        texts.set(sha, decodeNote(await client.getBlob(repo, sha)))
+    }),
+  )
+  return texts
+}
+
+/** A note's text from its bytes: UTF-16 with its byte-order mark, or UTF-8; null for neither. */
+export function decodeNote(bytes: Uint8Array): string | null {
+  const [a, b] = bytes
+  const encoding =
+    a === 0xff && b === 0xfe ? 'utf-16le' : a === 0xfe && b === 0xff ? 'utf-16be' : 'utf-8'
+  try {
+    return new TextDecoder(encoding, { fatal: true }).decode(bytes)
+  } catch {
+    return null
+  }
 }
 
 /** A past version of a file: the commit that wrote it. */

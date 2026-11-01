@@ -265,6 +265,8 @@ export function createSession(deps: {
   const api = deps.api ?? (() => 'https://api.github.com')
   const pulls = new Map<string, Promise<void>>()
   const bases = new Map<string, Base>()
+  /** Commits finished per Family: a pull begun before one must not put back the older base. */
+  const commits = new Map<string, number>()
   const dirty = new Map<string, Dirty>()
   const autosaves = new Map<string, Autosave>()
   // ponytail: object URLs live as long as the page; revoke them if memory ever matters.
@@ -490,6 +492,8 @@ export function createSession(deps: {
         const pushed = isFolder(key)
           ? await pushFolder(base.ref, snapshot, { fs: await folderOf(key), store })
           : await pushTree(base.ref, snapshot, { client: github(), store })
+        // The Family was removed, or everyone signed out, while it committed: nothing to update.
+        if (!dirty.has(key)) return
         // The new base first, then the committed edits go: a file is always in one of the
         // two, so an image being shown doesn't vanish mid-commit.
         const listing = await store.get<CachedListing>(`tree:${base.ref.repo}`)
@@ -501,6 +505,7 @@ export function createSession(deps: {
           })
           bases.set(key, { ...base, entries: listing.entries, leaves, offline: false })
         }
+        commits.set(key, (commits.get(key) ?? 0) + 1)
         // Edits made while committing stay pending, now on top of what was just committed.
         const current = dirty.get(key)!
         for (const [path, sent] of Object.entries(snapshot)) {
@@ -795,6 +800,7 @@ export function createSession(deps: {
               await saveTrees(mergeTrees(get().trees, [ref]))
             }
             const title = ref.title
+            const committedBefore = commits.get(key) ?? 0
             const edits = await loadDirty(key)
             setData(key, { status: 'loading', graph: previous, fetched: 0, total: 0 })
             const onProgress = (p: PullProgress) => {
@@ -822,12 +828,14 @@ export function createSession(deps: {
             const pulled = isFolder(key)
               ? await pullFolder(ref, { fs: await folderOf(key), store, onProgress })
               : await pullTree(ref, { client: github(), store, onProgress })
-            bases.set(key, {
-              ref,
-              entries: pulled.entries,
-              leaves: pulled.leaves,
-              offline: pulled.offline,
-            })
+            // A commit that finished meanwhile left a newer base than this pull's listing.
+            if ((commits.get(key) ?? 0) === committedBefore)
+              bases.set(key, {
+                ref,
+                entries: pulled.entries,
+                leaves: pulled.leaves,
+                offline: pulled.offline,
+              })
             show(key)
             // Edits left from an earlier visit are committed now (ARCHITECTURE.md §5.2).
             if (Object.keys(edits).length) {
