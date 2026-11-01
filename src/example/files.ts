@@ -10,7 +10,7 @@ export const AGENTS_FILE = 'CLAUDE.md'
 
 export const AGENTS_TEXT = `# 🤖 Notes for AI agents
 
-These notes are kept with [Yeraz](https://github.com/Alessandro-Schmidt/YerazKnowledge). An agent writing here keeps to this format, so the map stays right.
+These notes are kept with [Yeraz](https://github.com/Alessandro-Schmidt/YerazNotes). An agent writing here keeps to this format, so the map stays right.
 
 ## One leaf, one file
 

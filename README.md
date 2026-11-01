@@ -25,7 +25,7 @@ Two Families together: *Engineering* (400 leaves) and *Art History* (90 leaves),
 
 **On the web:** <https://yeraznotes.com>. It works in any modern browser, and installs as an app: *Add to Home Screen* on a phone, or the install button in Chrome or Edge's address bar.
 
-**On the desktop:** installers for Windows, macOS and Linux are attached to each [release](https://github.com/Alessandro-Schmidt/YerazKnowledge/releases). They aren't signed yet, so the first launch needs one extra step:
+**On the desktop:** installers for Windows, macOS and Linux are attached to each [release](https://github.com/Alessandro-Schmidt/YerazNotes/releases). They aren't signed yet, so the first launch needs one extra step:
 
 - **macOS:** right-click Yeraz in Applications, choose *Open*, then *Open* again.
 - **Windows:** on the SmartScreen warning, choose *More info*, then *Run anyway*.
@@ -75,7 +75,7 @@ Notion's ids leave the file names, `[[wikilinks]]` and relative links become thr
 Without a clone, the standalone skill in [`skills/yeraz-import/`](skills/yeraz-import/) does the same from one Node script, reads Logseq graphs and OneNote's HTML or MHT exports too, and gives every page an emoji icon that says what it is about (Claude chooses them from an inventory of the pages):
 
 ```sh
-npx skills add Alessandro-Schmidt/YerazKnowledge --skill yeraz-import
+npx skills add Alessandro-Schmidt/YerazNotes --skill yeraz-import
 ```
 
 ### Every Family together

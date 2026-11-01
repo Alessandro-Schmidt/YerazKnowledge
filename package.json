@@ -8,10 +8,10 @@
   "homepage": "https://yeraznotes.com/",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Alessandro-Schmidt/YerazKnowledge.git"
+    "url": "git+https://github.com/Alessandro-Schmidt/YerazNotes.git"
   },
   "bugs": {
-    "url": "https://github.com/Alessandro-Schmidt/YerazKnowledge/issues"
+    "url": "https://github.com/Alessandro-Schmidt/YerazNotes/issues"
   },
   "type": "module",
   "engines": {

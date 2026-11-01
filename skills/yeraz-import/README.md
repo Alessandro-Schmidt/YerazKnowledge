@@ -2,14 +2,14 @@
 
 A [Claude Code](https://claude.com/claude-code) skill (and a plain Node script) that brings
 notes from Obsidian, Notion, Logseq, Bear, OneNote exports or any folder of Markdown or HTML into
-a [Yeraz](https://github.com/Alessandro-Schmidt/YerazKnowledge) Family: every page a leaf with
+a [Yeraz](https://github.com/Alessandro-Schmidt/YerazNotes) Family: every page a leaf with
 a title and an emoji icon, links as threads, files in `assets/`. It needs Node 20 or newer and
 nothing else; the Yeraz repository is not required.
 
 Install the skill:
 
 ```sh
-npx skills add Alessandro-Schmidt/YerazKnowledge --skill yeraz-import
+npx skills add Alessandro-Schmidt/YerazNotes --skill yeraz-import
 ```
 
 or copy this folder to `~/.claude/skills/yeraz-import/`. Then ask Claude to import your notes.
