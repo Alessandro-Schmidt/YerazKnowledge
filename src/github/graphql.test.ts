@@ -87,6 +87,20 @@ describe('fetchBlobs', () => {
     ])
   })
 
+  it("reads a note GitHub calls binary, as Windows' UTF-16 makes it, from its bytes", async () => {
+    // Notepad's "Unicode": a byte-order mark, then two bytes per letter, half of them NUL.
+    const text = '# Ünïcode\n\nNotes.\n'
+    const bytes = new Uint8Array(2 + text.length * 2)
+    bytes.set([0xff, 0xfe])
+    for (let i = 0; i < text.length; i++) bytes[2 + i * 2] = text.charCodeAt(i)
+    await fake.repo('you/engineering').commit({
+      message: 'utf-16',
+      additions: [{ path: 'wide.md', contents: bytes }],
+    })
+    const sha = await gitBlobSha(bytes)
+    expect((await fetchBlobs(client, 'you/engineering', [sha])).get(sha)).toBe(text)
+  })
+
   it('refuses anything that is not a SHA, so nothing can be injected into the query', async () => {
     await expect(fetchBlobs(client, 'you/engineering', ['") { x } #'])).rejects.toThrow(
       'Not a blob SHA',

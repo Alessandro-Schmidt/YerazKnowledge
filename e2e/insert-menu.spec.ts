@@ -52,7 +52,9 @@ test('the menu follows Settings: order, hidden items, and a block inserted from 
   expect(labels.slice(0, 1)).toEqual(['Decisions'])
   expect(labels).not.toContain('Table')
   expect(labels.indexOf('Code block')).toBeLessThan(labels.indexOf('Mention a leaf'))
-  await menu.getByRole('menuitem', { name: 'Decisions' }).click()
+  // The menu opens on its first item: Enter picks it.
+  await expect(menu.getByRole('menuitem', { name: 'Decisions' })).toBeFocused()
+  await page.keyboard.press('Enter')
   await page.keyboard.type('Ship it')
   await page.keyboard.press('ControlOrMeta+s')
   await expect

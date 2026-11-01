@@ -44,7 +44,7 @@ import { useDeleteKey } from './deleteKey'
 import { colorVar } from './theme'
 import { ProjectTabs } from './ProjectTabs'
 import { Divider, TopBar } from './TopBar'
-import { widthStore, widthVars } from './panels'
+import { SHEET_HEIGHT, widthStore, widthVars } from './panels'
 import { PHONE, useMedia } from './useMedia'
 
 const TITLE = 'All projects'
@@ -198,7 +198,7 @@ export function AllView({ params }: { params: { owner?: string; name?: string; '
   // The panels' widths, dragged by their edges and saved on this device (issue #80).
   const widths = useSyncExternalStore(widthStore.subscribe, widthStore.get)
   const insets = phone
-    ? { bottom: peekShown ? Math.round(window.innerHeight * 0.6) : 0 }
+    ? { bottom: peekShown ? SHEET_HEIGHT() : 0 }
     : { right: peekShown && !expanded ? (panel === 'dock' ? widths.dock : widths.peek + 32) : 0 }
   // New leaf goes to the selection's Family, or the first one.
   const target = family ?? families[0]
