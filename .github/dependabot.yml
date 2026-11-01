@@ -1,9 +1,11 @@
 # Weekly updates, grouped so they arrive as a few pull requests. Versions stay pinned exactly
-# (CONTRIBUTING.md): Dependabot keeps the exact pins up to date.
+# (CONTRIBUTING.md): Dependabot keeps the exact pins up to date. Updates go to develop, like any
+# other change; they reach main with the next release.
 version: 2
 updates:
   - package-ecosystem: npm
     directory: /
+    target-branch: develop
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
@@ -16,6 +18,7 @@ updates:
         update-types: [minor, patch]
   - package-ecosystem: github-actions
     directory: /
+    target-branch: develop
     schedule:
       interval: weekly
     groups:
@@ -23,6 +26,7 @@ updates:
         patterns: ['*']
   - package-ecosystem: cargo
     directory: /src-tauri
+    target-branch: develop
     schedule:
       interval: weekly
     groups:

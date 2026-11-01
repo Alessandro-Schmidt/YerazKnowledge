@@ -5,7 +5,7 @@ nothing from you: no account, no analytics, no cookies, no error reports. This p
 everything the app keeps and every place it connects to, as the EU's GDPR (Art. 13) asks.
 
 **Who publishes it:** the maintainers of
-[Alessandro-Schmidt/YerazKnowledge](https://github.com/Alessandro-Schmidt/YerazKnowledge).
+[Alessandro-Schmidt/YerazNotes](https://github.com/Alessandro-Schmidt/YerazNotes).
 Questions about privacy: open an issue there, or for anything sensitive, use the
 **Security** tab's private report.
 

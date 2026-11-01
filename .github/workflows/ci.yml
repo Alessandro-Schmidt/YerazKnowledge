@@ -3,11 +3,13 @@ name: CI
 # Fast on every push and pull request: the checks, then the end-to-end tests on Chromium.
 # WebKit and the phones run nightly (nightly.yml), the desktop build when src-tauri/ changes
 # (desktop.yml), so a slow or flaky emulator never holds back a merge or a deploy.
+# Branches: work goes to develop; main takes releases only (a pull request from develop, or
+# a hotfix/ branch), and a push to main is what deploys the site.
 
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [main, develop]
 
 permissions:
   contents: read
@@ -68,6 +70,32 @@ jobs:
           name: playwright-report
           path: playwright-report
           retention-days: 14
+
+  # Required in main's ruleset: main takes a release from develop, or a hotfix/ branch of this
+  # repository, nothing else. The branch name is read from the environment, never pasted into
+  # the script (it is the pull request author's text).
+  release-source:
+    if: github.event_name == 'pull_request' && github.base_ref == 'main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - name: A pull request into main comes from develop or a hotfix/ branch
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          REPO: ${{ github.repository }}
+        run: |
+          if [ "$HEAD_REPO" != "$REPO" ]; then
+            echo "::error::Pull requests into main come from this repository's develop or hotfix/ branches. Open this one against develop."
+            exit 1
+          fi
+          case "$HEAD_REF" in
+            develop | hotfix/*) echo "From $HEAD_REF: fine." ;;
+            *)
+              echo "::error::Pull requests into main come from develop (a release) or a hotfix/ branch, not from $HEAD_REF. Open this one against develop."
+              exit 1
+              ;;
+          esac
 
   deploy:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
