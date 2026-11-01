@@ -34,8 +34,8 @@ someone represents the project elsewhere.
 ## Reporting and enforcement
 
 Report unacceptable behaviour privately to the maintainer,
-[Alessandro Schmidt](https://github.com/Alessandro-Schmidt), at the email address on their
-GitHub profile. Every report is reviewed and kept confidential.
+[Alessandro Schmidt](https://github.com/Alessandro-Schmidt), at
+<alessandromacielschmidt@hotmail.com>. Every report is reviewed and kept confidential.
 
 The maintainer may remove, edit or reject comments, commits, code, issues and other
 contributions that do not follow this code. Depending on how serious it is, a breach may lead to
