@@ -27,6 +27,8 @@ jobs:
       HOME: /root
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v7
         with:
           node-version: 24
@@ -45,6 +47,8 @@ jobs:
     if: ${{ vars.YERAZ_CONTRACT_REPO != '' }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v7
         with:
           node-version: 24

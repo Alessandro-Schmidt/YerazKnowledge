@@ -31,12 +31,24 @@ const ready =
       })
     : Promise.resolve()
 
-void ready.then(() => {
-  createRoot(document.getElementById('root')!).render(
-    <StrictMode>
-      <ErrorBoundary>
-        <App />
-      </ErrorBoundary>
-    </StrictMode>,
-  )
-})
+// Inside another site's frame, that site could trick clicks on the notes (clickjacking), and
+// GitHub Pages can't send the header that forbids framing: open in a tab of its own instead.
+const framed = window.top !== window.self
+
+if (framed) {
+  const open = document.createElement('a')
+  open.href = location.href
+  open.target = '_blank'
+  open.rel = 'noopener noreferrer'
+  open.textContent = 'Open Yeraz in its own tab'
+  document.getElementById('root')!.replaceChildren(open)
+} else
+  void ready.then(() => {
+    createRoot(document.getElementById('root')!).render(
+      <StrictMode>
+        <ErrorBoundary>
+          <App />
+        </ErrorBoundary>
+      </StrictMode>,
+    )
+  })
