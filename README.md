@@ -114,7 +114,7 @@ Node 24 (`.nvmrc`). `npm ci`, then:
 
 Start with [`ideas.txt`](ideas.txt) (why), [`ARCHITECTURE.md`](ARCHITECTURE.md) (how) and [`development-plan.md`](development-plan.md) (what, in what order). [`design/`](design) holds the screens, the brand and every colour.
 
-Releases: pushing a `v*` tag builds the desktop installers and attaches them to a draft release.
+Work goes to `develop`; `main` takes releases, and a push to it deploys the site. Pushing a `v*` tag builds the desktop installers and attaches them to a draft release ([CONTRIBUTING.md](CONTRIBUTING.md#branches-and-releases)).
 
 ## Contributing
 
