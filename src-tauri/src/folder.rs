@@ -106,13 +106,21 @@ fn root_of(root: &str) -> Result<&Path, String> {
     }
 }
 
-/// A path inside the folder: plain names only, so no `..` or absolute path escapes it.
+/// A path inside the folder: plain names only, so no `..` or absolute path escapes it, and
+/// no symbolic link on the way, so a link in a folder someone shared can't lead out of it.
 fn inside(root: &str, path: &str) -> Result<PathBuf, String> {
     let rel = Path::new(path);
     if path.is_empty() || !rel.components().all(|c| matches!(c, Component::Normal(_))) {
         return Err(format!("Not a path inside the folder: {path}"));
     }
-    Ok(root_of(root)?.join(rel))
+    let mut at = root_of(root)?.to_path_buf();
+    for part in rel.components() {
+        at.push(part);
+        if fs::symlink_metadata(&at).is_ok_and(|m| m.file_type().is_symlink()) {
+            return Err(format!("Not a path inside the folder: {path}"));
+        }
+    }
+    Ok(at)
 }
 
 /// Hidden entries (`.git`, `.obsidian`, `.DS_Store`) are left out, except the root's marker
@@ -349,5 +357,18 @@ mod tests {
         for bad in ["", "../x", "notes/../../x", "/etc/passwd"] {
             assert!(inside(root, bad).is_err(), "{bad}");
         }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_link_inside_the_folder_never_leads_out_of_it() {
+        let root = scratch("links");
+        let away = scratch("links-away");
+        std::os::unix::fs::symlink(&away, root.join("evil")).unwrap();
+        std::os::unix::fs::symlink(away.join("secret"), root.join("leaf.md")).unwrap();
+        let root = root.to_str().unwrap();
+        assert!(inside(root, "evil/x.md").is_err());
+        assert!(inside(root, "leaf.md").is_err());
+        assert!(inside(root, "plain/new.md").is_ok());
     }
 }
