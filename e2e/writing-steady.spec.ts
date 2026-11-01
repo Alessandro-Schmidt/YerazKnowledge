@@ -108,3 +108,40 @@ test('on a phone, the full page shows the sync state and Save, since it covers t
   await save.click()
   await expect.poll(() => fake.repo(REPO).read(LEAF)).toContain('After. More.')
 })
+
+test('a YouTube link pasted, or typed and the keyboard closed, becomes its player', async ({
+  page,
+  fake,
+}) => {
+  await fake.repo(REPO).commit({
+    message: 'video',
+    additions: [{ path: 'Identity/video.md', contents: '# Video\n\nAbove.\n' }],
+  })
+  await page.route('https://www.youtube-nocookie.com/**', (r) =>
+    r.fulfill({ contentType: 'text/html', body: '<p>player</p>' }),
+  )
+  await page.goto(`./#/tree/${REPO}/Identity%2Fvideo.md`)
+  await signInHere(page)
+  const content = page.locator('.cm-content')
+  const players = page.locator('.cm-embed-youtube iframe')
+  await content.getByText('Above.').click()
+  await page.keyboard.press('End')
+  await page.keyboard.press('Enter')
+  await page.keyboard.press('Enter')
+  // Pasted: the whole address arrives at once, so it is drawn as it lands.
+  await content.evaluate((el) => {
+    const data = new DataTransfer()
+    data.setData('text/plain', 'https://youtu.be/dQw4w9WgXcQ?si=shared')
+    el.dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true }))
+  })
+  await expect(players).toHaveCount(1)
+
+  // Typed: text while it is written, a player once the text is left (the keyboard closed).
+  await page.keyboard.press('ControlOrMeta+End')
+  await page.keyboard.press('Enter')
+  await page.keyboard.press('Enter')
+  await page.keyboard.type('https://www.youtube.com/watch?v=9bZkp7q19f0')
+  await expect(players).toHaveCount(1)
+  await content.evaluate((el) => (el as HTMLElement).blur())
+  await expect(players).toHaveCount(2)
+})
