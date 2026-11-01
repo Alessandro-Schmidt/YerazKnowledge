@@ -221,7 +221,7 @@ describe('youtubeSrc', () => {
       'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ',
     )
     expect(youtubeSrc('dQw4w9WgXcQ', 90, true)).toBe(
-      'https://alessandro-schmidt.github.io/YerazKnowledge/youtube.html?v=dQw4w9WgXcQ&start=90',
+      'https://yeraznotes.com/youtube.html?v=dQw4w9WgXcQ&start=90',
     )
   })
 })

@@ -12,8 +12,7 @@ to you, unless you would rather stay anonymous.
 
 ## Supported versions
 
-Only the latest release, and the web app at
-<https://alessandro-schmidt.github.io/YerazKnowledge/>, get security fixes.
+Only the latest release, and the web app at <https://yeraznotes.com>, get security fixes.
 
 ## How Yeraz handles your data
 
@@ -34,11 +33,10 @@ Yeraz has no server. Knowing what it trusts helps to judge a report:
 
 ### Known limits
 
-- **The web app shares its origin with other GitHub Pages sites of the same account.** The
-  official build is served from `alessandro-schmidt.github.io`, so that account hosts no other
-  Pages site. If you deploy your own copy to `<you>.github.io/<repo>`, every other Pages site on
-  that account can read the token stored by the app. Serve it from its own domain, or keep no
-  other Pages sites on that account.
+- **A copy on GitHub Pages shares its origin with the account's other Pages sites.** The
+  official build is served from its own domain, `yeraznotes.com`. If you deploy your own copy to
+  `<you>.github.io/<repo>`, every other Pages site on that account can read the token stored by
+  the app. Serve it from its own domain, or keep no other Pages sites on that account.
 - **Images from the web load when a note is shown.** A note that links to an image on another
   server reveals to that server that the note was read, and from which IP address, as an email
   would. The note's content is not sent.
