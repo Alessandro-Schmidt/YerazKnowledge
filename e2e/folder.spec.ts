@@ -142,12 +142,12 @@ test('Try an example writes the example Family into the picked folder, CLAUDE.md
   await expect(page.locator('[data-map]')).toBeVisible()
   await expect(page).toHaveURL(/#\/tree\/~\/notes$/)
   expect(await readFile(page, 'CLAUDE.md')).toMatch(/^# 🤖 Notes for AI agents/)
-  expect(await readFile(page, 'Projects/README.md')).toMatch(/^# 🧭 Projects/)
+  expect(await readFile(page, 'Chess/README.md')).toMatch(/^# ♟️ Chess/)
   await expect(page.getByRole('treeitem', { name: /Welcome/ })).toBeVisible()
   await expect(page.getByRole('treeitem', { name: /Notes for AI agents/ })).toBeVisible()
   // A thread between two of its leaves, and the ghost it points at.
   await expect(page.locator('[data-map] [data-thread]').first()).toBeAttached()
-  await page.goto('./#/tree/~/notes/Ideas.md')
+  await page.goto('./#/tree/~/notes/Armenia%2Fcuisine.md')
   await expect(page.getByRole('region', { name: 'Leaf not written yet' })).toBeVisible()
 })
 
